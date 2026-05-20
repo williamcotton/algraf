@@ -1,0 +1,16 @@
+[package]
+name = "algraf-lsp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+algraf-core = { workspace = true }
+algraf-syntax = { workspace = true }
+algraf-semantics = { workspace = true }
+algraf-data = { workspace = true }
+tower-lsp = { workspace = true }
+tokio = { workspace = true }
+dashmap = { workspace = true }

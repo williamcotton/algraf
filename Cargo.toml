@@ -1,0 +1,43 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/algraf-core",
+    "crates/algraf-syntax",
+    "crates/algraf-data",
+    "crates/algraf-semantics",
+    "crates/algraf-render",
+    "crates/algraf-lsp",
+    "crates/algraf-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/williamcotton/algraf"
+rust-version = "1.80"
+
+[workspace.dependencies]
+# Internal crates
+algraf-core = { path = "crates/algraf-core" }
+algraf-syntax = { path = "crates/algraf-syntax" }
+algraf-data = { path = "crates/algraf-data" }
+algraf-semantics = { path = "crates/algraf-semantics" }
+algraf-render = { path = "crates/algraf-render" }
+algraf-lsp = { path = "crates/algraf-lsp" }
+
+# External dependencies (see spec §23.3)
+clap = { version = "4", features = ["derive"] }
+logos = "0.14"
+rowan = "0.16"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+csv = "1"
+chrono = "0.4"
+indexmap = "2"
+thiserror = "2"
+tower-lsp = "0.20"
+tokio = { version = "1", features = ["full"] }
+dashmap = "6"
+insta = "1"
+pretty_assertions = "1"
