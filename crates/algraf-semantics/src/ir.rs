@@ -1,0 +1,154 @@
+//! Semantic IR (spec §13.2–13.7).
+//!
+//! The IR mirrors executable meaning, separate from the source-mirroring AST.
+//! Unknown references use `Invalid` / `Unknown` sentinels to avoid cascading
+//! failures (spec §13.7).
+
+use algraf_core::Span;
+use algraf_data::DataType;
+
+/// The root of the analyzed chart (spec §13.2).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChartIr {
+    pub data_source: DataSourceIr,
+    pub derived_tables: Vec<DeriveIr>,
+    pub width: u32,
+    pub height: u32,
+    pub spaces: Vec<SpaceIr>,
+}
+
+/// The chart's primary data source (spec §10.1).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DataSourceIr {
+    /// A CSV path relative to the source file.
+    Path(String),
+    /// The `stdin` sentinel.
+    Stdin,
+    /// No valid data source was declared.
+    Missing,
+}
+
+/// A derived table produced by a `Derive` declaration (spec §13.4).
+#[derive(Debug, Clone, PartialEq)]
+pub struct DeriveIr {
+    pub name: String,
+    pub stat: StatCallIr,
+    pub output_schema: Vec<ColumnDefIr>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StatCallIr {
+    pub kind: StatKind,
+    pub input: FrameIr,
+    pub settings: Vec<Setting>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatKind {
+    Bin,
+    Count,
+    Smooth,
+    Boxplot,
+}
+
+/// A minimal column definition carried in the IR (name + type + span).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ColumnDefIr {
+    pub name: String,
+    pub dtype: DataType,
+}
+
+/// A space and its trained-frame plan (spec §13.3).
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpaceIr {
+    pub data: SpaceDataRef,
+    pub frame: FrameIr,
+    pub geometries: Vec<GeometryIr>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpaceDataRef {
+    Primary,
+    Derived(String),
+}
+
+/// The algebraic frame in canonical form (spec §13.5, §8.9).
+#[derive(Debug, Clone, PartialEq)]
+pub enum FrameIr {
+    Vector(ColumnRef),
+    Cartesian(Vec<FrameIr>),
+    Nested {
+        outer: Box<FrameIr>,
+        inner: Box<FrameIr>,
+    },
+    Union(Vec<FrameIr>),
+    Invalid,
+}
+
+/// A resolved column reference (spec §13.7).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ColumnRef {
+    pub name: String,
+    pub dtype: DataType,
+    pub span: Span,
+}
+
+/// A geometry layer (spec §13.6).
+#[derive(Debug, Clone, PartialEq)]
+pub struct GeometryIr {
+    pub kind: GeometryKind,
+    pub mappings: Vec<AestheticMapping>,
+    pub settings: Vec<GeometrySetting>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GeometryKind {
+    Point,
+    Line,
+    Bar,
+    Rect,
+    Histogram,
+    Smooth,
+    Boxplot,
+    Violin,
+    Ribbon,
+    Tile,
+    HLine,
+    VLine,
+    Rug,
+}
+
+/// A binding from an aesthetic to a data column (spec §13.6).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AestheticMapping {
+    pub aesthetic: String,
+    pub column: ColumnRef,
+}
+
+/// A geometry setting bound to a literal value.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GeometrySetting {
+    pub name: String,
+    pub value: SettingValue,
+}
+
+/// A general statistical-transform or geometry setting.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Setting {
+    pub name: String,
+    pub value: SettingValue,
+}
+
+/// A literal setting value.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SettingValue {
+    Number(f64),
+    String(String),
+    Bool(bool),
+    Null,
+    NumberArray(Vec<f64>),
+}

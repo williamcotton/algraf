@@ -1,0 +1,228 @@
+//! Geometry and property registry (spec §13.8–13.9).
+//!
+//! The registry drives geometry-name validation, property validation, and
+//! completion. Each geometry lists its accepted properties; each property lists
+//! the value forms it accepts and whether it is required.
+
+use crate::ir::GeometryKind;
+
+/// A value form a property accepts (spec §13.9).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Accept {
+    /// A column mapping (bare or quoted identifier).
+    Column,
+    /// A numeric literal.
+    Number,
+    /// A color string literal.
+    Color,
+    /// A free string literal (e.g. an axis label).
+    Str,
+    /// A boolean literal.
+    Bool,
+    /// One of a fixed set of string-literal enum values.
+    Enum(&'static [&'static str]),
+    /// An array of numeric literals.
+    NumberArray,
+}
+
+/// A geometry property definition (spec §13.9).
+#[derive(Debug, Clone, Copy)]
+pub struct PropSpec {
+    pub name: &'static str,
+    pub accepts: &'static [Accept],
+    pub required: bool,
+}
+
+const fn opt(name: &'static str, accepts: &'static [Accept]) -> PropSpec {
+    PropSpec {
+        name,
+        accepts,
+        required: false,
+    }
+}
+
+const fn req(name: &'static str, accepts: &'static [Accept]) -> PropSpec {
+    PropSpec {
+        name,
+        accepts,
+        required: true,
+    }
+}
+
+/// A geometry definition (spec §13.8).
+#[derive(Debug, Clone, Copy)]
+pub struct GeometryDef {
+    pub name: &'static str,
+    pub kind: GeometryKind,
+    pub props: &'static [PropSpec],
+}
+
+// Common aesthetic value forms.
+const FILL: &[Accept] = &[Accept::Column, Accept::Color];
+const STROKE: &[Accept] = &[Accept::Column, Accept::Color];
+const ALPHA: &[Accept] = &[Accept::Number, Accept::Column];
+const SIZE: &[Accept] = &[Accept::Number, Accept::Column];
+const SHAPE: &[Accept] = &[Accept::Column, Accept::Str];
+const STROKE_WIDTH: &[Accept] = &[Accept::Number];
+const POS: &[Accept] = &[Accept::Column, Accept::Number];
+
+const POINT: &[PropSpec] = &[
+    opt("fill", FILL),
+    opt("stroke", STROKE),
+    opt("alpha", ALPHA),
+    opt("size", SIZE),
+    opt("shape", SHAPE),
+];
+
+const LINE: &[PropSpec] = &[
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+];
+
+const BAR: &[PropSpec] = &[
+    opt("fill", FILL),
+    opt("alpha", ALPHA),
+    opt("layout", &[Accept::Enum(&["identity", "stack", "fill"])]),
+];
+
+const RECT: &[PropSpec] = &[
+    req("xmin", POS),
+    req("xmax", POS),
+    req("ymin", POS),
+    req("ymax", POS),
+    opt("fill", FILL),
+    opt("alpha", ALPHA),
+];
+
+const HISTOGRAM: &[PropSpec] = &[
+    opt("bins", &[Accept::Number]),
+    opt("fill", FILL),
+    opt("alpha", ALPHA),
+];
+
+const SMOOTH: &[PropSpec] = &[
+    opt("method", &[Accept::Enum(&["lm", "loess"])]),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+];
+
+const BOXPLOT: &[PropSpec] = &[opt("fill", FILL), opt("alpha", ALPHA)];
+
+const VIOLIN: &[PropSpec] = &[
+    opt("fill", FILL),
+    opt("alpha", ALPHA),
+    opt("quantiles", &[Accept::NumberArray]),
+];
+
+const RIBBON: &[PropSpec] = &[
+    opt("ymin", POS),
+    opt("ymax", POS),
+    opt("fill", FILL),
+    opt("alpha", ALPHA),
+];
+
+const TILE: &[PropSpec] = &[opt("fill", FILL), opt("alpha", ALPHA)];
+
+const HLINE: &[PropSpec] = &[
+    req("y", &[Accept::Number]),
+    opt("stroke", STROKE),
+    opt("label", &[Accept::Str]),
+];
+
+const VLINE: &[PropSpec] = &[
+    req("x", &[Accept::Number]),
+    opt("stroke", STROKE),
+    opt("label", &[Accept::Str]),
+];
+
+const RUG: &[PropSpec] = &[opt("stroke", STROKE), opt("alpha", ALPHA)];
+
+const GEOMETRIES: &[GeometryDef] = &[
+    GeometryDef {
+        name: "Point",
+        kind: GeometryKind::Point,
+        props: POINT,
+    },
+    GeometryDef {
+        name: "Line",
+        kind: GeometryKind::Line,
+        props: LINE,
+    },
+    GeometryDef {
+        name: "Bar",
+        kind: GeometryKind::Bar,
+        props: BAR,
+    },
+    GeometryDef {
+        name: "Rect",
+        kind: GeometryKind::Rect,
+        props: RECT,
+    },
+    GeometryDef {
+        name: "Histogram",
+        kind: GeometryKind::Histogram,
+        props: HISTOGRAM,
+    },
+    GeometryDef {
+        name: "Smooth",
+        kind: GeometryKind::Smooth,
+        props: SMOOTH,
+    },
+    GeometryDef {
+        name: "Boxplot",
+        kind: GeometryKind::Boxplot,
+        props: BOXPLOT,
+    },
+    GeometryDef {
+        name: "Violin",
+        kind: GeometryKind::Violin,
+        props: VIOLIN,
+    },
+    GeometryDef {
+        name: "Ribbon",
+        kind: GeometryKind::Ribbon,
+        props: RIBBON,
+    },
+    GeometryDef {
+        name: "Tile",
+        kind: GeometryKind::Tile,
+        props: TILE,
+    },
+    GeometryDef {
+        name: "HLine",
+        kind: GeometryKind::HLine,
+        props: HLINE,
+    },
+    GeometryDef {
+        name: "VLine",
+        kind: GeometryKind::VLine,
+        props: VLINE,
+    },
+    GeometryDef {
+        name: "Rug",
+        kind: GeometryKind::Rug,
+        props: RUG,
+    },
+];
+
+/// Look up a geometry definition by exact (case-sensitive) name.
+pub fn geometry(name: &str) -> Option<&'static GeometryDef> {
+    GEOMETRIES.iter().find(|g| g.name == name)
+}
+
+/// All known geometry names, for suggestions and completion.
+pub fn geometry_names() -> impl Iterator<Item = &'static str> {
+    GEOMETRIES.iter().map(|g| g.name)
+}
+
+impl GeometryDef {
+    pub fn prop(&self, name: &str) -> Option<&'static PropSpec> {
+        self.props.iter().find(|p| p.name == name)
+    }
+
+    pub fn prop_names(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.props.iter().map(|p| p.name)
+    }
+}

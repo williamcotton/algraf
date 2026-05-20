@@ -11,3 +11,4 @@ algraf-core = { workspace = true }
 csv = { workspace = true }
 chrono = { workspace = true }
 indexmap = { workspace = true }
+thiserror = { workspace = true }
