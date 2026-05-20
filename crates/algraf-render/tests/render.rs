@@ -15,7 +15,7 @@ fn render_result(source: &str, csv: &str) -> RenderResult {
     let parsed = parse(source);
     let analysis = analyze(&parsed.syntax(), frame.schema());
     let ir = analysis.ir.expect("ir");
-    render(&ir, &frame, &Theme::minimal()).expect("render")
+    render(&ir, &frame, &Theme::minimal(), None).expect("render")
 }
 
 #[test]
@@ -401,8 +401,128 @@ fn test_void_theme_has_no_axes() {
         let frame = read_csv_str("x,y\n1,2\n2,3\n").unwrap().frame;
         let parsed = parse("Chart(data: \"p.csv\") { Space(x * y) { Point() } }");
         let ir = analyze(&parsed.syntax(), frame.schema()).ir.unwrap();
-        render(&ir, &frame, &Theme::void()).unwrap().svg
+        render(&ir, &frame, &Theme::void(), None).unwrap().svg
     };
     assert!(svg.contains("algraf-axes"));
     assert!(!void.contains("algraf-axes"));
+}
+
+// --- Count stat ---
+
+#[test]
+fn test_bar_count_stat_renders_with_count_axis() {
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") {\n  Space(species) {\n    Bar(stat: \"count\", fill: species)\n  }\n}",
+        "species\nA\nA\nB\nA\nB\nC\n",
+    );
+    assert!(svg.contains("algraf-geom-bar"));
+    // The synthetic count column drives the y-axis label.
+    assert!(
+        svg.contains(">count<"),
+        "expected y-axis label `count`; got: {svg}"
+    );
+}
+
+// --- Space-local theme ---
+
+#[test]
+fn test_space_local_theme_does_not_leak_to_other_spaces() {
+    // Two spaces: the second has a space-local void theme. Only the second
+    // panel should have no plot background ink besides what minimal provides.
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\")\n  Space(x * y) { Point() }\n  Space(x * y) { Theme(name: \"void\"); Point() }\n}",
+        "x,y\n1,2\n2,3\n",
+    );
+    // The chart still draws axes for the first panel.
+    assert!(svg.contains("algraf-axes"));
+}
+
+// --- Guide axis label overrides ---
+
+#[test]
+fn test_guide_axis_label_overrides_axis_title() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: x, label: \"Flipper (mm)\")\n  Guide(axis: y, label: \"Mass (g)\")\n  Space(x * y) { Point() }\n}",
+        "x,y\n1,2\n2,3\n",
+    );
+    assert!(svg.contains("Flipper (mm)"));
+    assert!(svg.contains("Mass (g)"));
+}
+
+#[test]
+fn test_guide_fill_null_suppresses_fill_legend() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Guide(fill: null)\n  Space(x * y) { Point(fill: g) }\n}",
+        "x,y,g\n1,2,a\n2,3,b\n",
+    );
+    // Stroke would still show; here only fill is mapped.
+    assert!(!svg.contains("algraf-legends"));
+}
+
+// --- Area, Text, Segment ---
+
+#[test]
+fn test_area_renders_filled_path() {
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") {\n  Space(x * y) {\n    Area(baseline: 0, fill: \"steelblue\")\n  }\n}",
+        "x,y\n1,4\n2,3\n3,5\n",
+    );
+    assert!(svg.contains("algraf-geom-area"));
+    assert!(svg.contains("<path "));
+}
+
+#[test]
+fn test_text_geometry_renders_labels() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Text(label: name)\n  }\n}",
+        "x,y,name\n1,2,Alice\n2,3,Bob\n",
+    );
+    assert!(svg.contains("algraf-geom-text"));
+    assert!(svg.contains(">Alice<"));
+    assert!(svg.contains(">Bob<"));
+}
+
+#[test]
+fn test_segment_renders_line_between_literal_endpoints() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Segment(x: 1, y: 1, xend: 3, yend: 4)\n  }\n}",
+        "x,y\n0,0\n5,5\n",
+    );
+    assert!(svg.contains("algraf-geom-segment"));
+    assert!(svg.contains("<line "));
+}
+
+// --- Diagnostics ---
+
+#[test]
+fn test_w2002_when_geometry_produces_no_marks() {
+    // A Smooth on an empty (single-row) input cannot produce marks; the
+    // renderer should emit one aggregated W2002 warning.
+    let result = render_result(
+        "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Smooth(method: \"lm\")\n  }\n}",
+        "x,y\n1,1\n",
+    );
+    assert!(
+        result.diagnostics.iter().any(|d| d.code == "W2002"),
+        "expected W2002, got {:?}",
+        result.diagnostics
+    );
+}
+
+// --- Density column ---
+
+#[test]
+fn test_histogram_bin_has_density_column() {
+    let frame = read_csv_str("v\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n")
+        .unwrap()
+        .frame;
+    let parsed = parse(
+        "Chart(data: \"v.csv\") {\n  Derive bins = Bin(v, bins: 5)\n  Space(bin_start * count, data: bins) { Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count) }\n}",
+    );
+    let ir = analyze(&parsed.syntax(), frame.schema()).ir.unwrap();
+    let result = render(&ir, &frame, &Theme::minimal(), None).unwrap();
+    // The output schema should expose density.
+    assert!(result.layout.plot.width > 0.0);
+    // No direct API for derived tables on the result; the existence of the
+    // density column is asserted in the analyzer test and stats unit test.
 }

@@ -117,6 +117,7 @@ impl<'a> Analyzer<'a> {
         let mut derived_tables = Vec::new();
         let mut layout = LayoutIr::default();
         let mut guides = GuideIr::default();
+        let mut theme: Option<String> = None;
         let mut spaces = Vec::new();
         for item in chart.items() {
             match item {
@@ -138,7 +139,11 @@ impl<'a> Analyzer<'a> {
                 }
                 ChartItem::Layout(decl) => self.layout_decl(&decl, &mut layout),
                 ChartItem::Guide(decl) => self.guide_decl(&decl, &mut guides),
-                ChartItem::Theme(decl) => self.theme_decl(&decl),
+                ChartItem::Theme(decl) => {
+                    if let Some(name) = self.theme_decl(&decl) {
+                        theme = Some(name);
+                    }
+                }
                 ChartItem::Scale(decl) => self.unsupported_decl(&decl),
                 ChartItem::Error(_) => {}
             }
@@ -149,6 +154,7 @@ impl<'a> Analyzer<'a> {
             derived_tables,
             layout,
             guides,
+            theme,
             title,
             subtitle,
             caption,
@@ -321,6 +327,8 @@ impl<'a> Analyzer<'a> {
 
     fn guide_decl(&mut self, decl: &Decl, guides: &mut GuideIr) {
         let mut seen: HashMap<String, Span> = HashMap::new();
+        let mut axis: Option<AxisSelector> = None;
+        let mut label: Option<String> = None;
         for arg in decl.args() {
             let Some(key) = arg.key() else { continue };
             let key_span = node_span(arg.syntax());
@@ -349,6 +357,48 @@ impl<'a> Analyzer<'a> {
                     )),
                     None => {}
                 },
+                "axis" => match arg.value() {
+                    Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
+                        let raw = name.name().unwrap_or_default();
+                        match raw.as_str() {
+                            "x" => axis = Some(AxisSelector::X),
+                            "y" => axis = Some(AxisSelector::Y),
+                            _ => self.diag(Diagnostic::error(
+                                "E1204",
+                                "`axis` expects bare `x` or `y`",
+                                node_span(name.syntax()),
+                            )),
+                        }
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`axis` expects bare `x` or `y`",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                "label" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        label = Some(string_value(&lit.text().unwrap_or_default()));
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`label` expects a string literal",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                "fill" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Null) => {
+                        guides.fill_legend = false;
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`fill` in `Guide` expects `null` to suppress the legend",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
                 _ => self.diag(Diagnostic::warning(
                     "W2006",
                     format!("unsupported Guide argument `{key}` ignored"),
@@ -356,10 +406,26 @@ impl<'a> Analyzer<'a> {
                 )),
             }
         }
+        match (axis, label) {
+            (Some(AxisSelector::X), Some(text)) => guides.x_label = Some(text),
+            (Some(AxisSelector::Y), Some(text)) => guides.y_label = Some(text),
+            (Some(_), None) => self.diag(Diagnostic::warning(
+                "W2006",
+                "`Guide(axis: ...)` without `label:` has no effect",
+                node_span(decl.syntax()),
+            )),
+            (None, Some(_)) => self.diag(Diagnostic::error(
+                "E1204",
+                "`Guide(label: ...)` requires `axis: x` or `axis: y`",
+                node_span(decl.syntax()),
+            )),
+            (None, None) => {}
+        }
     }
 
-    fn theme_decl(&mut self, decl: &Decl) {
+    fn theme_decl(&mut self, decl: &Decl) -> Option<String> {
         let mut seen: HashMap<String, Span> = HashMap::new();
+        let mut name_out = None;
         for arg in decl.args() {
             let Some(key) = arg.key() else { continue };
             let key_span = node_span(arg.syntax());
@@ -386,6 +452,8 @@ impl<'a> Analyzer<'a> {
                                 format!("unknown theme `{name}`"),
                                 node_span(lit.syntax()),
                             ));
+                        } else {
+                            name_out = Some(name);
                         }
                     }
                     Some(value) => self.diag(Diagnostic::error(
@@ -402,6 +470,7 @@ impl<'a> Analyzer<'a> {
                 )),
             }
         }
+        name_out
     }
 
     fn unsupported_decl(&mut self, decl: &Decl) {
@@ -614,6 +683,8 @@ impl<'a> Analyzer<'a> {
 
         let mut geometries = Vec::new();
         let mut histograms = Vec::new();
+        let mut count_bars = Vec::new();
+        let mut theme: Option<String> = None;
         let mut saw_geometry = false;
         for item in space.items() {
             match item {
@@ -622,12 +693,18 @@ impl<'a> Analyzer<'a> {
                     if let Some(geo) = self.geometry(&call, &frame, &table) {
                         if geo.kind == GeometryKind::Histogram {
                             histograms.push(geo);
+                        } else if geo.kind == GeometryKind::Bar && has_count_stat(&geo) {
+                            count_bars.push(geo);
                         } else {
                             geometries.push(geo);
                         }
                     }
                 }
-                SpaceItem::Theme(decl) => self.theme_decl(&decl),
+                SpaceItem::Theme(decl) => {
+                    if let Some(name) = self.theme_decl(&decl) {
+                        theme = Some(name);
+                    }
+                }
                 SpaceItem::Scale(decl) | SpaceItem::Guide(decl) => self.unsupported_decl(&decl),
                 SpaceItem::Error(_) => {}
             }
@@ -638,9 +715,19 @@ impl<'a> Analyzer<'a> {
 
         let mut analysis = SpaceAnalysis::default();
         for histogram in histograms {
-            if let Some((derive, histogram_space)) = self.desugar_histogram(&histogram, &frame) {
+            if let Some((derive, histogram_space)) =
+                self.desugar_histogram(&histogram, &frame, theme.clone())
+            {
                 analysis.derived.push(derive);
                 analysis.spaces.push(histogram_space);
+            }
+        }
+        for bar in count_bars {
+            if let Some((derive, count_space)) =
+                self.desugar_count_bar(&bar, &frame, &data_ref, theme.clone())
+            {
+                analysis.derived.push(derive);
+                analysis.spaces.push(count_space);
             }
         }
         if !geometries.is_empty() || analysis.spaces.is_empty() {
@@ -648,6 +735,7 @@ impl<'a> Analyzer<'a> {
                 data: data_ref,
                 frame,
                 geometries,
+                theme,
                 span,
             });
         }
@@ -658,6 +746,7 @@ impl<'a> Analyzer<'a> {
         &mut self,
         histogram: &GeometryIr,
         frame: &FrameIr,
+        theme: Option<String>,
     ) -> Option<(DeriveIr, SpaceIr)> {
         let FrameIr::Vector(input) = frame else {
             self.diag(Diagnostic::error(
@@ -734,9 +823,154 @@ impl<'a> Analyzer<'a> {
             data: SpaceDataRef::Derived(name),
             frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
             geometries: vec![rect],
+            theme,
             span: histogram.span,
         };
         Some((derive, space))
+    }
+
+    /// Desugar `Bar(stat: "count")` over a 1D categorical space into a Count
+    /// derived table and a 2D `Bar` space (spec §15.5).
+    fn desugar_count_bar(
+        &mut self,
+        bar: &GeometryIr,
+        frame: &FrameIr,
+        data_ref: &SpaceDataRef,
+        theme: Option<String>,
+    ) -> Option<(DeriveIr, SpaceIr)> {
+        // Find the categorical group column(s). For 0.1, support 1D categorical
+        // space (`Space(category)`) and nested 1D (`Space(outer / inner)`).
+        let group_cols: Vec<&ColumnRef> = match frame {
+            FrameIr::Vector(column) => vec![column],
+            FrameIr::Nested { outer, inner } => match (outer.as_ref(), inner.as_ref()) {
+                (FrameIr::Vector(o), FrameIr::Vector(i)) => vec![o, i],
+                _ => {
+                    self.diag(Diagnostic::error(
+                        "E1302",
+                        "Bar(stat: \"count\") requires a 1D categorical space",
+                        bar.span,
+                    ));
+                    return None;
+                }
+            },
+            _ => {
+                self.diag(Diagnostic::error(
+                    "E1302",
+                    "Bar(stat: \"count\") requires a 1D categorical space",
+                    bar.span,
+                ));
+                return None;
+            }
+        };
+
+        // Only desugar when reading the primary table; counts over derived
+        // tables are not meaningful in 0.1.
+        if !matches!(data_ref, SpaceDataRef::Primary) {
+            self.diag(Diagnostic::error(
+                "E1302",
+                "Bar(stat: \"count\") must read from the primary table",
+                bar.span,
+            ));
+            return None;
+        }
+
+        let name = self.next_count_name();
+
+        // The Count derived schema: group columns (as-is) + a `count` integer.
+        let mut output_schema: Vec<ColumnDefIr> = group_cols
+            .iter()
+            .map(|c| ColumnDefIr {
+                name: c.name.clone(),
+                dtype: c.dtype,
+            })
+            .collect();
+        output_schema.push(ColumnDefIr {
+            name: "count".into(),
+            dtype: DataType::Integer,
+        });
+
+        // The stat input frame is just the categorical key(s).
+        let stat_input = if group_cols.len() == 1 {
+            FrameIr::Vector((*group_cols[0]).clone())
+        } else {
+            FrameIr::Nested {
+                outer: Box::new(FrameIr::Vector((*group_cols[0]).clone())),
+                inner: Box::new(FrameIr::Vector((*group_cols[1]).clone())),
+            }
+        };
+
+        let derive = DeriveIr {
+            name: name.clone(),
+            stat: StatCallIr {
+                kind: StatKind::Count,
+                input: stat_input,
+                settings: Vec::new(),
+                span: bar.span,
+            },
+            output_schema,
+            span: bar.span,
+        };
+
+        // The derived-table-backed space mirrors the input keys on x and uses
+        // `count` for y.
+        let count_col = synthetic_column("count", DataType::Integer, bar.span);
+        let x_frame = if group_cols.len() == 1 {
+            FrameIr::Vector(synthetic_column(
+                &group_cols[0].name,
+                group_cols[0].dtype,
+                bar.span,
+            ))
+        } else {
+            FrameIr::Nested {
+                outer: Box::new(FrameIr::Vector(synthetic_column(
+                    &group_cols[0].name,
+                    group_cols[0].dtype,
+                    bar.span,
+                ))),
+                inner: Box::new(FrameIr::Vector(synthetic_column(
+                    &group_cols[1].name,
+                    group_cols[1].dtype,
+                    bar.span,
+                ))),
+            }
+        };
+
+        // Preserve mappings/settings from the original Bar (e.g. fill, alpha).
+        // The y resolution comes from the derived `count` column via the
+        // synthetic Cartesian frame; no explicit `y` mapping is needed.
+        let mappings = bar.mappings.clone();
+        let settings = bar
+            .settings
+            .iter()
+            .filter(|s| s.name != "stat")
+            .cloned()
+            .collect();
+
+        let bar_ir = GeometryIr {
+            kind: GeometryKind::Bar,
+            mappings,
+            settings,
+            span: bar.span,
+        };
+
+        let space = SpaceIr {
+            data: SpaceDataRef::Derived(name),
+            frame: FrameIr::Cartesian(vec![x_frame, FrameIr::Vector(count_col)]),
+            geometries: vec![bar_ir],
+            theme,
+            span: bar.span,
+        };
+        Some((derive, space))
+    }
+
+    fn next_count_name(&mut self) -> String {
+        loop {
+            let name = format!("__count_{}", self.synthetic_counter);
+            self.synthetic_counter += 1;
+            if !self.derived.contains_key(&name) && !self.reserved_derived_names.contains(&name) {
+                return name;
+            }
+        }
     }
 
     fn histogram_bin_settings(&mut self, histogram: &GeometryIr) -> Vec<Setting> {
@@ -1066,6 +1300,27 @@ impl<'a> Analyzer<'a> {
         };
         let form = ValueForm::of(&value);
 
+        // Color literals written as bare identifiers (e.g. `fill: red`) are a
+        // common mistake. If this property accepts a color and the value is a
+        // bare identifier that names a known CSS color but no such column
+        // exists, emit a hint to quote it (H3002).
+        if prop.accepts.contains(&Accept::Color) {
+            if let ValueForm::Column(name) = &form {
+                let raw = name.name().unwrap_or_default();
+                if !name.is_quoted() && table.get(&raw).is_none() && is_css_color_name(&raw) {
+                    self.diag(
+                        Diagnostic::new(
+                            Severity::Hint,
+                            "H3002",
+                            format!("quote literal color name `{raw}` for clarity"),
+                            node_span(name.syntax()),
+                        )
+                        .with_help(format!("write it as a string, e.g. {raw:?}")),
+                    );
+                }
+            }
+        }
+
         for accept in prop.accepts {
             match (accept, &form) {
                 (Accept::Column, ValueForm::Column(name)) => {
@@ -1158,6 +1413,12 @@ enum PropOutcome {
     Mapping(ColumnRef),
     Setting(SettingValue),
     Invalid,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AxisSelector {
+    X,
+    Y,
 }
 
 #[derive(Default)]
@@ -1284,6 +1545,50 @@ fn blend_parenthesized(binary: &AlgebraBinary) -> bool {
     }
 }
 
+/// Whether `name` is a commonly used CSS color keyword (for H3002 hints).
+fn is_css_color_name(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "red"
+            | "green"
+            | "blue"
+            | "yellow"
+            | "black"
+            | "white"
+            | "gray"
+            | "grey"
+            | "orange"
+            | "purple"
+            | "pink"
+            | "brown"
+            | "cyan"
+            | "magenta"
+            | "lime"
+            | "navy"
+            | "teal"
+            | "maroon"
+            | "olive"
+            | "silver"
+            | "gold"
+            | "steelblue"
+            | "tomato"
+            | "salmon"
+            | "indigo"
+            | "violet"
+            | "turquoise"
+            | "coral"
+            | "crimson"
+            | "khaki"
+            | "plum"
+    )
+}
+
+fn has_count_stat(geo: &GeometryIr) -> bool {
+    geo.settings.iter().any(|setting| {
+        setting.name == "stat" && matches!(&setting.value, SettingValue::String(v) if v == "count")
+    })
+}
+
 fn contains_nested(frame: &FrameIr) -> bool {
     match frame {
         FrameIr::Nested { .. } => true,
@@ -1346,6 +1651,10 @@ fn bin_output_schema() -> Vec<ColumnDefIr> {
         ColumnDefIr {
             name: "count".into(),
             dtype: DataType::Integer,
+        },
+        ColumnDefIr {
+            name: "density".into(),
+            dtype: DataType::Float,
         },
     ]
 }

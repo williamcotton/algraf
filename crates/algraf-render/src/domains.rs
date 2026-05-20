@@ -104,6 +104,18 @@ pub fn train_space_domains(
         match geometry.kind {
             GeometryKind::Bar => train_bar(frame, table, geometry, &mut hints),
             GeometryKind::Rect => train_rect(table, geometry, &mut hints),
+            // Area's baseline is a y-domain value: the polygon closes back to
+            // it, so the trained y domain must reach the baseline or the
+            // bottom edge will fall outside the plot rect. When the baseline
+            // is zero, also suppress lower padding so the x-axis sits flush
+            // against the area's bottom edge.
+            GeometryKind::Area => {
+                let baseline = numeric_setting(geometry, "baseline").unwrap_or(0.0);
+                hints.y.add_numeric(baseline);
+                if baseline.abs() < f64::EPSILON {
+                    hints.y.include_zero();
+                }
+            }
             GeometryKind::HLine => {
                 if let Some(y) = numeric_setting(geometry, "y") {
                     hints.y.add_numeric(y);
@@ -112,6 +124,20 @@ pub fn train_space_domains(
             GeometryKind::VLine => {
                 if let Some(x) = numeric_setting(geometry, "x") {
                     hints.x.add_numeric(x);
+                }
+            }
+            // Segment endpoints are literal data values; include them so the
+            // segment stays inside the plot rect (spec §14.19).
+            GeometryKind::Segment => {
+                for property in ["x", "xend"] {
+                    if let Some(value) = numeric_setting(geometry, property) {
+                        hints.x.add_numeric(value);
+                    }
+                }
+                for property in ["y", "yend"] {
+                    if let Some(value) = numeric_setting(geometry, property) {
+                        hints.y.add_numeric(value);
+                    }
                 }
             }
             _ => {}

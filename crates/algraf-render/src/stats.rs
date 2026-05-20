@@ -1,11 +1,12 @@
 //! Statistical transforms for derived tables (spec §15).
 //!
-//! Version 0.1 implements the `Bin` stat, producing `bin_start`, `bin_end`,
-//! `bin_center`, and `count` columns (spec §15.6).
+//! Version 0.1 implements the `Bin` stat (spec §15.6), producing `bin_start`,
+//! `bin_end`, `bin_center`, `count`, and `density` columns, and the `Count`
+//! stat (spec §15.5), producing one row per category with a `count` column.
 
 use algraf_data::{Column, ColumnDef, DataFrame, DataType, Table};
 
-use crate::scale::{cell_f64, numeric_domain};
+use crate::scale::{categorical_domain, cell_category, cell_f64, numeric_domain};
 
 /// Options for numeric histogram binning.
 #[derive(Debug, Clone, Copy)]
@@ -29,22 +30,33 @@ pub fn bin_with_options(table: &dyn Table, input_column: &str, options: BinOptio
     let (start, width, bin_count) = bin_layout(min, max, bins, options);
 
     let mut counts = vec![0i64; bin_count];
+    let mut total_count: i64 = 0;
     for row in 0..table.row_count() {
         if let Some(v) = cell_f64(table, input_column, row) {
             let idx = bin_index(v, start, width, bin_count, options.closed);
             counts[idx] += 1;
+            total_count += 1;
         }
     }
 
     let mut starts = Vec::with_capacity(bin_count);
     let mut ends = Vec::with_capacity(bin_count);
     let mut centers = Vec::with_capacity(bin_count);
-    for i in 0..bin_count {
+    let mut densities = Vec::with_capacity(bin_count);
+    let total = total_count as f64;
+    for (i, &count) in counts.iter().enumerate() {
         let bin_start = start + i as f64 * width;
         let bin_end = bin_start + width;
         starts.push(Some(bin_start));
         ends.push(Some(bin_end));
         centers.push(Some((bin_start + bin_end) / 2.0));
+        // Density = count / (total * width), so densities integrate to 1.
+        let density = if total > 0.0 && width.abs() > f64::EPSILON {
+            count as f64 / (total * width)
+        } else {
+            0.0
+        };
+        densities.push(Some(density));
     }
 
     let schema = vec![
@@ -52,13 +64,62 @@ pub fn bin_with_options(table: &dyn Table, input_column: &str, options: BinOptio
         col_def("bin_end", DataType::Float),
         col_def("bin_center", DataType::Float),
         col_def("count", DataType::Integer),
+        col_def("density", DataType::Float),
     ];
     let columns = vec![
         Column::Float(starts),
         Column::Float(ends),
         Column::Float(centers),
         Column::Int(counts.into_iter().map(Some).collect()),
+        Column::Float(densities),
     ];
+    DataFrame::new(schema, columns)
+}
+
+/// Compute a count derived table grouping rows by one or two categorical
+/// columns (spec §15.5). Output columns are the group keys (preserving input
+/// type) followed by an integer `count` column.
+pub fn count_by(table: &dyn Table, group_columns: &[&str]) -> DataFrame {
+    assert!(
+        !group_columns.is_empty(),
+        "count_by requires a group column"
+    );
+    let outer = group_columns[0];
+    let inner = group_columns.get(1).copied();
+    let outer_cats = categorical_domain(table, outer);
+
+    let mut rows: Vec<(String, Option<String>, i64)> = Vec::new();
+    if let Some(inner_col) = inner {
+        let inner_cats = categorical_domain(table, inner_col);
+        for o in &outer_cats {
+            for i in &inner_cats {
+                let count: i64 = (0..table.row_count())
+                    .filter(|&row| {
+                        cell_category(table, outer, row).as_deref() == Some(o.as_str())
+                            && cell_category(table, inner_col, row).as_deref() == Some(i.as_str())
+                    })
+                    .count() as i64;
+                rows.push((o.clone(), Some(i.clone()), count));
+            }
+        }
+    } else {
+        for o in &outer_cats {
+            let count: i64 = (0..table.row_count())
+                .filter(|&row| cell_category(table, outer, row).as_deref() == Some(o.as_str()))
+                .count() as i64;
+            rows.push((o.clone(), None, count));
+        }
+    }
+
+    let mut schema = vec![col_def(outer, DataType::String)];
+    let outer_col = Column::String(rows.iter().map(|r| Some(r.0.clone())).collect());
+    let mut columns = vec![outer_col];
+    if let Some(inner_col) = inner {
+        schema.push(col_def(inner_col, DataType::String));
+        columns.push(Column::String(rows.iter().map(|r| r.1.clone()).collect()));
+    }
+    schema.push(col_def("count", DataType::Integer));
+    columns.push(Column::Int(rows.iter().map(|r| Some(r.2)).collect()));
     DataFrame::new(schema, columns)
 }
 

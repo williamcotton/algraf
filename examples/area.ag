@@ -1,0 +1,6 @@
+Chart(data: "timeseries.csv", width: 760, height: 420) {
+    Space(time * value) {
+        Area(baseline: 0, fill: series, alpha: 0.35)
+        Line(stroke: series, strokeWidth: 2)
+    }
+}

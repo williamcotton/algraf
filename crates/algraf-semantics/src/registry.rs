@@ -86,6 +86,7 @@ const BAR: &[PropSpec] = &[
     opt("strokeWidth", STROKE_WIDTH),
     opt("alpha", ALPHA),
     opt("layout", &[Accept::Enum(&["identity", "stack", "fill"])]),
+    opt("stat", &[Accept::Enum(&["identity", "count"])]),
 ];
 
 const RECT: &[PropSpec] = &[
@@ -164,6 +165,34 @@ const RUG: &[PropSpec] = &[
     opt("alpha", ALPHA),
 ];
 
+const AREA: &[PropSpec] = &[
+    opt("baseline", &[Accept::Number]),
+    opt("fill", FILL),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+];
+
+const TEXT: &[PropSpec] = &[
+    req("label", &[Accept::Column, Accept::Str]),
+    opt("fill", FILL),
+    opt("alpha", ALPHA),
+    opt("size", SIZE),
+    opt("anchor", &[Accept::Enum(&["start", "middle", "end"])]),
+    opt("dx", &[Accept::Number]),
+    opt("dy", &[Accept::Number]),
+];
+
+const SEGMENT: &[PropSpec] = &[
+    req("x", &[Accept::Number]),
+    req("y", &[Accept::Number]),
+    req("xend", &[Accept::Number]),
+    req("yend", &[Accept::Number]),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+];
+
 const GEOMETRIES: &[GeometryDef] = &[
     GeometryDef {
         name: "Point",
@@ -224,6 +253,21 @@ const GEOMETRIES: &[GeometryDef] = &[
         name: "Rug",
         kind: GeometryKind::Rug,
         props: RUG,
+    },
+    GeometryDef {
+        name: "Area",
+        kind: GeometryKind::Area,
+        props: AREA,
+    },
+    GeometryDef {
+        name: "Text",
+        kind: GeometryKind::Text,
+        props: TEXT,
+    },
+    GeometryDef {
+        name: "Segment",
+        kind: GeometryKind::Segment,
+        props: SEGMENT,
     },
 ];
 

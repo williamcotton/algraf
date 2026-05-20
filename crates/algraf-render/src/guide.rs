@@ -52,7 +52,17 @@ fn grid_line(x1: f64, y1: f64, x2: f64, y2: f64, color: &str) -> String {
 }
 
 /// Draw x and y axes with ticks, labels, and titles (spec §19.1–19.4).
-pub fn render_axes(w: &mut SvgWriter, space: &ScaledSpace, plot: Rect, theme: &Theme) {
+///
+/// `x_label_override` and `y_label_override` come from `Guide(axis: ..., label: "...")`
+/// declarations (spec §19.4).
+pub fn render_axes(
+    w: &mut SvgWriter,
+    space: &ScaledSpace,
+    plot: Rect,
+    theme: &Theme,
+    x_label_override: Option<&str>,
+    y_label_override: Option<&str>,
+) {
     w.open_group("class=\"algraf-axes\"");
 
     // X axis along the bottom.
@@ -73,11 +83,14 @@ pub fn render_axes(w: &mut SvgWriter, space: &ScaledSpace, plot: Rect, theme: &T
         ));
         w.line(&text(x, plot.bottom() + 18.0, "middle", &label, theme));
     }
+    let x_label = x_label_override
+        .map(str::to_string)
+        .unwrap_or_else(|| space.x.label());
     w.line(&text(
         plot.x + plot.width / 2.0,
         plot.bottom() + 38.0,
         "middle",
-        &space.x.label(),
+        &x_label,
         theme,
     ));
 
@@ -96,6 +109,9 @@ pub fn render_axes(w: &mut SvgWriter, space: &ScaledSpace, plot: Rect, theme: &T
         }
         let cy = plot.y + plot.height / 2.0;
         let label_x = (plot.x - 44.0).max(12.0);
+        let y_label = y_label_override
+            .map(str::to_string)
+            .unwrap_or_else(|| y.label());
         w.line(&format!(
             "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" transform=\"rotate(-90 {} {})\" \
              font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
@@ -106,7 +122,7 @@ pub fn render_axes(w: &mut SvgWriter, space: &ScaledSpace, plot: Rect, theme: &T
             escape_attr(&theme.font_family),
             num(theme.font_size),
             escape_attr(&theme.text_color),
-            escape_text(&y.label()),
+            escape_text(&y_label),
         ));
     }
 

@@ -22,6 +22,12 @@ charts=(
     boxplot
     ribbon
     reference
+    bar_count
+    area
+    labels
+    segment
+    guide_labels
+    space_theme
 )
 
 cd "$repo_root"

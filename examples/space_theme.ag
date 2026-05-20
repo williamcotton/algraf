@@ -1,0 +1,8 @@
+Chart(data: "timeseries.csv", width: 760, height: 420) {
+    Theme(name: "minimal")
+
+    Space(time * value) {
+        Theme(name: "void")
+        Line(stroke: series, strokeWidth: 2)
+    }
+}

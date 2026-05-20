@@ -36,13 +36,19 @@ struct Panel<'t> {
     rows: Option<Vec<usize>>,
     label: Option<String>,
     facet_index: Option<usize>,
+    theme: Theme,
 }
 
 /// Render a chart IR against its primary data table (spec §24.4).
+///
+/// `theme` is the base (chart-level) theme already resolved by the caller.
+/// `cli_theme_override`, if `Some`, replaces space-local theme overrides too
+/// (spec §22.3): CLI `--theme` is the strongest source.
 pub fn render(
     ir: &ChartIr,
     primary: &dyn Table,
     theme: &Theme,
+    cli_theme_override: Option<&str>,
 ) -> Result<RenderResult, RenderError> {
     let mut diagnostics = Vec::new();
 
@@ -58,7 +64,7 @@ pub fn render(
     let provisional =
         Layout::compute_with_text(width, height, false, has_axes, top_extra, bottom_extra);
     let legends = if ir.guides.legend {
-        collect_legends(ir, primary, &derived, &provisional)
+        collect_legends(ir, primary, &derived, &provisional, ir.guides.fill_legend)
     } else {
         Vec::new()
     };
@@ -90,6 +96,7 @@ pub fn render(
     let mut panels = Vec::new();
     for space in &ir.spaces {
         let table = active_table(&space.data, primary, &derived);
+        let panel_theme = resolve_space_theme(theme, space.theme.as_deref(), cli_theme_override);
         if let Some((plane, facet_col)) = facet_frame(&space.frame) {
             let domain_hints = train_space_domains(plane, table, &space.geometries);
             for (index, category) in facet_categories(table, &facet_col.name).iter().enumerate() {
@@ -107,6 +114,7 @@ pub fn render(
                         rows: Some(facet_rows(table, &facet_col.name, category)),
                         label: Some(category.clone()),
                         facet_index: Some(index),
+                        theme: panel_theme.clone(),
                     }),
                     None => diagnostics.push(Diagnostic::warning(
                         "R0003",
@@ -126,6 +134,7 @@ pub fn render(
                     rows: None,
                     label: None,
                     facet_index: None,
+                    theme: panel_theme,
                 }),
                 None => diagnostics.push(Diagnostic::warning(
                     "R0003",
@@ -195,7 +204,7 @@ pub fn render(
     if layout.facets.is_empty() {
         // Grid (from the first laid-out panel).
         if let Some(first) = panels.first() {
-            guide::render_grid(&mut w, &first.scaled, first.plot, theme);
+            guide::render_grid(&mut w, &first.scaled, first.plot, &first.theme);
         }
     } else {
         for_each_unique_facet_panel(&panels, |panel| {
@@ -203,11 +212,11 @@ pub fn render(
                 &mut w,
                 panel.label.as_deref().unwrap_or_default(),
                 layout.facets[panel.facet_index.unwrap()].strip,
-                theme,
+                &panel.theme,
             );
         });
         for_each_unique_facet_panel(&panels, |panel| {
-            guide::render_grid(&mut w, &panel.scaled, panel.plot, theme);
+            guide::render_grid(&mut w, &panel.scaled, panel.plot, &panel.theme);
         });
     }
 
@@ -222,7 +231,7 @@ pub fn render(
                     table: panel.table,
                     rows: panel.rows.as_deref(),
                     plot: panel.plot,
-                    theme,
+                    theme: &panel.theme,
                 },
                 &mut diagnostics,
             );
@@ -230,16 +239,32 @@ pub fn render(
     }
 
     // Axes (from the first panel) and legends.
-    if has_axes {
-        if layout.facets.is_empty() {
-            if let Some(first) = panels.first() {
-                guide::render_axes(&mut w, &first.scaled, first.plot, theme);
+    if layout.facets.is_empty() {
+        if let Some(first) = panels.first() {
+            if first.theme.axes {
+                guide::render_axes(
+                    &mut w,
+                    &first.scaled,
+                    first.plot,
+                    &first.theme,
+                    ir.guides.x_label.as_deref(),
+                    ir.guides.y_label.as_deref(),
+                );
             }
-        } else {
-            for_each_unique_facet_panel(&panels, |panel| {
-                guide::render_axes(&mut w, &panel.scaled, panel.plot, theme);
-            });
         }
+    } else {
+        for_each_unique_facet_panel(&panels, |panel| {
+            if panel.theme.axes {
+                guide::render_axes(
+                    &mut w,
+                    &panel.scaled,
+                    panel.plot,
+                    &panel.theme,
+                    ir.guides.x_label.as_deref(),
+                    ir.guides.y_label.as_deref(),
+                );
+            }
+        });
     }
     if let Some(area) = layout.legend {
         guide::render_legends(&mut w, &legends, area, theme);
@@ -252,6 +277,24 @@ pub fn render(
         diagnostics,
         layout,
     })
+}
+
+/// Resolve a per-space theme, applying space-local overrides on top of the base.
+/// CLI `--theme` (passed as `cli_override`) is the strongest source and is
+/// applied last (spec §22.3).
+fn resolve_space_theme(
+    base: &Theme,
+    space_theme: Option<&str>,
+    cli_override: Option<&str>,
+) -> Theme {
+    let mut theme = base.clone();
+    if let Some(name) = space_theme {
+        theme = Theme::by_name(name);
+    }
+    if let Some(name) = cli_override {
+        theme = Theme::by_name(name);
+    }
+    theme
 }
 
 fn active_table<'t>(
@@ -271,26 +314,46 @@ fn active_table<'t>(
 fn compute_derived(ir: &ChartIr, primary: &dyn Table) -> HashMap<String, DataFrame> {
     let mut derived = HashMap::new();
     for d in &ir.derived_tables {
-        if d.stat.kind != StatKind::Bin {
-            continue;
+        match d.stat.kind {
+            StatKind::Bin => {
+                let FrameIr::Vector(col) = &d.stat.input else {
+                    continue;
+                };
+                let bins = numeric_setting(&d.stat.settings, "bins")
+                    .filter(|n| *n >= 1.0)
+                    .map(|n| n.round() as usize)
+                    .unwrap_or(30);
+                let options = stats::BinOptions {
+                    bins,
+                    bin_width: numeric_setting(&d.stat.settings, "binWidth").filter(|n| *n > 0.0),
+                    boundary: numeric_setting(&d.stat.settings, "boundary"),
+                    closed: closed_setting(&d.stat.settings),
+                };
+                derived.insert(
+                    d.name.clone(),
+                    stats::bin_with_options(primary, &col.name, options),
+                );
+            }
+            StatKind::Count => {
+                let mut group_cols: Vec<&str> = Vec::new();
+                match &d.stat.input {
+                    FrameIr::Vector(col) => group_cols.push(&col.name),
+                    FrameIr::Nested { outer, inner } => {
+                        if let (FrameIr::Vector(o), FrameIr::Vector(i)) =
+                            (outer.as_ref(), inner.as_ref())
+                        {
+                            group_cols.push(&o.name);
+                            group_cols.push(&i.name);
+                        }
+                    }
+                    _ => {}
+                }
+                if !group_cols.is_empty() {
+                    derived.insert(d.name.clone(), stats::count_by(primary, &group_cols));
+                }
+            }
+            _ => {}
         }
-        let FrameIr::Vector(col) = &d.stat.input else {
-            continue;
-        };
-        let bins = numeric_setting(&d.stat.settings, "bins")
-            .filter(|n| *n >= 1.0)
-            .map(|n| n.round() as usize)
-            .unwrap_or(30);
-        let options = stats::BinOptions {
-            bins,
-            bin_width: numeric_setting(&d.stat.settings, "binWidth").filter(|n| *n > 0.0),
-            boundary: numeric_setting(&d.stat.settings, "boundary"),
-            closed: closed_setting(&d.stat.settings),
-        };
-        derived.insert(
-            d.name.clone(),
-            stats::bin_with_options(primary, &col.name, options),
-        );
     }
     derived
 }
@@ -389,17 +452,24 @@ fn render_chart_text(
 }
 
 /// Collect deduplicated fill/stroke legends across all spaces (spec §19.5).
+///
+/// When `include_fill` is false, fill legends are suppressed
+/// (e.g. `Guide(fill: null)` from spec §19.6).
 fn collect_legends(
     ir: &ChartIr,
     primary: &dyn Table,
     derived: &HashMap<String, DataFrame>,
     _layout: &Layout,
+    include_fill: bool,
 ) -> Vec<Legend> {
     let mut legends: Vec<Legend> = Vec::new();
     for space in &ir.spaces {
         let table = active_table(&space.data, primary, derived);
         for geo in &space.geometries {
             for aesthetic in ["fill", "stroke"] {
+                if aesthetic == "fill" && !include_fill {
+                    continue;
+                }
                 if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == aesthetic) {
                     let spec = color_spec(geo, aesthetic, table);
                     let title = crate::svg::display_label(&mapping.column.name);

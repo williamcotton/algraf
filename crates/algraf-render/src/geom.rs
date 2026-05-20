@@ -37,6 +37,7 @@ pub(crate) fn render(
 ) {
     let class = format!("algraf-layer algraf-geom-{}", geo_class(geo.kind));
     w.open_group(&format!("class=\"{class}\""));
+    let before = w.byte_len();
     match geo.kind {
         GeometryKind::Point => point(w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme),
         GeometryKind::Line => line(w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme),
@@ -65,11 +66,22 @@ pub(crate) fn render(
         GeometryKind::HLine => hline(w, geo, ctx.space, ctx.plot, ctx.table, ctx.theme),
         GeometryKind::VLine => vline(w, geo, ctx.space, ctx.plot, ctx.table, ctx.theme),
         GeometryKind::Rug => rug(w, geo, ctx.space, ctx.table, ctx.rows, ctx.plot, ctx.theme),
+        GeometryKind::Area => area(w, geo, ctx.space, ctx.table, ctx.rows),
+        GeometryKind::Text => text_geom(w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme),
+        GeometryKind::Segment => segment(w, geo, ctx.space, ctx.table, ctx.theme),
         other => diagnostics.push(Diagnostic::warning(
             "R0001",
             format!("geometry `{other:?}` is not yet supported by the renderer"),
             geo.span,
         )),
+    }
+    // W2002: geometry produced no marks (spec §26.3).
+    if w.byte_len() == before {
+        diagnostics.push(Diagnostic::warning(
+            "W2002",
+            "geometry produced no marks",
+            geo.span,
+        ));
     }
     w.close_group();
 }
@@ -87,6 +99,9 @@ fn geo_class(kind: GeometryKind) -> &'static str {
         GeometryKind::HLine => "hline",
         GeometryKind::VLine => "vline",
         GeometryKind::Rug => "rug",
+        GeometryKind::Area => "area",
+        GeometryKind::Text => "text",
+        GeometryKind::Segment => "segment",
         _ => "other",
     }
 }
@@ -965,4 +980,148 @@ fn constant_or(spec: &ColorSpec, default: &str) -> String {
 fn render_rows(table: &dyn Table, rows: Option<&[usize]>) -> Vec<usize> {
     rows.map(|rows| rows.to_vec())
         .unwrap_or_else(|| (0..table.row_count()).collect())
+}
+
+/// Render an `Area` geometry: fill between y and a baseline (spec §14.14).
+fn area(
+    w: &mut SvgWriter,
+    geo: &GeometryIr,
+    space: &ScaledSpace,
+    table: &dyn Table,
+    rows: Option<&[usize]>,
+) {
+    let fill = color_spec(geo, "fill", table);
+    let stroke = color_spec(geo, "stroke", table);
+    let stroke_width = number_setting(geo, "strokeWidth", 1.0);
+    let alpha = number_setting(geo, "alpha", 0.4);
+    let baseline_value = number_setting(geo, "baseline", 0.0);
+    let Some(baseline_y) = space.map_y(baseline_value) else {
+        return;
+    };
+
+    let row_list = render_rows(table, rows);
+    let groups = match &fill {
+        ColorSpec::Categorical { .. } => grouped_rows_by_color(&fill, table, row_list),
+        _ => match &stroke {
+            ColorSpec::Categorical { .. } => grouped_rows_by_color(&stroke, table, row_list),
+            _ => vec![row_list],
+        },
+    };
+
+    for group_rows in groups {
+        let mut points: Vec<(f64, f64, usize)> = group_rows
+            .iter()
+            .filter_map(|&row| {
+                Some((
+                    space.resolve_x(table, row)?,
+                    space.resolve_y(table, row)?,
+                    row,
+                ))
+            })
+            .collect();
+        if points.len() < 2 {
+            continue;
+        }
+        points.sort_by(|a, b| a.0.total_cmp(&b.0));
+
+        let mut d = String::new();
+        for (i, (x, y, _)) in points.iter().enumerate() {
+            let cmd = if i == 0 { 'M' } else { 'L' };
+            let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
+        }
+        let last_x = points.last().unwrap().0;
+        let first_x = points.first().unwrap().0;
+        let _ = write!(d, "L{} {} ", num(last_x), num(baseline_y));
+        let _ = write!(d, "L{} {} ", num(first_x), num(baseline_y));
+        d.push('Z');
+
+        let first_row = points[0].2;
+        let fill_color = fill
+            .resolve(table, first_row)
+            .unwrap_or_else(|| DEFAULT_FILL.to_string());
+        w.line(&format!(
+            "<path d=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
+            d.trim_end(),
+            escape_attr(&fill_color),
+            stroke_attrs(&stroke, stroke_width, table, first_row),
+            num(alpha),
+        ));
+    }
+}
+
+/// Render a `Text` geometry: draw labels at each row (spec §14.16).
+fn text_geom(
+    w: &mut SvgWriter,
+    geo: &GeometryIr,
+    space: &ScaledSpace,
+    table: &dyn Table,
+    rows: Option<&[usize]>,
+    theme: &Theme,
+) {
+    let fill = color_spec(geo, "fill", table);
+    let alpha = number_setting(geo, "alpha", 1.0);
+    let size = number_setting(geo, "size", theme.font_size);
+    let dx = number_setting(geo, "dx", 0.0);
+    let dy = number_setting(geo, "dy", 0.0);
+    let anchor = string_setting(geo, "anchor").unwrap_or_else(|| "middle".to_string());
+
+    let label_mapping = geo.mappings.iter().find(|m| m.aesthetic == "label");
+    let label_literal = string_setting(geo, "label");
+
+    for row in render_rows(table, rows) {
+        let (Some(cx), Some(cy)) = (space.resolve_x(table, row), space.resolve_y(table, row))
+        else {
+            continue;
+        };
+        let label = if let Some(mapping) = label_mapping {
+            match cell_category(table, &mapping.column.name, row) {
+                Some(s) => s,
+                None => continue,
+            }
+        } else if let Some(s) = label_literal.clone() {
+            s
+        } else {
+            continue;
+        };
+        let color = fill
+            .resolve(table, row)
+            .unwrap_or_else(|| theme.text_color.clone());
+        w.line(&format!(
+            "<text x=\"{}\" y=\"{}\" text-anchor=\"{}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\" opacity=\"{}\">{}</text>",
+            num(cx + dx),
+            num(cy + dy),
+            escape_attr(&anchor),
+            escape_attr(&theme.font_family),
+            num(size),
+            escape_attr(&color),
+            num(alpha),
+            escape_text(&label),
+        ));
+    }
+}
+
+/// Render a `Segment` geometry: a straight line between literal endpoints
+/// (spec §14.19).
+fn segment(
+    w: &mut SvgWriter,
+    geo: &GeometryIr,
+    space: &ScaledSpace,
+    table: &dyn Table,
+    theme: &Theme,
+) {
+    let stroke = color_spec(geo, "stroke", table);
+    let color = constant_or(&stroke, DEFAULT_STROKE);
+    let width = number_setting(geo, "strokeWidth", theme.line_width);
+    let alpha = number_setting(geo, "alpha", 1.0);
+
+    let (Some(x), Some(y), Some(xend), Some(yend)) = (
+        number_setting_opt(geo, "x").and_then(|v| space.map_x(v)),
+        number_setting_opt(geo, "y").and_then(|v| space.map_y(v)),
+        number_setting_opt(geo, "xend").and_then(|v| space.map_x(v)),
+        number_setting_opt(geo, "yend").and_then(|v| space.map_y(v)),
+    ) else {
+        return;
+    };
+
+    emit_svg_line(w, x, y, xend, yend, &color, width, alpha);
 }

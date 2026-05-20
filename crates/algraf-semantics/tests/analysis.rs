@@ -425,6 +425,132 @@ fn test_ir_derived_table_schema() {
         .iter()
         .map(|c| c.name.as_str())
         .collect();
-    assert_eq!(names, vec!["bin_start", "bin_end", "bin_center", "count"]);
+    assert_eq!(
+        names,
+        vec!["bin_start", "bin_end", "bin_center", "count", "density"]
+    );
     assert_eq!(ir.spaces[0].data, SpaceDataRef::Derived("bins".into()));
+}
+
+// --- Count stat ---
+
+#[test]
+fn test_bar_count_stat_desugars() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space(species) {\n    Bar(stat: \"count\", fill: species)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.derived_tables.len(), 1);
+    let derived = &ir.derived_tables[0];
+    assert!(derived.name.starts_with("__count_"));
+    assert_eq!(derived.stat.kind, StatKind::Count);
+    let names: Vec<&str> = derived
+        .output_schema
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(names, vec!["species", "count"]);
+    assert_eq!(ir.spaces.len(), 1);
+    assert_eq!(
+        ir.spaces[0].data,
+        SpaceDataRef::Derived(derived.name.clone())
+    );
+    assert!(matches!(ir.spaces[0].frame, FrameIr::Cartesian(ref axes) if axes.len() == 2));
+    assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Bar);
+}
+
+// --- Space-local theme ---
+
+#[test]
+fn test_space_local_theme_is_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\")\n  Space(flipper_length * body_mass) {\n    Theme(name: \"void\")\n    Point()\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.theme.as_deref(), Some("minimal"));
+    assert_eq!(ir.spaces[0].theme.as_deref(), Some("void"));
+}
+
+// --- Guide axis label override ---
+
+#[test]
+fn test_guide_axis_label_overrides_are_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: x, label: \"Flipper\")\n  Guide(axis: y, label: \"Mass\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.guides.x_label.as_deref(), Some("Flipper"));
+    assert_eq!(ir.guides.y_label.as_deref(), Some("Mass"));
+}
+
+#[test]
+fn test_guide_fill_null_suppresses_legend() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Guide(fill: null)\n  Space(flipper_length * body_mass) { Point(fill: species) }\n}",
+        &schema(),
+    );
+    let ir = analysis.ir.expect("ir");
+    assert!(!ir.guides.fill_legend);
+}
+
+// --- Area, Text, Segment ---
+
+#[test]
+fn test_area_geometry_is_registered() {
+    clean("Chart(data: \"t.csv\") {\n  Space(time * value) {\n    Area(baseline: 0, fill: \"steelblue\", alpha: 0.4)\n  }\n}");
+}
+
+#[test]
+fn test_text_geometry_is_registered() {
+    clean("Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Text(label: species)\n  }\n}");
+}
+
+#[test]
+fn test_text_missing_label_is_rejected() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Text()\n  }\n}",
+        "E1205"
+    ));
+}
+
+#[test]
+fn test_segment_geometry_is_registered() {
+    clean("Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Segment(x: 160, y: 55, xend: 185, yend: 85)\n  }\n}");
+}
+
+// --- Diagnostic hints ---
+
+#[test]
+fn test_bare_color_name_emits_h3002_hint() {
+    // `fill: red` is a bare identifier where a column or color literal is
+    // expected. Since `red` is a CSS color name and no such column exists,
+    // emit H3002 suggesting quotes.
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Point(fill: red)\n  }\n}",
+        &schema(),
+    );
+    let diag = analysis
+        .diagnostics
+        .iter()
+        .find(|d| d.code == "H3002")
+        .expect("H3002");
+    assert!(diag.help.as_deref().unwrap().contains("\"red\""));
 }

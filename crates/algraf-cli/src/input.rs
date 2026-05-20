@@ -4,7 +4,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use algraf_data::{read_csv, read_csv_path, read_csv_schema, ColumnDef, LoadResult, Table};
-use algraf_syntax::ast::{ChartItem, Decl, LiteralKind, Root, SpaceItem, ValueExpr};
+use algraf_syntax::ast::{LiteralKind, Root, ValueExpr};
 use algraf_syntax::SyntaxNode;
 
 use crate::error::CliError;
@@ -76,40 +76,6 @@ pub fn extract_data_source(root: &SyntaxNode) -> AstData {
         }
     }
     AstData::Missing
-}
-
-/// Extract the strongest source-declared theme name (spec §22.3).
-///
-/// Later declarations win, so space-local themes override chart-level themes.
-pub fn extract_theme(root: &SyntaxNode) -> Option<String> {
-    let chart = Root::cast(root.clone())?.chart()?;
-    let mut theme = None;
-    for item in chart.items() {
-        match item {
-            ChartItem::Theme(decl) => theme = theme_name(&decl).or(theme),
-            ChartItem::Space(space) => {
-                for sitem in space.items() {
-                    if let SpaceItem::Theme(decl) = sitem {
-                        theme = theme_name(&decl).or(theme);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    theme
-}
-
-fn theme_name(decl: &Decl) -> Option<String> {
-    decl.args()
-        .into_iter()
-        .find(|a| a.key().as_deref() == Some("name"))
-        .and_then(|a| match a.value() {
-            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
-                Some(strip_string(&lit.text().unwrap_or_default()))
-            }
-            _ => None,
-        })
 }
 
 /// Load the data table, applying the `--data` override and base-dir resolution

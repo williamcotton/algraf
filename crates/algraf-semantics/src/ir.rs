@@ -14,6 +14,7 @@ pub struct ChartIr {
     pub derived_tables: Vec<DeriveIr>,
     pub layout: LayoutIr,
     pub guides: GuideIr,
+    pub theme: Option<String>,
     pub title: Option<String>,
     pub subtitle: Option<String>,
     pub caption: Option<String>,
@@ -43,11 +44,22 @@ pub struct LayoutIr {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GuideIr {
     pub legend: bool,
+    /// Whether the fill legend is suppressed (e.g. `Guide(fill: null)`).
+    pub fill_legend: bool,
+    /// Override label for the x axis (spec §19.4).
+    pub x_label: Option<String>,
+    /// Override label for the y axis (spec §19.4).
+    pub y_label: Option<String>,
 }
 
 impl Default for GuideIr {
     fn default() -> Self {
-        GuideIr { legend: true }
+        GuideIr {
+            legend: true,
+            fill_legend: true,
+            x_label: None,
+            y_label: None,
+        }
     }
 }
 
@@ -89,6 +101,9 @@ pub struct SpaceIr {
     pub data: SpaceDataRef,
     pub frame: FrameIr,
     pub geometries: Vec<GeometryIr>,
+    /// Space-local theme override (spec §7.3, §22.3). When set, this theme
+    /// replaces the chart-level theme for this space only.
+    pub theme: Option<String>,
     pub span: Span,
 }
 
@@ -143,6 +158,9 @@ pub enum GeometryKind {
     HLine,
     VLine,
     Rug,
+    Area,
+    Text,
+    Segment,
 }
 
 /// A binding from an aesthetic to a data column (spec §13.6).

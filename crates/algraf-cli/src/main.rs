@@ -21,7 +21,7 @@ use serde_json::{json, Value};
 
 use crate::error::CliError;
 use crate::input::{
-    extract_data_source, extract_theme, load_data, load_schema, read_source, AstData, SourceInput,
+    extract_data_source, load_data, load_schema, read_source, AstData, SourceInput,
 };
 
 #[derive(Parser)]
@@ -227,13 +227,18 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
         ir.height = h;
     }
 
+    // CLI --theme replaces the base theme (spec §22.3). The renderer still
+    // applies space-local theme overrides from the IR on top of this base.
     let theme = args
         .theme
-        .or_else(|| extract_theme(&root))
+        .clone()
+        .or_else(|| ir.theme.clone())
         .map(|name| Theme::by_name(&name))
         .unwrap_or_default();
+    let cli_theme_override = args.theme.clone();
 
-    let mut result = render(&ir, &frame, &theme).map_err(|e| CliError::Internal(e.to_string()))?;
+    let mut result = render(&ir, &frame, &theme, cli_theme_override.as_deref())
+        .map_err(|e| CliError::Internal(e.to_string()))?;
     if !result.diagnostics.is_empty() {
         eprint!(
             "{}",
@@ -718,6 +723,9 @@ fn geometry_kind_str(kind: GeometryKind) -> &'static str {
         GeometryKind::HLine => "HLine",
         GeometryKind::VLine => "VLine",
         GeometryKind::Rug => "Rug",
+        GeometryKind::Area => "Area",
+        GeometryKind::Text => "Text",
+        GeometryKind::Segment => "Segment",
     }
 }
 

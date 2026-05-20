@@ -73,6 +73,11 @@ impl SvgWriter {
         }
     }
 
+    /// Length of the underlying buffer, for change detection across calls.
+    pub fn byte_len(&self) -> usize {
+        self.buf.len()
+    }
+
     fn indent(&mut self) {
         for _ in 0..self.depth {
             self.buf.push_str("  ");
