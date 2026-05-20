@@ -1,0 +1,6 @@
+Chart(data: "regional_sales.csv") {
+    // This creates a separate line chart for each 'region'
+    Space((time * sales) / region) {
+        Line(stroke: product)
+    }
+}

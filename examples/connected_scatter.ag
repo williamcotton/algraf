@@ -1,0 +1,8 @@
+Chart(data: "timeseries.csv") {
+    Space(time * value) {
+        // Renders the connecting lines first
+        Line(stroke: series, strokeWidth: 2)
+        // Renders the data points on top of the lines
+        Point(fill: series, size: 4)
+    }
+}

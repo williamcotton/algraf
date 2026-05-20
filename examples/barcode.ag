@@ -1,0 +1,6 @@
+Chart(data: "demographics.csv") {
+    // Categorical X, Continuous Y
+    Space(gender * height) {
+        Point(fill: gender, alpha: 0.4, size: 3)
+    }
+}

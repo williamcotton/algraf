@@ -1,0 +1,14 @@
+Chart(data: "intervals.csv") {
+    // Both axes must be continuous/temporal
+    Space(time * value) {
+        Rect(
+            xmin: start_time, 
+            xmax: end_time, 
+            // Hardcode a literal baseline if you don't have a column
+            ymin: 0,       
+            ymax: peak_value,
+            fill: "steelblue",
+            alpha: 0.5
+        )
+    }
+}

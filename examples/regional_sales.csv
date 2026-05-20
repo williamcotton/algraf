@@ -1,0 +1,13 @@
+time,region,product,sales
+2026-01-01,North,Widgets,150
+2026-01-02,North,Widgets,200
+2026-01-03,North,Widgets,180
+2026-01-01,North,Gadgets,90
+2026-01-02,North,Gadgets,110
+2026-01-03,North,Gadgets,105
+2026-01-01,South,Widgets,210
+2026-01-02,South,Widgets,190
+2026-01-03,South,Widgets,220
+2026-01-01,South,Gadgets,130
+2026-01-02,South,Gadgets,140
+2026-01-03,South,Gadgets,160

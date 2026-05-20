@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="520" viewBox="0 0 800 520" role="img">
+<rect class="algraf-background" x="0" y="0" width="800" height="520" fill="#ffffff" />
+<rect class="algraf-plot-area" x="60" y="40" width="710" height="430" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="60" y1="40" x2="60" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="202" y1="40" x2="202" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="344" y1="40" x2="344" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="486" y1="40" x2="486" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="628" y1="40" x2="628" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="770" y1="40" x2="770" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="470" x2="770" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="416.914" x2="770" y2="416.914" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="363.827" x2="770" y2="363.827" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="310.741" x2="770" y2="310.741" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="257.654" x2="770" y2="257.654" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="204.568" x2="770" y2="204.568" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="151.481" x2="770" y2="151.481" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="98.395" x2="770" y2="98.395" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="45.309" x2="770" y2="45.309" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-rect">
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="470" x2="770" y2="470" stroke="#333333" stroke-width="1" />
+  <line x1="60" y1="470" x2="60" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="60" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <line x1="202" y1="470" x2="202" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="202" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-04</text>
+  <line x1="344" y1="470" x2="344" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="344" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-07</text>
+  <line x1="486" y1="470" x2="486" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="486" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-10</text>
+  <line x1="628" y1="470" x2="628" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="628" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-13</text>
+  <line x1="770" y1="470" x2="770" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="770" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-17</text>
+  <text x="415" y="508" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">time</text>
+  <line x1="60" y1="40" x2="60" y2="470" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="470" x2="60" y2="470" stroke="#333333" stroke-width="1" />
+  <text x="52" y="474" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="416.914" x2="60" y2="416.914" stroke="#333333" stroke-width="1" />
+  <text x="52" y="420.914" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55" y1="363.827" x2="60" y2="363.827" stroke="#333333" stroke-width="1" />
+  <text x="52" y="367.827" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <line x1="55" y1="310.741" x2="60" y2="310.741" stroke="#333333" stroke-width="1" />
+  <text x="52" y="314.741" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
+  <line x1="55" y1="257.654" x2="60" y2="257.654" stroke="#333333" stroke-width="1" />
+  <text x="52" y="261.654" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
+  <line x1="55" y1="204.568" x2="60" y2="204.568" stroke="#333333" stroke-width="1" />
+  <text x="52" y="208.568" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100</text>
+  <line x1="55" y1="151.481" x2="60" y2="151.481" stroke="#333333" stroke-width="1" />
+  <text x="52" y="155.481" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">120</text>
+  <line x1="55" y1="98.395" x2="60" y2="98.395" stroke="#333333" stroke-width="1" />
+  <text x="52" y="102.395" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">140</text>
+  <line x1="55" y1="45.309" x2="60" y2="45.309" stroke="#333333" stroke-width="1" />
+  <text x="52" y="49.309" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">160</text>
+  <text x="16" y="255" text-anchor="middle" transform="rotate(-90 16 255)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">value</text>
+</g>
+</svg>
