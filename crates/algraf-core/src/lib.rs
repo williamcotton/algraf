@@ -1,3 +1,10 @@
 //! Shared primitives for Algraf: source spans and diagnostics.
 //!
-//! See spec §23.2 (module boundaries) and §11.2 (span type).
+//! See spec §23.2 (module boundaries), §11.2 (span type), and §12.15
+//! (diagnostics).
+
+pub mod diagnostic;
+pub mod span;
+
+pub use diagnostic::{Diagnostic, RelatedSpan, Severity};
+pub use span::{ByteOffset, Span};
