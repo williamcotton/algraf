@@ -56,6 +56,13 @@ Create new examples by adding a new file to the `examples/` directory.
 
 Create new examples when adding new features or fixing bugs.
 
+When you add a new example, also add a section for it to the top-level
+`README.md` — the README is a tutorial that shows every example's `.ag`
+source followed by its rendered SVG, so it must stay in sync with the
+contents of `examples/`. Place the new section where it fits the tutorial
+progression (basics → layering → stats → layouts → derived tables → annotations
+→ theming), not just at the end.
+
 ## Conventions
 
 - Diagnostics are values, not exceptions. Parser/analyzer/renderer return their
