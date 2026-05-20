@@ -392,16 +392,29 @@ Point(fill: species, alpha: 0.7, size: 3)
 
 `size: 3` is a setting because `3` is a literal.
 
-The analyzer decides whether an identifier value is a column reference or enum reference using context.
+The analyzer decides whether an identifier value is a column reference, selector, sentinel, or symbol reference using context.
 
 Ambiguous identifier values MUST produce deterministic resolution.
 
 The default resolution order SHOULD be:
 
 1. Column reference where a data mapping is allowed.
-2. Enum value where the property expects an enum.
-3. Symbol reference if symbol declarations are added later.
-4. Diagnostic if unresolved.
+2. Language selector where the property explicitly accepts selectors, such as `Guide(axis: x)`.
+3. Language sentinel where the property explicitly accepts sentinels, such as `Chart(data: stdin)`.
+4. Symbol reference where the property explicitly accepts chart symbols, such as `Space(..., data: bins)`.
+5. Diagnostic if unresolved.
+
+User-facing enum-valued options MUST use string literals in version 0.1.
+
+Examples include `Bar(layout: "stack")`, `Smooth(method: "lm")`, and `Theme(name: "minimal")`.
+
+Bare identifiers MUST NOT be accepted as enum values for ordinary properties in version 0.1.
+
+If a user writes `Bar(layout: stack)`, the analyzer MUST produce a diagnostic suggesting `Bar(layout: "stack")`.
+
+The bare `x` and `y` values in guide declarations are language selectors, not general enum values.
+
+The bare `stdin` value in `Chart(data: stdin)` is a language sentinel, not a general enum value.
 
 ### 4.7 Scale
 
@@ -729,6 +742,10 @@ The following identifiers are reserved in version 0.1:
 
 `stdin` is a contextual keyword only in `Chart(data: stdin)`.
 
+Outside `Chart(data: stdin)`, `stdin` is an ordinary plain identifier.
+
+`Derive stdin = Bin(value, bins: 25)` is syntactically valid, though style guides SHOULD discourage it because it is visually confusing.
+
 Reserved words MUST NOT be used as plain column identifiers.
 
 Reserved words MAY be used as column identifiers when quoted with backticks.
@@ -899,6 +916,10 @@ It is intentionally simple enough for recursive descent plus Pratt expression pa
 Program        ::= Trivia* ChartBlock Trivia* EOF
 ```
 
+`Trivia` means whitespace and comments retained by the lexer/CST layer.
+
+Trivia is not represented as typed AST children.
+
 A source file MUST contain exactly one chart block in version 0.1.
 
 If extra top-level tokens appear after `ChartBlock`, the parser MUST emit diagnostics and recover.
@@ -949,6 +970,7 @@ SpaceBody      ::= SpaceItem*
 SpaceItem      ::= GeometryCall
                  | ScaleDecl
                  | GuideDecl
+                 | ThemeDecl
                  | ErrorItem
 ```
 
@@ -971,6 +993,25 @@ Example:
 ```ag
 Space(bin_start * count, data: bins) {
     Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count)
+}
+```
+
+`Space` MAY include `Theme` declarations in its body.
+
+Space-local themes override chart-level theme values for that space only.
+
+Space-local themes MUST NOT mutate chart-level theme state.
+
+Example:
+
+```ag
+Chart(data: "timeseries.csv") {
+    Theme(name: "minimal")
+
+    Space(time * value) {
+        Theme(name: "void")
+        Line(stroke: series)
+    }
 }
 ```
 
@@ -1074,7 +1115,25 @@ Thus:
 
 `a * b + c` parses as `(a * b) + c`.
 
-Parentheses SHOULD be encouraged in formatter output for mixed operators.
+Blend expressions using `+` MUST be written inside explicit parentheses in version 0.1.
+
+Examples:
+
+```ag
+Space(time * (lower + upper)) {
+    Ribbon(ymin: lower, ymax: upper)
+}
+```
+
+```ag
+Space((lower + upper)) {
+    Rug()
+}
+```
+
+Unparenthesized blend expressions such as `time * lower + upper` and `lower + upper` MUST produce semantic diagnostics.
+
+The formatter MUST NOT remove parentheses that make a blend expression valid.
 
 ### 7.8 Literals
 
@@ -1187,6 +1246,10 @@ Version 0.1 renderer MUST support 1D and 2D spaces.
 
 Version 0.1 analyzer MUST reject unsupported 3D Cartesian spaces with a diagnostic.
 
+If the analyzer sees `x * y * group`, the diagnostic MUST explain that 3D Cartesian spaces are unsupported and SHOULD suggest `(x * y) / group` when `group` is categorical.
+
+The LSP SHOULD expose that suggestion as a quick fix.
+
 ### 8.4 Nest Operator
 
 The nest operator conditions one domain inside another domain.
@@ -1236,6 +1299,28 @@ Facet column count MAY be overridden with `Layout(facetColumns: n)`.
 ### 8.5 Blend Operator
 
 The blend operator unions domains into a shared dimension.
+
+Source-level blend MUST be explicitly parenthesized in version 0.1.
+
+Valid blend examples:
+
+```ag
+time * (lower + upper)
+```
+
+```ag
+(lower + upper)
+```
+
+Invalid blend examples:
+
+```ag
+time * lower + upper
+```
+
+```ag
+lower + upper
+```
 
 Expression:
 
@@ -1287,11 +1372,11 @@ Nest binds tighter than cross because grouped slots are usually formed before cr
 
 `quarter / type * amount` should mean `(quarter / type) * amount`.
 
-Cross binds tighter than blend because coordinate construction usually precedes union.
+Cross binds tighter than blend only for parser recovery and diagnostics.
 
-`time * lower + upper` should mean `(time * lower) + upper`, but formatter SHOULD require parentheses because the result is unusual.
+`time * lower + upper` parses as `(time * lower) + upper`, but the analyzer MUST reject it because the blend is not explicitly parenthesized.
 
-For common interval syntax, users SHOULD write `time * (lower + upper)`.
+For common interval syntax, users MUST write `time * (lower + upper)`.
 
 ### 8.7 Associativity
 
@@ -1301,7 +1386,9 @@ All operators are left-associative.
 
 `a * b * c` means a 3D Cartesian space and is unsupported by the version 0.1 SVG renderer.
 
-`a + b + c` means a union of three domains.
+`(a + b + c)` means a union of three domains.
+
+`a + b + c` without enclosing parentheses MUST be rejected in version 0.1.
 
 The analyzer SHOULD flatten associative operators into normalized IR where useful.
 
@@ -1353,7 +1440,9 @@ Canonical representation examples:
 
 `a * b` becomes `Cartesian { axes: [a, b] }`.
 
-`a + b + c` becomes `Union { members: [a, b, c] }`.
+`a * b * c` becomes `Cartesian { axes: [a, b, c] }` before the version 0.1 renderer rejects it as unsupported.
+
+`(a + b + c)` becomes `Union { members: [a, b, c] }`.
 
 `a / b / c` becomes `Nested { root: a, children: [b, c] }`.
 
@@ -1376,6 +1465,8 @@ unknown column identifier
 unsupported 3D render target
 
 invalid blend of incompatible domains where no scale can support it
+
+unparenthesized blend expressions
 
 nesting continuous dimensions inside continuous dimensions unless explicitly supported
 
@@ -1437,6 +1528,8 @@ space-local scales
 
 space-local guides
 
+space-local theme
+
 geometry list
 
 Space-local declarations override chart declarations where applicable.
@@ -1479,11 +1572,11 @@ In `Point(fill: species)`, `fill` is a property key and `species` is a property 
 
 In `Point(fill: "red")`, `fill` is a property key and `"red"` is a literal.
 
-In `Point(shape: circle)`, `circle` may be an enum literal if `shape` accepts known shape names.
+In `Point(shape: "circle")`, `"circle"` is a string literal used as an enum-valued option.
 
-If a property accepts both column mappings and enum values, unquoted identifiers SHOULD prefer column mappings.
+If a property accepts both column mappings and enum values, unquoted identifiers MUST resolve only as column mappings.
 
-Enum values SHOULD be written as strings for clarity in user-facing examples.
+Enum values MUST be written as strings in version 0.1.
 
 ### 9.5 Inheritance
 
@@ -1541,7 +1634,13 @@ cat data.csv | algraf render chart.ag --data -
 
 When `--data -` is used, it overrides the chart's `data` argument for the render command and supplies CSV rows from standard input.
 
+The recommended source pattern for piped CSV data is `Chart(data: stdin)`.
+
 When `Chart(data: stdin)` is used, the render command MUST read CSV rows from standard input without requiring `--data -`.
+
+`Chart` MUST include `data` in version 0.1 even when the CLI supplies `--data`.
+
+The CLI `--data` option is an override of the source declaration, not a replacement for it.
 
 Version 0.1 MUST NOT support reading both Algraf source and CSV data from the same standard input stream in a single command.
 
@@ -1601,7 +1700,19 @@ For LSP completion, reading only headers is sufficient.
 
 For LSP hover, inferred types are useful but optional.
 
+LSP type inference from sampled rows is provisional.
+
+The LSP MUST label sampled types as provisional in internal analysis state.
+
+The LSP SHOULD avoid hard error diagnostics that depend only on provisional sampled types.
+
+The LSP MAY emit hints or warnings for likely type mismatches from sampled types.
+
 For CLI render, full type inference is required before scale training.
+
+CLI render type inference is authoritative.
+
+CLI render MUST use a deterministic policy for values that disagree with the inferred column type.
 
 Recommended type inference order:
 
@@ -1619,6 +1730,16 @@ empty or null
 
 If a column has mixed numeric and string values, infer `Mixed` and prefer categorical unless a continuous scale is required.
 
+If a column is selected for a continuous or temporal scale and contains late non-empty values that cannot be parsed as the selected type, the renderer MUST treat those values as missing, preserve the selected scale type, and emit one aggregated warning.
+
+The renderer MUST NOT dynamically recast a trained continuous or temporal column to categorical after scale training begins.
+
+The renderer MUST NOT invalidate already-trained scales because of late invalid values.
+
+Recognized missing tokens SHOULD include the empty string, `NA`, `N/A`, `NaN`, `null`, and `NULL`.
+
+Recognized missing tokens in otherwise numeric or temporal columns SHOULD be treated as missing rather than causing `Mixed`.
+
 Empty values SHOULD be represented as missing.
 
 Missing values SHOULD be skipped by geometries unless the geometry has explicit missing-value behavior.
@@ -1634,6 +1755,20 @@ Version 0.1 temporal inference MUST recognize ISO datetimes without time zone in
 Version 0.1 temporal inference SHOULD recognize ISO datetimes with a space separator in `YYYY-MM-DD HH:MM:SS` form.
 
 Values outside these formats MUST remain strings unless an explicit temporal parsing declaration is added in a later version.
+
+Temporal inference MUST distinguish date-only columns from datetime columns where all non-missing values are date-only.
+
+If a column mixes date-only values and datetime values, version 0.1 MUST infer a datetime column and lift date-only values to midnight at `00:00:00`.
+
+Naive datetime values without an offset MUST be interpreted as timezone-free Gregorian timestamps.
+
+Naive datetime values MUST NOT be interpreted in the user's local timezone.
+
+RFC3339 datetime values with offsets MUST be converted to UTC instants for ordering and scale mapping.
+
+If a column mixes naive datetime values and offset-aware RFC3339 datetime values, version 0.1 MUST convert offset-aware values to UTC instants and treat naive values as UTC-equivalent instants for scale mapping.
+
+The analyzer SHOULD emit a warning when a column mixes naive and offset-aware datetime values.
 
 ### 10.4 Column Definition
 
@@ -1677,9 +1812,13 @@ Recommended initial structure:
 ```rust
 pub struct DataFrame {
     pub columns: Vec<Series>,
-    pub name_to_index: HashMap<String, usize>,
+    pub name_to_index: IndexMap<String, usize>,
 }
 ```
+
+The `columns` vector is the canonical column order.
+
+`name_to_index` MUST preserve deterministic iteration order if it is ever iterated.
 
 Recommended row view representation:
 
@@ -1823,9 +1962,19 @@ Every AST node SHOULD be serializable for debug output.
 
 Every AST node SHOULD be cloneable or reference-counted for LSP use.
 
-AST nodes MAY omit comments.
+The rowan CST is the canonical syntax tree.
 
-CST nodes SHOULD retain comments and whitespace for formatting.
+Typed AST nodes SHOULD be lightweight views over rowan syntax nodes, following the rust-analyzer pattern.
+
+Typed AST views SHOULD expose methods that walk CST children rather than storing separate owned child vectors.
+
+The owned structs shown in this document are structural sketches of node shape, not a required in-memory representation.
+
+Implementations MUST NOT maintain two independently mutable syntax trees.
+
+AST views MAY omit comments.
+
+CST nodes MUST retain comments and whitespace for formatting.
 
 ### 11.2 Span Type
 
@@ -1881,6 +2030,10 @@ Semantic diagnostics live separately.
 
 ### 11.5 Chart Node
 
+The following Rust structs describe the logical shape of typed nodes.
+
+A rowan-based implementation SHOULD expose equivalent typed accessors over CST nodes rather than allocating this exact owned tree.
+
 ```rust
 pub struct ChartBlock {
     pub args: Vec<Spanned<Argument>>,
@@ -1915,6 +2068,7 @@ pub enum SpaceItem {
     Geometry(Spanned<GeometryCall>),
     Scale(Spanned<Call>),
     Guide(Spanned<Call>),
+    Theme(Spanned<Call>),
     Error(ErrorNode),
 }
 ```
@@ -2213,6 +2367,10 @@ Binding powers:
 
 `/` nest: left 5, right 6
 
+The parser accepts `+` so it can build recoverable syntax trees and precise diagnostics.
+
+The semantic analyzer enforces the explicit-parentheses rule for blend.
+
 The parser uses:
 
 ```rust
@@ -2469,7 +2627,19 @@ known geometry call names
 
 `Guide`
 
+`Theme`
+
 `}`
+
+Synchronization MUST use hard stops to avoid consuming subsequent valid blocks.
+
+Chart-body recovery MUST stop at `Space`, `Derive`, `Scale`, `Guide`, `Theme`, `Layout`, `Chart`, `}`, or EOF.
+
+Space-body recovery MUST stop at known geometry call names, `Scale`, `Guide`, `Theme`, `Space`, `Derive`, `}`, or EOF.
+
+Argument-list recovery MUST stop at `,`, `)`, `}`, a known chart-body keyword, or a known space-body item starter.
+
+Algebra recovery MUST stop at `)`, `,`, `{`, `}`, `Space`, `Derive`, `Scale`, `Guide`, `Theme`, `Layout`, a known geometry call name, or EOF.
 
 Synchronize argument list on:
 
@@ -2487,7 +2657,21 @@ Synchronize algebra on:
 
 `}`
 
-### 12.17 Incremental Parsing
+### 12.17 Partial AST Examples
+
+The parser MUST produce useful partial CST/AST structure for common in-progress edits.
+
+For `Chart(data: "fi`, the parser MUST produce a `Chart` node with a `data` argument whose value is an unterminated string error node.
+
+For `Space(quarter / )`, the parser MUST produce a `Space` node whose frame contains a `Nest` expression with an error right-hand operand.
+
+For `Derive bins = Bin(value, bins: )`, the parser MUST produce a `Derive` node, a `Bin` stat call, and an error value for `bins`.
+
+For a missing closing `}` before a following `Space`, the parser SHOULD close the previous block synthetically and continue parsing the following `Space` as a sibling where possible.
+
+These partial AST shapes are part of the LSP contract and SHOULD have fixtures.
+
+### 12.18 Incremental Parsing
 
 Version 0.1 MAY reparse whole files.
 
@@ -2630,8 +2814,31 @@ pub struct GeometryIr {
     pub mappings: Vec<AestheticMapping>,
     pub settings: Vec<GeometrySetting>,
     pub span: Span,
+    pub origin: IrOrigin,
 }
 ```
+
+```rust
+pub enum IrOrigin {
+    Source(Span),
+    Desugared {
+        source: Span,
+        role: DesugaredRole,
+    },
+}
+```
+
+```rust
+pub enum DesugaredRole {
+    HistogramBinTable,
+    HistogramRect,
+    HistogramCountAxis,
+}
+```
+
+IR produced by high-level geometry desugaring MUST carry an origin mapping.
+
+Diagnostics on synthetic IR nodes MUST use the origin mapping to report source spans in the user-authored program.
 
 ### 13.7 Column Reference
 
@@ -2703,11 +2910,11 @@ Examples:
 
 `Bar.fill` accepts column mapping or color literal.
 
-`Bar.layout` accepts enum literal `identity`, `stack`, or `fill`.
+`Bar.layout` accepts string literal `"identity"`, `"stack"`, or `"fill"`.
 
 `Rect.xmin`, `Rect.xmax`, `Rect.ymin`, and `Rect.ymax` accept column mappings or numeric/temporal literals.
 
-`Smooth.method` accepts enum literal `lm` or `loess`.
+`Smooth.method` accepts string literal `"lm"` or `"loess"`.
 
 ### 13.10 Duplicate Argument Diagnostics
 
@@ -2749,6 +2956,8 @@ Example:
 
 `Point(colour: species)` MAY suggest `fill` or `stroke`.
 
+The diagnostic MUST make clear that `colour` is not an alias because `fill` and `stroke` have different semantics.
+
 If aliases are supported later, they MUST resolve to explicit `fill` or `stroke` behavior rather than introducing a separate `color` aesthetic.
 
 Version 0.1 MUST avoid property aliases.
@@ -2781,7 +2990,7 @@ Space(x * y * z) {
 
 Diagnostic:
 
-`E1301 3D Cartesian spaces are not supported by the SVG renderer in version 0.1`
+`E1306 3D Cartesian spaces are unsupported; use (x * y) / z to facet by z`
 
 ### 13.15 Schema Diagnostics
 
@@ -2929,7 +3138,7 @@ alpha number
 
 size number
 
-shape enum
+shape string option
 
 Default fill:
 
@@ -2993,7 +3202,7 @@ strokeWidth number
 
 alpha number
 
-curve enum
+curve string option
 
 Default grouping:
 
@@ -3157,6 +3366,14 @@ Dodging is not a `Bar` layout in Algraf.
 
 Dodging is represented algebraically with nesting.
 
+Rationale:
+
+Dodging changes the coordinate system by allocating sub-bands inside each primary band, so it belongs in algebra as `quarter / type`.
+
+Stacking does not create new x coordinates; it resolves multiple rows that already share a coordinate by accumulating y extents, so it remains a bar layout policy.
+
+This split keeps coordinate partitioning in `Space(...)` and collision resolution in geometry settings.
+
 Example:
 
 ```ag
@@ -3225,7 +3442,7 @@ Chart(data: "distribution.csv") {
 }
 ```
 
-MUST be semantically equivalent to:
+MUST be visually equivalent to:
 
 ```ag
 Chart(data: "distribution.csv") {
@@ -3239,7 +3456,21 @@ Chart(data: "distribution.csv") {
 
 The generated derived table name MUST be hygienic and MUST NOT collide with user-defined derived table names.
 
-The implementation MAY keep `Histogram` as a direct IR node internally, but the observable scale training, guide generation, diagnostics, and SVG marks MUST match the derived-table plus `Rect` model.
+Visual equivalence means the same source data, bin settings, theme, viewport, and renderer version produce the same bin boundaries, scale domains, default guide labels, and SVG mark geometry.
+
+Visual equivalence does not require diagnostics to expose synthetic `Derive` or `Rect` source locations.
+
+Diagnostics produced by desugared nodes MUST map back to the original `Histogram` call unless a more precise user-authored span exists.
+
+Scale and guide diagnostics for the generated `count` axis MUST map to the `Histogram` call.
+
+Diagnostics for user-provided histogram settings such as `bins`, `binWidth`, `boundary`, or `closed` MUST map to the corresponding setting span.
+
+The generated y-axis label defaults to `count`.
+
+The generated `count` column is a synthetic stat output column.
+
+The implementation MAY keep `Histogram` as a direct IR node internally, but its visual output MUST match the derived-table plus `Rect` model.
 
 ### 14.8 Frequency Polygon
 
@@ -3445,7 +3676,7 @@ categorical x by categorical y
 
 categorical x by temporal y
 
-Tile maps fill to color scale.
+Tile maps fill to a fill scale.
 
 Tile computes cell rectangles from x and y band scales.
 
@@ -3679,6 +3910,36 @@ boundary
 
 closed
 
+`bins` sets the requested number of bins.
+
+`binWidth` sets exact bin width.
+
+`bins` and `binWidth` MUST NOT both be provided.
+
+`boundary` sets an anchor value that bin boundaries align to.
+
+Default `closed` is `"left"`.
+
+`closed: "left"` means bins are `[start, end)`.
+
+`closed: "right"` means bins are `(start, end]`.
+
+The final bin SHOULD include the maximum value even when `closed: "left"` would otherwise exclude it.
+
+Values exactly on a boundary MUST be assigned according to `closed`.
+
+Example with `binWidth: 10`, `boundary: 0`, and `closed: "left"`:
+
+`0` belongs to `[0, 10)`.
+
+`10` belongs to `[10, 20)`.
+
+Example with `binWidth: 10`, `boundary: 0`, and `closed: "right"`:
+
+`0` belongs to `(-10, 0]`.
+
+`10` belongs to `(0, 10]`.
+
 Output columns:
 
 bin_start
@@ -3704,6 +3965,18 @@ For temporal inputs, bin boundary columns are temporal if temporal binning is im
 Version 0.1 MUST support numeric binning.
 
 Version 0.1 MAY defer temporal binning even though temporal scales are supported.
+
+If version 0.1 defers temporal binning, `Bin` applied to a temporal column MUST produce a targeted diagnostic.
+
+The diagnostic MUST say that temporal scales are supported but temporal binning is not yet supported.
+
+The diagnostic SHOULD suggest pre-aggregating the CSV or converting the temporal column to an explicit categorical period column.
+
+`Histogram` over a temporal vector MUST trigger the same diagnostic when temporal binning is unavailable.
+
+Nesting a high-cardinality temporal vector directly with `/` SHOULD produce a warning when it would create one panel or band per timestamp.
+
+The warning SHOULD suggest deriving or precomputing a coarser period column such as day, week, month, or year.
 
 ### 15.7 Smooth Stat
 
@@ -3745,9 +4018,15 @@ ymax
 
 outlier values MAY be separate.
 
-Quantile algorithm MUST be documented.
+Version 0.1 MUST use Hyndman and Fan Type 7 quantiles, matching the default quantile method used by R.
 
-Version 0.1 SHOULD use a deterministic quantile method and test it.
+Boxplot whiskers MUST extend to the most extreme data points within `1.5 * IQR` of the first and third quartiles.
+
+Values outside the whiskers are outliers.
+
+Outliers MAY be rendered by default.
+
+The quantile implementation MUST be deterministic and covered by snapshot or unit tests.
 
 ### 15.9 Stack Stat or Position Transform
 
@@ -3851,9 +4130,23 @@ A temporal scale maps date or datetime values to pixel range.
 
 Temporal scales are required in version 0.1.
 
-Temporal domains are represented internally as normalized timestamps.
+Temporal domains are represented internally as normalized temporal values.
+
+Date-only values SHOULD be represented as days since the Unix epoch.
+
+Datetime values SHOULD be represented as microseconds since the Unix epoch.
+
+RFC3339 values with offsets MUST be normalized to UTC instants.
+
+Naive datetime values MUST be treated as UTC-equivalent instants for scale mapping, without applying local timezone or daylight-saving rules.
 
 Temporal scales MUST preserve the distinction between date-only values and datetime values for formatting defaults.
+
+If a column mixes date-only and datetime values, the scale treats the column as datetime and formats labels as datetimes.
+
+Version 0.1 temporal scale mapping MUST NOT perform timezone-aware calendar arithmetic.
+
+Daylight-saving transitions MUST NOT affect temporal scale positions in version 0.1.
 
 Accepted version 0.1 input formats are defined in section 10.3.
 
@@ -4424,7 +4717,11 @@ Debug comments MUST be optional.
 
 ### 18.12 Determinism
 
-Given same source, data, binary version, and options, SVG output MUST be byte-stable except for explicitly documented metadata.
+Given same source, data, binary version, options, target platform, and configured font metrics, SVG output MUST be byte-stable except for explicitly documented metadata.
+
+Cross-platform byte stability is a goal, not a version 0.1 guarantee.
+
+Version 0.1 MUST document the platforms used for snapshot baselines.
 
 No timestamps should appear by default.
 
@@ -4433,6 +4730,20 @@ No random IDs should appear by default.
 Palette assignment MUST be deterministic.
 
 Category ordering MUST be deterministic.
+
+The implementation MUST use deterministic map iteration for any state that can affect output ordering.
+
+`IndexMap` or `BTreeMap` SHOULD be used where output order can leak into SVG.
+
+Rust `HashMap` iteration MUST NOT be used to determine SVG element order, category order, guide order, or attribute order.
+
+Text measurement MUST use deterministic approximations or bundled/static metrics.
+
+The renderer MUST NOT depend on host font discovery for layout decisions in version 0.1.
+
+Floating point formatting MUST use locale-independent formatting.
+
+Floating point output precision MUST be fixed by renderer configuration.
 
 ## 19. Guides
 
@@ -4494,7 +4805,7 @@ Labels MAY be overridden:
 Guide(axis: x, label: "Flipper Length (mm)")
 ```
 
-Axis references MUST use bare `x` and `y` enum values.
+Axis references MUST use bare `x` and `y` selector values.
 
 Axis references MUST NOT use string literals such as `"x"` in version 0.1.
 
@@ -4813,7 +5124,7 @@ inside space body expects geometry names, `Scale`, `Guide`
 
 inside geometry args expects property names
 
-after property colon expects columns, literals, or enum values depending on property
+after property colon expects columns, literals, string-valued options, selectors, sentinels, or symbols depending on property
 
 Completion MUST be context-sensitive.
 
@@ -4839,7 +5150,7 @@ geometry hover shows geometry docs
 
 property hover shows property docs
 
-literal enum hover shows enum docs
+string-valued option hover shows option docs
 
 Hover over `/`:
 
@@ -4929,6 +5240,10 @@ quote literal color.
 
 replace `Bar(layout: "dodge")` with nested algebra suggestion.
 
+replace `x * y * group` with `(x * y) / group` when `group` is categorical.
+
+replace unparenthesized `time * lower + upper` with `time * (lower + upper)`.
+
 For example:
 
 ```ag
@@ -4946,6 +5261,22 @@ Space((quarter / type) * amount) {
 ```
 
 Version 0.1 MAY omit code actions.
+
+### 21.13 Cancellation and Shutdown
+
+The LSP MUST honor client cancellation for long-running custom requests.
+
+Preview rendering MUST be cancellable through the LSP request cancellation mechanism.
+
+Implementation SHOULD associate each long-running preview task with a cancellation token.
+
+When a newer preview request supersedes an older preview request for the same document, the older task SHOULD be cancelled.
+
+Cancelled preview tasks MUST NOT publish stale preview output.
+
+The LSP MUST handle `shutdown` by stopping new work and allowing in-flight lightweight requests to finish promptly.
+
+The LSP MUST handle `exit` by terminating the process after shutdown according to LSP conventions.
 
 ## 22. CLI Specification
 
@@ -5028,6 +5359,17 @@ Render options:
 It does not change source syntax.
 
 Source files MUST use `Theme(name: "...")` for persistent theme selection.
+
+Theme precedence from weakest to strongest is:
+
+1. Built-in default theme.
+2. Chart-level `Theme(...)`.
+3. Space-local `Theme(...)`.
+4. CLI `--theme <name>`.
+
+In version 0.1, CLI `--theme <name>` replaces the base theme name while preserving the same override order.
+
+When custom theme fields are added later, CLI `--theme <name>` MUST replace the base theme but MUST NOT discard explicit source-level field overrides unless an explicit reset option is added.
 
 ### 22.4 Check Command
 
@@ -5144,6 +5486,31 @@ JSON output SHOULD be available:
 ```bash
 algraf check chart.ag --json
 ```
+
+JSON diagnostic output MUST use a stable object shape:
+
+```json
+{
+  "source": "algraf",
+  "code": "E1101",
+  "severity": "error",
+  "message": "unknown column",
+  "file": "chart.ag",
+  "span": { "start": 42, "end": 47 },
+  "range": {
+    "start": { "line": 3, "character": 10 },
+    "end": { "line": 3, "character": 15 }
+  },
+  "related": [],
+  "help": "Check the CSV header or use a backtick-quoted column identifier."
+}
+```
+
+`span` uses UTF-8 byte offsets.
+
+`range` uses zero-based line and UTF-16 character offsets to match LSP conventions.
+
+The human diagnostic renderer SHOULD use the same diagnostic data model as JSON output and LSP diagnostics.
 
 ## 23. Rust Crate Architecture
 
@@ -5684,6 +6051,10 @@ Chart(data: "examples/heatmap_data.csv") {
 
 `E1304 unsupported blend domains`
 
+`E1305 blend operator must be parenthesized`
+
+`E1306 3D Cartesian spaces are unsupported; use nesting for facets`
+
 `E1401 statistic failed`
 
 `E1402 insufficient data for statistic`
@@ -5691,6 +6062,8 @@ Chart(data: "examples/heatmap_data.csv") {
 `E1403 unknown stat`
 
 `E1404 invalid stat input`
+
+`E1405 temporal binning is not supported in this version`
 
 ### 26.3 Warning Diagnostics
 
@@ -5706,15 +6079,21 @@ Chart(data: "examples/heatmap_data.csv") {
 
 `W2006 unsupported declaration ignored`
 
+`W2007 invalid values treated as missing`
+
+`W2008 high-cardinality temporal nesting may create excessive bands or panels`
+
 ### 26.4 Hint Diagnostics
 
 `H3001 use nested algebra for dodged bars`
 
 `H3002 quote literal color names for clarity`
 
-`H3003 add parentheses around mixed algebra operators`
+`H3003 parenthesize blend expressions`
 
 `H3004 use Guide to override axis label`
+
+`H3005 choose fill or stroke; colour is not a property alias`
 
 ## 27. Testing Strategy
 
@@ -5784,6 +6163,8 @@ Test geometry args.
 
 Test space `data` args.
 
+Test space-local `Theme` declarations.
+
 Test arrays.
 
 Test nested parentheses.
@@ -5793,6 +6174,24 @@ Test operator precedence.
 Test trailing commas.
 
 Test quoted column identifiers in algebra and properties.
+
+Parser tests SHOULD be backed by a grammar fixture corpus.
+
+Recommended layout:
+
+```text
+tests/fixtures/parser/
+  valid/
+    minimal.ag
+    derive-bin-rect.ag
+    facet-wrap.ag
+  invalid/
+    missing-space-rhs.ag
+    unparenthesized-blend.ag
+    missing-brace-before-space.ag
+  snapshots/
+    minimal.ast.json
+```
 
 ### 27.4 Resilience Tests
 
@@ -5809,6 +6208,8 @@ Test unterminated string.
 Test incomplete argument.
 
 Test top-level garbage.
+
+Test missing braces before a following `Space`, `Derive`, or `Theme` item.
 
 Each resilience test MUST assert:
 
@@ -5838,6 +6239,10 @@ Test property type mismatch.
 
 Test unsupported 3D space.
 
+Test `x * y * group` diagnostic suggests `(x * y) / group` when applicable.
+
+Test unparenthesized blend diagnostics.
+
 Test bar dodge hint.
 
 Test stacked bar validation.
@@ -5845,6 +6250,14 @@ Test stacked bar validation.
 Test facet validation.
 
 Test temporal column inference.
+
+Test provisional LSP sampled types do not emit hard errors.
+
+Test late invalid numeric values are treated as missing with an aggregated warning.
+
+Test temporal binning diagnostics when temporal binning is unavailable.
+
+Test high-cardinality temporal nesting warning.
 
 Test continuous fill and stroke scale validation.
 
@@ -5861,6 +6274,28 @@ Snapshots SHOULD avoid timestamps.
 Snapshots SHOULD use small deterministic datasets.
 
 Each core geometry SHOULD have at least one SVG snapshot.
+
+The canonical render fixture set SHOULD include:
+
+minimal point plot
+
+dodged bar via nested algebra
+
+stacked bar via `Bar(layout: "stack")`
+
+facet wrap via `(x * y) / group`
+
+histogram high-level form
+
+histogram primitive `Derive` plus `Rect` form
+
+ribbon with blended y domain
+
+temporal line chart
+
+space-local theme override
+
+The high-level and primitive histogram fixtures SHOULD assert equivalent visual output after normalizing metadata.
 
 ### 27.7 LSP Tests
 
@@ -5908,7 +6343,11 @@ Parser SHOULD be linear in token count.
 
 Parser SHOULD avoid excessive allocation.
 
-Parser SHOULD parse typical files under a few milliseconds.
+Parser SHOULD parse a 100-line file in under 5 ms on the reference development machine.
+
+Parser SHOULD parse a 1,000-line file in under 25 ms on the reference development machine.
+
+Benchmark machines and thresholds MUST be documented when benchmarks are added to CI.
 
 ### 28.2 LSP Latency
 
@@ -5916,7 +6355,7 @@ Completion SHOULD respond under 50 ms from warm cache.
 
 Hover SHOULD respond under 50 ms from warm cache.
 
-Diagnostics SHOULD update within a debounce window.
+Diagnostics SHOULD update within 250 ms after the debounce window for typical files.
 
 Schema resolution SHOULD not block editor input.
 
@@ -5924,7 +6363,9 @@ Schema resolution SHOULD not block editor input.
 
 Version 0.1 targets small to medium CSV files.
 
-Rendering 10,000 points SHOULD be reasonable.
+Rendering 10,000 points to SVG SHOULD complete in under 200 ms on the reference development machine.
+
+Rendering a 25-bin histogram from 100,000 rows SHOULD complete in under 500 ms on the reference development machine.
 
 Rendering 1,000,000 points is not a version 0.1 target.
 
@@ -6232,6 +6673,7 @@ SpaceBody      ::= SpaceItem*
 SpaceItem      ::= GeometryCall
                  | ScaleDecl
                  | GuideDecl
+                 | ThemeDecl
                  | ErrorItem
 
 DeriveDecl     ::= "Derive" Ident "=" StatCall
@@ -6458,16 +6900,20 @@ impl Parser {
         let chart = self.parse_chart_block();
         self.consume_trailing_tokens();
         let end = self.previous_span_end();
+        let diagnostics = std::mem::take(&mut self.diagnostics);
 
         Program {
             chart,
-            diagnostics: self.diagnostics.clone(),
+            diagnostics,
             span: Span { start, end },
         }
     }
 
     fn parse_chart_block(&mut self) -> Option<Spanned<ChartBlock>> {
-        let start = self.expect_ident_named("Chart")?;
+        let Some(start) = self.expect_ident_named("Chart") else {
+            self.error_current("expected Chart block");
+            return None;
+        };
         self.expect_recover(TokenKind::LParen, "expected '(' after Chart");
         let args = self.parse_arg_list_until(TokenKind::RParen);
         self.expect_recover(TokenKind::RParen, "expected ')' after Chart arguments");
@@ -6530,6 +6976,8 @@ impl Parser {
                 body.push(self.parse_space_call_item("Scale"));
             } else if self.at_ident_named("Guide") {
                 body.push(self.parse_space_call_item("Guide"));
+            } else if self.at_ident_named("Theme") {
+                body.push(self.parse_space_call_item("Theme"));
             } else {
                 self.error_current("unexpected item in Space block");
                 self.advance();
@@ -6588,6 +7036,8 @@ impl Parser {
 }
 ```
 
+`consume_trailing_tokens()` means consume unexpected tokens after the root chart and emit diagnostics until EOF.
+
 ## 37. Appendix E: Detailed LSP Completion Matrix
 
 At empty file:
@@ -6626,7 +7076,9 @@ suggest chart-scoped derived table names.
 
 After identifier in algebra:
 
-suggest operators `*`, `/`, `+`.
+suggest operators `*` and `/`.
+
+Suggest `+` only when the cursor is inside an explicit parenthesized blend-capable expression.
 
 After `*`:
 
@@ -6689,6 +7141,7 @@ Parser checklist:
 - [ ] Derive declarations.
 - [ ] Space block.
 - [ ] Space data arguments.
+- [ ] Space-local Theme declarations.
 - [ ] Geometry calls.
 - [ ] Argument lists.
 - [ ] Array values.
@@ -6702,6 +7155,7 @@ Semantic checklist:
 - [ ] Data argument extraction.
 - [ ] Path resolution.
 - [ ] CSV schema loading.
+- [ ] Provisional LSP type inference policy.
 - [ ] Symbol table.
 - [ ] Column resolution.
 - [ ] Derived table resolution.
@@ -6709,7 +7163,12 @@ Semantic checklist:
 - [ ] Geometry registry.
 - [ ] Property registry.
 - [ ] Type checking.
+- [ ] Late invalid value warning policy.
+- [ ] Temporal binning diagnostics.
+- [ ] High-cardinality temporal nesting warning.
 - [ ] Algebra validation.
+- [ ] Parenthesized blend validation.
+- [ ] 3D Cartesian facet quick-fix diagnostics.
 - [ ] Histogram desugaring.
 - [ ] IR output.
 
@@ -6722,7 +7181,8 @@ Runtime checklist:
 - [ ] Continuous scale.
 - [ ] Band scale.
 - [ ] Nested band scale.
-- [ ] Color scale.
+- [ ] Fill and stroke scales.
+- [ ] Temporal scale.
 - [ ] Layout.
 - [ ] SVG escape.
 - [ ] SVG root.
