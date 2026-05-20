@@ -310,11 +310,25 @@ fn build_axis(
             if let (FrameIr::Vector(o), FrameIr::Vector(i)) = (outer.as_ref(), inner.as_ref()) {
                 let outer_cats = categorical_domain(table, &o.name);
                 let inner_cats = categorical_domain(table, &i.name);
-                let outer_band = BandScale::new(outer_cats, range);
+                let mut outer_band = BandScale::new(outer_cats, range);
+                if let Some(hints) = hints {
+                    if let Some(pad) = hints.band_pad_inner() {
+                        outer_band.pad_inner = pad;
+                    }
+                    if let Some(pad) = hints.band_pad_outer() {
+                        outer_band.pad_outer = pad;
+                    }
+                }
+                let mut nested = NestedBandScale::new(outer_band, inner_cats);
+                if let Some(hints) = hints {
+                    if let Some(pad) = hints.band_pad_inner() {
+                        nested.pad_inner = pad;
+                    }
+                }
                 Some(AxisScale::NestedBand {
                     outer_col: o.name.clone(),
                     inner_col: i.name.clone(),
-                    scale: NestedBandScale::new(outer_band, inner_cats),
+                    scale: nested,
                 })
             } else {
                 // Faceting (nested Cartesian plane) is not yet laid out.
@@ -387,9 +401,18 @@ fn build_vector_axis(
         }
         _ => {
             let cats = categorical_domain(table, &col.name);
+            let mut scale = BandScale::new(cats, range);
+            if let Some(hints) = hints {
+                if let Some(pad) = hints.band_pad_inner() {
+                    scale.pad_inner = pad;
+                }
+                if let Some(pad) = hints.band_pad_outer() {
+                    scale.pad_outer = pad;
+                }
+            }
             AxisScale::Band {
                 col: col.name.clone(),
-                scale: BandScale::new(cats, range),
+                scale,
             }
         }
     }

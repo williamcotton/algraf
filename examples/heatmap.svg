@@ -4,21 +4,21 @@
 <g class="algraf-grid">
 </g>
 <g class="algraf-layer algraf-geom-tile">
-  <rect x="69.8" y="299" width="78.4" height="98.667" fill="#3c2d6d" opacity="0.92" />
-  <rect x="69.8" y="175.667" width="78.4" height="98.667" fill="#34a07f" opacity="0.92" />
-  <rect x="69.8" y="52.333" width="78.4" height="98.667" fill="#345986" opacity="0.92" />
-  <rect x="167.8" y="299" width="78.4" height="98.667" fill="#327f88" opacity="0.92" />
-  <rect x="167.8" y="175.667" width="78.4" height="98.667" fill="#a7d249" opacity="0.92" />
-  <rect x="167.8" y="52.333" width="78.4" height="98.667" fill="#52be6d" opacity="0.92" />
-  <rect x="265.8" y="299" width="78.4" height="98.667" fill="#345986" opacity="0.92" />
-  <rect x="265.8" y="175.667" width="78.4" height="98.667" fill="#327f88" opacity="0.92" />
-  <rect x="265.8" y="52.333" width="78.4" height="98.667" fill="#34a07f" opacity="0.92" />
-  <rect x="363.8" y="299" width="78.4" height="98.667" fill="#52be6d" opacity="0.92" />
-  <rect x="363.8" y="175.667" width="78.4" height="98.667" fill="#fde725" opacity="0.92" />
-  <rect x="363.8" y="52.333" width="78.4" height="98.667" fill="#327f88" opacity="0.92" />
-  <rect x="461.8" y="299" width="78.4" height="98.667" fill="#440154" opacity="0.92" />
-  <rect x="461.8" y="175.667" width="78.4" height="98.667" fill="#345986" opacity="0.92" />
-  <rect x="461.8" y="52.333" width="78.4" height="98.667" fill="#3c2d6d" opacity="0.92" />
+  <rect x="60" y="286.667" width="98" height="123.333" fill="#3c2d6d" opacity="0.92" />
+  <rect x="60" y="163.333" width="98" height="123.333" fill="#34a07f" opacity="0.92" />
+  <rect x="60" y="40" width="98" height="123.333" fill="#345986" opacity="0.92" />
+  <rect x="158" y="286.667" width="98" height="123.333" fill="#327f88" opacity="0.92" />
+  <rect x="158" y="163.333" width="98" height="123.333" fill="#a7d249" opacity="0.92" />
+  <rect x="158" y="40" width="98" height="123.333" fill="#52be6d" opacity="0.92" />
+  <rect x="256" y="286.667" width="98" height="123.333" fill="#345986" opacity="0.92" />
+  <rect x="256" y="163.333" width="98" height="123.333" fill="#327f88" opacity="0.92" />
+  <rect x="256" y="40" width="98" height="123.333" fill="#34a07f" opacity="0.92" />
+  <rect x="354" y="286.667" width="98" height="123.333" fill="#52be6d" opacity="0.92" />
+  <rect x="354" y="163.333" width="98" height="123.333" fill="#fde725" opacity="0.92" />
+  <rect x="354" y="40" width="98" height="123.333" fill="#327f88" opacity="0.92" />
+  <rect x="452" y="286.667" width="98" height="123.333" fill="#440154" opacity="0.92" />
+  <rect x="452" y="163.333" width="98" height="123.333" fill="#345986" opacity="0.92" />
+  <rect x="452" y="40" width="98" height="123.333" fill="#3c2d6d" opacity="0.92" />
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="550" y2="410" stroke="#333333" stroke-width="1" />

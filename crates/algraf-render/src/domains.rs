@@ -20,6 +20,13 @@ pub struct SpaceDomainHints {
 #[derive(Debug, Clone, Default)]
 pub struct AxisDomainHints {
     numeric: NumericDomainHints,
+    band: BandDomainHints,
+}
+
+#[derive(Debug, Clone, Default)]
+struct BandDomainHints {
+    pad_inner: Option<f64>,
+    pad_outer: Option<f64>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -92,6 +99,19 @@ impl AxisDomainHints {
         self.numeric.max = Some(max);
         self.lock_bounds();
     }
+
+    fn set_band_padding(&mut self, pad_inner: f64, pad_outer: f64) {
+        self.band.pad_inner = Some(pad_inner);
+        self.band.pad_outer = Some(pad_outer);
+    }
+
+    pub fn band_pad_inner(&self) -> Option<f64> {
+        self.band.pad_inner
+    }
+
+    pub fn band_pad_outer(&self) -> Option<f64> {
+        self.band.pad_outer
+    }
 }
 
 pub fn train_space_domains(
@@ -125,6 +145,12 @@ pub fn train_space_domains(
                 if let Some(x) = numeric_setting(geometry, "x") {
                     hints.x.add_numeric(x);
                 }
+            }
+            // Tiles fill the band cell, so zero out band padding on both
+            // axes — adjacent tiles should touch.
+            GeometryKind::Tile => {
+                hints.x.set_band_padding(0.0, 0.0);
+                hints.y.set_band_padding(0.0, 0.0);
             }
             // Segment endpoints are literal data values; include them so the
             // segment stays inside the plot rect (spec §14.19).
