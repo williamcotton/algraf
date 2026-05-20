@@ -1,7 +1,16 @@
 Chart(data: "distribution.csv", width: 760, height: 460) {
-    Derive bins = Bin(value, bins: 8)
+    Derive bins = Bin(value, binWidth: 1, boundary: 0)
 
     Space(bin_start * count, data: bins) {
-        Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count, fill: "steelblue", alpha: 0.86)
+        Rect(
+            xmin: bin_start,
+            xmax: bin_end,
+            ymin: 0,
+            ymax: count,
+            fill: "steelblue",
+            stroke: "#ffffff",
+            strokeWidth: 1,
+            alpha: 0.86,
+        )
     }
 }

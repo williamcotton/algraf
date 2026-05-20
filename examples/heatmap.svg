@@ -1,38 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="700" height="460" viewBox="0 0 700 460" role="img">
 <rect class="algraf-background" x="0" y="0" width="700" height="460" fill="#ffffff" />
-<rect class="algraf-plot-area" x="60" y="40" width="610" height="370" fill="#ffffff" />
+<rect class="algraf-plot-area" x="60" y="40" width="490" height="370" fill="#ffffff" />
 <g class="algraf-grid">
 </g>
 <g class="algraf-layer algraf-geom-tile">
-  <rect x="72.2" y="299" width="97.6" height="98.667" fill="#3c2d6d" opacity="0.92" />
-  <rect x="72.2" y="175.667" width="97.6" height="98.667" fill="#34a07f" opacity="0.92" />
-  <rect x="72.2" y="52.333" width="97.6" height="98.667" fill="#345986" opacity="0.92" />
-  <rect x="194.2" y="299" width="97.6" height="98.667" fill="#327f88" opacity="0.92" />
-  <rect x="194.2" y="175.667" width="97.6" height="98.667" fill="#a7d249" opacity="0.92" />
-  <rect x="194.2" y="52.333" width="97.6" height="98.667" fill="#52be6d" opacity="0.92" />
-  <rect x="316.2" y="299" width="97.6" height="98.667" fill="#345986" opacity="0.92" />
-  <rect x="316.2" y="175.667" width="97.6" height="98.667" fill="#327f88" opacity="0.92" />
-  <rect x="316.2" y="52.333" width="97.6" height="98.667" fill="#34a07f" opacity="0.92" />
-  <rect x="438.2" y="299" width="97.6" height="98.667" fill="#52be6d" opacity="0.92" />
-  <rect x="438.2" y="175.667" width="97.6" height="98.667" fill="#fde725" opacity="0.92" />
-  <rect x="438.2" y="52.333" width="97.6" height="98.667" fill="#327f88" opacity="0.92" />
-  <rect x="560.2" y="299" width="97.6" height="98.667" fill="#440154" opacity="0.92" />
-  <rect x="560.2" y="175.667" width="97.6" height="98.667" fill="#345986" opacity="0.92" />
-  <rect x="560.2" y="52.333" width="97.6" height="98.667" fill="#3c2d6d" opacity="0.92" />
+  <rect x="69.8" y="299" width="78.4" height="98.667" fill="#3c2d6d" opacity="0.92" />
+  <rect x="69.8" y="175.667" width="78.4" height="98.667" fill="#34a07f" opacity="0.92" />
+  <rect x="69.8" y="52.333" width="78.4" height="98.667" fill="#345986" opacity="0.92" />
+  <rect x="167.8" y="299" width="78.4" height="98.667" fill="#327f88" opacity="0.92" />
+  <rect x="167.8" y="175.667" width="78.4" height="98.667" fill="#a7d249" opacity="0.92" />
+  <rect x="167.8" y="52.333" width="78.4" height="98.667" fill="#52be6d" opacity="0.92" />
+  <rect x="265.8" y="299" width="78.4" height="98.667" fill="#345986" opacity="0.92" />
+  <rect x="265.8" y="175.667" width="78.4" height="98.667" fill="#327f88" opacity="0.92" />
+  <rect x="265.8" y="52.333" width="78.4" height="98.667" fill="#34a07f" opacity="0.92" />
+  <rect x="363.8" y="299" width="78.4" height="98.667" fill="#52be6d" opacity="0.92" />
+  <rect x="363.8" y="175.667" width="78.4" height="98.667" fill="#fde725" opacity="0.92" />
+  <rect x="363.8" y="52.333" width="78.4" height="98.667" fill="#327f88" opacity="0.92" />
+  <rect x="461.8" y="299" width="78.4" height="98.667" fill="#440154" opacity="0.92" />
+  <rect x="461.8" y="175.667" width="78.4" height="98.667" fill="#345986" opacity="0.92" />
+  <rect x="461.8" y="52.333" width="78.4" height="98.667" fill="#3c2d6d" opacity="0.92" />
 </g>
 <g class="algraf-axes">
-  <line x1="60" y1="410" x2="670" y2="410" stroke="#333333" stroke-width="1" />
-  <line x1="121" y1="410" x2="121" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="121" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mon</text>
-  <line x1="243" y1="410" x2="243" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="243" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Tue</text>
-  <line x1="365" y1="410" x2="365" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="365" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Wed</text>
-  <line x1="487" y1="410" x2="487" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="487" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Thu</text>
-  <line x1="609" y1="410" x2="609" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="609" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Fri</text>
-  <text x="365" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">day</text>
+  <line x1="60" y1="410" x2="550" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="109" y1="410" x2="109" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="109" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mon</text>
+  <line x1="207" y1="410" x2="207" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="207" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Tue</text>
+  <line x1="305" y1="410" x2="305" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="305" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Wed</text>
+  <line x1="403" y1="410" x2="403" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="403" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Thu</text>
+  <line x1="501" y1="410" x2="501" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="501" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Fri</text>
+  <text x="305" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">day</text>
   <line x1="60" y1="40" x2="60" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="348.333" x2="60" y2="348.333" stroke="#333333" stroke-width="1" />
   <text x="52" y="352.333" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">09:00</text>
@@ -41,5 +41,18 @@
   <line x1="55" y1="101.667" x2="60" y2="101.667" stroke="#333333" stroke-width="1" />
   <text x="52" y="105.667" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15:00</text>
   <text x="16" y="225" text-anchor="middle" transform="rotate(-90 16 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">hour</text>
+</g>
+<g class="algraf-legends">
+  <text x="566" y="44" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">value</text>
+  <rect x="566" y="52" width="12" height="16" fill="#fde725" />
+  <text x="584" y="62" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <rect x="566" y="68" width="12" height="16" fill="#67c364" />
+  <text x="584" y="78" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8.25</text>
+  <rect x="566" y="84" width="12" height="16" fill="#339084" />
+  <text x="584" y="94" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6.5</text>
+  <rect x="566" y="100" width="12" height="16" fill="#364e80" />
+  <text x="584" y="110" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4.75</text>
+  <rect x="566" y="116" width="12" height="16" fill="#440154" />
+  <text x="584" y="126" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
 </g>
 </svg>

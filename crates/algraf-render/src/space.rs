@@ -6,8 +6,9 @@
 
 use algraf_data::{DataType, Table, TemporalPrecision};
 use algraf_semantics::{ColumnRef, FrameIr};
-use chrono::DateTime;
+use chrono::{DateTime, Datelike, NaiveDate};
 
+use crate::domains::{AxisDomainHints, SpaceDomainHints};
 use crate::scale::{
     categorical_domain, cell_category, cell_f64, cell_micros, nice_ticks, numeric_domain,
     temporal_domain, BandScale, ContinuousScale, NestedBandScale, TemporalScale,
@@ -90,12 +91,24 @@ impl AxisScale {
 
     /// The axis title (column name or joined union member names).
     pub fn label(&self) -> String {
+        let raw = match self {
+            AxisScale::Continuous { col, .. }
+            | AxisScale::Temporal { col, .. }
+            | AxisScale::Band { col, .. } => col,
+            AxisScale::NestedBand { outer_col, .. } => outer_col,
+            AxisScale::Union { label, .. } => label,
+        };
+        crate::svg::display_label(raw)
+    }
+
+    /// Primary backing data column, when this axis resolves from a single column.
+    pub fn data_column(&self) -> Option<&str> {
         match self {
             AxisScale::Continuous { col, .. }
             | AxisScale::Temporal { col, .. }
-            | AxisScale::Band { col, .. } => col.clone(),
-            AxisScale::NestedBand { outer_col, .. } => outer_col.clone(),
-            AxisScale::Union { label, .. } => label.clone(),
+            | AxisScale::Band { col, .. } => Some(col),
+            AxisScale::NestedBand { outer_col, .. } => Some(outer_col),
+            AxisScale::Union { .. } => None,
         }
     }
 
@@ -113,11 +126,9 @@ impl AxisScale {
                     .map(|t| (scale.map(t), crate::svg::num(t)))
                     .collect()
             }
-            AxisScale::Temporal { scale, .. } => (0..=5)
-                .map(|i| {
-                    let micros = scale.min + (scale.max - scale.min) * i / 5;
-                    (scale.map(micros), format_temporal(micros, scale.precision))
-                })
+            AxisScale::Temporal { scale, .. } => temporal_ticks(scale)
+                .into_iter()
+                .map(|micros| (scale.map(micros), format_temporal(micros, scale.precision)))
                 .collect(),
             AxisScale::Band { scale, .. } => scale
                 .categories
@@ -144,6 +155,65 @@ fn format_temporal(micros: i64, precision: TemporalPrecision) -> String {
     }
 }
 
+fn temporal_ticks(scale: &TemporalScale) -> Vec<i64> {
+    if scale.precision == TemporalPrecision::Date {
+        if let Some(ticks) = monthly_ticks(scale.min, scale.max) {
+            return ticks;
+        }
+    }
+
+    (0..=5)
+        .map(|i| scale.min + (scale.max - scale.min) * i / 5)
+        .collect()
+}
+
+fn monthly_ticks(min: i64, max: i64) -> Option<Vec<i64>> {
+    let start = DateTime::from_timestamp_micros(min)?.date_naive();
+    let end = DateTime::from_timestamp_micros(max)?.date_naive();
+    let span_days = end.signed_duration_since(start).num_days().abs();
+    if !(45..=400).contains(&span_days) {
+        return None;
+    }
+
+    let (mut year, mut month) = (start.year(), start.month());
+    if start.day() > 1 {
+        (year, month) = next_month(year, month);
+    }
+
+    let mut ticks = Vec::new();
+    let mut guard = 0;
+    while guard < 60 {
+        let micros = month_start_micros(year, month)?;
+        if micros > max {
+            break;
+        }
+        if micros >= min {
+            ticks.push(micros);
+        }
+        (year, month) = next_month(year, month);
+        guard += 1;
+    }
+
+    (2..=8).contains(&ticks.len()).then_some(ticks)
+}
+
+fn next_month(year: i32, month: u32) -> (i32, u32) {
+    if month == 12 {
+        (year + 1, 1)
+    } else {
+        (year, month + 1)
+    }
+}
+
+fn month_start_micros(year: i32, month: u32) -> Option<i64> {
+    Some(
+        NaiveDate::from_ymd_opt(year, month, 1)?
+            .and_hms_opt(0, 0, 0)?
+            .and_utc()
+            .timestamp_micros(),
+    )
+}
+
 /// A trained 2D (or 1D) spatial context for one space.
 pub struct ScaledSpace {
     pub x: AxisScale,
@@ -159,19 +229,20 @@ impl ScaledSpace {
         table: &dyn Table,
         x_range: (f64, f64),
         y_range: (f64, f64),
+        hints: &SpaceDomainHints,
     ) -> Option<ScaledSpace> {
         match frame {
             FrameIr::Cartesian(axes) if axes.len() >= 2 => {
-                let x = build_axis(&axes[0], table, x_range)?;
-                let y = build_axis(&axes[1], table, y_range)?;
+                let x = build_axis(&axes[0], table, x_range, Some(&hints.x))?;
+                let y = build_axis(&axes[1], table, y_range, Some(&hints.y))?;
                 Some(ScaledSpace { x, y: Some(y) })
             }
             FrameIr::Cartesian(axes) if axes.len() == 1 => {
-                let x = build_axis(&axes[0], table, x_range)?;
+                let x = build_axis(&axes[0], table, x_range, Some(&hints.x))?;
                 Some(ScaledSpace { x, y: None })
             }
             FrameIr::Vector(_) | FrameIr::Nested { .. } | FrameIr::Union(_) => {
-                let x = build_axis(frame, table, x_range)?;
+                let x = build_axis(frame, table, x_range, Some(&hints.x))?;
                 Some(ScaledSpace { x, y: None })
             }
             _ => None,
@@ -204,9 +275,14 @@ impl ScaledSpace {
 }
 
 /// Build a single axis scale from a frame sub-expression.
-fn build_axis(frame: &FrameIr, table: &dyn Table, range: (f64, f64)) -> Option<AxisScale> {
+fn build_axis(
+    frame: &FrameIr,
+    table: &dyn Table,
+    range: (f64, f64),
+    hints: Option<&AxisDomainHints>,
+) -> Option<AxisScale> {
     match frame {
-        FrameIr::Vector(col) => Some(build_vector_axis(col, table, range)),
+        FrameIr::Vector(col) => Some(build_vector_axis(col, table, range, hints)),
         FrameIr::Nested { outer, inner } => {
             if let (FrameIr::Vector(o), FrameIr::Vector(i)) = (outer.as_ref(), inner.as_ref()) {
                 let outer_cats = categorical_domain(table, &o.name);
@@ -247,6 +323,10 @@ fn build_axis(frame: &FrameIr, table: &dyn Table, range: (f64, f64)) -> Option<A
                 min = 0.0;
                 max = 1.0;
             }
+            if let Some(hints) = hints {
+                hints.apply_numeric(&mut min, &mut max);
+                hints.apply_padding(&mut min, &mut max);
+            }
             Some(AxisScale::Union {
                 label,
                 scale: ContinuousScale::new(min, max, range),
@@ -256,10 +336,19 @@ fn build_axis(frame: &FrameIr, table: &dyn Table, range: (f64, f64)) -> Option<A
     }
 }
 
-fn build_vector_axis(col: &ColumnRef, table: &dyn Table, range: (f64, f64)) -> AxisScale {
+fn build_vector_axis(
+    col: &ColumnRef,
+    table: &dyn Table,
+    range: (f64, f64),
+    hints: Option<&AxisDomainHints>,
+) -> AxisScale {
     match col.dtype {
         DataType::Integer | DataType::Float => {
-            let (min, max) = numeric_domain(table, &col.name).unwrap_or((0.0, 1.0));
+            let (mut min, mut max) = numeric_domain(table, &col.name).unwrap_or((0.0, 1.0));
+            if let Some(hints) = hints {
+                hints.apply_numeric(&mut min, &mut max);
+                hints.apply_padding(&mut min, &mut max);
+            }
             AxisScale::Continuous {
                 col: col.name.clone(),
                 scale: ContinuousScale::new(min, max, range),

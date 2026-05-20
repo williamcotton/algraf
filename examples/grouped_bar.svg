@@ -2,18 +2,18 @@
 <rect class="algraf-background" x="0" y="0" width="760" height="460" fill="#ffffff" />
 <rect class="algraf-plot-area" x="60" y="40" width="550" height="370" fill="#ffffff" />
 <g class="algraf-layer algraf-geom-bar">
-  <rect x="73.75" y="196.222" width="34.138" height="213.778" fill="#4E79A7" opacity="1" />
-  <rect x="111.681" y="344.222" width="34.138" height="65.778" fill="#F28E2B" opacity="1" />
-  <rect x="149.612" y="393.556" width="34.138" height="16.444" fill="#E15759" opacity="1" />
-  <rect x="211.25" y="155.111" width="34.138" height="254.889" fill="#4E79A7" opacity="1" />
-  <rect x="249.181" y="303.111" width="34.138" height="106.889" fill="#F28E2B" opacity="1" />
-  <rect x="287.112" y="410" width="34.138" height="0" fill="#E15759" opacity="1" />
-  <rect x="348.75" y="105.778" width="34.138" height="304.222" fill="#4E79A7" opacity="1" />
-  <rect x="386.681" y="286.667" width="34.138" height="123.333" fill="#F28E2B" opacity="1" />
-  <rect x="424.612" y="368.889" width="34.138" height="41.111" fill="#E15759" opacity="1" />
-  <rect x="486.25" y="40" width="34.138" height="370" fill="#4E79A7" opacity="1" />
-  <rect x="524.181" y="245.556" width="34.138" height="164.444" fill="#F28E2B" opacity="1" />
-  <rect x="562.112" y="336" width="34.138" height="74" fill="#E15759" opacity="1" />
+  <rect x="73.75" y="174.117" width="34.138" height="235.883" fill="#4E79A7" opacity="1" />
+  <rect x="111.681" y="275.209" width="34.138" height="134.791" fill="#F28E2B" opacity="1" />
+  <rect x="149.612" y="308.907" width="34.138" height="101.093" fill="#E15759" opacity="1" />
+  <rect x="211.25" y="146.035" width="34.138" height="263.965" fill="#4E79A7" opacity="1" />
+  <rect x="249.181" y="247.128" width="34.138" height="162.872" fill="#F28E2B" opacity="1" />
+  <rect x="287.112" y="320.14" width="34.138" height="89.86" fill="#E15759" opacity="1" />
+  <rect x="348.75" y="112.338" width="34.138" height="297.662" fill="#4E79A7" opacity="1" />
+  <rect x="386.681" y="235.896" width="34.138" height="174.104" fill="#F28E2B" opacity="1" />
+  <rect x="424.612" y="292.058" width="34.138" height="117.942" fill="#E15759" opacity="1" />
+  <rect x="486.25" y="67.407" width="34.138" height="342.593" fill="#4E79A7" opacity="1" />
+  <rect x="524.181" y="207.814" width="34.138" height="202.186" fill="#F28E2B" opacity="1" />
+  <rect x="562.112" y="269.593" width="34.138" height="140.407" fill="#E15759" opacity="1" />
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="610" y2="410" stroke="#333333" stroke-width="1" />
@@ -27,16 +27,20 @@
   <text x="541.25" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Q4</text>
   <text x="335" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">quarter</text>
   <line x1="60" y1="40" x2="60" y2="410" stroke="#333333" stroke-width="1" />
-  <line x1="55" y1="377.111" x2="60" y2="377.111" stroke="#333333" stroke-width="1" />
-  <text x="52" y="381.111" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
-  <line x1="55" y1="294.889" x2="60" y2="294.889" stroke="#333333" stroke-width="1" />
-  <text x="52" y="298.889" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
-  <line x1="55" y1="212.667" x2="60" y2="212.667" stroke="#333333" stroke-width="1" />
-  <text x="52" y="216.667" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
-  <line x1="55" y1="130.444" x2="60" y2="130.444" stroke="#333333" stroke-width="1" />
-  <text x="52" y="134.444" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
-  <line x1="55" y1="48.222" x2="60" y2="48.222" stroke="#333333" stroke-width="1" />
-  <text x="52" y="52.222" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
+  <line x1="55" y1="410" x2="60" y2="410" stroke="#333333" stroke-width="1" />
+  <text x="52" y="414" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="353.837" x2="60" y2="353.837" stroke="#333333" stroke-width="1" />
+  <text x="52" y="357.837" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="55" y1="297.675" x2="60" y2="297.675" stroke="#333333" stroke-width="1" />
+  <text x="52" y="301.675" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55" y1="241.512" x2="60" y2="241.512" stroke="#333333" stroke-width="1" />
+  <text x="52" y="245.512" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <line x1="55" y1="185.349" x2="60" y2="185.349" stroke="#333333" stroke-width="1" />
+  <text x="52" y="189.349" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <line x1="55" y1="129.186" x2="60" y2="129.186" stroke="#333333" stroke-width="1" />
+  <text x="52" y="133.186" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
+  <line x1="55" y1="73.024" x2="60" y2="73.024" stroke="#333333" stroke-width="1" />
+  <text x="52" y="77.024" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
   <text x="16" y="225" text-anchor="middle" transform="rotate(-90 16 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">amount</text>
 </g>
 <g class="algraf-legends">

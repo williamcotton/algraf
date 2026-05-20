@@ -5,6 +5,7 @@
 //! deterministic SVG string.
 
 mod aes;
+mod domains;
 mod error;
 mod geom;
 mod guide;

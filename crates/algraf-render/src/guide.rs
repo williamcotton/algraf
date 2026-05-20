@@ -1,6 +1,6 @@
 //! Axis, grid, and legend rendering (spec §19).
 
-use crate::aes::Legend;
+use crate::aes::{Legend, LegendKind};
 use crate::layout::Rect;
 use crate::space::ScaledSpace;
 use crate::svg::{escape_attr, escape_text, num, SvgWriter};
@@ -133,17 +133,49 @@ pub fn render_legends(w: &mut SvgWriter, legends: &[Legend], area: Rect, theme: 
     for legend in legends {
         w.line(&text(area.x, y, "start", &legend.title, theme));
         y += 18.0;
-        for (label, color) in &legend.entries {
-            w.line(&format!(
-                "<rect x=\"{}\" y=\"{}\" width=\"12\" height=\"12\" fill=\"{}\" />",
-                num(area.x),
-                num(y - 10.0),
-                escape_attr(color),
-            ));
-            w.line(&text(area.x + 18.0, y, "start", label, theme));
-            y += 18.0;
+        match legend.kind {
+            LegendKind::Discrete => {
+                for (label, color) in &legend.entries {
+                    w.line(&format!(
+                        "<rect x=\"{}\" y=\"{}\" width=\"12\" height=\"12\" fill=\"{}\" />",
+                        num(area.x),
+                        num(y - 10.0),
+                        escape_attr(color),
+                    ));
+                    w.line(&text(area.x + 18.0, y, "start", label, theme));
+                    y += 18.0;
+                }
+            }
+            LegendKind::Continuous => {
+                y = render_continuous_legend(w, legend, area.x, y, theme);
+            }
         }
         y += 8.0;
     }
     w.close_group();
+}
+
+fn render_continuous_legend(
+    w: &mut SvgWriter,
+    legend: &Legend,
+    x: f64,
+    y: f64,
+    theme: &Theme,
+) -> f64 {
+    if legend.entries.is_empty() {
+        return y;
+    }
+    let step = 16.0;
+    for (index, (label, color)) in legend.entries.iter().rev().enumerate() {
+        let y0 = y + index as f64 * step;
+        w.line(&format!(
+            "<rect x=\"{}\" y=\"{}\" width=\"12\" height=\"{}\" fill=\"{}\" />",
+            num(x),
+            num(y0 - 10.0),
+            num(step),
+            escape_attr(color),
+        ));
+        w.line(&text(x + 18.0, y0, "start", label, theme));
+    }
+    y + legend.entries.len() as f64 * step
 }

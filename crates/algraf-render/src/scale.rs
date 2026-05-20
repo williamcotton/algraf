@@ -230,19 +230,20 @@ pub fn nice_ticks(min: f64, max: f64, target: usize) -> Vec<f64> {
         return vec![min];
     }
     let span = max - min;
-    let raw_step = span / target as f64;
-    let magnitude = 10f64.powf(raw_step.abs().log10().floor());
-    let normalized = raw_step / magnitude;
-    let nice = if normalized < 1.5 {
-        1.0
-    } else if normalized < 3.0 {
-        2.0
-    } else if normalized < 7.0 {
-        5.0
-    } else {
-        10.0
-    };
-    let step = nice * magnitude;
+    if min.fract().abs() < f64::EPSILON
+        && max.fract().abs() < f64::EPSILON
+        && span.abs() <= target as f64 + 2.0
+    {
+        let mut ticks = Vec::new();
+        let mut value = min.ceil();
+        while value <= max + f64::EPSILON && ticks.len() < target + 3 {
+            ticks.push(value);
+            value += 1.0;
+        }
+        return ticks;
+    }
+
+    let step = nice_step(span, target);
 
     let start = (min / step).ceil() * step;
     let mut ticks = Vec::new();
@@ -260,4 +261,24 @@ pub fn nice_ticks(min: f64, max: f64, target: usize) -> Vec<f64> {
         guard += 1;
     }
     ticks
+}
+
+/// Pick a deterministic human-friendly step for a numeric span.
+pub fn nice_step(span: f64, target: usize) -> f64 {
+    let raw_step = span.abs() / target.max(1) as f64;
+    if raw_step <= f64::EPSILON || !raw_step.is_finite() {
+        return 1.0;
+    }
+    let magnitude = 10f64.powf(raw_step.abs().log10().floor());
+    let normalized = raw_step / magnitude;
+    let nice = if normalized < 1.5 {
+        1.0
+    } else if normalized < 3.0 {
+        2.0
+    } else if normalized < 7.0 {
+        5.0
+    } else {
+        10.0
+    };
+    nice * magnitude
 }

@@ -5,9 +5,12 @@ use std::collections::HashMap;
 
 use algraf_core::Diagnostic;
 use algraf_data::{DataFrame, Table};
-use algraf_semantics::{ChartIr, FrameIr, GeometryIr, SettingValue, SpaceDataRef, StatKind};
+use algraf_semantics::{
+    ir::Setting, ChartIr, FrameIr, GeometryIr, SettingValue, SpaceDataRef, StatKind,
+};
 
 use crate::aes::{color_spec, Legend};
+use crate::domains::train_space_domains;
 use crate::error::RenderError;
 use crate::guide;
 use crate::layout::Layout;
@@ -57,7 +60,8 @@ pub fn render(
     let mut panels = Vec::new();
     for space in &ir.spaces {
         let table = active_table(&space.data, primary, &derived);
-        match ScaledSpace::build(&space.frame, table, x_range, y_range) {
+        let domain_hints = train_space_domains(&space.frame, table, &space.geometries);
+        match ScaledSpace::build(&space.frame, table, x_range, y_range, &domain_hints) {
             Some(scaled) => panels.push(Panel {
                 table,
                 scaled,
@@ -163,19 +167,31 @@ fn compute_derived(ir: &ChartIr, primary: &dyn Table) -> HashMap<String, DataFra
         let FrameIr::Vector(col) = &d.stat.input else {
             continue;
         };
-        let bins = d
-            .stat
-            .settings
-            .iter()
-            .find(|s| s.name == "bins")
-            .and_then(|s| match s.value {
-                SettingValue::Number(n) => Some(n as usize),
-                _ => None,
-            })
+        let bins = numeric_setting(&d.stat.settings, "bins")
+            .filter(|n| *n >= 1.0)
+            .map(|n| n.round() as usize)
             .unwrap_or(30);
-        derived.insert(d.name.clone(), stats::bin(primary, &col.name, bins));
+        let options = stats::BinOptions {
+            bins,
+            bin_width: numeric_setting(&d.stat.settings, "binWidth").filter(|n| *n > 0.0),
+            boundary: numeric_setting(&d.stat.settings, "boundary"),
+        };
+        derived.insert(
+            d.name.clone(),
+            stats::bin_with_options(primary, &col.name, options),
+        );
     }
     derived
+}
+
+fn numeric_setting(settings: &[Setting], name: &str) -> Option<f64> {
+    settings
+        .iter()
+        .find(|setting| setting.name == name)
+        .and_then(|setting| match setting.value {
+            SettingValue::Number(value) if value.is_finite() => Some(value),
+            _ => None,
+        })
 }
 
 /// Collect deduplicated fill/stroke legends across all spaces (spec §19.5).
@@ -192,7 +208,8 @@ fn collect_legends(
             for aesthetic in ["fill", "stroke"] {
                 if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == aesthetic) {
                     let spec = color_spec(geo, aesthetic, table);
-                    if let Some(legend) = spec.legend(&mapping.column.name) {
+                    let title = crate::svg::display_label(&mapping.column.name);
+                    if let Some(legend) = spec.legend(&title) {
                         if !legends.iter().any(|l| l.title == legend.title) {
                             legends.push(legend);
                         }

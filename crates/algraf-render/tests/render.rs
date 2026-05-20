@@ -65,6 +65,15 @@ fn test_bar_renders_rects() {
 }
 
 #[test]
+fn test_bar_y_domain_includes_zero() {
+    let svg = render_svg(
+        "Chart(data: \"f.csv\") { Space(quarter * amount) { Bar() } }",
+        "quarter,amount\nQ1,10\nQ2,20\nQ3,15\n",
+    );
+    assert!(svg.contains(">0</text>"));
+}
+
+#[test]
 fn test_dodged_bar_via_nesting() {
     // Nested band x produces a sub-band per type within each quarter.
     let svg = render_svg(
@@ -88,6 +97,15 @@ fn test_stacked_bar() {
 }
 
 #[test]
+fn test_stacked_bar_y_domain_uses_totals() {
+    let svg = render_svg(
+        "Chart(data: \"f.csv\") { Space(quarter * amount) { Bar(fill: type, layout: \"stack\") } }",
+        "quarter,type,amount\nQ1,a,10\nQ1,b,20\nQ2,a,5\nQ2,b,5\n",
+    );
+    assert!(svg.contains(">30</text>"));
+}
+
+#[test]
 fn test_line_groups_by_stroke() {
     let svg = render_svg(
         "Chart(data: \"t.csv\") { Space(time * value) { Line(stroke: series) } }",
@@ -108,6 +126,16 @@ fn test_temporal_axis() {
 }
 
 #[test]
+fn test_temporal_axis_uses_calendar_month_ticks() {
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Space(day * value) { Line() } }",
+        "day,value\n2026-01-01,1\n2026-02-01,5\n2026-03-01,3\n2026-04-01,4\n2026-05-01,2\n",
+    );
+    assert!(svg.contains(">2026-02-01</text>"));
+    assert!(!svg.contains("2026-01-25"));
+}
+
+#[test]
 fn test_tile_heatmap_gradient() {
     // Both axes must be categorical for a tile grid (hour as a label, not a number).
     let svg = render_svg(
@@ -119,6 +147,18 @@ fn test_tile_heatmap_gradient() {
 }
 
 #[test]
+fn test_gradient_legend_for_numeric_fill() {
+    let svg = render_svg(
+        "Chart(data: \"h.csv\") { Space(day * hour) { Tile(fill: value) } }",
+        "day,hour,value\nMon,9am,1\nMon,10am,5\nTue,9am,3\nTue,10am,9\n",
+    );
+    assert!(svg.contains("algraf-legends"));
+    assert!(svg.contains(">value</text>"));
+    assert!(svg.contains(">1</text>"));
+    assert!(svg.contains(">9</text>"));
+}
+
+#[test]
 fn test_histogram_via_derive_and_rect() {
     let svg = render_svg(
         "Chart(data: \"d.csv\") { Derive bins = Bin(value, bins: 4) Space(bin_start * count, data: bins) { Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count) } }",
@@ -127,6 +167,37 @@ fn test_histogram_via_derive_and_rect() {
     assert!(svg.contains("algraf-geom-rect"));
     // Four bins -> four rects (plus background + plot).
     assert_eq!(svg.matches("<rect x=").count(), 4);
+}
+
+#[test]
+fn test_histogram_with_bin_width_aligns_axis_ticks() {
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") { Derive bins = Bin(value, binWidth: 1, boundary: 0) Space(bin_start * count, data: bins) { Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count) } }",
+        "value\n1.0\n1.4\n1.7\n2.1\n2.5\n2.7\n3.0\n3.2\n3.5\n3.7\n4.1\n4.4\n4.7\n5.0\n5.3\n5.6\n6.1\n6.4\n6.8\n7.2\n7.5\n8.0\n8.3\n8.7\n",
+    );
+    assert_eq!(svg.matches("<rect x=").count(), 8);
+    assert!(svg.contains(">9</text>"));
+    assert!(!svg.contains(">0.5</text>"));
+}
+
+#[test]
+fn test_rect_domain_uses_extent_properties() {
+    let svg = render_svg(
+        "Chart(data: \"r.csv\") { Space(x0 * y1) { Rect(xmin: x0, xmax: x1, ymin: 0, ymax: y1) } }",
+        "x0,x1,y1\n0,10,5\n",
+    );
+    assert!(svg.contains(">10</text>"));
+    assert!(svg.contains(">0</text>"));
+}
+
+#[test]
+fn test_rect_renders_stroke_border() {
+    let svg = render_svg(
+        "Chart(data: \"r.csv\") { Space(x0 * y1) { Rect(xmin: x0, xmax: x1, ymin: 0, ymax: y1, fill: \"steelblue\", stroke: \"#ffffff\", strokeWidth: 1) } }",
+        "x0,x1,y1\n0,10,5\n",
+    );
+    assert!(svg.contains("stroke=\"#ffffff\""));
+    assert!(svg.contains("stroke-width=\"1\""));
 }
 
 #[test]

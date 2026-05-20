@@ -11,6 +11,12 @@ cargo run -p algraf-cli -- render examples/scatter.ag --output /tmp/scatter.svg
 cargo run -p algraf-cli -- render examples/scatter.ag --output /tmp/scatter.png
 ```
 
+Regenerate all committed SVG and PNG outputs:
+
+```bash
+./examples/generate.sh
+```
+
 Check an example and inspect its schema:
 
 ```bash

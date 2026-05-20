@@ -82,6 +82,8 @@ const LINE: &[PropSpec] = &[
 
 const BAR: &[PropSpec] = &[
     opt("fill", FILL),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
     opt("alpha", ALPHA),
     opt("layout", &[Accept::Enum(&["identity", "stack", "fill"])]),
 ];
@@ -92,12 +94,16 @@ const RECT: &[PropSpec] = &[
     req("ymin", POS),
     req("ymax", POS),
     opt("fill", FILL),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
     opt("alpha", ALPHA),
 ];
 
 const HISTOGRAM: &[PropSpec] = &[
     opt("bins", &[Accept::Number]),
     opt("fill", FILL),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
     opt("alpha", ALPHA),
 ];
 
@@ -123,7 +129,12 @@ const RIBBON: &[PropSpec] = &[
     opt("alpha", ALPHA),
 ];
 
-const TILE: &[PropSpec] = &[opt("fill", FILL), opt("alpha", ALPHA)];
+const TILE: &[PropSpec] = &[
+    opt("fill", FILL),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+];
 
 const HLINE: &[PropSpec] = &[
     req("y", &[Accept::Number]),

@@ -24,6 +24,11 @@ pub fn num(value: f64) -> String {
     s
 }
 
+/// Format an internal identifier as a human-facing guide label.
+pub fn display_label(label: &str) -> String {
+    label.replace('_', " ")
+}
+
 /// Escape text content for an XML text node (spec §18.9).
 pub fn escape_text(text: &str) -> String {
     let mut out = String::with_capacity(text.len());

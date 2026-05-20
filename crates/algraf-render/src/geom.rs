@@ -160,7 +160,7 @@ fn bar(
     plot: Rect,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let Some(y_col) = space.y.as_ref().map(|a| a.label()) else {
+    let Some(y_col) = space.y.as_ref().and_then(|a| a.data_column()) else {
         return;
     };
     if !space.x.is_band() {
@@ -172,6 +172,8 @@ fn bar(
         return;
     }
     let fill = color_spec(geo, "fill", table);
+    let stroke = color_spec(geo, "stroke", table);
+    let stroke_width = number_setting(geo, "strokeWidth", 1.0);
     let alpha = number_setting(geo, "alpha", 1.0);
     let stacked = matches!(
         geo.settings.iter().find(|s| s.name == "layout").map(|s| &s.value),
@@ -183,24 +185,39 @@ fn bar(
     };
 
     if stacked {
-        let x_col = space.x.label();
+        let Some(x_col) = space.x.data_column() else {
+            return;
+        };
         let mut cumulative: HashMap<String, f64> = HashMap::new();
         for row in 0..table.row_count() {
             let (Some(cx), Some(bw)) = (space.resolve_x(table, row), space.x_bandwidth(table, row))
             else {
                 continue;
             };
-            let Some(value) = cell_f64(table, &y_col, row) else {
+            let Some(value) = cell_f64(table, y_col, row) else {
                 continue;
             };
-            let key = crate::scale::cell_category(table, &x_col, row).unwrap_or_default();
+            let key = crate::scale::cell_category(table, x_col, row).unwrap_or_default();
             let base = *cumulative.get(&key).unwrap_or(&0.0);
             let top = base + value;
             cumulative.insert(key, top);
             let (Some(y0), Some(y1)) = (space.map_y(base), space.map_y(top)) else {
                 continue;
             };
-            emit_bar(w, cx - bw / 2.0, bw, y0, y1, plot, &fill, table, row, alpha);
+            emit_bar(
+                w,
+                cx - bw / 2.0,
+                bw,
+                y0,
+                y1,
+                plot,
+                &fill,
+                &stroke,
+                stroke_width,
+                table,
+                row,
+                alpha,
+            );
         }
     } else {
         for row in 0..table.row_count() {
@@ -219,6 +236,8 @@ fn bar(
                 top,
                 plot,
                 &fill,
+                &stroke,
+                stroke_width,
                 table,
                 row,
                 alpha,
@@ -236,6 +255,8 @@ fn emit_bar(
     y_b: f64,
     plot: Rect,
     fill: &ColorSpec,
+    stroke: &ColorSpec,
+    stroke_width: f64,
     table: &dyn Table,
     row: usize,
     alpha: f64,
@@ -246,18 +267,21 @@ fn emit_bar(
         .resolve(table, row)
         .unwrap_or_else(|| DEFAULT_FILL.to_string());
     w.line(&format!(
-        "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" opacity=\"{}\" />",
+        "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
         num(x),
         num(top),
         num(width),
         num(bottom - top),
         escape_attr(&color),
+        stroke_attrs(stroke, stroke_width, table, row),
         num(alpha),
     ));
 }
 
 fn rect(w: &mut SvgWriter, geo: &GeometryIr, space: &ScaledSpace, table: &dyn Table) {
     let fill = color_spec(geo, "fill", table);
+    let stroke = color_spec(geo, "stroke", table);
+    let stroke_width = number_setting(geo, "strokeWidth", 1.0);
     let alpha = number_setting(geo, "alpha", 1.0);
     for row in 0..table.row_count() {
         let (Some(xmin), Some(xmax), Some(ymin), Some(ymax)) = (
@@ -272,12 +296,13 @@ fn rect(w: &mut SvgWriter, geo: &GeometryIr, space: &ScaledSpace, table: &dyn Ta
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
         w.line(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" opacity=\"{}\" />",
+            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
             num(xmin.min(xmax)),
             num(ymin.min(ymax)),
             num((xmax - xmin).abs()),
             num((ymax - ymin).abs()),
             escape_attr(&color),
+            stroke_attrs(&stroke, stroke_width, table, row),
             num(alpha),
         ));
     }
@@ -299,6 +324,8 @@ fn pos(geo: &GeometryIr, name: &str, table: &dyn Table, row: usize) -> Option<f6
 
 fn tile(w: &mut SvgWriter, geo: &GeometryIr, space: &ScaledSpace, table: &dyn Table) {
     let fill = color_spec(geo, "fill", table);
+    let stroke = color_spec(geo, "stroke", table);
+    let stroke_width = number_setting(geo, "strokeWidth", 1.0);
     let alpha = number_setting(geo, "alpha", 1.0);
     for row in 0..table.row_count() {
         let (Some(cx), Some(bw), Some(cy), Some(bh)) = (
@@ -313,15 +340,30 @@ fn tile(w: &mut SvgWriter, geo: &GeometryIr, space: &ScaledSpace, table: &dyn Ta
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
         w.line(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" opacity=\"{}\" />",
+            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
             num(cx - bw / 2.0),
             num(cy - bh / 2.0),
             num(bw),
             num(bh),
             escape_attr(&color),
+            stroke_attrs(&stroke, stroke_width, table, row),
             num(alpha),
         ));
     }
+}
+
+fn stroke_attrs(spec: &ColorSpec, width: f64, table: &dyn Table, row: usize) -> String {
+    if matches!(spec, ColorSpec::None) {
+        return String::new();
+    }
+    let Some(color) = spec.resolve(table, row) else {
+        return String::new();
+    };
+    format!(
+        " stroke=\"{}\" stroke-width=\"{}\"",
+        escape_attr(&color),
+        num(width.max(0.0)),
+    )
 }
 
 fn constant_or(spec: &ColorSpec, default: &str) -> String {
