@@ -13,6 +13,7 @@ dependencies = [
  "algraf-semantics",
  "algraf-syntax",
  "clap",
+ "serde_json",
 ]
 
 [[package]]
@@ -54,6 +55,9 @@ dependencies = [
  "algraf-core",
  "algraf-data",
  "algraf-semantics",
+ "algraf-syntax",
+ "chrono",
+ "thiserror",
 ]
 
 [[package]]

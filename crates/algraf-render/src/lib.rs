@@ -1,3 +1,25 @@
 //! Scale training, layout, stats, geometries, and SVG emission.
 //!
-//! See spec §24 (rendering pipeline).
+//! See spec §16 (scales), §17 (layout), §18 (SVG), §19 (guides), §24 (pipeline).
+//! [`render`] turns a [`algraf_semantics::ChartIr`] plus a data [`Table`] into a
+//! deterministic SVG string.
+
+mod aes;
+mod error;
+mod geom;
+mod guide;
+mod layout;
+mod render;
+mod scale;
+mod space;
+mod stats;
+mod svg;
+mod theme;
+
+pub use error::RenderError;
+pub use layout::{Layout, Rect};
+pub use render::{render, RenderResult};
+pub use theme::Theme;
+
+// Re-exported for callers that build a table to render against.
+pub use algraf_data::Table;

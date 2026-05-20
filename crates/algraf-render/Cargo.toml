@@ -10,3 +10,8 @@ rust-version.workspace = true
 algraf-core = { workspace = true }
 algraf-semantics = { workspace = true }
 algraf-data = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+algraf-syntax = { workspace = true }
