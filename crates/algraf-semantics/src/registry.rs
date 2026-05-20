@@ -101,31 +101,36 @@ const RECT: &[PropSpec] = &[
 
 const HISTOGRAM: &[PropSpec] = &[
     opt("bins", &[Accept::Number]),
-    opt("fill", FILL),
-    opt("stroke", STROKE),
+    opt("binWidth", &[Accept::Number]),
+    opt("boundary", &[Accept::Number]),
+    opt("closed", &[Accept::Enum(&["left", "right"])]),
+    opt("fill", &[Accept::Color]),
+    opt("stroke", &[Accept::Color]),
     opt("strokeWidth", STROKE_WIDTH),
     opt("alpha", ALPHA),
 ];
 
 const SMOOTH: &[PropSpec] = &[
-    opt("method", &[Accept::Enum(&["lm", "loess"])]),
+    opt("method", &[Accept::Enum(&["lm"])]),
     opt("stroke", STROKE),
     opt("strokeWidth", STROKE_WIDTH),
     opt("alpha", ALPHA),
 ];
 
-const BOXPLOT: &[PropSpec] = &[opt("fill", FILL), opt("alpha", ALPHA)];
-
-const VIOLIN: &[PropSpec] = &[
+const BOXPLOT: &[PropSpec] = &[
     opt("fill", FILL),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
     opt("alpha", ALPHA),
-    opt("quantiles", &[Accept::NumberArray]),
+    opt("width", &[Accept::Number]),
 ];
 
 const RIBBON: &[PropSpec] = &[
-    opt("ymin", POS),
-    opt("ymax", POS),
+    req("ymin", POS),
+    req("ymax", POS),
     opt("fill", FILL),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
     opt("alpha", ALPHA),
 ];
 
@@ -139,16 +144,25 @@ const TILE: &[PropSpec] = &[
 const HLINE: &[PropSpec] = &[
     req("y", &[Accept::Number]),
     opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
     opt("label", &[Accept::Str]),
 ];
 
 const VLINE: &[PropSpec] = &[
     req("x", &[Accept::Number]),
     opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
     opt("label", &[Accept::Str]),
 ];
 
-const RUG: &[PropSpec] = &[opt("stroke", STROKE), opt("alpha", ALPHA)];
+const RUG: &[PropSpec] = &[
+    opt("sides", &[Accept::Str]),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+];
 
 const GEOMETRIES: &[GeometryDef] = &[
     GeometryDef {
@@ -185,11 +199,6 @@ const GEOMETRIES: &[GeometryDef] = &[
         name: "Boxplot",
         kind: GeometryKind::Boxplot,
         props: BOXPLOT,
-    },
-    GeometryDef {
-        name: "Violin",
-        kind: GeometryKind::Violin,
-        props: VIOLIN,
     },
     GeometryDef {
         name: "Ribbon",

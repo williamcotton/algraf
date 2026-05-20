@@ -1,0 +1,10 @@
+Chart(data: "penguins.csv", width: 760, height: 500, title: "Penguin measurements") {
+    Guide(legend: false)
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.62, size: 3)
+        HLine(y: 4200, stroke: "#b22222", label: "4.2 kg")
+        VLine(x: 45, stroke: "#555555", label: "45 mm")
+        Rug(sides: "bl", alpha: 0.3)
+    }
+}

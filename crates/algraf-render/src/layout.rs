@@ -49,11 +49,25 @@ const FACET_STRIP_GAP: f64 = 6.0;
 impl Layout {
     /// Compute layout for the given SVG dimensions (spec §17.3, fixed margins).
     pub fn compute(width: f64, height: f64, has_legend: bool, has_axes: bool) -> Layout {
+        Layout::compute_with_text(width, height, has_legend, has_axes, 0.0, 0.0)
+    }
+
+    /// Compute layout with extra title/caption reserve.
+    pub fn compute_with_text(
+        width: f64,
+        height: f64,
+        has_legend: bool,
+        has_axes: bool,
+        top_extra: f64,
+        bottom_extra: f64,
+    ) -> Layout {
         let (top, right, bottom, left) = if has_axes {
             (MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT)
         } else {
             (10.0, 10.0, 10.0, 10.0)
         };
+        let top = top + top_extra.max(0.0);
+        let bottom = bottom + bottom_extra.max(0.0);
         let legend_reserve = if has_legend { LEGEND_WIDTH } else { 0.0 };
 
         let plot = Rect {
@@ -92,7 +106,32 @@ impl Layout {
         panel_count: usize,
         columns: Option<usize>,
     ) -> Layout {
-        let mut layout = Layout::compute(width, height, has_legend, has_axes);
+        Layout::compute_facets_with_text(
+            width,
+            height,
+            has_legend,
+            has_axes,
+            panel_count,
+            columns,
+            0.0,
+            0.0,
+        )
+    }
+
+    /// Compute a facet-wrap layout with extra title/caption reserve.
+    #[allow(clippy::too_many_arguments)]
+    pub fn compute_facets_with_text(
+        width: f64,
+        height: f64,
+        has_legend: bool,
+        has_axes: bool,
+        panel_count: usize,
+        columns: Option<usize>,
+        top_extra: f64,
+        bottom_extra: f64,
+    ) -> Layout {
+        let mut layout =
+            Layout::compute_with_text(width, height, has_legend, has_axes, top_extra, bottom_extra);
         let panel_count = panel_count.max(1);
         let columns = columns
             .filter(|c| *c > 0)

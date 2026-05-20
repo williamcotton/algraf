@@ -1,0 +1,6 @@
+Chart(data: "demographics.csv", width: 700, height: 460) {
+    Space(gender * height) {
+        Boxplot(fill: gender, alpha: 0.78)
+        Rug(sides: "l", alpha: 0.35)
+    }
+}

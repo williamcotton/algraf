@@ -31,6 +31,7 @@ impl Theme {
     pub fn by_name(name: &str) -> Theme {
         match name {
             "classic" => Theme::classic(),
+            "light" => Theme::light(),
             "dark" => Theme::dark(),
             "void" => Theme::void(),
             _ => Theme::minimal(),
@@ -63,6 +64,13 @@ impl Theme {
         Theme {
             name: "classic",
             grid: false,
+            ..Theme::base()
+        }
+    }
+
+    pub fn light() -> Theme {
+        Theme {
+            name: "light",
             ..Theme::base()
         }
     }

@@ -1,0 +1,12 @@
+Chart(data: "distribution.csv", width: 760, height: 460) {
+    Space(value) {
+        Histogram(
+            binWidth: 1,
+            boundary: 0,
+            fill: "steelblue",
+            stroke: "#ffffff",
+            strokeWidth: 1,
+            alpha: 0.86,
+        )
+    }
+}

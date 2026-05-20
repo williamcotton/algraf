@@ -1,0 +1,5 @@
+Chart(data: "ribbon.csv", width: 760, height: 460) {
+    Space(day * (lower + upper)) {
+        Ribbon(ymin: lower, ymax: upper, fill: "steelblue", alpha: 0.25)
+    }
+}

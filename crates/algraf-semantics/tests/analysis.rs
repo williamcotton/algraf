@@ -1,7 +1,9 @@
 //! Semantic analysis tests (spec §13, §27.5).
 
 use algraf_data::{ColumnDef, DataType};
-use algraf_semantics::{analyze_source, FrameIr, GeometryKind, SpaceDataRef};
+use algraf_semantics::{
+    analyze_source, FrameIr, GeometryKind, SettingValue, SpaceDataRef, StatKind,
+};
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
     ColumnDef {
@@ -80,6 +82,22 @@ fn test_quoted_column_resolution() {
 #[test]
 fn test_derived_table_resolution() {
     clean("Chart(data: \"d.csv\") {\n  Derive bins = Bin(value, bins: 25)\n  Space(bin_start * count, data: bins) {\n    Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count)\n  }\n}");
+}
+
+#[test]
+fn test_bin_rejects_bins_and_bin_width_together() {
+    assert!(has(
+        "Chart(data: \"d.csv\") {\n  Derive bins = Bin(value, bins: 25, binWidth: 1)\n  Space(bin_start * count, data: bins) {\n    Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count)\n  }\n}",
+        "E1404"
+    ));
+}
+
+#[test]
+fn test_bin_closed_requires_string_enum() {
+    assert!(has(
+        "Chart(data: \"d.csv\") {\n  Derive bins = Bin(value, closed: left)\n  Space(bin_start * count, data: bins) {\n    Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count)\n  }\n}",
+        "E1404"
+    ));
 }
 
 #[test]
@@ -200,6 +218,57 @@ fn test_layout_facet_columns_is_recorded() {
 }
 
 #[test]
+fn test_chart_labels_and_guide_legend_are_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\", title: \"Sales\", subtitle: \"By region\", caption: \"Source: test\") {\n  Guide(legend: false)\n  Space(flipper_length * body_mass) {\n    Point(fill: species)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.title.as_deref(), Some("Sales"));
+    assert_eq!(ir.subtitle.as_deref(), Some("By region"));
+    assert_eq!(ir.caption.as_deref(), Some("Source: test"));
+    assert!(!ir.guides.legend);
+}
+
+#[test]
+fn test_scale_declaration_warns_until_implemented() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, type: \"log10\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "W2006"
+    ));
+}
+
+#[test]
+fn test_theme_name_is_validated() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(name: \"neon\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "E1204"
+    ));
+    clean("Chart(data: \"p.csv\") {\n  Theme(name: \"light\")\n  Space(flipper_length * body_mass) { Point() }\n}");
+}
+
+#[test]
+fn test_empty_space_warns() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {}\n}",
+        "W2001"
+    ));
+}
+
+#[test]
+fn test_temporal_nesting_warns_about_cardinality() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space((time / group) * value) {\n    Line()\n  }\n}",
+        "W2008"
+    ));
+}
+
+#[test]
 fn test_unparenthesized_blend_rejected() {
     assert!(has(
         "Chart(data: \"i.csv\") {\n  Space(time * lower + upper) {\n    Ribbon(ymin: lower, ymax: upper)\n  }\n}",
@@ -232,6 +301,22 @@ fn test_stacked_bar_has_no_dodge_hint() {
 }
 
 #[test]
+fn test_smooth_loess_is_deferred_in_version_0_1() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Smooth(method: \"loess\")\n  }\n}",
+        "E1204"
+    ));
+}
+
+#[test]
+fn test_violin_is_not_advertised_until_renderer_exists() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(species * body_mass) {\n    Violin()\n  }\n}",
+        "E1201"
+    ));
+}
+
+#[test]
 fn test_dodged_bar_via_nesting_is_clean() {
     clean("Chart(data: \"f.csv\") {\n  Space((quarter / type) * amount) {\n    Bar(fill: type)\n  }\n}");
 }
@@ -250,6 +335,60 @@ fn test_missing_required_property() {
     assert!(has(
         "Chart(data: \"t.csv\") {\n  Space(time * value) {\n    HLine(stroke: \"red\")\n  }\n}",
         "E1205"
+    ));
+}
+
+#[test]
+fn test_direct_histogram_desugars_to_bin_and_rect() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Space(value) {\n    Histogram(bins: 4, fill: \"steelblue\", alpha: 0.7)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.derived_tables.len(), 1);
+    let derived = &ir.derived_tables[0];
+    assert!(derived.name.starts_with("__histogram_"));
+    assert_eq!(derived.stat.kind, StatKind::Bin);
+    assert!(derived.stat.settings.iter().any(
+        |setting| setting.name == "bins" && matches!(setting.value, SettingValue::Number(4.0))
+    ));
+
+    assert_eq!(ir.spaces.len(), 1);
+    assert_eq!(
+        ir.spaces[0].data,
+        SpaceDataRef::Derived(derived.name.clone())
+    );
+    assert!(matches!(ir.spaces[0].frame, FrameIr::Cartesian(ref axes) if axes.len() == 2));
+    assert_eq!(ir.spaces[0].geometries.len(), 1);
+    assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Rect);
+}
+
+#[test]
+fn test_direct_histogram_name_avoids_user_derived_names() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Space(value) {\n    Histogram()\n  }\n  Derive __histogram_0 = Bin(value)\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_ne!(ir.derived_tables[0].name, "__histogram_0");
+    assert_eq!(ir.derived_tables[1].name, "__histogram_0");
+}
+
+#[test]
+fn test_histogram_temporal_input_gets_targeted_bin_diagnostic() {
+    assert!(has(
+        "Chart(data: \"d.csv\") {\n  Space(time) {\n    Histogram()\n  }\n}",
+        "E1405"
     ));
 }
 

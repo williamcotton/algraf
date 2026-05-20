@@ -46,6 +46,29 @@ fn test_scatter_has_legend_for_fill_mapping() {
 }
 
 #[test]
+fn test_guide_legend_false_suppresses_legends() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") { Guide(legend: false) Space(x * y) { Point(fill: g) } }",
+        "x,y,g\n1,2,a\n2,3,b\n",
+    );
+    assert!(!svg.contains("algraf-legends"));
+}
+
+#[test]
+fn test_chart_title_subtitle_and_caption_render() {
+    let result = render_result(
+        "Chart(data: \"p.csv\", title: \"Main <Title>\", subtitle: \"Sub & text\", caption: \"Source\") { Space(x * y) { Point() } }",
+        "x,y\n1,2\n2,3\n",
+    );
+    assert!(result.svg.contains("<title>Main &lt;Title&gt;</title>"));
+    assert!(result.svg.contains("<desc>Sub &amp; text"));
+    assert!(result.svg.contains("class=\"algraf-title\""));
+    assert!(result.svg.contains("Main &lt;Title&gt;</text>"));
+    assert!(result.svg.contains("class=\"algraf-caption\""));
+    assert!(result.layout.plot.y > 40.0);
+}
+
+#[test]
 fn test_no_legend_for_literal_fill() {
     let svg = render_svg(
         "Chart(data: \"p.csv\") { Space(x * y) { Point(fill: \"steelblue\") } }",
@@ -109,6 +132,17 @@ fn test_stacked_bar_y_domain_uses_totals() {
 }
 
 #[test]
+fn test_fill_bar_normalizes_segments_to_one() {
+    let result = render_result(
+        "Chart(data: \"f.csv\") { Space(quarter * amount) { Bar(fill: type, layout: \"fill\") } }",
+        "quarter,type,amount\nQ1,a,10\nQ1,b,30\nQ2,a,5\nQ2,b,5\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.svg.matches("opacity=").count(), 4);
+    assert!(result.svg.contains(">1</text>"));
+}
+
+#[test]
 fn test_line_groups_by_stroke() {
     let svg = render_svg(
         "Chart(data: \"t.csv\") { Space(time * value) { Line(stroke: series) } }",
@@ -117,6 +151,18 @@ fn test_line_groups_by_stroke() {
     assert!(svg.contains("algraf-geom-line"));
     // One path per series.
     assert_eq!(svg.matches("<path").count(), 2);
+}
+
+#[test]
+fn test_smooth_lm_renders_fit_line() {
+    let result = render_result(
+        "Chart(data: \"s.csv\") { Space(x * y) { Smooth(method: \"lm\", stroke: \"#333333\") } }",
+        "x,y\n1,2\n2,3\n3,5\n4,7\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-smooth"));
+    assert!(result.svg.contains("stroke=\"#333333\""));
+    assert_eq!(result.svg.matches("<path").count(), 1);
 }
 
 #[test]
@@ -202,6 +248,44 @@ fn test_tile_heatmap_gradient() {
 }
 
 #[test]
+fn test_boxplot_renders_summary_marks() {
+    let result = render_result(
+        "Chart(data: \"b.csv\") { Space(group * value) { Boxplot(fill: group) } }",
+        "group,value\na,1\na,2\na,3\na,4\nb,3\nb,4\nb,5\nb,6\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-boxplot"));
+    assert!(result.svg.contains("<line"));
+    assert!(result.svg.contains("<rect x="));
+}
+
+#[test]
+fn test_ribbon_renders_closed_path() {
+    let result = render_result(
+        "Chart(data: \"r.csv\") { Space(x * (lower + upper)) { Ribbon(ymin: lower, ymax: upper, fill: \"steelblue\", alpha: 0.25) } }",
+        "x,lower,upper\n1,2,4\n2,3,5\n3,2,6\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-ribbon"));
+    assert!(result.svg.contains("fill=\"steelblue\""));
+    assert!(result.svg.contains("Z\""));
+}
+
+#[test]
+fn test_reference_lines_and_rug_render() {
+    let result = render_result(
+        "Chart(data: \"r.csv\") { Space(x * y) { Point() HLine(y: 2, stroke: \"red\", label: \"Target\") VLine(x: 2, stroke: \"gray\", label: \"Marker\") Rug(sides: \"bl\") } }",
+        "x,y\n1,1\n2,2\n3,3\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-hline"));
+    assert!(result.svg.contains("algraf-geom-vline"));
+    assert!(result.svg.contains("algraf-geom-rug"));
+    assert!(result.svg.contains(">Target</text>"));
+    assert!(result.svg.contains(">Marker</text>"));
+}
+
+#[test]
 fn test_gradient_legend_for_numeric_fill() {
     let svg = render_svg(
         "Chart(data: \"h.csv\") { Space(day * hour) { Tile(fill: value) } }",
@@ -225,6 +309,18 @@ fn test_histogram_via_derive_and_rect() {
 }
 
 #[test]
+fn test_direct_histogram_renders_like_primitive_rects() {
+    let result = render_result(
+        "Chart(data: \"d.csv\") { Space(value) { Histogram(bins: 4, fill: \"steelblue\") } }",
+        "value\n1\n2\n3\n4\n5\n6\n7\n8\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-rect"));
+    assert_eq!(result.svg.matches("<rect x=").count(), 4);
+    assert!(result.svg.contains("fill=\"steelblue\""));
+}
+
+#[test]
 fn test_histogram_with_bin_width_aligns_axis_ticks() {
     let svg = render_svg(
         "Chart(data: \"d.csv\") { Derive bins = Bin(value, binWidth: 1, boundary: 0) Space(bin_start * count, data: bins) { Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count) } }",
@@ -233,6 +329,16 @@ fn test_histogram_with_bin_width_aligns_axis_ticks() {
     assert_eq!(svg.matches("<rect x=").count(), 8);
     assert!(svg.contains(">9</text>"));
     assert!(!svg.contains(">0.5</text>"));
+}
+
+#[test]
+fn test_bin_closed_right_assigns_boundary_values_to_left_bins() {
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") { Derive bins = Bin(value, binWidth: 10, boundary: 0, closed: \"right\") Space(bin_start * count, data: bins) { Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count) } }",
+        "value\n0\n10\n",
+    );
+    assert_eq!(svg.matches("<rect x=").count(), 2);
+    assert!(svg.contains(">-10</text>"));
 }
 
 #[test]

@@ -17,7 +17,7 @@ use crate::layout::{Layout, Rect};
 use crate::scale::{categorical_domain, cell_category};
 use crate::space::ScaledSpace;
 use crate::stats;
-use crate::svg::{escape_attr, num, SvgWriter};
+use crate::svg::{escape_attr, escape_text, num, SvgWriter};
 use crate::theme::Theme;
 
 /// The result of rendering: an SVG document plus render diagnostics.
@@ -53,20 +53,35 @@ pub fn render(
     let height = ir.height as f64;
 
     let has_axes = theme.axes;
+    let (top_extra, bottom_extra) = chart_text_reserve(ir, theme);
     // A first pass with a provisional layout to discover legends.
-    let provisional = Layout::compute(width, height, false, has_axes);
-    let legends = collect_legends(ir, primary, &derived, &provisional);
+    let provisional =
+        Layout::compute_with_text(width, height, false, has_axes, top_extra, bottom_extra);
+    let legends = if ir.guides.legend {
+        collect_legends(ir, primary, &derived, &provisional)
+    } else {
+        Vec::new()
+    };
     let facet_panel_count = facet_panel_count(ir, primary, &derived);
     let layout = match facet_panel_count {
-        Some(count) => Layout::compute_facets(
+        Some(count) => Layout::compute_facets_with_text(
             width,
             height,
             !legends.is_empty(),
             has_axes,
             count,
             ir.layout.facet_columns,
+            top_extra,
+            bottom_extra,
         ),
-        None => Layout::compute(width, height, !legends.is_empty(), has_axes),
+        None => Layout::compute_with_text(
+            width,
+            height,
+            !legends.is_empty(),
+            has_axes,
+            top_extra,
+            bottom_extra,
+        ),
     };
 
     let x_range = (layout.plot.x, layout.plot.right());
@@ -123,14 +138,26 @@ pub fn render(
 
     // --- SVG emission (spec §24.5) ---
     let mut w = SvgWriter::new();
+    let aria = ir
+        .title
+        .as_ref()
+        .map(|title| format!(" aria-label=\"{}\"", escape_attr(title)))
+        .unwrap_or_default();
     w.line(&format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" \
-         viewBox=\"0 0 {} {}\" role=\"img\">",
+         viewBox=\"0 0 {} {}\" role=\"img\"{}>",
         num(width),
         num(height),
         num(width),
         num(height),
+        aria,
     ));
+    if let Some(title) = &ir.title {
+        w.line(&format!("<title>{}</title>", escape_text(title)));
+    }
+    if let Some(desc) = chart_desc(ir) {
+        w.line(&format!("<desc>{}</desc>", escape_text(&desc)));
+    }
 
     // Background.
     w.line(&rect_fill(
@@ -141,6 +168,7 @@ pub fn render(
         &theme.background,
         "algraf-background",
     ));
+    render_chart_text(&mut w, ir, width, height, &layout, theme);
     // Plot panel background.
     if layout.facets.is_empty() {
         w.line(&rect_fill(
@@ -257,6 +285,7 @@ fn compute_derived(ir: &ChartIr, primary: &dyn Table) -> HashMap<String, DataFra
             bins,
             bin_width: numeric_setting(&d.stat.settings, "binWidth").filter(|n| *n > 0.0),
             boundary: numeric_setting(&d.stat.settings, "boundary"),
+            closed: closed_setting(&d.stat.settings),
         };
         derived.insert(
             d.name.clone(),
@@ -274,6 +303,89 @@ fn numeric_setting(settings: &[Setting], name: &str) -> Option<f64> {
             SettingValue::Number(value) if value.is_finite() => Some(value),
             _ => None,
         })
+}
+
+fn closed_setting(settings: &[Setting]) -> stats::BinClosed {
+    settings
+        .iter()
+        .find(|setting| setting.name == "closed")
+        .and_then(|setting| match &setting.value {
+            SettingValue::String(value) if value == "right" => Some(stats::BinClosed::Right),
+            SettingValue::String(value) if value == "left" => Some(stats::BinClosed::Left),
+            _ => None,
+        })
+        .unwrap_or(stats::BinClosed::Left)
+}
+
+fn chart_text_reserve(ir: &ChartIr, theme: &Theme) -> (f64, f64) {
+    let mut top = 0.0;
+    if ir.title.is_some() {
+        top += theme.title_size + 8.0;
+    }
+    if ir.subtitle.is_some() {
+        top += theme.font_size + 4.0;
+    }
+    let bottom = if ir.caption.is_some() {
+        theme.font_size + 8.0
+    } else {
+        0.0
+    };
+    (top, bottom)
+}
+
+fn chart_desc(ir: &ChartIr) -> Option<String> {
+    match (&ir.subtitle, &ir.caption) {
+        (Some(subtitle), Some(caption)) => Some(format!("{subtitle}\n{caption}")),
+        (Some(subtitle), None) => Some(subtitle.clone()),
+        (None, Some(caption)) => Some(caption.clone()),
+        (None, None) => None,
+    }
+}
+
+fn render_chart_text(
+    w: &mut SvgWriter,
+    ir: &ChartIr,
+    width: f64,
+    height: f64,
+    layout: &Layout,
+    theme: &Theme,
+) {
+    let x = layout.plot.x;
+    let mut y = 24.0;
+    if let Some(title) = &ir.title {
+        w.line(&format!(
+            "<text class=\"algraf-title\" x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" font-weight=\"600\" fill=\"{}\">{}</text>",
+            num(x),
+            num(y),
+            escape_attr(&theme.font_family),
+            num(theme.title_size),
+            escape_attr(&theme.text_color),
+            escape_text(title),
+        ));
+        y += theme.title_size + 8.0;
+    }
+    if let Some(subtitle) = &ir.subtitle {
+        w.line(&format!(
+            "<text class=\"algraf-subtitle\" x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
+            num(x),
+            num(y),
+            escape_attr(&theme.font_family),
+            num(theme.font_size),
+            escape_attr(&theme.text_color),
+            escape_text(subtitle),
+        ));
+    }
+    if let Some(caption) = &ir.caption {
+        w.line(&format!(
+            "<text class=\"algraf-caption\" x=\"{}\" y=\"{}\" text-anchor=\"end\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
+            num(width - 16.0),
+            num(height - 12.0),
+            escape_attr(&theme.font_family),
+            num(theme.font_size),
+            escape_attr(&theme.text_color),
+            escape_text(caption),
+        ));
+    }
 }
 
 /// Collect deduplicated fill/stroke legends across all spaces (spec §19.5).

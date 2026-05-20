@@ -1,0 +1,6 @@
+Chart(data: "penguins.csv", width: 760, height: 500) {
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.55, size: 3)
+        Smooth(method: "lm", stroke: "#333333", strokeWidth: 2)
+    }
+}

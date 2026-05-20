@@ -34,10 +34,18 @@ struct NumericDomainHints {
 impl AxisDomainHints {
     pub fn apply_numeric(&self, min: &mut f64, max: &mut f64) {
         if let Some(value) = self.numeric.min {
-            *min = min.min(value);
+            if self.numeric.hard_min {
+                *min = value;
+            } else {
+                *min = min.min(value);
+            }
         }
         if let Some(value) = self.numeric.max {
-            *max = max.max(value);
+            if self.numeric.hard_max {
+                *max = value;
+            } else {
+                *max = max.max(value);
+            }
         }
         if self.numeric.include_zero {
             *min = min.min(0.0);
@@ -78,6 +86,12 @@ impl AxisDomainHints {
         self.numeric.hard_min = true;
         self.numeric.hard_max = true;
     }
+
+    fn set_numeric_bounds(&mut self, min: f64, max: f64) {
+        self.numeric.min = Some(min);
+        self.numeric.max = Some(max);
+        self.lock_bounds();
+    }
 }
 
 pub fn train_space_domains(
@@ -113,6 +127,11 @@ fn train_bar(
     hints: &mut SpaceDomainHints,
 ) {
     hints.y.include_zero();
+
+    if bar_layout(geometry) == BarLayout::Fill {
+        hints.y.set_numeric_bounds(0.0, 1.0);
+        return;
+    }
 
     if !is_stacked(geometry) {
         return;
@@ -166,10 +185,27 @@ fn train_rect(table: &dyn Table, geometry: &GeometryIr, hints: &mut SpaceDomainH
 }
 
 fn is_stacked(geometry: &GeometryIr) -> bool {
-    geometry.settings.iter().any(|setting| {
-        setting.name == "layout"
-            && matches!(&setting.value, SettingValue::String(value) if value == "stack" || value == "fill")
-    })
+    matches!(bar_layout(geometry), BarLayout::Stack | BarLayout::Fill)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BarLayout {
+    Identity,
+    Stack,
+    Fill,
+}
+
+fn bar_layout(geometry: &GeometryIr) -> BarLayout {
+    geometry
+        .settings
+        .iter()
+        .find(|setting| setting.name == "layout")
+        .and_then(|setting| match &setting.value {
+            SettingValue::String(value) if value == "stack" => Some(BarLayout::Stack),
+            SettingValue::String(value) if value == "fill" => Some(BarLayout::Fill),
+            _ => None,
+        })
+        .unwrap_or(BarLayout::Identity)
 }
 
 fn frame_axis(frame: &FrameIr, index: usize) -> Option<&FrameIr> {

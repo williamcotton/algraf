@@ -94,8 +94,18 @@ fn committed_examples_check_and_render() {
         "line",
         "grouped_bar",
         "stacked_bar",
+        "fill_bar",
         "heatmap",
         "histogram",
+        "histogram_direct",
+        "facet",
+        "connected_scatter",
+        "barcode",
+        "floating",
+        "smooth",
+        "boxplot",
+        "ribbon",
+        "reference",
     ];
 
     for name in examples {

@@ -12,10 +12,16 @@ charts=(
     stacked_bar
     heatmap
     histogram
+    histogram_direct
     facet
     connected_scatter
     barcode
     floating
+    fill_bar
+    smooth
+    boxplot
+    ribbon
+    reference
 )
 
 cd "$repo_root"

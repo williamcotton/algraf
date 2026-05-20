@@ -585,6 +585,12 @@ fn ir_to_json(ir: &ChartIr) -> Value {
         "layout": {
             "facetColumns": ir.layout.facet_columns,
         },
+        "guides": {
+            "legend": ir.guides.legend,
+        },
+        "title": ir.title.as_deref(),
+        "subtitle": ir.subtitle.as_deref(),
+        "caption": ir.caption.as_deref(),
         "derivedTables": ir.derived_tables.iter().map(derive_json).collect::<Vec<_>>(),
         "spaces": ir.spaces.iter().map(space_json).collect::<Vec<_>>(),
     })

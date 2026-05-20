@@ -5,7 +5,7 @@
 //! schema loading happen at the caller's boundary (spec §23.5); schema errors
 //! such as "file not found" are produced there, not here.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use algraf_core::{Diagnostic, Severity, Span};
 use algraf_data::{ColumnDef, DataType};
@@ -53,6 +53,7 @@ pub fn analyze_source(source: &str, primary_schema: &[ColumnDef]) -> Analysis {
 const DEFAULT_WIDTH: u32 = 800;
 const DEFAULT_HEIGHT: u32 = 520;
 const CHART_ARGS: &[&str] = &["data", "width", "height", "title", "subtitle", "caption"];
+const THEME_NAMES: &[&str] = &["minimal", "classic", "light", "dark", "void"];
 
 /// A resolvable table: column name to type, in declared order.
 struct ActiveTable {
@@ -87,6 +88,8 @@ impl ActiveTable {
 struct Analyzer<'a> {
     primary: &'a [ColumnDef],
     derived: HashMap<String, Vec<ColumnDefIr>>,
+    reserved_derived_names: HashSet<String>,
+    synthetic_counter: usize,
     diagnostics: Vec<Diagnostic>,
 }
 
@@ -95,6 +98,8 @@ impl<'a> Analyzer<'a> {
         Analyzer {
             primary,
             derived: HashMap::new(),
+            reserved_derived_names: HashSet::new(),
+            synthetic_counter: 0,
             diagnostics: Vec::new(),
         }
     }
@@ -106,10 +111,12 @@ impl<'a> Analyzer<'a> {
     // --- Chart (spec §13.17 phases 2, 6–8) ---
 
     fn chart(&mut self, chart: &ChartBlock) -> Option<ChartIr> {
-        let (data_source, width, height) = self.chart_args(chart);
+        let (data_source, width, height, title, subtitle, caption) = self.chart_args(chart);
+        self.reserved_derived_names = chart_derived_names(chart);
 
         let mut derived_tables = Vec::new();
         let mut layout = LayoutIr::default();
+        let mut guides = GuideIr::default();
         let mut spaces = Vec::new();
         for item in chart.items() {
             match item {
@@ -120,14 +127,20 @@ impl<'a> Analyzer<'a> {
                         derived_tables.push(ir);
                     }
                 }
-                ChartItem::Space(s) => spaces.push(self.space(&s)),
+                ChartItem::Space(s) => {
+                    let analysis = self.space(&s);
+                    for ir in analysis.derived {
+                        self.derived
+                            .insert(ir.name.clone(), ir.output_schema.clone());
+                        derived_tables.push(ir);
+                    }
+                    spaces.extend(analysis.spaces);
+                }
                 ChartItem::Layout(decl) => self.layout_decl(&decl, &mut layout),
-                // Scale / Guide / Theme declarations are recorded for render
-                // configuration in a later milestone.
-                ChartItem::Scale(_)
-                | ChartItem::Guide(_)
-                | ChartItem::Theme(_)
-                | ChartItem::Error(_) => {}
+                ChartItem::Guide(decl) => self.guide_decl(&decl, &mut guides),
+                ChartItem::Theme(decl) => self.theme_decl(&decl),
+                ChartItem::Scale(decl) => self.unsupported_decl(&decl),
+                ChartItem::Error(_) => {}
             }
         }
 
@@ -135,13 +148,27 @@ impl<'a> Analyzer<'a> {
             data_source,
             derived_tables,
             layout,
+            guides,
+            title,
+            subtitle,
+            caption,
             width,
             height,
             spaces,
         })
     }
 
-    fn chart_args(&mut self, chart: &ChartBlock) -> (DataSourceIr, u32, u32) {
+    fn chart_args(
+        &mut self,
+        chart: &ChartBlock,
+    ) -> (
+        DataSourceIr,
+        u32,
+        u32,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ) {
         let span = node_span(chart.syntax());
         let args = chart.args();
 
@@ -149,6 +176,9 @@ impl<'a> Analyzer<'a> {
         let mut data_source = None;
         let mut width = DEFAULT_WIDTH;
         let mut height = DEFAULT_HEIGHT;
+        let mut title = None;
+        let mut subtitle = None;
+        let mut caption = None;
 
         for arg in &args {
             let Some(key) = arg.key() else { continue };
@@ -187,6 +217,9 @@ impl<'a> Analyzer<'a> {
                         height = n;
                     }
                 }
+                "title" => title = self.arg_string(arg, "title"),
+                "subtitle" => subtitle = self.arg_string(arg, "subtitle"),
+                "caption" => caption = self.arg_string(arg, "caption"),
                 _ => {}
             }
         }
@@ -200,7 +233,7 @@ impl<'a> Analyzer<'a> {
             DataSourceIr::Missing
         });
 
-        (data_source, width, height)
+        (data_source, width, height, title, subtitle, caption)
     }
 
     fn data_source(&mut self, arg: &Arg) -> DataSourceIr {
@@ -230,6 +263,23 @@ impl<'a> Analyzer<'a> {
                 .and_then(|t| t.parse::<f64>().ok())
                 .map(|f| f.max(0.0) as u32),
             _ => None,
+        }
+    }
+
+    fn arg_string(&mut self, arg: &Arg, name: &str) -> Option<String> {
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                Some(string_value(&lit.text().unwrap_or_default()))
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    "E1204",
+                    format!("`{name}` expects a string literal"),
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
         }
     }
 
@@ -267,6 +317,102 @@ impl<'a> Analyzer<'a> {
                 )),
             }
         }
+    }
+
+    fn guide_decl(&mut self, decl: &Decl, guides: &mut GuideIr) {
+        let mut seen: HashMap<String, Span> = HashMap::new();
+        for arg in decl.args() {
+            let Some(key) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if let Some(&first) = seen.get(&key) {
+                self.diag(
+                    Diagnostic::error(
+                        "E1002",
+                        format!("duplicate Guide argument `{key}`"),
+                        key_span,
+                    )
+                    .with_related(first, "first defined here"),
+                );
+                continue;
+            }
+            seen.insert(key.clone(), key_span);
+
+            match key.as_str() {
+                "legend" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Bool) => {
+                        guides.legend = lit.text().as_deref() == Some("true");
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`legend` expects a boolean literal",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                _ => self.diag(Diagnostic::warning(
+                    "W2006",
+                    format!("unsupported Guide argument `{key}` ignored"),
+                    key_span,
+                )),
+            }
+        }
+    }
+
+    fn theme_decl(&mut self, decl: &Decl) {
+        let mut seen: HashMap<String, Span> = HashMap::new();
+        for arg in decl.args() {
+            let Some(key) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if let Some(&first) = seen.get(&key) {
+                self.diag(
+                    Diagnostic::error(
+                        "E1002",
+                        format!("duplicate Theme argument `{key}`"),
+                        key_span,
+                    )
+                    .with_related(first, "first defined here"),
+                );
+                continue;
+            }
+            seen.insert(key.clone(), key_span);
+
+            match key.as_str() {
+                "name" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        let name = string_value(&lit.text().unwrap_or_default());
+                        if !THEME_NAMES.contains(&name.as_str()) {
+                            self.diag(Diagnostic::error(
+                                "E1204",
+                                format!("unknown theme `{name}`"),
+                                node_span(lit.syntax()),
+                            ));
+                        }
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`name` expects a string literal",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                _ => self.diag(Diagnostic::warning(
+                    "W2006",
+                    format!("unsupported Theme argument `{key}` ignored"),
+                    key_span,
+                )),
+            }
+        }
+    }
+
+    fn unsupported_decl(&mut self, decl: &Decl) {
+        self.diag(Diagnostic::warning(
+            "W2006",
+            format!(
+                "{} declarations are parsed but not implemented in version 0.1",
+                decl.keyword()
+            ),
+            node_span(decl.syntax()),
+        ));
     }
 
     // --- Derive (spec §13.4) ---
@@ -326,25 +472,8 @@ impl<'a> Analyzer<'a> {
             }
         };
 
-        let settings = self.collect_settings(&stat.args());
-        let output_schema = vec![
-            ColumnDefIr {
-                name: "bin_start".into(),
-                dtype: DataType::Float,
-            },
-            ColumnDefIr {
-                name: "bin_end".into(),
-                dtype: DataType::Float,
-            },
-            ColumnDefIr {
-                name: "bin_center".into(),
-                dtype: DataType::Float,
-            },
-            ColumnDefIr {
-                name: "count".into(),
-                dtype: DataType::Integer,
-            },
-        ];
+        let settings = self.collect_bin_settings(&stat.args(), stat_span);
+        let output_schema = bin_output_schema();
 
         Some(DeriveIr {
             name,
@@ -359,23 +488,116 @@ impl<'a> Analyzer<'a> {
         })
     }
 
-    /// Collect arbitrary `key: literal` settings without strict validation.
-    fn collect_settings(&mut self, args: &[Arg]) -> Vec<Setting> {
+    fn collect_bin_settings(&mut self, args: &[Arg], stat_span: Span) -> Vec<Setting> {
         let mut settings = Vec::new();
+        let mut seen: HashMap<String, Span> = HashMap::new();
         for arg in args {
             let Some(name) = arg.key() else { continue };
-            if let Some(value) = arg.value() {
-                if let Some(v) = setting_value(&value) {
-                    settings.push(Setting { name, value: v });
+            let key_span = node_span(arg.syntax());
+
+            if let Some(&first) = seen.get(&name) {
+                self.diag(
+                    Diagnostic::error("E1404", format!("duplicate Bin setting `{name}`"), key_span)
+                        .with_related(first, "first defined here"),
+                );
+                continue;
+            }
+            seen.insert(name.clone(), key_span);
+
+            match name.as_str() {
+                "bins" | "binWidth" | "boundary" => {
+                    let Some(value) = arg.value() else {
+                        continue;
+                    };
+                    match ValueForm::of(&value) {
+                        ValueForm::Number(n) if n.is_finite() => {
+                            if name == "bins" && n < 1.0 {
+                                self.diag(Diagnostic::error(
+                                    "E1404",
+                                    "`bins` must be at least 1",
+                                    node_span(value.syntax()),
+                                ));
+                            } else if name == "binWidth" && n <= 0.0 {
+                                self.diag(Diagnostic::error(
+                                    "E1404",
+                                    "`binWidth` must be greater than 0",
+                                    node_span(value.syntax()),
+                                ));
+                            } else {
+                                settings.push(Setting {
+                                    name,
+                                    value: SettingValue::Number(n),
+                                });
+                            }
+                        }
+                        form => self.diag(Diagnostic::error(
+                            "E1404",
+                            format!(
+                                "`{name}` expects a finite number, found {}",
+                                form.describe()
+                            ),
+                            node_span(value.syntax()),
+                        )),
+                    }
                 }
+                "closed" => {
+                    let Some(value) = arg.value() else {
+                        continue;
+                    };
+                    match ValueForm::of(&value) {
+                        ValueForm::Str(s) if s == "left" || s == "right" => {
+                            settings.push(Setting {
+                                name,
+                                value: SettingValue::String(s),
+                            });
+                        }
+                        ValueForm::Column(column) => {
+                            let written = column.name().unwrap_or_else(|| "left".to_string());
+                            self.diag(
+                                Diagnostic::error(
+                                    "E1404",
+                                    "`closed` expects a quoted string value",
+                                    node_span(value.syntax()),
+                                )
+                                .with_help(format!("write it as a string, e.g. {written:?}")),
+                            );
+                        }
+                        form => self.diag(Diagnostic::error(
+                            "E1404",
+                            format!(
+                                "`closed` expects one of [\"left\", \"right\"], found {}",
+                                form.describe()
+                            ),
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    "E1404",
+                    format!("unknown Bin setting `{name}`"),
+                    key_span,
+                )),
             }
         }
+        self.check_bin_setting_conflicts(&settings, stat_span);
         settings
+    }
+
+    fn check_bin_setting_conflicts(&mut self, settings: &[Setting], span: Span) {
+        let has_bins = settings.iter().any(|setting| setting.name == "bins");
+        let has_bin_width = settings.iter().any(|setting| setting.name == "binWidth");
+        if has_bins && has_bin_width {
+            self.diag(Diagnostic::error(
+                "E1404",
+                "`bins` and `binWidth` must not both be provided",
+                span,
+            ));
+        }
     }
 
     // --- Space (spec §13.3, §13.17 phases 8–12) ---
 
-    fn space(&mut self, space: &SpaceBlock) -> SpaceIr {
+    fn space(&mut self, space: &SpaceBlock) -> SpaceAnalysis {
         let span = node_span(space.syntax());
         let (data_ref, table) = self.space_data(space);
 
@@ -384,25 +606,186 @@ impl<'a> Analyzer<'a> {
                 let frame = self.build_frame(&expr, &table);
                 self.check_cartesian_arity(&frame, node_span(expr.syntax()));
                 self.check_facet_variable(&frame);
+                self.check_temporal_nesting(&frame);
                 frame
             }
             None => FrameIr::Invalid,
         };
 
         let mut geometries = Vec::new();
+        let mut histograms = Vec::new();
+        let mut saw_geometry = false;
         for item in space.items() {
-            if let SpaceItem::Geometry(call) = item {
-                if let Some(geo) = self.geometry(&call, &frame, &table) {
-                    geometries.push(geo);
+            match item {
+                SpaceItem::Geometry(call) => {
+                    saw_geometry = true;
+                    if let Some(geo) = self.geometry(&call, &frame, &table) {
+                        if geo.kind == GeometryKind::Histogram {
+                            histograms.push(geo);
+                        } else {
+                            geometries.push(geo);
+                        }
+                    }
                 }
+                SpaceItem::Theme(decl) => self.theme_decl(&decl),
+                SpaceItem::Scale(decl) | SpaceItem::Guide(decl) => self.unsupported_decl(&decl),
+                SpaceItem::Error(_) => {}
+            }
+        }
+        if !saw_geometry {
+            self.diag(Diagnostic::warning("W2001", "empty Space block", span));
+        }
+
+        let mut analysis = SpaceAnalysis::default();
+        for histogram in histograms {
+            if let Some((derive, histogram_space)) = self.desugar_histogram(&histogram, &frame) {
+                analysis.derived.push(derive);
+                analysis.spaces.push(histogram_space);
+            }
+        }
+        if !geometries.is_empty() || analysis.spaces.is_empty() {
+            analysis.spaces.push(SpaceIr {
+                data: data_ref,
+                frame,
+                geometries,
+                span,
+            });
+        }
+        analysis
+    }
+
+    fn desugar_histogram(
+        &mut self,
+        histogram: &GeometryIr,
+        frame: &FrameIr,
+    ) -> Option<(DeriveIr, SpaceIr)> {
+        let FrameIr::Vector(input) = frame else {
+            self.diag(Diagnostic::error(
+                "E1302",
+                "Histogram requires a single numeric vector space",
+                histogram.span,
+            ));
+            return None;
+        };
+
+        match input.dtype {
+            DataType::Temporal => {
+                self.diag(
+                    Diagnostic::error(
+                        "E1405",
+                        "temporal scales are supported, but temporal binning is not yet supported",
+                        input.span,
+                    )
+                    .with_help(
+                        "pre-aggregate the CSV or convert the temporal column to a categorical period",
+                    ),
+                );
+                return None;
+            }
+            DataType::Integer | DataType::Float | DataType::Unknown => {}
+            _ => {
+                self.diag(Diagnostic::error(
+                    "E1404",
+                    format!("Histogram input column `{}` is not numeric", input.name),
+                    input.span,
+                ));
+                return None;
             }
         }
 
-        SpaceIr {
-            data: data_ref,
-            frame,
-            geometries,
-            span,
+        let name = self.next_histogram_name();
+        let settings = self.histogram_bin_settings(histogram);
+        let output_schema = bin_output_schema();
+        let derive = DeriveIr {
+            name: name.clone(),
+            stat: StatCallIr {
+                kind: StatKind::Bin,
+                input: FrameIr::Vector(input.clone()),
+                settings,
+                span: histogram.span,
+            },
+            output_schema,
+            span: histogram.span,
+        };
+
+        let bin_start = synthetic_column("bin_start", DataType::Float, histogram.span);
+        let bin_end = synthetic_column("bin_end", DataType::Float, histogram.span);
+        let count = synthetic_column("count", DataType::Integer, histogram.span);
+        let rect = GeometryIr {
+            kind: GeometryKind::Rect,
+            mappings: vec![
+                AestheticMapping {
+                    aesthetic: "xmin".into(),
+                    column: bin_start.clone(),
+                },
+                AestheticMapping {
+                    aesthetic: "xmax".into(),
+                    column: bin_end,
+                },
+                AestheticMapping {
+                    aesthetic: "ymax".into(),
+                    column: count.clone(),
+                },
+            ],
+            settings: histogram_rect_settings(histogram),
+            span: histogram.span,
+        };
+        let space = SpaceIr {
+            data: SpaceDataRef::Derived(name),
+            frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
+            geometries: vec![rect],
+            span: histogram.span,
+        };
+        Some((derive, space))
+    }
+
+    fn histogram_bin_settings(&mut self, histogram: &GeometryIr) -> Vec<Setting> {
+        let settings: Vec<Setting> = histogram
+            .settings
+            .iter()
+            .filter(|setting| {
+                matches!(
+                    setting.name.as_str(),
+                    "bins" | "binWidth" | "boundary" | "closed"
+                )
+            })
+            .map(|setting| Setting {
+                name: setting.name.clone(),
+                value: setting.value.clone(),
+            })
+            .collect();
+
+        if settings.iter().any(|setting| {
+            setting.name == "bins"
+                && !matches!(setting.value, SettingValue::Number(value) if value >= 1.0)
+        }) {
+            self.diag(Diagnostic::error(
+                "E1404",
+                "`bins` must be at least 1",
+                histogram.span,
+            ));
+        }
+        if settings.iter().any(|setting| {
+            setting.name == "binWidth"
+                && !matches!(setting.value, SettingValue::Number(value) if value > 0.0)
+        }) {
+            self.diag(Diagnostic::error(
+                "E1404",
+                "`binWidth` must be greater than 0",
+                histogram.span,
+            ));
+        }
+        self.check_bin_setting_conflicts(&settings, histogram.span);
+        settings
+    }
+
+    fn next_histogram_name(&mut self) -> String {
+        loop {
+            let name = format!("__histogram_{}", self.synthetic_counter);
+            self.synthetic_counter += 1;
+            if !self.derived.contains_key(&name) && !self.reserved_derived_names.contains(&name) {
+                return name;
+            }
         }
     }
 
@@ -552,6 +935,35 @@ impl<'a> Analyzer<'a> {
                     .with_help("use a string, boolean, or pre-binned column for facet panels"),
                 );
             }
+        }
+    }
+
+    fn check_temporal_nesting(&mut self, frame: &FrameIr) {
+        match frame {
+            FrameIr::Nested { outer, inner } => {
+                if direct_temporal_vector(outer) || direct_temporal_vector(inner) {
+                    self.diag(
+                        Diagnostic::warning(
+                            "W2008",
+                            "high-cardinality temporal nesting may create excessive bands or panels",
+                            temporal_nesting_span(outer)
+                                .or_else(|| temporal_nesting_span(inner))
+                                .unwrap_or(Span::new(0, 0)),
+                        )
+                        .with_help(
+                            "precompute a coarser period column such as day, week, month, or year",
+                        ),
+                    );
+                }
+                self.check_temporal_nesting(outer);
+                self.check_temporal_nesting(inner);
+            }
+            FrameIr::Cartesian(axes) | FrameIr::Union(axes) => {
+                for axis in axes {
+                    self.check_temporal_nesting(axis);
+                }
+            }
+            FrameIr::Vector(_) | FrameIr::Invalid => {}
         }
     }
 
@@ -748,6 +1160,12 @@ enum PropOutcome {
     Invalid,
 }
 
+#[derive(Default)]
+struct SpaceAnalysis {
+    derived: Vec<DeriveIr>,
+    spaces: Vec<SpaceIr>,
+}
+
 /// A classified property value form.
 enum ValueForm {
     Column(AlgebraName),
@@ -826,17 +1244,6 @@ fn describe_accepts(accepts: &[Accept]) -> String {
     parts.join(" or ")
 }
 
-fn setting_value(value: &ValueExpr) -> Option<SettingValue> {
-    match ValueForm::of(value) {
-        ValueForm::Number(n) => Some(SettingValue::Number(n)),
-        ValueForm::Str(s) => Some(SettingValue::String(s)),
-        ValueForm::Bool(b) => Some(SettingValue::Bool(b)),
-        ValueForm::Null => Some(SettingValue::Null),
-        ValueForm::Array(Some(nums)) => Some(SettingValue::NumberArray(nums)),
-        _ => None,
-    }
-}
-
 /// Strip surrounding quotes and resolve escapes in a string literal lexeme.
 fn string_value(raw: &str) -> String {
     let inner = raw
@@ -898,6 +1305,77 @@ fn facet_panel_column(frame: &FrameIr) -> Option<&ColumnRef> {
         FrameIr::Vector(column) => Some(column),
         _ => None,
     }
+}
+
+fn direct_temporal_vector(frame: &FrameIr) -> bool {
+    matches!(frame, FrameIr::Vector(column) if column.dtype == DataType::Temporal)
+}
+
+fn temporal_nesting_span(frame: &FrameIr) -> Option<Span> {
+    match frame {
+        FrameIr::Vector(column) if column.dtype == DataType::Temporal => Some(column.span),
+        _ => None,
+    }
+}
+
+fn chart_derived_names(chart: &ChartBlock) -> HashSet<String> {
+    chart
+        .items()
+        .into_iter()
+        .filter_map(|item| match item {
+            ChartItem::Derive(derive) => derive.name(),
+            _ => None,
+        })
+        .collect()
+}
+
+fn bin_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "bin_start".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "bin_end".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "bin_center".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "count".into(),
+            dtype: DataType::Integer,
+        },
+    ]
+}
+
+fn synthetic_column(name: &str, dtype: DataType, span: Span) -> ColumnRef {
+    ColumnRef {
+        name: name.into(),
+        dtype,
+        span,
+    }
+}
+
+fn histogram_rect_settings(histogram: &GeometryIr) -> Vec<GeometrySetting> {
+    let mut settings = vec![GeometrySetting {
+        name: "ymin".into(),
+        value: SettingValue::Number(0.0),
+    }];
+    settings.extend(
+        histogram
+            .settings
+            .iter()
+            .filter(|setting| {
+                matches!(
+                    setting.name.as_str(),
+                    "fill" | "stroke" | "strokeWidth" | "alpha"
+                )
+            })
+            .cloned(),
+    );
+    settings
 }
 
 fn cartesian_push(acc: FrameIr, next: FrameIr) -> FrameIr {

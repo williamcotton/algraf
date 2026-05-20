@@ -13,6 +13,10 @@ pub struct ChartIr {
     pub data_source: DataSourceIr,
     pub derived_tables: Vec<DeriveIr>,
     pub layout: LayoutIr,
+    pub guides: GuideIr,
+    pub title: Option<String>,
+    pub subtitle: Option<String>,
+    pub caption: Option<String>,
     pub width: u32,
     pub height: u32,
     pub spaces: Vec<SpaceIr>,
@@ -33,6 +37,18 @@ pub enum DataSourceIr {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LayoutIr {
     pub facet_columns: Option<usize>,
+}
+
+/// Chart-level guide configuration (spec §19).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GuideIr {
+    pub legend: bool,
+}
+
+impl Default for GuideIr {
+    fn default() -> Self {
+        GuideIr { legend: true }
+    }
 }
 
 /// A derived table produced by a `Derive` declaration (spec §13.4).
