@@ -48,6 +48,14 @@ A change is not done until `cargo fmt --all --check`, `cargo clippy
 --workspace --all-targets`, and `cargo test --workspace` are all clean. Clippy
 runs over tests too (`--all-targets`), so keep test code lint-clean as well.
 
+## Example Generation
+
+Run `./examples/generate.sh` to regenerate the SVG and PNG outputs for all examples.
+
+Create new examples by adding a new file to the `examples/` directory.
+
+Create new examples when adding new features or fixing bugs.
+
 ## Conventions
 
 - Diagnostics are values, not exceptions. Parser/analyzer/renderer return their
