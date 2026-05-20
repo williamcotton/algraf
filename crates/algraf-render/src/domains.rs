@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use algraf_data::Table;
 use algraf_semantics::{FrameIr, GeometryIr, GeometryKind, SettingValue};
 
-use crate::scale::{cell_category, cell_f64};
+use crate::scale::{cell_category, cell_f64, cell_micros};
 
 #[derive(Debug, Clone, Default)]
 pub struct SpaceDomainHints {
@@ -21,6 +21,13 @@ pub struct SpaceDomainHints {
 pub struct AxisDomainHints {
     numeric: NumericDomainHints,
     band: BandDomainHints,
+    temporal: TemporalDomainHints,
+}
+
+#[derive(Debug, Clone, Default)]
+struct TemporalDomainHints {
+    min: Option<i64>,
+    max: Option<i64>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -111,6 +118,20 @@ impl AxisDomainHints {
 
     pub fn band_pad_outer(&self) -> Option<f64> {
         self.band.pad_outer
+    }
+
+    fn add_temporal(&mut self, micros: i64) {
+        self.temporal.min = Some(self.temporal.min.map_or(micros, |m| m.min(micros)));
+        self.temporal.max = Some(self.temporal.max.map_or(micros, |m| m.max(micros)));
+    }
+
+    pub fn apply_temporal(&self, min: &mut i64, max: &mut i64) {
+        if let Some(value) = self.temporal.min {
+            *min = (*min).min(value);
+        }
+        if let Some(value) = self.temporal.max {
+            *max = (*max).max(value);
+        }
     }
 }
 
@@ -224,6 +245,9 @@ fn train_rect(table: &dyn Table, geometry: &GeometryIr, hints: &mut SpaceDomainH
             if let Some(value) = positional_value(geometry, property, table, row) {
                 hints.x.add_numeric(value);
             }
+            if let Some(micros) = positional_temporal(geometry, property, table, row) {
+                hints.x.add_temporal(micros);
+            }
         }
         for property in ["ymin", "ymax"] {
             if let Some(value) = positional_value(geometry, property, table, row) {
@@ -231,6 +255,9 @@ fn train_rect(table: &dyn Table, geometry: &GeometryIr, hints: &mut SpaceDomainH
                 if value.abs() < f64::EPSILON {
                     hints.y.include_zero();
                 }
+            }
+            if let Some(micros) = positional_temporal(geometry, property, table, row) {
+                hints.y.add_temporal(micros);
             }
         }
     }
@@ -299,6 +326,19 @@ fn positional_value(
         return cell_f64(table, &mapping.column.name, row);
     }
     numeric_setting(geometry, property)
+}
+
+fn positional_temporal(
+    geometry: &GeometryIr,
+    property: &str,
+    table: &dyn Table,
+    row: usize,
+) -> Option<i64> {
+    let mapping = geometry
+        .mappings
+        .iter()
+        .find(|mapping| mapping.aesthetic == property)?;
+    cell_micros(table, &mapping.column.name, row)
 }
 
 fn numeric_setting(geometry: &GeometryIr, property: &str) -> Option<f64> {

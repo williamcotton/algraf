@@ -174,20 +174,30 @@ fn daily_ticks(min: i64, max: i64) -> Option<Vec<i64>> {
     let start = DateTime::from_timestamp_micros(min)?.date_naive();
     let end = DateTime::from_timestamp_micros(max)?.date_naive();
     let span_days = end.signed_duration_since(start).num_days().abs();
-    if !(1..=10).contains(&span_days) {
+    if !(1..=40).contains(&span_days) {
         return None;
     }
 
+    // Pick the smallest stride that produces at most 8 labels, so ticks always
+    // land on whole-day boundaries even when the domain isn't a multiple of
+    // five days (otherwise the equal-spaced fallback labels a fractional-day
+    // position with the truncated date, which reads as misaligned).
+    let stride = [1i64, 2, 3, 5, 7, 14]
+        .into_iter()
+        .find(|s| span_days / s < 8)?;
+
     let mut ticks = Vec::new();
-    for offset in 0..=span_days {
+    let mut offset = 0i64;
+    while offset <= span_days {
         let day = start.checked_add_days(chrono::Days::new(offset as u64))?;
         let micros = day.and_hms_opt(0, 0, 0)?.and_utc().timestamp_micros();
         if micros >= min && micros <= max {
             ticks.push(micros);
         }
+        offset += stride;
     }
 
-    (2..=11).contains(&ticks.len()).then_some(ticks)
+    (2..=8).contains(&ticks.len()).then_some(ticks)
 }
 
 fn monthly_ticks(min: i64, max: i64) -> Option<Vec<i64>> {
@@ -392,8 +402,11 @@ fn build_vector_axis(
             }
         }
         DataType::Temporal => {
-            let (min, max, precision) =
+            let (mut min, mut max, precision) =
                 temporal_domain(table, &col.name).unwrap_or((0, 1, TemporalPrecision::Date));
+            if let Some(hints) = hints {
+                hints.apply_temporal(&mut min, &mut max);
+            }
             AxisScale::Temporal {
                 col: col.name.clone(),
                 scale: TemporalScale::new(min, max, range, precision),

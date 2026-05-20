@@ -11,7 +11,7 @@ use algraf_semantics::{GeometryIr, GeometryKind, SettingValue};
 
 use crate::aes::{color_spec, number_setting, ColorSpec};
 use crate::layout::Rect;
-use crate::scale::{cell_category, cell_f64};
+use crate::scale::{cell_category, cell_f64, cell_micros};
 use crate::space::{AxisScale, ScaledSpace};
 use crate::svg::{escape_attr, escape_text, num, SvgWriter};
 use crate::theme::Theme;
@@ -690,10 +690,18 @@ fn rect(
     }
 }
 
-/// The raw value of a positional property: a mapped column cell or a literal.
+/// The raw value of a positional property: a mapped column cell (numeric or
+/// temporal-as-microseconds) or a literal. Temporal cells round-trip through
+/// `f64` and are converted back to `i64` inside `AxisScale::map_value`; the
+/// range of microsecond instants we encounter fits well within the 53-bit f64
+/// mantissa.
 fn pos(geo: &GeometryIr, name: &str, table: &dyn Table, row: usize) -> Option<f64> {
     if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == name) {
-        return cell_f64(table, &mapping.column.name, row);
+        let column = &mapping.column.name;
+        if let Some(value) = cell_f64(table, column, row) {
+            return Some(value);
+        }
+        return cell_micros(table, column, row).map(|micros| micros as f64);
     }
     geo.settings
         .iter()
