@@ -4,6 +4,7 @@ mod astjson;
 mod diagnostics;
 mod error;
 mod input;
+mod png;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -36,7 +37,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Render a chart to SVG.
+    /// Render a chart to SVG or PNG.
     Render(RenderArgs),
     /// Parse and analyze without rendering.
     Check(CheckArgs),
@@ -56,6 +57,7 @@ enum Command {
 struct RenderArgs {
     /// Source file, or `-` for stdin.
     input: Option<String>,
+    /// Output path. `.png` paths rasterize to PNG; all other paths write SVG.
     #[arg(long)]
     output: Option<PathBuf>,
     #[arg(long)]
@@ -256,11 +258,19 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
     }
 
     match args.output {
+        Some(path) if is_png_path(&path) => png::write_png(result.svg.as_bytes(), &path)
+            .map_err(|e| CliError::Io(format!("failed to write PNG {}: {e}", path.display())))?,
         Some(path) => std::fs::write(&path, result.svg)
             .map_err(|e| CliError::Io(format!("failed to write {}: {e}", path.display())))?,
         None => print!("{}", result.svg),
     }
     Ok(())
+}
+
+fn is_png_path(path: &std::path::Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("png"))
 }
 
 fn check_cmd(args: CheckArgs) -> Result<(), CliError> {

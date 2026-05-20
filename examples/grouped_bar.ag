@@ -1,0 +1,7 @@
+Chart(data: "financials.csv", width: 760, height: 460) {
+    Theme(name: "classic")
+
+    Space((quarter / type) * amount) {
+        Bar(fill: type)
+    }
+}

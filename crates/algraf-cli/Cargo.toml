@@ -19,3 +19,5 @@ algraf-render = { workspace = true }
 algraf-lsp = { workspace = true }
 clap = { workspace = true }
 serde_json = { workspace = true }
+resvg = { workspace = true }
+tiny-skia = { workspace = true }

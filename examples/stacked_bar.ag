@@ -1,0 +1,5 @@
+Chart(data: "financials.csv", width: 760, height: 460) {
+    Space(quarter * amount) {
+        Bar(fill: type, layout: "stack")
+    }
+}

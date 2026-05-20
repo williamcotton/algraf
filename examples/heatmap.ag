@@ -1,0 +1,5 @@
+Chart(data: "heatmap.csv", width: 700, height: 460) {
+    Space(day * hour) {
+        Tile(fill: value, alpha: 0.92)
+    }
+}

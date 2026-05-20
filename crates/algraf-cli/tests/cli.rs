@@ -66,6 +66,84 @@ fn render_debug_flags_add_deterministic_svg_content() {
 }
 
 #[test]
+fn render_writes_png_when_output_extension_is_png() {
+    let dir = temp_dir("render-png");
+    let (chart, _) = write_fixture(&dir);
+    let png = dir.join("chart.png");
+
+    let output = Command::new(bin())
+        .arg("render")
+        .arg(&chart)
+        .arg("--output")
+        .arg(&png)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(stdout(&output).is_empty());
+    let bytes = fs::read(png).unwrap();
+    assert!(bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+}
+
+#[test]
+fn committed_examples_check_and_render() {
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let out_dir = temp_dir("examples-render");
+    let examples = [
+        "scatter",
+        "line",
+        "grouped_bar",
+        "stacked_bar",
+        "heatmap",
+        "histogram",
+    ];
+
+    for name in examples {
+        let chart = repo.join("examples").join(format!("{name}.ag"));
+        let check = Command::new(bin())
+            .arg("check")
+            .arg(&chart)
+            .output()
+            .unwrap();
+        assert!(
+            check.status.success(),
+            "{name} check stderr: {}",
+            stderr(&check)
+        );
+
+        let svg = out_dir.join(format!("{name}.svg"));
+        let render = Command::new(bin())
+            .arg("render")
+            .arg(&chart)
+            .arg("--output")
+            .arg(&svg)
+            .output()
+            .unwrap();
+        assert!(
+            render.status.success(),
+            "{name} render stderr: {}",
+            stderr(&render)
+        );
+        assert!(fs::read_to_string(svg).unwrap().contains("<svg"));
+
+        let png = out_dir.join(format!("{name}.png"));
+        let render_png = Command::new(bin())
+            .arg("render")
+            .arg(&chart)
+            .arg("--output")
+            .arg(&png)
+            .output()
+            .unwrap();
+        assert!(
+            render_png.status.success(),
+            "{name} PNG render stderr: {}",
+            stderr(&render_png)
+        );
+        assert!(fs::read(png).unwrap().starts_with(b"\x89PNG\r\n\x1a\n"));
+    }
+}
+
+#[test]
 fn schema_reads_source_from_stdin_once() {
     let dir = temp_dir("schema-stdin");
     let _ = write_fixture(&dir);

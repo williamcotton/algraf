@@ -1,0 +1,13 @@
+quarter,type,amount
+Q1,software,42
+Q1,services,24
+Q1,hardware,18
+Q2,software,47
+Q2,services,29
+Q2,hardware,16
+Q3,software,53
+Q3,services,31
+Q3,hardware,21
+Q4,software,61
+Q4,services,36
+Q4,hardware,25

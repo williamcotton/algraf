@@ -1,0 +1,10 @@
+flipper_length,body_mass,species
+181,3750,Adelie
+186,3800,Adelie
+195,4400,Adelie
+193,3450,Chinstrap
+197,3675,Chinstrap
+201,4300,Chinstrap
+210,4700,Gentoo
+216,5000,Gentoo
+221,5550,Gentoo
