@@ -1,0 +1,14 @@
+Chart(data: "distribution.csv") {
+    Derive bins = Bin(value, bins: 25)
+
+    Space(bin_start * count, data: bins) {
+        Rect(
+            xmin: bin_start,
+            xmax: bin_end,
+            ymin: 0,
+            ymax: count,
+            fill: "steelblue",
+            alpha: 0.8
+        )
+    }
+}

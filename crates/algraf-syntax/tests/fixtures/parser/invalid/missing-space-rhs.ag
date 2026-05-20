@@ -1,0 +1,5 @@
+Chart(data: "financials.csv") {
+    Space(quarter / ) {
+        Bar(fill: type)
+    }
+}

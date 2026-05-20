@@ -1,0 +1,8 @@
+Chart(data: "d.csv") {
+    Space(a * b) {
+        Point()
+
+    Space(c * d) {
+        Line()
+    }
+}
