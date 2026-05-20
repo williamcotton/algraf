@@ -18,7 +18,7 @@ mod svg;
 mod theme;
 
 pub use error::RenderError;
-pub use layout::{Layout, Rect};
+pub use layout::{FacetPanel, Layout, Rect};
 pub use render::{render, RenderResult};
 pub use theme::Theme;
 

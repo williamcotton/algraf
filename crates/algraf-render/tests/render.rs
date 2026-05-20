@@ -1,18 +1,21 @@
 //! End-to-end render tests: source + CSV to SVG (spec §18, §24, §27.1).
 
 use algraf_data::{read_csv_str, Table};
-use algraf_render::{render, Theme};
+use algraf_render::{render, RenderResult, Theme};
 use algraf_semantics::analyze;
 use algraf_syntax::parse;
 
 /// Parse + analyze + render `source` against `csv`, returning the SVG.
 fn render_svg(source: &str, csv: &str) -> String {
+    render_result(source, csv).svg
+}
+
+fn render_result(source: &str, csv: &str) -> RenderResult {
     let frame = read_csv_str(csv).expect("csv").frame;
     let parsed = parse(source);
     let analysis = analyze(&parsed.syntax(), frame.schema());
     let ir = analysis.ir.expect("ir");
-    let result = render(&ir, &frame, &Theme::minimal()).expect("render");
-    result.svg
+    render(&ir, &frame, &Theme::minimal()).expect("render")
 }
 
 #[test]
@@ -133,6 +136,58 @@ fn test_temporal_axis_uses_calendar_month_ticks() {
     );
     assert!(svg.contains(">2026-02-01</text>"));
     assert!(!svg.contains("2026-01-25"));
+}
+
+#[test]
+fn test_short_temporal_axis_uses_whole_day_ticks() {
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Space(day * value) { Line() } }",
+        "day,value\n2026-01-01,1\n2026-01-02,5\n2026-01-03,3\n",
+    );
+    assert_eq!(svg.matches(">2026-01-01</text>").count(), 1);
+    assert_eq!(svg.matches(">2026-01-02</text>").count(), 1);
+    assert_eq!(svg.matches(">2026-01-03</text>").count(), 1);
+}
+
+#[test]
+fn test_facet_wrap_renders_one_panel_per_category() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Layout(facetColumns: 2) Space((x * y) / g) { Point(fill: g) } }",
+        "x,y,g\n1,2,a\n2,3,b\n3,1,a\n4,5,c\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.layout.facets.len(), 3);
+    assert!(result.layout.facets[1].plot.x > result.layout.facets[0].plot.x);
+    assert!(result.layout.facets[1].plot.x - result.layout.facets[0].plot.right() >= 72.0);
+    assert_eq!(
+        result.layout.facets[2].plot.x,
+        result.layout.facets[0].plot.x
+    );
+    assert!(result.svg.contains("algraf-facet-strip"));
+    assert!(result.svg.contains("algraf-facet-panel"));
+    assert_eq!(result.svg.matches("<circle").count(), 4);
+    assert!(result.svg.contains(">a</text>"));
+    assert!(result.svg.contains(">b</text>"));
+    assert!(result.svg.contains(">c</text>"));
+}
+
+#[test]
+fn test_four_facet_default_layout_is_two_by_two() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Space((x * y) / g) { Point(fill: g) } }",
+        "x,y,g\n1,2,a\n2,3,b\n3,1,c\n4,5,d\n",
+    );
+    assert_eq!(result.layout.facets.len(), 4);
+    assert!(result.layout.facets[1].plot.x > result.layout.facets[0].plot.x);
+    assert_eq!(
+        result.layout.facets[2].plot.x,
+        result.layout.facets[0].plot.x
+    );
+    assert_eq!(
+        result.layout.facets[3].plot.x,
+        result.layout.facets[1].plot.x
+    );
+    assert!(result.layout.facets[2].plot.y > result.layout.facets[0].plot.y);
 }
 
 #[test]

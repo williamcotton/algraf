@@ -19,24 +19,38 @@ use crate::theme::Theme;
 const DEFAULT_FILL: &str = "#4E79A7";
 const DEFAULT_STROKE: &str = "#333333";
 
+#[derive(Clone, Copy)]
+pub(crate) struct GeometryRenderContext<'a> {
+    pub(crate) space: &'a ScaledSpace,
+    pub(crate) table: &'a dyn Table,
+    pub(crate) rows: Option<&'a [usize]>,
+    pub(crate) plot: Rect,
+    pub(crate) theme: &'a Theme,
+}
+
 /// Render one geometry layer into the writer.
-pub fn render(
+pub(crate) fn render(
     w: &mut SvgWriter,
     geo: &GeometryIr,
-    space: &ScaledSpace,
-    table: &dyn Table,
-    plot: Rect,
-    theme: &Theme,
+    ctx: GeometryRenderContext<'_>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let class = format!("algraf-layer algraf-geom-{}", geo_class(geo.kind));
     w.open_group(&format!("class=\"{class}\""));
     match geo.kind {
-        GeometryKind::Point => point(w, geo, space, table, theme),
-        GeometryKind::Line => line(w, geo, space, table, theme),
-        GeometryKind::Bar => bar(w, geo, space, table, plot, diagnostics),
-        GeometryKind::Rect => rect(w, geo, space, table),
-        GeometryKind::Tile => tile(w, geo, space, table),
+        GeometryKind::Point => point(w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme),
+        GeometryKind::Line => line(w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme),
+        GeometryKind::Bar => bar(
+            w,
+            geo,
+            ctx.space,
+            ctx.table,
+            ctx.rows,
+            ctx.plot,
+            diagnostics,
+        ),
+        GeometryKind::Rect => rect(w, geo, ctx.space, ctx.table, ctx.rows),
+        GeometryKind::Tile => tile(w, geo, ctx.space, ctx.table, ctx.rows),
         other => diagnostics.push(Diagnostic::warning(
             "R0001",
             format!("geometry `{other:?}` is not yet supported by the renderer"),
@@ -62,12 +76,13 @@ fn point(
     geo: &GeometryIr,
     space: &ScaledSpace,
     table: &dyn Table,
+    rows: Option<&[usize]>,
     theme: &Theme,
 ) {
     let fill = color_spec(geo, "fill", table);
     let alpha = number_setting(geo, "alpha", 1.0);
     let size = number_setting(geo, "size", theme.point_size);
-    for row in 0..table.row_count() {
+    for row in render_rows(table, rows) {
         let (Some(cx), Some(cy)) = (space.resolve_x(table, row), space.resolve_y(table, row))
         else {
             continue;
@@ -91,18 +106,22 @@ fn line(
     geo: &GeometryIr,
     space: &ScaledSpace,
     table: &dyn Table,
+    rows: Option<&[usize]>,
     theme: &Theme,
 ) {
     let stroke = color_spec(geo, "stroke", table);
     let width = number_setting(geo, "strokeWidth", theme.line_width);
     let alpha = number_setting(geo, "alpha", 1.0);
+    let row_list = render_rows(table, rows);
 
     // Group rows into series by the stroke category, preserving domain order.
     let groups: Vec<(String, Vec<usize>)> = match &stroke {
         ColorSpec::Categorical { categories, .. } => categories
             .iter()
             .map(|cat| {
-                let rows = (0..table.row_count())
+                let rows = row_list
+                    .iter()
+                    .copied()
                     .filter(|&r| {
                         stroke.resolve(table, r).is_some()
                             && row_category(&stroke, table, r).as_deref() == Some(cat)
@@ -111,7 +130,7 @@ fn line(
                 (cat.clone(), rows)
             })
             .collect(),
-        _ => vec![(String::new(), (0..table.row_count()).collect())],
+        _ => vec![(String::new(), row_list)],
     };
 
     for (cat, rows) in groups {
@@ -157,6 +176,7 @@ fn bar(
     geo: &GeometryIr,
     space: &ScaledSpace,
     table: &dyn Table,
+    rows: Option<&[usize]>,
     plot: Rect,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
@@ -189,7 +209,7 @@ fn bar(
             return;
         };
         let mut cumulative: HashMap<String, f64> = HashMap::new();
-        for row in 0..table.row_count() {
+        for row in render_rows(table, rows) {
             let (Some(cx), Some(bw)) = (space.resolve_x(table, row), space.x_bandwidth(table, row))
             else {
                 continue;
@@ -220,7 +240,7 @@ fn bar(
             );
         }
     } else {
-        for row in 0..table.row_count() {
+        for row in render_rows(table, rows) {
             let (Some(cx), Some(bw)) = (space.resolve_x(table, row), space.x_bandwidth(table, row))
             else {
                 continue;
@@ -278,12 +298,18 @@ fn emit_bar(
     ));
 }
 
-fn rect(w: &mut SvgWriter, geo: &GeometryIr, space: &ScaledSpace, table: &dyn Table) {
+fn rect(
+    w: &mut SvgWriter,
+    geo: &GeometryIr,
+    space: &ScaledSpace,
+    table: &dyn Table,
+    rows: Option<&[usize]>,
+) {
     let fill = color_spec(geo, "fill", table);
     let stroke = color_spec(geo, "stroke", table);
     let stroke_width = number_setting(geo, "strokeWidth", 1.0);
     let alpha = number_setting(geo, "alpha", 1.0);
-    for row in 0..table.row_count() {
+    for row in render_rows(table, rows) {
         let (Some(xmin), Some(xmax), Some(ymin), Some(ymax)) = (
             pos(geo, "xmin", table, row).and_then(|v| space.map_x(v)),
             pos(geo, "xmax", table, row).and_then(|v| space.map_x(v)),
@@ -322,12 +348,18 @@ fn pos(geo: &GeometryIr, name: &str, table: &dyn Table, row: usize) -> Option<f6
         })
 }
 
-fn tile(w: &mut SvgWriter, geo: &GeometryIr, space: &ScaledSpace, table: &dyn Table) {
+fn tile(
+    w: &mut SvgWriter,
+    geo: &GeometryIr,
+    space: &ScaledSpace,
+    table: &dyn Table,
+    rows: Option<&[usize]>,
+) {
     let fill = color_spec(geo, "fill", table);
     let stroke = color_spec(geo, "stroke", table);
     let stroke_width = number_setting(geo, "strokeWidth", 1.0);
     let alpha = number_setting(geo, "alpha", 1.0);
-    for row in 0..table.row_count() {
+    for row in render_rows(table, rows) {
         let (Some(cx), Some(bw), Some(cy), Some(bh)) = (
             space.resolve_x(table, row),
             space.x_bandwidth(table, row),
@@ -371,4 +403,9 @@ fn constant_or(spec: &ColorSpec, default: &str) -> String {
         ColorSpec::Constant(c) => c.clone(),
         _ => default.to_string(),
     }
+}
+
+fn render_rows(table: &dyn Table, rows: Option<&[usize]>) -> Vec<usize> {
+    rows.map(|rows| rows.to_vec())
+        .unwrap_or_else(|| (0..table.row_count()).collect())
 }

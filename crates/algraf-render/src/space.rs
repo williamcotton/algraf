@@ -157,6 +157,9 @@ fn format_temporal(micros: i64, precision: TemporalPrecision) -> String {
 
 fn temporal_ticks(scale: &TemporalScale) -> Vec<i64> {
     if scale.precision == TemporalPrecision::Date {
+        if let Some(ticks) = daily_ticks(scale.min, scale.max) {
+            return ticks;
+        }
         if let Some(ticks) = monthly_ticks(scale.min, scale.max) {
             return ticks;
         }
@@ -165,6 +168,26 @@ fn temporal_ticks(scale: &TemporalScale) -> Vec<i64> {
     (0..=5)
         .map(|i| scale.min + (scale.max - scale.min) * i / 5)
         .collect()
+}
+
+fn daily_ticks(min: i64, max: i64) -> Option<Vec<i64>> {
+    let start = DateTime::from_timestamp_micros(min)?.date_naive();
+    let end = DateTime::from_timestamp_micros(max)?.date_naive();
+    let span_days = end.signed_duration_since(start).num_days().abs();
+    if !(1..=10).contains(&span_days) {
+        return None;
+    }
+
+    let mut ticks = Vec::new();
+    for offset in 0..=span_days {
+        let day = start.checked_add_days(chrono::Days::new(offset as u64))?;
+        let micros = day.and_hms_opt(0, 0, 0)?.and_utc().timestamp_micros();
+        if micros >= min && micros <= max {
+            ticks.push(micros);
+        }
+    }
+
+    (2..=11).contains(&ticks.len()).then_some(ticks)
 }
 
 fn monthly_ticks(min: i64, max: i64) -> Option<Vec<i64>> {

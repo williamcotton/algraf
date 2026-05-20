@@ -10,8 +10,8 @@ use std::collections::HashMap;
 use algraf_core::{Diagnostic, Severity, Span};
 use algraf_data::{ColumnDef, DataType};
 use algraf_syntax::ast::{
-    AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, Arg, ChartBlock, ChartItem, DeriveDecl,
-    GeometryCall, LiteralKind, Root, SpaceBlock, SpaceItem, ValueExpr,
+    AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, Arg, ChartBlock, ChartItem, Decl,
+    DeriveDecl, GeometryCall, LiteralKind, Root, SpaceBlock, SpaceItem, ValueExpr,
 };
 use algraf_syntax::{parse, SyntaxKind, SyntaxNode};
 
@@ -109,6 +109,7 @@ impl<'a> Analyzer<'a> {
         let (data_source, width, height) = self.chart_args(chart);
 
         let mut derived_tables = Vec::new();
+        let mut layout = LayoutIr::default();
         let mut spaces = Vec::new();
         for item in chart.items() {
             match item {
@@ -120,12 +121,12 @@ impl<'a> Analyzer<'a> {
                     }
                 }
                 ChartItem::Space(s) => spaces.push(self.space(&s)),
-                // Scale / Guide / Theme / Layout declarations are recorded for
-                // render configuration in a later milestone.
+                ChartItem::Layout(decl) => self.layout_decl(&decl, &mut layout),
+                // Scale / Guide / Theme declarations are recorded for render
+                // configuration in a later milestone.
                 ChartItem::Scale(_)
                 | ChartItem::Guide(_)
                 | ChartItem::Theme(_)
-                | ChartItem::Layout(_)
                 | ChartItem::Error(_) => {}
             }
         }
@@ -133,6 +134,7 @@ impl<'a> Analyzer<'a> {
         Some(ChartIr {
             data_source,
             derived_tables,
+            layout,
             width,
             height,
             spaces,
@@ -228,6 +230,42 @@ impl<'a> Analyzer<'a> {
                 .and_then(|t| t.parse::<f64>().ok())
                 .map(|f| f.max(0.0) as u32),
             _ => None,
+        }
+    }
+
+    fn layout_decl(&mut self, decl: &Decl, layout: &mut LayoutIr) {
+        let mut seen: HashMap<String, Span> = HashMap::new();
+        for arg in decl.args() {
+            let Some(key) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if let Some(&first) = seen.get(&key) {
+                self.diag(
+                    Diagnostic::error(
+                        "E1002",
+                        format!("duplicate Layout argument `{key}`"),
+                        key_span,
+                    )
+                    .with_related(first, "first defined here"),
+                );
+                continue;
+            }
+            seen.insert(key.clone(), key_span);
+
+            match key.as_str() {
+                "facetColumns" => match self.arg_u32(&arg) {
+                    Some(columns) if columns > 0 => layout.facet_columns = Some(columns as usize),
+                    _ => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`facetColumns` expects a positive number",
+                        key_span,
+                    )),
+                },
+                _ => self.diag(Diagnostic::error(
+                    "E1003",
+                    format!("unsupported Layout argument `{key}`"),
+                    key_span,
+                )),
+            }
         }
     }
 
@@ -345,6 +383,7 @@ impl<'a> Analyzer<'a> {
             Some(expr) => {
                 let frame = self.build_frame(&expr, &table);
                 self.check_cartesian_arity(&frame, node_span(expr.syntax()));
+                self.check_facet_variable(&frame);
                 frame
             }
             None => FrameIr::Invalid,
@@ -498,6 +537,21 @@ impl<'a> Analyzer<'a> {
                 }
             }
             FrameIr::Vector(_) | FrameIr::Invalid => {}
+        }
+    }
+
+    fn check_facet_variable(&mut self, frame: &FrameIr) {
+        if let Some(panel) = facet_panel_column(frame) {
+            if panel.dtype != DataType::Unknown && !panel.dtype.is_categorical() {
+                self.diag(
+                    Diagnostic::error(
+                        "E1303",
+                        format!("facet column `{}` must be categorical", panel.name),
+                        panel.span,
+                    )
+                    .with_help("use a string, boolean, or pre-binned column for facet panels"),
+                );
+            }
         }
     }
 
@@ -830,6 +884,19 @@ fn contains_nested(frame: &FrameIr) -> bool {
             members.iter().any(contains_nested)
         }
         FrameIr::Vector(_) | FrameIr::Invalid => false,
+    }
+}
+
+fn facet_panel_column(frame: &FrameIr) -> Option<&ColumnRef> {
+    let FrameIr::Nested { outer, inner } = frame else {
+        return None;
+    };
+    if !matches!(outer.as_ref(), FrameIr::Cartesian(axes) if axes.len() == 2) {
+        return None;
+    }
+    match inner.as_ref() {
+        FrameIr::Vector(column) => Some(column),
+        _ => None,
     }
 }
 

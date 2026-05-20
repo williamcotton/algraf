@@ -522,6 +522,18 @@ fn debug_layout_svg(layout: &Layout) -> String {
     out.push_str("<g class=\"algraf-debug-layout\" aria-hidden=\"true\">\n");
     out.push_str(&debug_rect("svg", layout.svg, "#d62728"));
     out.push_str(&debug_rect("plot", layout.plot, "#2ca02c"));
+    for (index, facet) in layout.facets.iter().enumerate() {
+        out.push_str(&debug_rect(
+            &format!("facet-strip-{index}"),
+            facet.strip,
+            "#9467bd",
+        ));
+        out.push_str(&debug_rect(
+            &format!("facet-plot-{index}"),
+            facet.plot,
+            "#17becf",
+        ));
+    }
     if let Some(legend) = layout.legend {
         out.push_str(&debug_rect("legend", legend, "#1f77b4"));
     }
@@ -570,6 +582,9 @@ fn ir_to_json(ir: &ChartIr) -> Value {
         "dataSource": data_source_json(&ir.data_source),
         "width": ir.width,
         "height": ir.height,
+        "layout": {
+            "facetColumns": ir.layout.facet_columns,
+        },
         "derivedTables": ir.derived_tables.iter().map(derive_json).collect::<Vec<_>>(),
         "spaces": ir.spaces.iter().map(space_json).collect::<Vec<_>>(),
     })

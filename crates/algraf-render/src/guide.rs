@@ -95,10 +95,13 @@ pub fn render_axes(w: &mut SvgWriter, space: &ScaledSpace, plot: Rect, theme: &T
             w.line(&text(plot.x - 8.0, yp + 4.0, "end", &label, theme));
         }
         let cy = plot.y + plot.height / 2.0;
+        let label_x = (plot.x - 44.0).max(12.0);
         w.line(&format!(
-            "<text x=\"16\" y=\"{}\" text-anchor=\"middle\" transform=\"rotate(-90 16 {})\" \
+            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" transform=\"rotate(-90 {} {})\" \
              font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
+            num(label_x),
             num(cy),
+            num(label_x),
             num(cy),
             escape_attr(&theme.font_family),
             num(theme.font_size),
@@ -107,6 +110,30 @@ pub fn render_axes(w: &mut SvgWriter, space: &ScaledSpace, plot: Rect, theme: &T
         ));
     }
 
+    w.close_group();
+}
+
+/// Draw a facet strip label (spec §17.4).
+pub fn render_facet_label(w: &mut SvgWriter, label: &str, area: Rect, theme: &Theme) {
+    if area.height <= 0.0 {
+        return;
+    }
+    w.open_group("class=\"algraf-facet-strip\"");
+    w.line(&format!(
+        "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" />",
+        num(area.x),
+        num(area.y),
+        num(area.width),
+        num(area.height),
+        escape_attr(&theme.plot_background),
+    ));
+    w.line(&text(
+        area.x + area.width / 2.0,
+        area.y + area.height - 4.0,
+        "middle",
+        label,
+        theme,
+    ));
     w.close_group();
 }
 

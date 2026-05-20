@@ -12,6 +12,7 @@ use algraf_data::DataType;
 pub struct ChartIr {
     pub data_source: DataSourceIr,
     pub derived_tables: Vec<DeriveIr>,
+    pub layout: LayoutIr,
     pub width: u32,
     pub height: u32,
     pub spaces: Vec<SpaceIr>,
@@ -26,6 +27,12 @@ pub enum DataSourceIr {
     Stdin,
     /// No valid data source was declared.
     Missing,
+}
+
+/// Chart-level layout settings that affect viewport allocation (spec §17.4).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LayoutIr {
+    pub facet_columns: Option<usize>,
 }
 
 /// A derived table produced by a `Derive` declaration (spec §13.4).

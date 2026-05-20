@@ -177,6 +177,29 @@ fn test_facet_is_allowed() {
 }
 
 #[test]
+fn test_facet_requires_categorical_panel_column() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space((flipper_length * body_mass) / amount) {\n    Point()\n  }\n}",
+        "E1303"
+    ));
+}
+
+#[test]
+fn test_layout_facet_columns_is_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Layout(facetColumns: 2)\n  Space((flipper_length * body_mass) / species) {\n    Point()\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.layout.facet_columns, Some(2));
+}
+
+#[test]
 fn test_unparenthesized_blend_rejected() {
     assert!(has(
         "Chart(data: \"i.csv\") {\n  Space(time * lower + upper) {\n    Ribbon(ymin: lower, ymax: upper)\n  }\n}",
