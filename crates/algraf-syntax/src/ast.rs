@@ -5,6 +5,8 @@
 //! (`ChartItem`, `SpaceItem`, `ValueExpr`, `AlgebraExpr`) `cast` from a node by
 //! inspecting its [`SyntaxKind`].
 
+use algraf_core::Span;
+
 use crate::syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken};
 
 /// Define a struct view over a single CST node kind.
@@ -341,6 +343,17 @@ impl Literal {
     pub fn text(&self) -> Option<String> {
         self.token().map(|t| t.text().to_string())
     }
+
+    /// The span of the literal token, excluding preserved leading trivia.
+    pub fn token_span(&self) -> Option<Span> {
+        self.token().map(|token| {
+            let range = token.text_range();
+            Span::new(
+                u32::from(range.start()) as usize,
+                u32::from(range.end()) as usize,
+            )
+        })
+    }
 }
 
 ast_node!(
@@ -446,6 +459,17 @@ impl AlgebraName {
     /// The raw source lexeme, including backticks for quoted identifiers.
     pub fn raw_text(&self) -> Option<String> {
         self.ident_token().map(|t| t.text().to_string())
+    }
+
+    /// The span of the identifier token, excluding preserved leading trivia.
+    pub fn ident_span(&self) -> Option<Span> {
+        self.ident_token().map(|token| {
+            let range = token.text_range();
+            Span::new(
+                u32::from(range.start()) as usize,
+                u32::from(range.end()) as usize,
+            )
+        })
     }
 }
 

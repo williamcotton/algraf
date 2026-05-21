@@ -62,6 +62,52 @@ fn test_unknown_column() {
 }
 
 #[test]
+fn test_unknown_column_span_excludes_leading_whitespace() {
+    let source =
+        "Chart(data: \"p.csv\") {\n  Space(\n    regin * amount\n  ) {\n    Point()\n  }\n}";
+    let analysis = analyze_source(
+        source,
+        &[
+            col("region", DataType::String),
+            col("amount", DataType::Float),
+        ],
+    );
+    let diag = analysis
+        .diagnostics
+        .iter()
+        .find(|diag| diag.code == "E1101")
+        .expect("expected unknown-column diagnostic");
+    let start = source.find("regin").unwrap();
+    assert_eq!(diag.span.start, start);
+    assert_eq!(diag.span.end, start + "regin".len());
+    assert_eq!(diag.help.as_deref(), Some("did you mean `region`?"));
+}
+
+#[test]
+fn test_misspelled_chart_and_space_still_report_column_errors() {
+    let source = "Chafrt(data: \"regional_sales.csv\") {\n    Sdace((time * sales) / regon) {\n        Line(stroke: product)\n    }\n}";
+    let schema = [
+        col("time", DataType::Temporal),
+        col("sales", DataType::Float),
+        col("region", DataType::String),
+        col("product", DataType::String),
+    ];
+    let diagnostics = analyze_source(source, &schema).diagnostics;
+    let codes: Vec<_> = diagnostics.iter().map(|diag| diag.code).collect();
+    assert!(codes.contains(&"E0001"), "{diagnostics:?}");
+    assert!(codes.contains(&"E0011"), "{diagnostics:?}");
+    assert!(codes.contains(&"E1101"), "{diagnostics:?}");
+
+    let column = diagnostics
+        .iter()
+        .find(|diag| diag.code == "E1101")
+        .expect("expected unknown column");
+    let start = source.find("regon").unwrap();
+    assert_eq!(column.span.start, start);
+    assert_eq!(column.span.end, start + "regon".len());
+}
+
+#[test]
 fn test_quoted_column_resolution() {
     // A quoted column resolves by exact name.
     let schema = vec![

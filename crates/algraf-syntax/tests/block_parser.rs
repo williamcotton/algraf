@@ -275,6 +275,24 @@ fn test_top_level_garbage() {
 }
 
 #[test]
+fn test_misspelled_chart_keyword_still_recovers_body() {
+    let source = "Chafrt(data: \"p.csv\") {\n    Space(x * y) {\n        Point()\n    }\n}";
+    let parsed = parse(source);
+    assert!(parsed.diagnostics().iter().any(|d| d.code == "E0001"));
+    let chart = Root::cast(parsed.syntax()).unwrap().chart().unwrap();
+    assert!(matches!(chart.items()[0], ChartItem::Space(_)));
+}
+
+#[test]
+fn test_misspelled_space_keyword_still_parses_space() {
+    let source = "Chart(data: \"p.csv\") {\n    Sdace(x * y) {\n        Point()\n    }\n}";
+    let parsed = parse(source);
+    assert!(parsed.diagnostics().iter().any(|d| d.code == "E0011"));
+    let chart = Root::cast(parsed.syntax()).unwrap().chart().unwrap();
+    assert!(matches!(chart.items()[0], ChartItem::Space(_)));
+}
+
+#[test]
 fn test_invalid_geometry_body() {
     let source =
         "Chart(data: \"d.csv\") {\n    Space(a * b) {\n        12345\n        Point()\n    }\n}";

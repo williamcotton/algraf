@@ -1107,7 +1107,9 @@ impl<'a> Analyzer<'a> {
 
     fn resolve_column(&mut self, name: &AlgebraName, table: &ActiveTable) -> ColumnRef {
         let col_name = name.name().unwrap_or_default();
-        let span = node_span(name.syntax());
+        let span = name
+            .ident_span()
+            .unwrap_or_else(|| node_span(name.syntax()));
         match table.get(&col_name) {
             Some(dtype) => ColumnRef {
                 name: col_name,

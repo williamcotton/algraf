@@ -1,0 +1,117 @@
+{
+  "name": "algraf-vscode",
+  "displayName": "Algraf",
+  "description": "VS Code language support for Algraf charts.",
+  "version": "0.1.0",
+  "publisher": "algraf",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/williamcotton/algraf"
+  },
+  "categories": [
+    "Programming Languages",
+    "Visualization"
+  ],
+  "keywords": [
+    "algraf",
+    "grammar-of-graphics",
+    "visualization"
+  ],
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "activationEvents": [
+    "onLanguage:algraf",
+    "workspaceContains:**/*.ag"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "check": "tsc -p ./ --noEmit",
+    "compile": "npm run check && esbuild src/extension.ts --bundle --external:vscode --platform=node --format=cjs --outfile=dist/extension.js --sourcemap",
+    "watch": "tsc -watch -p ./ --noEmit",
+    "prepackage": "npm run compile",
+    "prevsix": "npm run compile",
+    "package": "vsce package",
+    "vsix": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.84.0",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.25.12",
+    "typescript": "^5.4.5",
+    "vscode-languageclient": "^9.0.1"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "algraf",
+        "aliases": [
+          "Algraf",
+          "algraf"
+        ],
+        "extensions": [
+          ".ag"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "algraf",
+        "scopeName": "source.algraf",
+        "path": "./syntaxes/algraf.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Algraf",
+      "properties": {
+        "algraf.server.path": {
+          "type": "string",
+          "default": "algraf",
+          "description": "Path to the Algraf executable. Use an absolute path if algraf is not on PATH."
+        },
+        "algraf.server.args": {
+          "type": "array",
+          "default": [
+            "lsp"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Arguments passed to the Algraf executable when starting the language server."
+        },
+        "algraf.server.cwd": {
+          "type": "string",
+          "default": "",
+          "description": "Working directory for the Algraf language server. Supports ${workspaceFolder}."
+        },
+        "algraf.server.env": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Environment variables added when starting the Algraf language server."
+        },
+        "algraf.trace.server": {
+          "type": "string",
+          "default": "off",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "description": "Trace communication between VS Code and the Algraf language server."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "algraf.restartServer",
+        "title": "Algraf: Restart Language Server"
+      }
+    ]
+  }
+}

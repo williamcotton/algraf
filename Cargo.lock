@@ -52,8 +52,12 @@ dependencies = [
  "algraf-semantics",
  "algraf-syntax",
  "dashmap 6.2.1",
+ "futures-util",
+ "serde",
+ "serde_json",
  "tokio",
  "tower-lsp",
+ "tower-service",
 ]
 
 [[package]]

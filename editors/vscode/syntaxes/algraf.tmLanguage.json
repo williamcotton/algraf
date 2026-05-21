@@ -1,0 +1,187 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Algraf",
+  "scopeName": "source.algraf",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#quoted-identifiers"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#declarations"
+    },
+    {
+      "include": "#geometries"
+    },
+    {
+      "include": "#stats"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#properties"
+    },
+    {
+      "include": "#columns"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#functions"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.algraf",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.algraf",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.algraf",
+              "match": "\\\\[nrt\"\\\\]"
+            },
+            {
+              "name": "invalid.illegal.escape.algraf",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "quoted-identifiers": {
+      "patterns": [
+        {
+          "name": "variable.other.quoted.algraf",
+          "begin": "`",
+          "end": "`",
+          "patterns": [
+            {
+              "name": "constant.character.escape.algraf",
+              "match": "\\\\[`\\\\]"
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.algraf",
+          "match": "\\b-?[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\\b"
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "name": "keyword.declaration.algraf",
+          "match": "\\b(?:Chart|Space|Derive|Scale|Guide|Theme|Layout)\\b"
+        }
+      ]
+    },
+    "geometries": {
+      "patterns": [
+        {
+          "name": "entity.name.function.geometry.algraf",
+          "match": "\\b(?:Point|Line|Bar|Rect|Histogram|Smooth|Boxplot|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment)\\b(?=\\s*\\()"
+        }
+      ]
+    },
+    "stats": {
+      "patterns": [
+        {
+          "name": "entity.name.function.stat.algraf",
+          "match": "\\b(?:Bin|Count|Smooth|Boxplot)\\b(?=\\s*\\()"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.algraf",
+          "match": "\\b(?:true|false|null|stdin)\\b"
+        }
+      ]
+    },
+    "properties": {
+      "patterns": [
+        {
+          "name": "variable.parameter.property.algraf",
+          "match": "\\b(?:data|width|height|title|subtitle|caption|facetColumns|legend|fill|stroke|strokeWidth|alpha|size|shape|group|sort|layout|baseline|stat|xmin|xmax|ymin|ymax|bins|binWidth|boundary|closed|method|label|anchor|dx|dy|x|y|xend|yend|sides)\\b(?=\\s*:)"
+        },
+        {
+          "name": "variable.parameter.property.unknown.algraf",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b(?=\\s*:)"
+        }
+      ]
+    },
+    "columns": {
+      "patterns": [
+        {
+          "name": "variable.other.column.algraf",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b(?!\\s*[:(])"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.algebra.algraf",
+          "match": "[*/+]"
+        },
+        {
+          "name": "keyword.operator.assignment.algraf",
+          "match": "="
+        },
+        {
+          "name": "punctuation.separator.comma.algraf",
+          "match": ","
+        },
+        {
+          "name": "punctuation.separator.key-value.algraf",
+          "match": ":"
+        },
+        {
+          "name": "punctuation.section.braces.algraf",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.section.parens.algraf",
+          "match": "[()]"
+        },
+        {
+          "name": "punctuation.section.brackets.algraf",
+          "match": "[\\[\\]]"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.algraf",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b(?=\\s*\\()"
+        }
+      ]
+    }
+  }
+}

@@ -156,9 +156,8 @@ fn run(cli: Cli) -> Result<(), CliError> {
         Command::Schema(args) => schema_cmd(args),
         Command::Ast(args) => ast_cmd(args),
         Command::Ir(args) => ir_cmd(args),
-        Command::Lsp => Err(CliError::Internal(
-            "the `lsp` command is not yet implemented in this build".to_string(),
-        )),
+        Command::Lsp => algraf_lsp::run_stdio()
+            .map_err(|e| CliError::Internal(format!("failed to start language server: {e}"))),
     }
 }
 

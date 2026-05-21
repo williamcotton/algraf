@@ -149,6 +149,11 @@ impl Parser {
         self.current_ident_text() == Some(kw)
     }
 
+    fn at_misspelled_kw(&self, kw: &str) -> bool {
+        self.current_ident_text()
+            .is_some_and(|text| text != kw && is_near_keyword(text, kw))
+    }
+
     /// Whether the current token begins a chart-body keyword item.
     fn at_chart_keyword(&self) -> bool {
         matches!(
@@ -233,6 +238,10 @@ impl Parser {
     fn program(&mut self) {
         if self.at_kw("Chart") {
             self.chart_block();
+        } else if self.at_misspelled_kw("Chart") && self.nth_kind(1) == SyntaxKind::L_PAREN {
+            let span = self.current_span();
+            self.error("E0001", "expected Chart block", span);
+            self.chart_block();
         } else if self.at_eof() {
             let span = self.current_span();
             self.error("E0001", "expected Chart block", span);
@@ -277,7 +286,8 @@ impl Parser {
                 break;
             }
             let before = self.pos;
-            match self.current_ident_text() {
+            let current = self.current_ident_text().map(str::to_string);
+            match current.as_deref() {
                 Some("Space") => self.space_block(),
                 Some("Derive") => self.derive_decl(),
                 Some("Scale") => self.decl(SyntaxKind::SCALE_DECL, SyntaxKind::SCALE_KW),
@@ -287,6 +297,7 @@ impl Parser {
                 // A nested `Chart` is not allowed; stop and let trailing
                 // recovery report it.
                 Some("Chart") => break,
+                _ if self.recover_misspelled_chart_item() => {}
                 _ => {
                     let span = self.current_span();
                     self.error("E0011", "unexpected token in chart body", span);
@@ -297,6 +308,46 @@ impl Parser {
                 break;
             }
         }
+    }
+
+    fn recover_misspelled_chart_item(&mut self) -> bool {
+        if self.current_ident_text().is_none() {
+            return false;
+        }
+        let span = self.current_span();
+
+        if self.at_misspelled_kw("Space") && self.nth_kind(1) == SyntaxKind::L_PAREN {
+            self.error("E0011", "unexpected token in chart body", span);
+            self.space_block();
+            return true;
+        }
+        if self.at_misspelled_kw("Derive") {
+            self.error("E0011", "unexpected token in chart body", span);
+            self.derive_decl();
+            return true;
+        }
+        if self.at_misspelled_kw("Scale") && self.nth_kind(1) == SyntaxKind::L_PAREN {
+            self.error("E0011", "unexpected token in chart body", span);
+            self.decl(SyntaxKind::SCALE_DECL, SyntaxKind::SCALE_KW);
+            return true;
+        }
+        if self.at_misspelled_kw("Guide") && self.nth_kind(1) == SyntaxKind::L_PAREN {
+            self.error("E0011", "unexpected token in chart body", span);
+            self.decl(SyntaxKind::GUIDE_DECL, SyntaxKind::GUIDE_KW);
+            return true;
+        }
+        if self.at_misspelled_kw("Theme") && self.nth_kind(1) == SyntaxKind::L_PAREN {
+            self.error("E0011", "unexpected token in chart body", span);
+            self.decl(SyntaxKind::THEME_DECL, SyntaxKind::THEME_KW);
+            return true;
+        }
+        if self.at_misspelled_kw("Layout") && self.nth_kind(1) == SyntaxKind::L_PAREN {
+            self.error("E0011", "unexpected token in chart body", span);
+            self.decl(SyntaxKind::LAYOUT_DECL, SyntaxKind::LAYOUT_KW);
+            return true;
+        }
+
+        false
     }
 
     // --- Space (spec §7.3, §12.8) ---
@@ -652,4 +703,34 @@ impl Parser {
             }
         }
     }
+}
+
+fn is_near_keyword(text: &str, keyword: &str) -> bool {
+    let Some(first) = text.chars().next() else {
+        return false;
+    };
+    let Some(keyword_first) = keyword.chars().next() else {
+        return false;
+    };
+    first.eq_ignore_ascii_case(&keyword_first) && edit_distance_ascii(text, keyword) <= 2
+}
+
+fn edit_distance_ascii(a: &str, b: &str) -> usize {
+    let a = a.to_ascii_lowercase();
+    let b = b.to_ascii_lowercase();
+    let a = a.as_bytes();
+    let b = b.as_bytes();
+    let mut prev: Vec<usize> = (0..=b.len()).collect();
+    let mut curr = vec![0usize; b.len() + 1];
+
+    for (i, ca) in a.iter().enumerate() {
+        curr[0] = i + 1;
+        for (j, cb) in b.iter().enumerate() {
+            let cost = usize::from(ca != cb);
+            curr[j + 1] = (prev[j + 1] + 1).min(curr[j] + 1).min(prev[j] + cost);
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+
+    prev[b.len()]
 }
