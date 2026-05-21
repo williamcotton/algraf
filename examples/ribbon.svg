@@ -19,7 +19,7 @@
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="730" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="60" y1="410" x2="60" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="60" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <text x="60" y="428" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
   <line x1="194" y1="410" x2="194" y2="415" stroke="#333333" stroke-width="1" />
   <text x="194" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-02</text>
   <line x1="328" y1="410" x2="328" y2="415" stroke="#333333" stroke-width="1" />
@@ -29,7 +29,7 @@
   <line x1="596" y1="410" x2="596" y2="415" stroke="#333333" stroke-width="1" />
   <text x="596" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-05</text>
   <line x1="730" y1="410" x2="730" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="730" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-06</text>
+  <text x="730" y="428" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-06</text>
   <text x="395" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">day</text>
   <line x1="60" y1="40" x2="60" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="384.483" x2="60" y2="384.483" stroke="#333333" stroke-width="1" />
@@ -40,6 +40,6 @@
   <text x="52" y="189.129" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
   <line x1="55" y1="85.453" x2="60" y2="85.453" stroke="#333333" stroke-width="1" />
   <text x="52" y="89.453" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
-  <text x="16" y="225" text-anchor="middle" transform="rotate(-90 16 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">lower + upper</text>
+  <text x="31.6" y="225" text-anchor="middle" transform="rotate(-90 31.6 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">lower + upper</text>
 </g>
 </svg>

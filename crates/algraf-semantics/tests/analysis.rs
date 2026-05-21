@@ -2,7 +2,8 @@
 
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
-    analyze_source, FrameIr, GeometryKind, SettingValue, SpaceDataRef, StatKind,
+    analyze_source, AxisSelectorIr, FrameIr, GeometryKind, ScaleTargetIr, ScaleTypeIr,
+    SettingValue, SpaceDataRef, StatKind,
 };
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
@@ -282,10 +283,55 @@ fn test_chart_labels_and_guide_legend_are_recorded() {
 }
 
 #[test]
-fn test_scale_declaration_warns_until_implemented() {
+fn test_scale_declaration_is_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, type: \"log10\", domain: [1, 100], reverse: true)\n  Scale(fill: species, palette: \"accent\")\n  Space(flipper_length * body_mass) { Point(fill: species) }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.scales.len(), 2);
+    assert!(matches!(
+        ir.scales[0].target,
+        ScaleTargetIr::Axis(AxisSelectorIr::X)
+    ));
+    assert_eq!(ir.scales[0].scale_type, Some(ScaleTypeIr::Log10));
+    assert_eq!(ir.scales[0].domain, Some([1.0, 100.0]));
+    assert_eq!(ir.scales[0].reverse, Some(true));
+    assert!(matches!(
+        &ir.scales[1].target,
+        ScaleTargetIr::Aesthetic {
+            aesthetic,
+            column: Some(column)
+        } if aesthetic == "fill" && column.name == "species"
+    ));
+    assert_eq!(ir.scales[1].palette.as_deref(), Some("accent"));
+}
+
+#[test]
+fn test_scale_label_is_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: species, label: \"Penguin Species\")\n  Space(flipper_length * body_mass) { Point(fill: species) }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.scales[0].label.as_deref(), Some("Penguin Species"));
+}
+
+#[test]
+fn test_scale_label_must_be_string() {
     assert!(has(
-        "Chart(data: \"p.csv\") {\n  Scale(axis: x, type: \"log10\")\n  Space(flipper_length * body_mass) { Point() }\n}",
-        "W2006"
+        "Chart(data: \"p.csv\") {\n  Scale(fill: species, label: 3)\n  Space(flipper_length * body_mass) { Point(fill: species) }\n}",
+        "E1204"
     ));
 }
 
@@ -431,11 +477,23 @@ fn test_direct_histogram_name_avoids_user_derived_names() {
 }
 
 #[test]
-fn test_histogram_temporal_input_gets_targeted_bin_diagnostic() {
-    assert!(has(
+fn test_histogram_temporal_input_desugars_to_temporal_bins() {
+    let analysis = analyze_source(
         "Chart(data: \"d.csv\") {\n  Space(time) {\n    Histogram()\n  }\n}",
-        "E1405"
-    ));
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(
+        ir.derived_tables[0].output_schema[0].dtype,
+        DataType::Temporal
+    );
+    assert!(matches!(ir.spaces[0].frame, FrameIr::Cartesian(ref axes)
+        if matches!(&axes[0], FrameIr::Vector(column) if column.dtype == DataType::Temporal)));
 }
 
 // --- IR shape ---
@@ -511,6 +569,64 @@ fn test_bar_count_stat_desugars() {
     assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Bar);
 }
 
+// --- Density stat ---
+
+#[test]
+fn test_density_desugars_to_kde_table_and_area() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space(value) {\n    Density(fill: \"#4c78a8\")\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.derived_tables.len(), 1);
+    let derived = &ir.derived_tables[0];
+    assert!(derived.name.starts_with("__density_"));
+    assert_eq!(derived.stat.kind, StatKind::Density);
+    let names: Vec<&str> = derived
+        .output_schema
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(names, vec!["density_x", "density"]);
+    assert_eq!(ir.spaces.len(), 1);
+    assert_eq!(
+        ir.spaces[0].data,
+        SpaceDataRef::Derived(derived.name.clone())
+    );
+    assert!(matches!(ir.spaces[0].frame, FrameIr::Cartesian(ref axes) if axes.len() == 2));
+    assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Area);
+}
+
+#[test]
+fn test_density_requires_numeric_column() {
+    // A categorical column cannot be density-estimated.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(species) {\n    Density()\n  }\n}",
+        "E1404"
+    ));
+}
+
+#[test]
+fn test_density_rejects_non_vector_space() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Density()\n  }\n}",
+        "E1302"
+    ));
+}
+
+#[test]
+fn test_density_bandwidth_must_be_positive() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(value) {\n    Density(bandwidth: 0)\n  }\n}",
+        "E1404"
+    ));
+}
+
 // --- Space-local theme ---
 
 #[test]
@@ -555,6 +671,39 @@ fn test_guide_fill_null_suppresses_legend() {
     );
     let ir = analysis.ir.expect("ir");
     assert!(!ir.guides.fill_legend);
+}
+
+#[test]
+fn test_guide_stroke_and_grid_controls_are_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Guide(stroke: null)\n  Guide(grid: false)\n  Space(flipper_length * body_mass) { Point(stroke: species) }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert!(!ir.guides.stroke_legend);
+    assert!(!ir.guides.grid);
+}
+
+#[test]
+fn test_space_local_scale_and_guide_are_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Scale(axis: y, reverse: true)\n    Guide(axis: y, label: \"Mass\")\n    Point()\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.spaces[0].scales.len(), 1);
+    assert_eq!(ir.spaces[0].scales[0].reverse, Some(true));
+    assert_eq!(ir.spaces[0].guides.y_label.as_deref(), Some("Mass"));
 }
 
 // --- Area, Text, Segment ---

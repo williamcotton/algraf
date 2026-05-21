@@ -14,6 +14,7 @@ pub struct ChartIr {
     pub derived_tables: Vec<DeriveIr>,
     pub layout: LayoutIr,
     pub guides: GuideIr,
+    pub scales: Vec<ScaleIr>,
     pub theme: Option<String>,
     pub title: Option<String>,
     pub subtitle: Option<String>,
@@ -46,6 +47,10 @@ pub struct GuideIr {
     pub legend: bool,
     /// Whether the fill legend is suppressed (e.g. `Guide(fill: null)`).
     pub fill_legend: bool,
+    /// Whether the stroke legend is suppressed (e.g. `Guide(stroke: null)`).
+    pub stroke_legend: bool,
+    /// Whether grid lines are drawn when the active theme supports grids.
+    pub grid: bool,
     /// Override label for the x axis (spec §19.4).
     pub x_label: Option<String>,
     /// Override label for the y axis (spec §19.4).
@@ -57,10 +62,71 @@ impl Default for GuideIr {
         GuideIr {
             legend: true,
             fill_legend: true,
+            stroke_legend: true,
+            grid: true,
             x_label: None,
             y_label: None,
         }
     }
+}
+
+impl GuideIr {
+    pub fn with_overrides(&self, overrides: &GuideOverridesIr) -> GuideIr {
+        GuideIr {
+            legend: overrides.legend.unwrap_or(self.legend),
+            fill_legend: overrides.fill_legend.unwrap_or(self.fill_legend),
+            stroke_legend: overrides.stroke_legend.unwrap_or(self.stroke_legend),
+            grid: overrides.grid.unwrap_or(self.grid),
+            x_label: overrides.x_label.clone().or_else(|| self.x_label.clone()),
+            y_label: overrides.y_label.clone().or_else(|| self.y_label.clone()),
+        }
+    }
+}
+
+/// Space-local guide overrides. `None` means inherit chart-level behavior.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct GuideOverridesIr {
+    pub legend: Option<bool>,
+    pub fill_legend: Option<bool>,
+    pub stroke_legend: Option<bool>,
+    pub grid: Option<bool>,
+    pub x_label: Option<String>,
+    pub y_label: Option<String>,
+}
+
+/// A source-level scale declaration (spec §16.11).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScaleIr {
+    pub target: ScaleTargetIr,
+    pub scale_type: Option<ScaleTypeIr>,
+    pub domain: Option<[f64; 2]>,
+    pub reverse: Option<bool>,
+    pub palette: Option<String>,
+    /// An explicit legend title that overrides the column-derived default for a
+    /// `fill`/`stroke` aesthetic scale (spec §16.13).
+    pub label: Option<String>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ScaleTargetIr {
+    Axis(AxisSelectorIr),
+    Aesthetic {
+        aesthetic: String,
+        column: Option<ColumnRef>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AxisSelectorIr {
+    X,
+    Y,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScaleTypeIr {
+    Linear,
+    Log10,
 }
 
 /// A derived table produced by a `Derive` declaration (spec §13.4).
@@ -86,6 +152,7 @@ pub enum StatKind {
     Count,
     Smooth,
     Boxplot,
+    Density,
 }
 
 /// A minimal column definition carried in the IR (name + type + span).
@@ -101,6 +168,8 @@ pub struct SpaceIr {
     pub data: SpaceDataRef,
     pub frame: FrameIr,
     pub geometries: Vec<GeometryIr>,
+    pub guides: GuideOverridesIr,
+    pub scales: Vec<ScaleIr>,
     /// Space-local theme override (spec §7.3, §22.3). When set, this theme
     /// replaces the chart-level theme for this space only.
     pub theme: Option<String>,
@@ -153,6 +222,7 @@ pub enum GeometryKind {
     Smooth,
     Boxplot,
     Violin,
+    Density,
     Ribbon,
     Tile,
     HLine,

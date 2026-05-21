@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="440" viewBox="0 0 720 440" role="img" aria-label="League standings by week">
+<title>League standings by week</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="440" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">League standings by week</text>
+<rect class="algraf-plot-area" x="60" y="66" width="510" height="324" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="95.172" y1="66" x2="95.172" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="168.448" y1="66" x2="168.448" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="241.724" y1="66" x2="241.724" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="315" y1="66" x2="315" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="388.276" y1="66" x2="388.276" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="461.552" y1="66" x2="461.552" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="534.828" y1="66" x2="534.828" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="88.345" x2="570" y2="88.345" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="158.172" x2="570" y2="158.172" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="228" x2="570" y2="228" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="297.828" x2="570" y2="297.828" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="367.655" x2="570" y2="367.655" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M95.172 367.655 L241.724 228 L388.276 88.345 L534.828 88.345" fill="none" stroke="#4E79A7" stroke-width="2" opacity="1" />
+  <path d="M95.172 88.345 L241.724 88.345 L388.276 228 L534.828 367.655" fill="none" stroke="#F28E2B" stroke-width="2" opacity="1" />
+  <path d="M95.172 228 L241.724 367.655 L388.276 367.655 L534.828 228" fill="none" stroke="#E15759" stroke-width="2" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="95.172" cy="367.655" r="5" fill="#4E79A7" opacity="1" />
+  <circle cx="241.724" cy="228" r="5" fill="#4E79A7" opacity="1" />
+  <circle cx="388.276" cy="88.345" r="5" fill="#4E79A7" opacity="1" />
+  <circle cx="534.828" cy="88.345" r="5" fill="#4E79A7" opacity="1" />
+  <circle cx="95.172" cy="88.345" r="5" fill="#F28E2B" opacity="1" />
+  <circle cx="241.724" cy="88.345" r="5" fill="#F28E2B" opacity="1" />
+  <circle cx="388.276" cy="228" r="5" fill="#F28E2B" opacity="1" />
+  <circle cx="534.828" cy="367.655" r="5" fill="#F28E2B" opacity="1" />
+  <circle cx="95.172" cy="228" r="5" fill="#E15759" opacity="1" />
+  <circle cx="241.724" cy="367.655" r="5" fill="#E15759" opacity="1" />
+  <circle cx="388.276" cy="367.655" r="5" fill="#E15759" opacity="1" />
+  <circle cx="534.828" cy="228" r="5" fill="#E15759" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="390" x2="570" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="95.172" y1="390" x2="95.172" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="95.172" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="168.448" y1="390" x2="168.448" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="168.448" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1.5</text>
+  <line x1="241.724" y1="390" x2="241.724" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="241.724" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="315" y1="390" x2="315" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="315" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2.5</text>
+  <line x1="388.276" y1="390" x2="388.276" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="388.276" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <line x1="461.552" y1="390" x2="461.552" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="461.552" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3.5</text>
+  <line x1="534.828" y1="390" x2="534.828" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="534.828" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <text x="315" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">week</text>
+  <line x1="60" y1="66" x2="60" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="88.345" x2="60" y2="88.345" stroke="#333333" stroke-width="1" />
+  <text x="52" y="92.345" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="55" y1="158.172" x2="60" y2="158.172" stroke="#333333" stroke-width="1" />
+  <text x="52" y="162.172" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1.5</text>
+  <line x1="55" y1="228" x2="60" y2="228" stroke="#333333" stroke-width="1" />
+  <text x="52" y="232" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="55" y1="297.828" x2="60" y2="297.828" stroke="#333333" stroke-width="1" />
+  <text x="52" y="301.828" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2.5</text>
+  <line x1="55" y1="367.655" x2="60" y2="367.655" stroke="#333333" stroke-width="1" />
+  <text x="52" y="371.655" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <text x="24.4" y="228" text-anchor="middle" transform="rotate(-90 24.4 228)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Rank</text>
+</g>
+<g class="algraf-legends">
+  <text x="586" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">team</text>
+  <rect x="586" y="78" width="12" height="12" fill="#4E79A7" stroke="#4E79A7" stroke-width="2" />
+  <text x="604" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Falcons</text>
+  <rect x="586" y="96" width="12" height="12" fill="#F28E2B" stroke="#F28E2B" stroke-width="2" />
+  <text x="604" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sharks</text>
+  <rect x="586" y="114" width="12" height="12" fill="#E15759" stroke="#E15759" stroke-width="2" />
+  <text x="604" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Wolves</text>
+</g>
+</svg>

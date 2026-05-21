@@ -23,7 +23,7 @@
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="610" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="60" y1="410" x2="60" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="60" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <text x="60" y="428" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
   <line x1="202.083" y1="410" x2="202.083" y2="415" stroke="#333333" stroke-width="1" />
   <text x="202.083" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-02-01</text>
   <line x1="330.417" y1="410" x2="330.417" y2="415" stroke="#333333" stroke-width="1" />
@@ -31,7 +31,7 @@
   <line x1="472.5" y1="410" x2="472.5" y2="415" stroke="#333333" stroke-width="1" />
   <text x="472.5" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-04-01</text>
   <line x1="610" y1="410" x2="610" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="610" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-01</text>
+  <text x="610" y="428" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-01</text>
   <text x="335" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">day</text>
   <line x1="60" y1="40" x2="60" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="384.483" x2="60" y2="384.483" stroke="#333333" stroke-width="1" />
@@ -50,7 +50,7 @@
   <text x="52" y="94.053" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
   <line x1="55" y1="40.981" x2="60" y2="40.981" stroke="#333333" stroke-width="1" />
   <text x="52" y="44.981" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">22</text>
-  <text x="16" y="225" text-anchor="middle" transform="rotate(-90 16 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">value</text>
+  <text x="31.6" y="225" text-anchor="middle" transform="rotate(-90 31.6 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">value</text>
 </g>
 <g class="algraf-legends">
   <text x="626" y="44" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">series</text>

@@ -1,0 +1,9 @@
+Chart(data: "rankings.csv", width: 720, height: 440, title: "League standings by week") {
+    Scale(axis: y, reverse: true)
+    Guide(axis: y, label: "Rank")
+
+    Space(week * rank) {
+        Line(stroke: team, strokeWidth: 2)
+        Point(fill: team, size: 5)
+    }
+}

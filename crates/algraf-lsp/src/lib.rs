@@ -4,7 +4,7 @@
 //! See spec §21 (LSP architecture), §23.2 (module boundaries), and §24.2
 //! (LSP pipeline).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -18,14 +18,18 @@ use dashmap::DashMap;
 use tokio::runtime::Runtime;
 use tower_lsp::jsonrpc::Result as LspResult;
 use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, CompletionOptions, CompletionParams, CompletionResponse,
-    Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, DidChangeTextDocumentParams,
+    CodeAction, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
+    CodeActionProviderCapability, CodeActionResponse, CompletionItem, CompletionItemKind,
+    CompletionOptions, CompletionParams, CompletionResponse, Diagnostic,
+    DiagnosticRelatedInformation, DiagnosticSeverity, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams,
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, DocumentSymbolResponse::Nested,
     Hover, HoverContents, HoverParams, HoverProviderCapability, InitializeParams, InitializeResult,
     InitializedParams, InsertTextFormat, Location, MarkupContent, MarkupKind, MessageType,
-    NumberOrString, OneOf, Position, Range, ServerCapabilities, SymbolKind,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url,
+    NumberOrString, OneOf, Position, Range, SemanticToken, SemanticTokenType, SemanticTokens,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams,
+    SemanticTokensResult, SemanticTokensServerCapabilities, ServerCapabilities, SymbolKind,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkspaceEdit,
 };
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
@@ -84,7 +88,7 @@ impl Backend {
         let schema = self.resolve_schema(uri, &data_source);
 
         let mut diagnostics = parse_diagnostics.clone();
-        let mut analysis = None;
+        let analysis;
         let mut primary_schema = None;
         let mut data_path = None;
 
@@ -109,6 +113,17 @@ impl Backend {
             }
             SchemaResolution::Unavailable { diagnostic } => {
                 diagnostics.push(diagnostic);
+                let fallback_schema = self
+                    .document(uri)
+                    .and_then(|state| state.primary_schema)
+                    .unwrap_or_default();
+                let result = analyze(&syntax, &fallback_schema);
+                diagnostics.extend(result.diagnostics.clone());
+                analysis = Some(AnalysisState {
+                    ir: result.ir,
+                    diagnostics: result.diagnostics,
+                });
+                primary_schema = (!fallback_schema.is_empty()).then_some(fallback_schema);
             }
         }
 
@@ -209,6 +224,23 @@ impl LanguageServer for Backend {
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 document_formatting_provider: Some(OneOf::Left(true)),
+                semantic_tokens_provider: Some(
+                    SemanticTokensServerCapabilities::SemanticTokensOptions(
+                        SemanticTokensOptions {
+                            work_done_progress_options: Default::default(),
+                            legend: semantic_tokens_legend(),
+                            range: Some(false),
+                            full: Some(SemanticTokensFullOptions::Bool(true)),
+                        },
+                    ),
+                ),
+                code_action_provider: Some(CodeActionProviderCapability::Options(
+                    CodeActionOptions {
+                        code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+                        resolve_provider: Some(false),
+                        work_done_progress_options: Default::default(),
+                    },
+                )),
                 ..ServerCapabilities::default()
             },
             server_info: None,
@@ -297,6 +329,26 @@ impl LanguageServer for Backend {
             },
             new_text: formatted,
         }]))
+    }
+
+    async fn semantic_tokens_full(
+        &self,
+        params: SemanticTokensParams,
+    ) -> LspResult<Option<SemanticTokensResult>> {
+        let Some(state) = self.document(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
+            result_id: None,
+            data: semantic_tokens_for(&state.text),
+        })))
+    }
+
+    async fn code_action(&self, params: CodeActionParams) -> LspResult<Option<CodeActionResponse>> {
+        let Some(state) = self.document(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        Ok(Some(code_actions_for(&state, params)))
     }
 }
 
@@ -511,6 +563,283 @@ fn position_to_offset(source: &str, position: Position) -> usize {
         utf16 = next;
     }
     source.len()
+}
+
+const SEMANTIC_TYPES: &[SemanticTokenType] = &[
+    SemanticTokenType::KEYWORD,
+    SemanticTokenType::FUNCTION,
+    SemanticTokenType::PROPERTY,
+    SemanticTokenType::VARIABLE,
+    SemanticTokenType::OPERATOR,
+    SemanticTokenType::STRING,
+    SemanticTokenType::NUMBER,
+    SemanticTokenType::COMMENT,
+];
+
+fn semantic_tokens_legend() -> SemanticTokensLegend {
+    SemanticTokensLegend {
+        token_types: SEMANTIC_TYPES.to_vec(),
+        token_modifiers: Vec::new(),
+    }
+}
+
+fn semantic_tokens_for(source: &str) -> Vec<SemanticToken> {
+    let lexed = tokenize(source);
+    let tokens = lexed.tokens;
+    let mut semantic = Vec::new();
+    let mut prev_line = 0u32;
+    let mut prev_start = 0u32;
+
+    for (idx, token) in tokens.iter().enumerate() {
+        let Some(token_type) = semantic_token_type(&tokens, idx) else {
+            continue;
+        };
+        let range = span_to_range(source, token.span);
+
+        // The semantic-tokens protocol forbids tokens that span multiple lines.
+        // A single-line token emits once; a multi-line block comment emits one
+        // token per line covering that line's portion of the comment.
+        let line_count = (range.end.line - range.start.line) as usize + 1;
+        let lines: Vec<&str> = source.lines().collect();
+        for line_offset in 0..line_count {
+            let line = range.start.line + line_offset as u32;
+            let start_char = if line_offset == 0 {
+                range.start.character
+            } else {
+                0
+            };
+            let end_char = if line == range.end.line {
+                range.end.character
+            } else {
+                lines
+                    .get(line as usize)
+                    .map(|l| l.chars().map(char::len_utf16).sum::<usize>() as u32)
+                    .unwrap_or(start_char)
+            };
+            let length = end_char.saturating_sub(start_char);
+            if length == 0 {
+                continue;
+            }
+            let delta_line = line - prev_line;
+            let delta_start = if delta_line == 0 {
+                start_char - prev_start
+            } else {
+                start_char
+            };
+            semantic.push(SemanticToken {
+                delta_line,
+                delta_start,
+                length,
+                token_type,
+                token_modifiers_bitset: 0,
+            });
+            prev_line = line;
+            prev_start = start_char;
+        }
+    }
+
+    semantic
+}
+
+fn semantic_token_type(tokens: &[algraf_syntax::TokenWithSpan], idx: usize) -> Option<u32> {
+    use algraf_syntax::TokenKind;
+    let token = &tokens[idx];
+    match &token.kind {
+        TokenKind::Ident(_) if next_significant_is_colon_all(tokens, idx) => {
+            Some(token_type_index(SemanticTokenType::PROPERTY))
+        }
+        TokenKind::Ident(name) if declaration_name(name) || registry::geometry(name).is_some() => {
+            Some(token_type_index(SemanticTokenType::FUNCTION))
+        }
+        TokenKind::Ident(_) | TokenKind::QuotedIdent(_) => {
+            Some(token_type_index(SemanticTokenType::VARIABLE))
+        }
+        TokenKind::Star | TokenKind::Slash | TokenKind::Plus | TokenKind::Equal => {
+            Some(token_type_index(SemanticTokenType::OPERATOR))
+        }
+        TokenKind::String(_) => Some(token_type_index(SemanticTokenType::STRING)),
+        TokenKind::Number(_) => Some(token_type_index(SemanticTokenType::NUMBER)),
+        TokenKind::True | TokenKind::False | TokenKind::Null => {
+            Some(token_type_index(SemanticTokenType::KEYWORD))
+        }
+        TokenKind::Comment(_) => Some(token_type_index(SemanticTokenType::COMMENT)),
+        _ => None,
+    }
+}
+
+fn token_type_index(token_type: SemanticTokenType) -> u32 {
+    SEMANTIC_TYPES
+        .iter()
+        .position(|candidate| *candidate == token_type)
+        .unwrap_or(0) as u32
+}
+
+fn declaration_name(name: &str) -> bool {
+    matches!(
+        name,
+        "Chart" | "Space" | "Derive" | "Scale" | "Guide" | "Theme" | "Layout" | "Bin"
+    )
+}
+
+fn next_significant_is_colon_all(tokens: &[algraf_syntax::TokenWithSpan], idx: usize) -> bool {
+    use algraf_syntax::TokenKind;
+    tokens
+        .iter()
+        .skip(idx + 1)
+        .find(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::Comment(_)))
+        .is_some_and(|token| matches!(token.kind, TokenKind::Colon))
+}
+
+fn code_actions_for(state: &DocumentState, params: CodeActionParams) -> CodeActionResponse {
+    let uri = params.text_document.uri;
+    let mut actions = Vec::new();
+    for diagnostic in params.context.diagnostics {
+        let Some(code) = diagnostic_code(&diagnostic) else {
+            continue;
+        };
+        match code {
+            "H3002" => {
+                if let Some(action) =
+                    quote_range_action(&uri, &state.text, &diagnostic, "Quote color literal")
+                {
+                    actions.push(action);
+                }
+            }
+            "E1204" if diagnostic.message.contains("expects a quoted string value") => {
+                if let Some(action) =
+                    quote_range_action(&uri, &state.text, &diagnostic, "Quote string option")
+                {
+                    actions.push(action);
+                }
+            }
+            "E1201" => {
+                if let Some(suggestion) = extract_backtick_suggestion(&diagnostic.message) {
+                    if let Some(range) = first_ident_range(&state.text, diagnostic.range) {
+                        actions.push(edit_action(
+                            "Use suggested geometry",
+                            &uri,
+                            range,
+                            suggestion,
+                            diagnostic.clone(),
+                        ));
+                    }
+                }
+            }
+            "E1306" => {
+                if let Some((start, end)) = range_to_offsets(&state.text, diagnostic.range) {
+                    let text = state.text[start..end].trim();
+                    let parts: Vec<_> = text.split('*').map(str::trim).collect();
+                    if parts.len() == 3 && parts.iter().all(|part| !part.is_empty()) {
+                        let replacement = format!("({} * {}) / {}", parts[0], parts[1], parts[2]);
+                        actions.push(edit_action(
+                            "Convert third Cartesian axis to nesting",
+                            &uri,
+                            diagnostic.range,
+                            replacement,
+                            diagnostic.clone(),
+                        ));
+                    }
+                }
+            }
+            "E1305" => {
+                if let Some((start, end)) = range_to_offsets(&state.text, diagnostic.range) {
+                    let text = state.text[start..end].trim();
+                    if !text.starts_with('(') {
+                        actions.push(edit_action(
+                            "Parenthesize blend expression",
+                            &uri,
+                            diagnostic.range,
+                            format!("({text})"),
+                            diagnostic.clone(),
+                        ));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    actions
+}
+
+fn diagnostic_code(diagnostic: &Diagnostic) -> Option<&str> {
+    match diagnostic.code.as_ref()? {
+        NumberOrString::String(code) => Some(code.as_str()),
+        NumberOrString::Number(_) => None,
+    }
+}
+
+fn quote_range_action(
+    uri: &Url,
+    source: &str,
+    diagnostic: &Diagnostic,
+    title: &str,
+) -> Option<CodeActionOrCommand> {
+    let range = first_ident_range(source, diagnostic.range).unwrap_or(diagnostic.range);
+    let (start, end) = range_to_offsets(source, range)?;
+    let text = source[start..end].trim();
+    if text.is_empty() || text.starts_with('"') {
+        return None;
+    }
+    Some(edit_action(
+        title,
+        uri,
+        range,
+        format!("{text:?}"),
+        diagnostic.clone(),
+    ))
+}
+
+fn edit_action(
+    title: &str,
+    uri: &Url,
+    range: Range,
+    new_text: impl Into<String>,
+    diagnostic: Diagnostic,
+) -> CodeActionOrCommand {
+    let mut changes = HashMap::new();
+    changes.insert(
+        uri.clone(),
+        vec![TextEdit {
+            range,
+            new_text: new_text.into(),
+        }],
+    );
+    CodeActionOrCommand::CodeAction(CodeAction {
+        title: title.to_string(),
+        kind: Some(CodeActionKind::QUICKFIX),
+        diagnostics: Some(vec![diagnostic]),
+        edit: Some(WorkspaceEdit {
+            changes: Some(changes),
+            document_changes: None,
+            change_annotations: None,
+        }),
+        ..CodeAction::default()
+    })
+}
+
+fn extract_backtick_suggestion(message: &str) -> Option<String> {
+    let marker = "did you mean `";
+    let start = message.find(marker)? + marker.len();
+    let end = message[start..].find('`')?;
+    Some(message[start..start + end].to_string())
+}
+
+fn first_ident_range(source: &str, range: Range) -> Option<Range> {
+    let (start, end) = range_to_offsets(source, range)?;
+    tokenize(&source[start..end])
+        .tokens
+        .into_iter()
+        .find(|token| matches!(token.kind, algraf_syntax::TokenKind::Ident(_)))
+        .map(|token| {
+            let span = Span::new(start + token.span.start, start + token.span.end);
+            span_to_range(source, span)
+        })
+}
+
+fn range_to_offsets(source: &str, range: Range) -> Option<(usize, usize)> {
+    let start = position_to_offset(source, range.start);
+    let end = position_to_offset(source, range.end);
+    (start <= end && end <= source.len()).then_some((start, end))
 }
 
 fn node_span(node: &SyntaxNode) -> Span {
@@ -776,8 +1105,8 @@ fn completion_items(state: &DocumentState, context: CompletionContext) -> Vec<Co
             }
         }
         CompletionContext::DeclArgs { decl, active_key } => {
-            if active_key.is_some() {
-                declaration_value_items(&decl)
+            if let Some(key) = active_key {
+                declaration_value_items(state, &decl, &key)
             } else {
                 declaration_arg_items(&decl)
             }
@@ -887,9 +1216,11 @@ fn property_value_items(
 fn declaration_arg_items(decl: &str) -> Vec<CompletionItem> {
     let names: &[&str] = match decl {
         "Layout" => &["facetColumns"],
-        "Guide" => &["legend", "fill", "x", "y"],
+        "Guide" => &["axis", "label", "legend", "fill", "stroke", "grid"],
         "Theme" => &["name"],
-        "Scale" => &["x", "y", "fill", "stroke"],
+        "Scale" => &[
+            "axis", "type", "domain", "reverse", "fill", "stroke", "palette", "label",
+        ],
         _ => &[],
     };
     names
@@ -898,16 +1229,36 @@ fn declaration_arg_items(decl: &str) -> Vec<CompletionItem> {
         .collect()
 }
 
-fn declaration_value_items(decl: &str) -> Vec<CompletionItem> {
-    match decl {
-        "Theme" => ["minimal", "classic", "light", "dark", "void"]
+fn declaration_value_items(
+    state: &DocumentState,
+    decl: &str,
+    active_key: &str,
+) -> Vec<CompletionItem> {
+    match (decl, active_key) {
+        ("Theme", "name") => ["minimal", "classic", "light", "dark", "void"]
             .iter()
             .map(|value| value_item(&format!("\"{value}\""), "Theme name"))
             .collect(),
-        "Guide" => vec![
-            value_item("true", "Boolean literal"),
-            value_item("false", "Boolean literal"),
-            value_item("null", "Suppress a guide"),
+        ("Guide", "axis") | ("Scale", "axis") => {
+            vec![value_item("x", "X axis"), value_item("y", "Y axis")]
+        }
+        ("Guide", "label") => vec![value_item("\"\"", "Axis label")],
+        ("Guide", "legend") | ("Guide", "grid") | ("Scale", "reverse") => {
+            vec![
+                value_item("true", "Boolean literal"),
+                value_item("false", "Boolean literal"),
+            ]
+        }
+        ("Guide", "fill") | ("Guide", "stroke") => vec![value_item("null", "Suppress guide")],
+        ("Scale", "fill") | ("Scale", "stroke") => column_items_matching(state, |_| true),
+        ("Scale", "type") => vec![
+            value_item("\"linear\"", "Linear scale"),
+            value_item("\"log10\"", "Base-10 logarithmic scale"),
+        ],
+        ("Scale", "domain") => vec![value_item("[0, 1]", "Numeric domain")],
+        ("Scale", "palette") => vec![
+            value_item("\"default\"", "Default categorical palette"),
+            value_item("\"accent\"", "Accent categorical palette"),
         ],
         _ => Vec::new(),
     }
@@ -1344,4 +1695,40 @@ fn is_plain_identifier(name: &str) -> bool {
         return false;
     }
     chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+}
+
+#[cfg(test)]
+mod semantic_token_tests {
+    use super::{semantic_tokens_for, token_type_index, SemanticTokenType};
+
+    #[test]
+    fn multiline_block_comment_splits_per_line() {
+        // The protocol forbids multi-line tokens: a block comment that spans
+        // two lines must emit one COMMENT token per line (spec §6.10, §24).
+        let source = "/* line one\n   line two */\nChart(data: \"d.csv\") {}";
+        let tokens = semantic_tokens_for(source);
+        let comment_type = token_type_index(SemanticTokenType::COMMENT);
+        let comment_tokens = tokens
+            .iter()
+            .filter(|t| t.token_type == comment_type)
+            .count();
+        assert_eq!(comment_tokens, 2, "expected one comment token per line");
+        // None of the emitted comment tokens may carry a multi-line length;
+        // each is bounded by the absolute deltas the protocol requires.
+        assert!(tokens.iter().all(|t| t.length > 0));
+    }
+
+    #[test]
+    fn single_line_block_comment_is_one_token() {
+        let source = "Chart(data: \"d.csv\") { /* note */ }";
+        let tokens = semantic_tokens_for(source);
+        let comment_type = token_type_index(SemanticTokenType::COMMENT);
+        assert_eq!(
+            tokens
+                .iter()
+                .filter(|t| t.token_type == comment_type)
+                .count(),
+            1
+        );
+    }
 }

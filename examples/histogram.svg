@@ -30,7 +30,7 @@
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="730" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="60" y1="410" x2="60" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="60" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <text x="60" y="428" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
   <line x1="143.75" y1="410" x2="143.75" y2="415" stroke="#333333" stroke-width="1" />
   <text x="143.75" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
   <line x1="227.5" y1="410" x2="227.5" y2="415" stroke="#333333" stroke-width="1" />
@@ -46,7 +46,7 @@
   <line x1="646.25" y1="410" x2="646.25" y2="415" stroke="#333333" stroke-width="1" />
   <text x="646.25" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
   <line x1="730" y1="410" x2="730" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="730" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">9</text>
+  <text x="730" y="428" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">9</text>
   <text x="395" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">bin start</text>
   <line x1="60" y1="40" x2="60" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="410" x2="60" y2="410" stroke="#333333" stroke-width="1" />
@@ -59,6 +59,6 @@
   <text x="52" y="157.056" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
   <line x1="55" y1="67.407" x2="60" y2="67.407" stroke="#333333" stroke-width="1" />
   <text x="52" y="71.407" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
-  <text x="16" y="225" text-anchor="middle" transform="rotate(-90 16 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">count</text>
+  <text x="38.8" y="225" text-anchor="middle" transform="rotate(-90 38.8 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">count</text>
 </g>
 </svg>

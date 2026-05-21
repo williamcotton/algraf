@@ -6,6 +6,7 @@ binary parses the source, validates it against the data, trains scales, and
 emits deterministic SVG.
 
 The normative reference is [`docs/ALGRAF_SPEC.md`](docs/ALGRAF_SPEC.md).
+Active v0.2.0 planning lives in [`docs/V0_2_PLAN.md`](docs/V0_2_PLAN.md).
 
 ```bash
 cargo run -p algraf-cli -- render examples/scatter.ag --output /tmp/scatter.svg
@@ -202,6 +203,31 @@ Chart(data: "distribution.csv", width: 760, height: 460) {
 
 ![histogram_direct](examples/histogram_direct.svg)
 
+## Binning over time
+
+`Bin` and `Histogram` work on temporal columns too. Mapping a single date
+column into the space and adding `Histogram(bins: ...)` buckets the rows by
+date and keeps the temporal type on the axis, so you get time-aware tick
+labels for free.
+
+```algraf
+Chart(data: "signups.csv", width: 760, height: 460, title: "Signups over the launch quarter") {
+    Guide(axis: x, label: "Signup date")
+
+    Space(signup_date) {
+        Histogram(
+            bins: 24,
+            fill: "steelblue",
+            stroke: "#ffffff",
+            strokeWidth: 1,
+            alpha: 0.86,
+        )
+    }
+}
+```
+
+![temporal_histogram](examples/temporal_histogram.svg)
+
 ## Heatmap with `Tile`
 
 Two categorical axes plus a continuous fill give you a heatmap.
@@ -232,6 +258,28 @@ Chart(data: "demographics.csv", width: 700, height: 460) {
 ```
 
 ![boxplot](examples/boxplot.svg)
+
+## Density: a smooth distribution
+
+`Density` estimates the distribution of a single numeric column with a
+Gaussian kernel and fills the resulting curve down to a zero baseline. The
+bandwidth defaults to Silverman's rule of thumb; pass `bandwidth:` or `n:`
+(grid points) to control it. This example also shows a `/* ... */` block
+comment, which the lexer and formatter treat as trivia.
+
+```algraf
+/*
+ * A kernel density estimate of a single numeric column.
+ * Density() desugars to a filled Area over the estimated curve.
+ */
+Chart(data: "distribution.csv", width: 760, height: 460, title: "Estimated density") {
+    Space(value) {
+        Density(fill: "#4c78a8", stroke: "#1f3b57", strokeWidth: 1.5, alpha: 0.6)
+    }
+}
+```
+
+![density](examples/density.svg)
 
 ## Ribbon: confidence band
 
@@ -379,15 +427,18 @@ Chart(data: "penguins.csv", width: 720, height: 480) {
 
 ![labels](examples/labels.svg)
 
-## Overriding axis labels with `Guide`
+## Overriding labels and palettes
 
 `Guide(axis: x, label: ...)` and `Guide(axis: y, label: ...)` replace
-the default column-name axis titles with custom text.
+the default column-name axis titles with custom text. `Scale(fill: ...,
+palette: "accent")` switches the categorical fill palette for the mapped
+column.
 
 ```algraf
 Chart(data: "penguins.csv", width: 720, height: 480) {
     Guide(axis: x, label: "Flipper length (mm)")
     Guide(axis: y, label: "Body mass (g)")
+    Scale(fill: species, palette: "accent")
 
     Space(flipper_length * body_mass) {
         Point(fill: species, alpha: 0.7, size: 3)
@@ -396,6 +447,120 @@ Chart(data: "penguins.csv", width: 720, height: 480) {
 ```
 
 ![guide_labels](examples/guide_labels.svg)
+
+## Renaming a legend with `Scale(label: ...)`
+
+A `fill` or `stroke` scale can carry a `label`, which becomes the legend
+title instead of the raw column name. Combine it with `palette:` to control
+both the colors and the heading of the legend.
+
+```algraf
+Chart(data: "penguins.csv", width: 720, height: 480, title: "Scale-driven legend label") {
+    Scale(fill: species, palette: "accent", label: "Penguin Species")
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, size: 4, alpha: 0.85)
+    }
+}
+```
+
+![scale_label](examples/scale_label.svg)
+
+## Merging fill and stroke legends
+
+When `fill` and `stroke` map to the same categorical column, Algraf merges
+their legends into one. Each swatch shows the fill color with the stroke
+color drawn as an outline, instead of two redundant legends with the same
+title.
+
+```algraf
+Chart(data: "penguins.csv", width: 720, height: 480, title: "Merged fill and stroke legend") {
+    Space(flipper_length * body_mass) {
+        Point(fill: species, stroke: species, size: 4, alpha: 0.8)
+    }
+}
+```
+
+![legend_merge](examples/legend_merge.svg)
+
+## Log-scaled axes
+
+`Scale(axis: y, type: "log10")` switches a continuous position axis to a
+base-10 log scale, which spreads out values that span several orders of
+magnitude. A log axis needs a strictly positive domain, so pin it with
+`domain: [...]` rather than relying on the data-driven bounds.
+
+```algraf
+Chart(data: "cities.csv", width: 720, height: 460, title: "Population across settlement sizes") {
+    Scale(axis: y, type: "log10", domain: [100, 10000000])
+    Guide(axis: y, label: "Population (log scale)")
+
+    Space(place * population) {
+        Point(fill: place, size: 6)
+    }
+}
+```
+
+![log_scale](examples/log_scale.svg)
+
+## Pinning a domain
+
+`Scale(axis: y, domain: [min, max])` fixes the axis bounds to an explicit
+range instead of fitting them to the data. This is handy for keeping a
+consistent y range across charts, or for adding headroom around the points.
+
+```algraf
+Chart(data: "penguins.csv", width: 720, height: 480) {
+    Scale(axis: y, domain: [2500, 6500])
+    Guide(axis: y, label: "Body mass (g), pinned axis")
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.7, size: 3)
+    }
+}
+```
+
+![scale_domain](examples/scale_domain.svg)
+
+## Reversing an axis
+
+`Scale(axis: y, reverse: true)` flips the axis direction. For rank-style
+data — where 1 is best — reversing the y axis puts first place at the top,
+turning a line chart into a bump chart.
+
+```algraf
+Chart(data: "rankings.csv", width: 720, height: 440, title: "League standings by week") {
+    Scale(axis: y, reverse: true)
+    Guide(axis: y, label: "Rank")
+
+    Space(week * rank) {
+        Line(stroke: team, strokeWidth: 2)
+        Point(fill: team, size: 5)
+    }
+}
+```
+
+![reversed_axis](examples/reversed_axis.svg)
+
+## Hiding grid lines and individual legends
+
+Guide controls compose: `Guide(grid: false)` drops the background grid, and
+`Guide(fill: null)` suppresses just the `fill` legend while keeping the
+colors mapped. The result is a stripped-down canvas that still encodes the
+categorical fill.
+
+```algraf
+Chart(data: "penguins.csv", width: 720, height: 480) {
+    Guide(grid: false)
+    Guide(fill: null)
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.75, size: 4)
+    }
+}
+```
+
+![clean_canvas](examples/clean_canvas.svg)
 
 ## Space-local themes
 

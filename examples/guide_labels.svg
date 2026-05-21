@@ -14,15 +14,15 @@
   <line x1="60" y1="74.901" x2="570" y2="74.901" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-layer algraf-geom-point">
-  <circle cx="95.172" cy="355.074" r="3" fill="#4E79A7" opacity="0.7" />
-  <circle cx="150.129" cy="347.069" r="3" fill="#4E79A7" opacity="0.7" />
-  <circle cx="249.052" cy="251.01" r="3" fill="#4E79A7" opacity="0.7" />
-  <circle cx="227.069" cy="403.103" r="3" fill="#F28E2B" opacity="0.7" />
-  <circle cx="271.034" cy="367.081" r="3" fill="#F28E2B" opacity="0.7" />
-  <circle cx="315" cy="267.02" r="3" fill="#F28E2B" opacity="0.7" />
-  <circle cx="413.922" cy="202.98" r="3" fill="#E15759" opacity="0.7" />
-  <circle cx="479.871" cy="154.951" r="3" fill="#E15759" opacity="0.7" />
-  <circle cx="534.828" cy="66.897" r="3" fill="#E15759" opacity="0.7" />
+  <circle cx="95.172" cy="355.074" r="3" fill="#006BA4" opacity="0.7" />
+  <circle cx="150.129" cy="347.069" r="3" fill="#006BA4" opacity="0.7" />
+  <circle cx="249.052" cy="251.01" r="3" fill="#006BA4" opacity="0.7" />
+  <circle cx="227.069" cy="403.103" r="3" fill="#FF800E" opacity="0.7" />
+  <circle cx="271.034" cy="367.081" r="3" fill="#FF800E" opacity="0.7" />
+  <circle cx="315" cy="267.02" r="3" fill="#FF800E" opacity="0.7" />
+  <circle cx="413.922" cy="202.98" r="3" fill="#ABABAB" opacity="0.7" />
+  <circle cx="479.871" cy="154.951" r="3" fill="#ABABAB" opacity="0.7" />
+  <circle cx="534.828" cy="66.897" r="3" fill="#ABABAB" opacity="0.7" />
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="430" x2="570" y2="430" stroke="#333333" stroke-width="1" />
@@ -48,15 +48,15 @@
   <text x="52" y="158.951" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5000</text>
   <line x1="55" y1="74.901" x2="60" y2="74.901" stroke="#333333" stroke-width="1" />
   <text x="52" y="78.901" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5500</text>
-  <text x="16" y="235" text-anchor="middle" transform="rotate(-90 16 235)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Body mass (g)</text>
+  <text x="17.2" y="235" text-anchor="middle" transform="rotate(-90 17.2 235)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Body mass (g)</text>
 </g>
 <g class="algraf-legends">
   <text x="586" y="44" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">species</text>
-  <rect x="586" y="52" width="12" height="12" fill="#4E79A7" />
+  <rect x="586" y="52" width="12" height="12" fill="#006BA4" />
   <text x="604" y="62" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Adelie</text>
-  <rect x="586" y="70" width="12" height="12" fill="#F28E2B" />
+  <rect x="586" y="70" width="12" height="12" fill="#FF800E" />
   <text x="604" y="80" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Chinstrap</text>
-  <rect x="586" y="88" width="12" height="12" fill="#E15759" />
+  <rect x="586" y="88" width="12" height="12" fill="#ABABAB" />
   <text x="604" y="98" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Gentoo</text>
 </g>
 </svg>

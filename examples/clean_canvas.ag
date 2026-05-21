@@ -1,0 +1,8 @@
+Chart(data: "penguins.csv", width: 720, height: 480) {
+    Guide(grid: false)
+    Guide(fill: null)
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.75, size: 4)
+    }
+}

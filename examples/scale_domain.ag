@@ -1,0 +1,8 @@
+Chart(data: "penguins.csv", width: 720, height: 480) {
+    Scale(axis: y, domain: [2500, 6500])
+    Guide(axis: y, label: "Body mass (g), pinned axis")
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.7, size: 3)
+    }
+}

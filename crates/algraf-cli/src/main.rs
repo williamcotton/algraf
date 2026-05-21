@@ -13,7 +13,8 @@ use algraf_data::{ColumnDef, DataType, Table};
 use algraf_render::{render, Layout, Rect, Theme};
 use algraf_semantics::{
     analyze, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
-    GeometryKind, SettingValue, SpaceDataRef, SpaceIr, StatKind,
+    GeometryKind, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
+    SpaceDataRef, SpaceIr, StatKind,
 };
 use algraf_syntax::{format, parse};
 use clap::{Args, Parser, Subcommand};
@@ -601,7 +602,13 @@ fn ir_to_json(ir: &ChartIr) -> Value {
         },
         "guides": {
             "legend": ir.guides.legend,
+            "fillLegend": ir.guides.fill_legend,
+            "strokeLegend": ir.guides.stroke_legend,
+            "grid": ir.guides.grid,
+            "xLabel": ir.guides.x_label.as_deref(),
+            "yLabel": ir.guides.y_label.as_deref(),
         },
+        "scales": ir.scales.iter().map(scale_json).collect::<Vec<_>>(),
         "title": ir.title.as_deref(),
         "subtitle": ir.subtitle.as_deref(),
         "caption": ir.caption.as_deref(),
@@ -640,9 +647,57 @@ fn space_json(space: &SpaceIr) -> Value {
     json!({
         "data": space_data_json(&space.data),
         "frame": frame_json(&space.frame),
+        "guides": guide_overrides_json(&space.guides),
+        "scales": space.scales.iter().map(scale_json).collect::<Vec<_>>(),
         "geometries": space.geometries.iter().map(geometry_json).collect::<Vec<_>>(),
         "span": span_json(space.span),
     })
+}
+
+fn guide_overrides_json(guides: &GuideOverridesIr) -> Value {
+    json!({
+        "legend": guides.legend,
+        "fillLegend": guides.fill_legend,
+        "strokeLegend": guides.stroke_legend,
+        "grid": guides.grid,
+        "xLabel": guides.x_label.as_deref(),
+        "yLabel": guides.y_label.as_deref(),
+    })
+}
+
+fn scale_json(scale: &ScaleIr) -> Value {
+    json!({
+        "target": scale_target_json(&scale.target),
+        "type": scale.scale_type.map(scale_type_str),
+        "domain": scale.domain,
+        "reverse": scale.reverse,
+        "palette": scale.palette.as_deref(),
+        "span": span_json(scale.span),
+    })
+}
+
+fn scale_target_json(target: &ScaleTargetIr) -> Value {
+    match target {
+        ScaleTargetIr::Axis(axis) => json!({
+            "kind": "axis",
+            "axis": match axis {
+                algraf_semantics::AxisSelectorIr::X => "x",
+                algraf_semantics::AxisSelectorIr::Y => "y",
+            },
+        }),
+        ScaleTargetIr::Aesthetic { aesthetic, column } => json!({
+            "kind": "aesthetic",
+            "aesthetic": aesthetic,
+            "column": column.as_ref().map(column_json),
+        }),
+    }
+}
+
+fn scale_type_str(scale_type: ScaleTypeIr) -> &'static str {
+    match scale_type {
+        ScaleTypeIr::Linear => "linear",
+        ScaleTypeIr::Log10 => "log10",
+    }
 }
 
 fn space_data_json(data: &SpaceDataRef) -> Value {
@@ -714,6 +769,7 @@ fn stat_kind_str(kind: StatKind) -> &'static str {
         StatKind::Count => "Count",
         StatKind::Smooth => "Smooth",
         StatKind::Boxplot => "Boxplot",
+        StatKind::Density => "Density",
     }
 }
 
@@ -727,6 +783,7 @@ fn geometry_kind_str(kind: GeometryKind) -> &'static str {
         GeometryKind::Smooth => "Smooth",
         GeometryKind::Boxplot => "Boxplot",
         GeometryKind::Violin => "Violin",
+        GeometryKind::Density => "Density",
         GeometryKind::Ribbon => "Ribbon",
         GeometryKind::Tile => "Tile",
         GeometryKind::HLine => "HLine",

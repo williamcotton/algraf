@@ -148,6 +148,56 @@ fn test_comments() {
 }
 
 #[test]
+fn test_block_comment() {
+    // A `/* ... */` block comment is a single Comment trivia token (spec §6.10).
+    let result = tokenize("Point(/* inline */) ");
+    let comment = result
+        .tokens
+        .iter()
+        .find(|t| matches!(t.kind, TokenKind::Comment(_)))
+        .expect("expected a comment token");
+    assert_eq!(comment.kind, TokenKind::Comment("/* inline */".into()));
+    assert!(result.diagnostics.is_empty());
+    // `/*` is the comment opener, not a division operator.
+    assert!(!significant("/* c */").contains(&TokenKind::Slash));
+}
+
+#[test]
+fn test_multiline_block_comment() {
+    // Block comments may span lines and stop at the first `*/` (non-nested).
+    let src = "/* line one\n line two */\nPoint()";
+    let result = tokenize(src);
+    let comment = result
+        .tokens
+        .iter()
+        .find(|t| matches!(t.kind, TokenKind::Comment(_)))
+        .expect("expected a comment token");
+    assert_eq!(
+        comment.kind,
+        TokenKind::Comment("/* line one\n line two */".into())
+    );
+    // The first `*/` closes: nesting is not supported.
+    let nested = tokenize("/* a /* b */ c */");
+    let comments: Vec<_> = nested
+        .tokens
+        .iter()
+        .filter(|t| matches!(t.kind, TokenKind::Comment(_)))
+        .collect();
+    assert_eq!(comments.len(), 1);
+    assert_eq!(comments[0].kind, TokenKind::Comment("/* a /* b */".into()));
+}
+
+#[test]
+fn test_unterminated_block_comment() {
+    // An unterminated block comment runs to EOF and emits E0020 (spec §6.10).
+    let result = tokenize("Point() /* never closed");
+    assert!(
+        result.diagnostics.iter().any(|d| d.code == "E0020"),
+        "expected E0020 for unterminated block comment"
+    );
+}
+
+#[test]
 fn test_trivia_is_preserved() {
     // Whitespace and comments are retained for the lossless CST (spec §12.2).
     let kinds: Vec<_> = tokenize("a // c\nb")

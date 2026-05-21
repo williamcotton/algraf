@@ -27,7 +27,15 @@ charts=(
     labels
     segment
     guide_labels
+    clean_canvas
+    log_scale
+    scale_domain
+    reversed_axis
+    temporal_histogram
     space_theme
+    density
+    legend_merge
+    scale_label
 )
 
 cd "$repo_root"

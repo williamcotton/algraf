@@ -118,6 +118,15 @@ const SMOOTH: &[PropSpec] = &[
     opt("alpha", ALPHA),
 ];
 
+const DENSITY: &[PropSpec] = &[
+    opt("bandwidth", &[Accept::Number]),
+    opt("n", &[Accept::Number]),
+    opt("fill", &[Accept::Color]),
+    opt("stroke", &[Accept::Color]),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+];
+
 const BOXPLOT: &[PropSpec] = &[
     opt("fill", FILL),
     opt("stroke", STROKE),
@@ -228,6 +237,11 @@ const GEOMETRIES: &[GeometryDef] = &[
         name: "Boxplot",
         kind: GeometryKind::Boxplot,
         props: BOXPLOT,
+    },
+    GeometryDef {
+        name: "Density",
+        kind: GeometryKind::Density,
+        props: DENSITY,
     },
     GeometryDef {
         name: "Ribbon",

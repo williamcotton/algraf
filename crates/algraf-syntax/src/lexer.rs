@@ -141,6 +141,12 @@ enum RawToken {
     #[regex(r"//[^\n]*", |lex| lex.slice().to_string())]
     Comment(String),
 
+    // Block comments `/* ... */` are trivia like line comments (spec §6.10).
+    // Nesting is not supported: the first `*/` closes the comment. The callback
+    // takes priority over `Slash` because it is the longer match.
+    #[token("/*", lex_block_comment)]
+    BlockComment(String),
+
     #[token("true")]
     True,
     #[token("false")]
@@ -194,6 +200,7 @@ impl RawToken {
         match self {
             RawToken::Whitespace => TokenKind::Whitespace,
             RawToken::Comment(text) => TokenKind::Comment(text),
+            RawToken::BlockComment(text) => TokenKind::Comment(text),
             RawToken::True => TokenKind::True,
             RawToken::False => TokenKind::False,
             RawToken::Null => TokenKind::Null,
@@ -316,6 +323,41 @@ fn lex_string(lex: &mut Lexer<RawToken>) -> String {
     }
 
     value
+}
+
+/// Lex a block comment after the opening `/*` (spec §6.10). The first `*/`
+/// closes the comment; nesting is not supported. Returns the full lexeme,
+/// including the delimiters, so the formatter can reproduce it verbatim. An
+/// unterminated block comment runs to end of input and emits `E0020`.
+fn lex_block_comment(lex: &mut Lexer<RawToken>) -> String {
+    let start = lex.span().start;
+    let remainder = lex.remainder();
+    let mut consumed = remainder.len();
+    let mut terminated = false;
+
+    let bytes = remainder.as_bytes();
+    let mut i = 0;
+    while i + 1 < bytes.len() {
+        if bytes[i] == b'*' && bytes[i + 1] == b'/' {
+            consumed = i + 2;
+            terminated = true;
+            break;
+        }
+        i += 1;
+    }
+
+    lex.bump(consumed);
+
+    if !terminated {
+        let span = Span::new(start, lex.span().end);
+        push(
+            lex,
+            Diagnostic::error("E0020", "unterminated block comment", span),
+        );
+    }
+
+    // `slice()` now covers `/*` plus the bumped body.
+    lex.slice().to_string()
 }
 
 /// Lex the body of a backtick-quoted column identifier after the opening

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="460" viewBox="0 0 720 460" role="img" aria-label="Population across settlement sizes">
+<title>Population across settlement sizes</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="460" fill="#ffffff" />
+<text class="algraf-title" x="83.6" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Population across settlement sizes</text>
+<rect class="algraf-plot-area" x="83.6" y="66" width="486.4" height="344" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="83.6" y1="410" x2="570" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="83.6" y1="341.2" x2="570" y2="341.2" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="83.6" y1="272.4" x2="570" y2="272.4" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="83.6" y1="203.6" x2="570" y2="203.6" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="83.6" y1="134.8" x2="570" y2="134.8" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="83.6" y1="66" x2="570" y2="66" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="132.24" cy="367.12" r="6" fill="#4E79A7" opacity="1" />
+  <circle cx="229.52" cy="301.311" r="6" fill="#F28E2B" opacity="1" />
+  <circle cx="326.8" cy="223.139" r="6" fill="#E15759" opacity="1" />
+  <circle cx="424.08" cy="149.569" r="6" fill="#76B7B2" opacity="1" />
+  <circle cx="521.36" cy="67.849" r="6" fill="#59A14F" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="83.6" y1="410" x2="570" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="132.24" y1="410" x2="132.24" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="132.24" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Village</text>
+  <line x1="229.52" y1="410" x2="229.52" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="229.52" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Town</text>
+  <line x1="326.8" y1="410" x2="326.8" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="326.8" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">City</text>
+  <line x1="424.08" y1="410" x2="424.08" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="424.08" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Metro</text>
+  <line x1="521.36" y1="410" x2="521.36" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="521.36" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Megacity</text>
+  <text x="326.8" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">place</text>
+  <line x1="83.6" y1="66" x2="83.6" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="78.6" y1="410" x2="83.6" y2="410" stroke="#333333" stroke-width="1" />
+  <text x="75.6" y="414" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100</text>
+  <line x1="78.6" y1="341.2" x2="83.6" y2="341.2" stroke="#333333" stroke-width="1" />
+  <text x="75.6" y="345.2" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1000</text>
+  <line x1="78.6" y1="272.4" x2="83.6" y2="272.4" stroke="#333333" stroke-width="1" />
+  <text x="75.6" y="276.4" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10000</text>
+  <line x1="78.6" y1="203.6" x2="83.6" y2="203.6" stroke="#333333" stroke-width="1" />
+  <text x="75.6" y="207.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100000</text>
+  <line x1="78.6" y1="134.8" x2="83.6" y2="134.8" stroke="#333333" stroke-width="1" />
+  <text x="75.6" y="138.8" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1000000</text>
+  <line x1="78.6" y1="66" x2="83.6" y2="66" stroke="#333333" stroke-width="1" />
+  <text x="75.6" y="70" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10000000</text>
+  <text x="12" y="238" text-anchor="middle" transform="rotate(-90 12 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Population (log scale)</text>
+</g>
+<g class="algraf-legends">
+  <text x="586" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">place</text>
+  <rect x="586" y="78" width="12" height="12" fill="#4E79A7" />
+  <text x="604" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Village</text>
+  <rect x="586" y="96" width="12" height="12" fill="#F28E2B" />
+  <text x="604" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Town</text>
+  <rect x="586" y="114" width="12" height="12" fill="#E15759" />
+  <text x="604" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">City</text>
+  <rect x="586" y="132" width="12" height="12" fill="#76B7B2" />
+  <text x="604" y="142" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Metro</text>
+  <rect x="586" y="150" width="12" height="12" fill="#59A14F" />
+  <text x="604" y="160" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Megacity</text>
+</g>
+</svg>

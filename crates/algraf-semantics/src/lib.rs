@@ -12,6 +12,7 @@ mod util;
 
 pub use analyzer::{analyze, analyze_source, Analysis};
 pub use ir::{
-    AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
-    GeometryKind, SettingValue, SpaceDataRef, SpaceIr, StatKind,
+    AestheticMapping, AxisSelectorIr, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr,
+    GeometryIr, GeometryKind, GuideIr, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr,
+    SettingValue, SpaceDataRef, SpaceIr, StatKind,
 };

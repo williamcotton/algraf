@@ -7,7 +7,7 @@ use std::fmt::Write;
 
 use algraf_core::Diagnostic;
 use algraf_data::Table;
-use algraf_semantics::{GeometryIr, GeometryKind, SettingValue};
+use algraf_semantics::{GeometryIr, GeometryKind, ScaleIr, SettingValue};
 
 use crate::aes::{color_spec, number_setting, ColorSpec};
 use crate::layout::Rect;
@@ -26,6 +26,7 @@ pub(crate) struct GeometryRenderContext<'a> {
     pub(crate) rows: Option<&'a [usize]>,
     pub(crate) plot: Rect,
     pub(crate) theme: &'a Theme,
+    pub(crate) scales: &'a [ScaleIr],
 }
 
 /// Render one geometry layer into the writer.
@@ -39,8 +40,12 @@ pub(crate) fn render(
     w.open_group(&format!("class=\"{class}\""));
     let before = w.byte_len();
     match geo.kind {
-        GeometryKind::Point => point(w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme),
-        GeometryKind::Line => line(w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme),
+        GeometryKind::Point => point(
+            w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme, ctx.scales,
+        ),
+        GeometryKind::Line => line(
+            w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme, ctx.scales,
+        ),
         GeometryKind::Bar => bar(
             w,
             geo,
@@ -48,10 +53,11 @@ pub(crate) fn render(
             ctx.table,
             ctx.rows,
             ctx.plot,
+            ctx.scales,
             diagnostics,
         ),
-        GeometryKind::Rect => rect(w, geo, ctx.space, ctx.table, ctx.rows),
-        GeometryKind::Tile => tile(w, geo, ctx.space, ctx.table, ctx.rows),
+        GeometryKind::Rect => rect(w, geo, ctx.space, ctx.table, ctx.rows, ctx.scales),
+        GeometryKind::Tile => tile(w, geo, ctx.space, ctx.table, ctx.rows, ctx.scales),
         GeometryKind::Smooth => smooth(
             w,
             geo,
@@ -59,16 +65,33 @@ pub(crate) fn render(
             ctx.table,
             ctx.rows,
             ctx.theme,
+            ctx.scales,
             diagnostics,
         ),
-        GeometryKind::Boxplot => boxplot(w, geo, ctx.space, ctx.table, ctx.rows, diagnostics),
-        GeometryKind::Ribbon => ribbon(w, geo, ctx.space, ctx.table, ctx.rows),
-        GeometryKind::HLine => hline(w, geo, ctx.space, ctx.plot, ctx.table, ctx.theme),
-        GeometryKind::VLine => vline(w, geo, ctx.space, ctx.plot, ctx.table, ctx.theme),
-        GeometryKind::Rug => rug(w, geo, ctx.space, ctx.table, ctx.rows, ctx.plot, ctx.theme),
-        GeometryKind::Area => area(w, geo, ctx.space, ctx.table, ctx.rows),
-        GeometryKind::Text => text_geom(w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme),
-        GeometryKind::Segment => segment(w, geo, ctx.space, ctx.table, ctx.theme),
+        GeometryKind::Boxplot => boxplot(
+            w,
+            geo,
+            ctx.space,
+            ctx.table,
+            ctx.rows,
+            ctx.scales,
+            diagnostics,
+        ),
+        GeometryKind::Ribbon => ribbon(w, geo, ctx.space, ctx.table, ctx.rows, ctx.scales),
+        GeometryKind::HLine => hline(
+            w, geo, ctx.space, ctx.plot, ctx.table, ctx.theme, ctx.scales,
+        ),
+        GeometryKind::VLine => vline(
+            w, geo, ctx.space, ctx.plot, ctx.table, ctx.theme, ctx.scales,
+        ),
+        GeometryKind::Rug => rug(
+            w, geo, ctx.space, ctx.table, ctx.rows, ctx.plot, ctx.theme, ctx.scales,
+        ),
+        GeometryKind::Area => area(w, geo, ctx.space, ctx.table, ctx.rows, ctx.scales),
+        GeometryKind::Text => text_geom(
+            w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme, ctx.scales,
+        ),
+        GeometryKind::Segment => segment(w, geo, ctx.space, ctx.table, ctx.theme, ctx.scales),
         other => diagnostics.push(Diagnostic::warning(
             "R0001",
             format!("geometry `{other:?}` is not yet supported by the renderer"),
@@ -113,8 +136,9 @@ fn point(
     table: &dyn Table,
     rows: Option<&[usize]>,
     theme: &Theme,
+    scales: &[ScaleIr],
 ) {
-    let fill = color_spec(geo, "fill", table);
+    let fill = color_spec(geo, "fill", table, scales);
     let alpha = number_setting(geo, "alpha", 1.0);
     let size = number_setting(geo, "size", theme.point_size);
     for row in render_rows(table, rows) {
@@ -143,8 +167,9 @@ fn line(
     table: &dyn Table,
     rows: Option<&[usize]>,
     theme: &Theme,
+    scales: &[ScaleIr],
 ) {
-    let stroke = color_spec(geo, "stroke", table);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let width = number_setting(geo, "strokeWidth", theme.line_width);
     let alpha = number_setting(geo, "alpha", 1.0);
     let row_list = render_rows(table, rows);
@@ -206,6 +231,7 @@ fn row_category(spec: &ColorSpec, table: &dyn Table, row: usize) -> Option<Strin
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn smooth(
     w: &mut SvgWriter,
     geo: &GeometryIr,
@@ -213,6 +239,7 @@ fn smooth(
     table: &dyn Table,
     rows: Option<&[usize]>,
     theme: &Theme,
+    scales: &[ScaleIr],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     if !axis_is_continuousish(&space.x) || !space.y.as_ref().is_some_and(axis_is_continuousish) {
@@ -224,7 +251,7 @@ fn smooth(
         return;
     }
 
-    let stroke = color_spec(geo, "stroke", table);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let width = number_setting(geo, "strokeWidth", theme.line_width);
     let alpha = number_setting(geo, "alpha", 1.0);
     let row_list = render_rows(table, rows);
@@ -308,6 +335,7 @@ fn linear_fit_segment(points: &[(f64, f64)]) -> Option<(f64, f64, f64, f64)> {
     Some((x0, intercept + slope * x0, x1, intercept + slope * x1))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn bar(
     w: &mut SvgWriter,
     geo: &GeometryIr,
@@ -315,6 +343,7 @@ fn bar(
     table: &dyn Table,
     rows: Option<&[usize]>,
     plot: Rect,
+    scales: &[ScaleIr],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let Some(y_col) = space.y.as_ref().and_then(|a| a.data_column()) else {
@@ -328,8 +357,8 @@ fn bar(
         ));
         return;
     }
-    let fill = color_spec(geo, "fill", table);
-    let stroke = color_spec(geo, "stroke", table);
+    let fill = color_spec(geo, "fill", table, scales);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let stroke_width = number_setting(geo, "strokeWidth", 1.0);
     let alpha = number_setting(geo, "alpha", 1.0);
     let layout = bar_layout(geo);
@@ -489,6 +518,7 @@ fn boxplot(
     space: &ScaledSpace,
     table: &dyn Table,
     rows: Option<&[usize]>,
+    scales: &[ScaleIr],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let Some(y_col) = space.y.as_ref().and_then(|axis| axis.data_column()) else {
@@ -503,8 +533,8 @@ fn boxplot(
         return;
     }
 
-    let fill = color_spec(geo, "fill", table);
-    let stroke = color_spec(geo, "stroke", table);
+    let fill = color_spec(geo, "fill", table, scales);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let alpha = number_setting(geo, "alpha", 1.0);
     let stroke_width = number_setting(geo, "strokeWidth", 1.0);
     let mut groups: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
@@ -660,9 +690,10 @@ fn rect(
     space: &ScaledSpace,
     table: &dyn Table,
     rows: Option<&[usize]>,
+    scales: &[ScaleIr],
 ) {
-    let fill = color_spec(geo, "fill", table);
-    let stroke = color_spec(geo, "stroke", table);
+    let fill = color_spec(geo, "fill", table, scales);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let stroke_width = number_setting(geo, "strokeWidth", 1.0);
     let alpha = number_setting(geo, "alpha", 1.0);
     for row in render_rows(table, rows) {
@@ -718,9 +749,10 @@ fn ribbon(
     space: &ScaledSpace,
     table: &dyn Table,
     rows: Option<&[usize]>,
+    scales: &[ScaleIr],
 ) {
-    let fill = color_spec(geo, "fill", table);
-    let stroke = color_spec(geo, "stroke", table);
+    let fill = color_spec(geo, "fill", table, scales);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let stroke_width = number_setting(geo, "strokeWidth", 1.0);
     let alpha = number_setting(geo, "alpha", 0.25);
     let row_list = render_rows(table, rows);
@@ -774,9 +806,10 @@ fn tile(
     space: &ScaledSpace,
     table: &dyn Table,
     rows: Option<&[usize]>,
+    scales: &[ScaleIr],
 ) {
-    let fill = color_spec(geo, "fill", table);
-    let stroke = color_spec(geo, "stroke", table);
+    let fill = color_spec(geo, "fill", table, scales);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let stroke_width = number_setting(geo, "strokeWidth", 1.0);
     let alpha = number_setting(geo, "alpha", 1.0);
     for row in render_rows(table, rows) {
@@ -811,11 +844,12 @@ fn hline(
     plot: Rect,
     table: &dyn Table,
     theme: &Theme,
+    scales: &[ScaleIr],
 ) {
     let Some(y) = number_setting_opt(geo, "y").and_then(|value| space.map_y(value)) else {
         return;
     };
-    let stroke = color_spec(geo, "stroke", table);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let color = constant_or(&stroke, DEFAULT_STROKE);
     let width = number_setting(geo, "strokeWidth", theme.line_width);
     let alpha = number_setting(geo, "alpha", 1.0);
@@ -840,11 +874,12 @@ fn vline(
     plot: Rect,
     table: &dyn Table,
     theme: &Theme,
+    scales: &[ScaleIr],
 ) {
     let Some(x) = number_setting_opt(geo, "x").and_then(|value| space.map_x(value)) else {
         return;
     };
-    let stroke = color_spec(geo, "stroke", table);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let color = constant_or(&stroke, DEFAULT_STROKE);
     let width = number_setting(geo, "strokeWidth", theme.line_width);
     let alpha = number_setting(geo, "alpha", 1.0);
@@ -862,6 +897,7 @@ fn vline(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn rug(
     w: &mut SvgWriter,
     geo: &GeometryIr,
@@ -870,9 +906,10 @@ fn rug(
     rows: Option<&[usize]>,
     plot: Rect,
     theme: &Theme,
+    scales: &[ScaleIr],
 ) {
     let sides = string_setting(geo, "sides").unwrap_or_else(|| "b".to_string());
-    let stroke = color_spec(geo, "stroke", table);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let width = number_setting(geo, "strokeWidth", theme.line_width);
     let alpha = number_setting(geo, "alpha", 0.55);
     let tick = 6.0;
@@ -997,9 +1034,10 @@ fn area(
     space: &ScaledSpace,
     table: &dyn Table,
     rows: Option<&[usize]>,
+    scales: &[ScaleIr],
 ) {
-    let fill = color_spec(geo, "fill", table);
-    let stroke = color_spec(geo, "stroke", table);
+    let fill = color_spec(geo, "fill", table, scales);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let stroke_width = number_setting(geo, "strokeWidth", 1.0);
     let alpha = number_setting(geo, "alpha", 0.4);
     let baseline_value = number_setting(geo, "baseline", 0.0);
@@ -1065,8 +1103,9 @@ fn text_geom(
     table: &dyn Table,
     rows: Option<&[usize]>,
     theme: &Theme,
+    scales: &[ScaleIr],
 ) {
-    let fill = color_spec(geo, "fill", table);
+    let fill = color_spec(geo, "fill", table, scales);
     let alpha = number_setting(geo, "alpha", 1.0);
     let size = number_setting(geo, "size", theme.font_size);
     let dx = number_setting(geo, "dx", 0.0);
@@ -1116,8 +1155,9 @@ fn segment(
     space: &ScaledSpace,
     table: &dyn Table,
     theme: &Theme,
+    scales: &[ScaleIr],
 ) {
-    let stroke = color_spec(geo, "stroke", table);
+    let stroke = color_spec(geo, "stroke", table, scales);
     let color = constant_or(&stroke, DEFAULT_STROKE);
     let width = number_setting(geo, "strokeWidth", theme.line_width);
     let alpha = number_setting(geo, "alpha", 1.0);

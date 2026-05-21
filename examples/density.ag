@@ -1,0 +1,9 @@
+/*
+ * A kernel density estimate of a single numeric column.
+ * Density() desugars to a filled Area over the estimated curve.
+ */
+Chart(data: "distribution.csv", width: 760, height: 460, title: "Estimated density") {
+    Space(value) {
+        Density(fill: "#4c78a8", stroke: "#1f3b57", strokeWidth: 1.5, alpha: 0.6)
+    }
+}

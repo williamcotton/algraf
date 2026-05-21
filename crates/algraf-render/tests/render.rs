@@ -196,6 +196,24 @@ fn test_short_temporal_axis_uses_whole_day_ticks() {
 }
 
 #[test]
+fn test_edge_x_tick_labels_anchor_inside_plot() {
+    let svg = render_svg(
+        "Chart(data: \"intervals.csv\") {
+            Space(time * value) {
+                Rect(xmin: start_time, xmax: end_time, ymin: 0, ymax: peak_value)
+            }
+        }",
+        "time,value,start_time,end_time,peak_value\n\
+         2026-01-01,0,2026-01-02,2026-01-05,100\n\
+         2026-01-08,80,2026-01-08,2026-01-11,80\n\
+         2026-01-13,120,2026-01-13,2026-01-17,120\n\
+         2026-01-19,140,2026-01-19,2026-01-22,140\n",
+    );
+    assert!(svg.contains("text-anchor=\"start\"") && svg.contains(">2026-01-01</text>"));
+    assert!(svg.contains("text-anchor=\"end\"") && svg.contains(">2026-01-22</text>"));
+}
+
+#[test]
 fn test_facet_wrap_renders_one_panel_per_category() {
     let result = render_result(
         "Chart(data: \"p.csv\") { Layout(facetColumns: 2) Space((x * y) / g) { Point(fill: g) } }",
@@ -459,6 +477,101 @@ fn test_guide_fill_null_suppresses_fill_legend() {
     assert!(!svg.contains("algraf-legends"));
 }
 
+#[test]
+fn test_guide_stroke_null_suppresses_stroke_legend() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Guide(stroke: null)\n  Space(x * y) { Line(stroke: g) }\n}",
+        "x,y,g\n1,2,a\n2,3,b\n",
+    );
+    assert!(!svg.contains("algraf-legends"));
+}
+
+#[test]
+fn test_scale_label_overrides_legend_title() {
+    // Scale(fill: col, label: "...") renames the legend title (spec §16.13).
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: g, label: \"Group Name\")\n  Space(x * y) { Point(fill: g) }\n}",
+        "x,y,g\n1,2,a\n2,3,b\n",
+    );
+    assert!(svg.contains(">Group Name</text>"));
+    // The bare column-derived title is not used.
+    assert!(!svg.contains(">g</text>"));
+}
+
+#[test]
+fn test_fill_stroke_legends_merge_for_same_column() {
+    // fill and stroke mapped to the same categorical column produce a single
+    // merged legend whose swatches carry a stroke outline (spec §19.7).
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Space(x * y) { Point(fill: g, stroke: g) }\n}",
+        "x,y,g\n1,2,a\n2,3,b\n",
+    );
+    // Exactly one legend title for the column (not two stacked legends).
+    assert_eq!(
+        svg.matches(">g</text>").count(),
+        1,
+        "expected one merged title"
+    );
+    // Swatch rects carry a stroke from the merged stroke aesthetic.
+    assert!(
+        svg.contains("stroke-width=\"2\""),
+        "merged swatch should draw a stroke outline"
+    );
+}
+
+#[test]
+fn test_distinct_columns_keep_separate_legends() {
+    // fill and stroke on different columns remain two separate legends.
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Space(x * y) { Point(fill: g, stroke: h) }\n}",
+        "x,y,g,h\n1,2,a,p\n2,3,b,q\n",
+    );
+    assert!(svg.contains(">g</text>"));
+    assert!(svg.contains(">h</text>"));
+}
+
+#[test]
+fn test_guide_grid_false_suppresses_grid() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Guide(grid: false)\n  Space(x * y) { Point() }\n}",
+        "x,y\n1,2\n2,3\n",
+    );
+    assert!(!svg.contains("algraf-grid"));
+}
+
+#[test]
+fn test_scale_domain_reverse_and_log_render() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, type: \"log10\", domain: [1, 100])\n  Scale(axis: y, reverse: true)\n  Space(x * y) { Point() }\n}",
+        "x,y\n1,1\n10,2\n100,3\n",
+    );
+    assert!(svg.contains(">100</text>"));
+    assert!(svg.contains(">1</text>"));
+    assert!(svg.contains("algraf-axes"));
+}
+
+#[test]
+fn test_scale_accent_palette_changes_categorical_colors() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: g, palette: \"accent\")\n  Space(x * y) { Point(fill: g) }\n}",
+        "x,y,g\n1,2,a\n2,3,b\n",
+    );
+    assert!(svg.contains("fill=\"#006BA4\""));
+    assert!(svg.contains("fill=\"#FF800E\""));
+}
+
+#[test]
+fn test_temporal_histogram_renders_bins() {
+    let result = render_result(
+        "Chart(data: \"t.csv\") { Space(day) { Histogram(bins: 3, fill: \"steelblue\") } }",
+        "day\n2026-01-01\n2026-01-02\n2026-01-03\n2026-01-04\n2026-01-05\n2026-01-06\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-rect"));
+    assert_eq!(result.svg.matches("<rect x=").count(), 3);
+    assert!(result.svg.contains("2026-01"));
+}
+
 // --- Area, Text, Segment ---
 
 #[test]
@@ -507,6 +620,21 @@ fn test_w2002_when_geometry_produces_no_marks() {
         "expected W2002, got {:?}",
         result.diagnostics
     );
+}
+
+// --- Density geom ---
+
+#[test]
+fn test_density_geom_renders_filled_area() {
+    // Density desugars to a filled Area over a KDE curve (spec §15.11).
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") {\n  Space(v) {\n    Density(fill: \"#4c78a8\")\n  }\n}",
+        "v\n0\n1\n1\n2\n2\n2\n3\n3\n4\n5\n",
+    );
+    assert!(svg.contains("algraf-geom-area"));
+    assert!(svg.contains("fill=\"#4c78a8\""));
+    // The area is a single closed path.
+    assert_eq!(svg.matches("<path").count(), 1);
 }
 
 // --- Density column ---

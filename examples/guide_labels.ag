@@ -1,6 +1,7 @@
 Chart(data: "penguins.csv", width: 720, height: 480) {
     Guide(axis: x, label: "Flipper length (mm)")
     Guide(axis: y, label: "Body mass (g)")
+    Scale(fill: species, palette: "accent")
 
     Space(flipper_length * body_mass) {
         Point(fill: species, alpha: 0.7, size: 3)

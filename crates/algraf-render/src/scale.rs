@@ -9,10 +9,30 @@ pub struct ContinuousScale {
     pub min: f64,
     pub max: f64,
     pub range: (f64, f64),
+    pub transform: ContinuousTransform,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContinuousTransform {
+    Linear,
+    Log10,
 }
 
 impl ContinuousScale {
     pub fn new(min: f64, max: f64, range: (f64, f64)) -> Self {
+        Self::with_transform(min, max, range, ContinuousTransform::Linear)
+    }
+
+    pub fn log10(min: f64, max: f64, range: (f64, f64)) -> Self {
+        Self::with_transform(min, max, range, ContinuousTransform::Log10)
+    }
+
+    fn with_transform(
+        min: f64,
+        max: f64,
+        range: (f64, f64),
+        transform: ContinuousTransform,
+    ) -> Self {
         // Handle zero-width domains by expanding symmetrically (spec §16.3).
         let (min, max) = if (max - min).abs() < f64::EPSILON {
             if min == 0.0 {
@@ -23,12 +43,31 @@ impl ContinuousScale {
         } else {
             (min, max)
         };
-        ContinuousScale { min, max, range }
+        ContinuousScale {
+            min,
+            max,
+            range,
+            transform,
+        }
     }
 
     pub fn map(&self, value: f64) -> f64 {
-        let t = (value - self.min) / (self.max - self.min);
+        let t = match self.transform {
+            ContinuousTransform::Linear => (value - self.min) / (self.max - self.min),
+            ContinuousTransform::Log10 => {
+                let min = self.min.log10();
+                let max = self.max.log10();
+                (value.log10() - min) / (max - min)
+            }
+        };
         self.range.0 + t * (self.range.1 - self.range.0)
+    }
+
+    pub fn ticks(&self, target: usize) -> Vec<f64> {
+        match self.transform {
+            ContinuousTransform::Linear => nice_ticks(self.min, self.max, target),
+            ContinuousTransform::Log10 => log_ticks(self.min, self.max),
+        }
     }
 }
 
@@ -281,4 +320,26 @@ pub fn nice_step(span: f64, target: usize) -> f64 {
         10.0
     };
     nice * magnitude
+}
+
+fn log_ticks(min: f64, max: f64) -> Vec<f64> {
+    if min <= 0.0 || max <= 0.0 || !min.is_finite() || !max.is_finite() {
+        return Vec::new();
+    }
+
+    let start = min.log10().floor() as i32;
+    let end = max.log10().ceil() as i32;
+    let mut ticks = Vec::new();
+    for power in start..=end {
+        let value = 10f64.powi(power);
+        if value >= min - f64::EPSILON && value <= max + f64::EPSILON {
+            ticks.push(value);
+        }
+    }
+
+    if ticks.is_empty() {
+        vec![min, max]
+    } else {
+        ticks
+    }
 }

@@ -5,13 +5,13 @@
 //! accessors without knowing the underlying scale kind.
 
 use algraf_data::{DataType, Table, TemporalPrecision};
-use algraf_semantics::{ColumnRef, FrameIr};
+use algraf_semantics::{AxisSelectorIr, ColumnRef, FrameIr, ScaleIr, ScaleTargetIr, ScaleTypeIr};
 use chrono::{DateTime, Datelike, NaiveDate};
 
 use crate::domains::{AxisDomainHints, SpaceDomainHints};
 use crate::scale::{
-    categorical_domain, cell_category, cell_f64, cell_micros, nice_ticks, numeric_domain,
-    temporal_domain, BandScale, ContinuousScale, NestedBandScale, TemporalScale,
+    categorical_domain, cell_category, cell_f64, cell_micros, numeric_domain, temporal_domain,
+    BandScale, ContinuousScale, NestedBandScale, TemporalScale,
 };
 
 /// One trained position axis.
@@ -119,13 +119,12 @@ impl AxisScale {
     /// Tick positions and labels for guide rendering (spec §19).
     pub fn ticks(&self) -> Vec<(f64, String)> {
         match self {
-            AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => {
-                nice_ticks(scale.min, scale.max, 6)
-                    .into_iter()
-                    .filter(|t| *t >= scale.min - f64::EPSILON && *t <= scale.max + f64::EPSILON)
-                    .map(|t| (scale.map(t), crate::svg::num(t)))
-                    .collect()
-            }
+            AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => scale
+                .ticks(6)
+                .into_iter()
+                .filter(|t| *t >= scale.min - f64::EPSILON && *t <= scale.max + f64::EPSILON)
+                .map(|t| (scale.map(t), crate::svg::num(t)))
+                .collect(),
             AxisScale::Temporal { scale, .. } => temporal_ticks(scale)
                 .into_iter()
                 .map(|micros| (scale.map(micros), format_temporal(micros, scale.precision)))
@@ -263,19 +262,22 @@ impl ScaledSpace {
         x_range: (f64, f64),
         y_range: (f64, f64),
         hints: &SpaceDomainHints,
+        scales: &[ScaleIr],
     ) -> Option<ScaledSpace> {
+        let x_config = axis_config(scales, AxisSelectorIr::X);
+        let y_config = axis_config(scales, AxisSelectorIr::Y);
         match frame {
             FrameIr::Cartesian(axes) if axes.len() >= 2 => {
-                let x = build_axis(&axes[0], table, x_range, Some(&hints.x))?;
-                let y = build_axis(&axes[1], table, y_range, Some(&hints.y))?;
+                let x = build_axis(&axes[0], table, x_range, Some(&hints.x), &x_config)?;
+                let y = build_axis(&axes[1], table, y_range, Some(&hints.y), &y_config)?;
                 Some(ScaledSpace { x, y: Some(y) })
             }
             FrameIr::Cartesian(axes) if axes.len() == 1 => {
-                let x = build_axis(&axes[0], table, x_range, Some(&hints.x))?;
+                let x = build_axis(&axes[0], table, x_range, Some(&hints.x), &x_config)?;
                 Some(ScaledSpace { x, y: None })
             }
             FrameIr::Vector(_) | FrameIr::Nested { .. } | FrameIr::Union(_) => {
-                let x = build_axis(frame, table, x_range, Some(&hints.x))?;
+                let x = build_axis(frame, table, x_range, Some(&hints.x), &x_config)?;
                 Some(ScaledSpace { x, y: None })
             }
             _ => None,
@@ -313,9 +315,11 @@ fn build_axis(
     table: &dyn Table,
     range: (f64, f64),
     hints: Option<&AxisDomainHints>,
+    config: &AxisScaleConfig,
 ) -> Option<AxisScale> {
+    let range = config.apply_range(range);
     match frame {
-        FrameIr::Vector(col) => Some(build_vector_axis(col, table, range, hints)),
+        FrameIr::Vector(col) => Some(build_vector_axis(col, table, range, hints, config)),
         FrameIr::Nested { outer, inner } => {
             if let (FrameIr::Vector(o), FrameIr::Vector(i)) = (outer.as_ref(), inner.as_ref()) {
                 let outer_cats = categorical_domain(table, &o.name);
@@ -374,9 +378,13 @@ fn build_axis(
                 hints.apply_numeric(&mut min, &mut max);
                 hints.apply_padding(&mut min, &mut max);
             }
+            if let Some([a, b]) = config.domain {
+                min = a.min(b);
+                max = a.max(b);
+            }
             Some(AxisScale::Union {
                 label,
-                scale: ContinuousScale::new(min, max, range),
+                scale: continuous_scale(min, max, range, config),
             })
         }
         _ => None,
@@ -388,6 +396,7 @@ fn build_vector_axis(
     table: &dyn Table,
     range: (f64, f64),
     hints: Option<&AxisDomainHints>,
+    config: &AxisScaleConfig,
 ) -> AxisScale {
     match col.dtype {
         DataType::Integer | DataType::Float => {
@@ -396,9 +405,13 @@ fn build_vector_axis(
                 hints.apply_numeric(&mut min, &mut max);
                 hints.apply_padding(&mut min, &mut max);
             }
+            if let Some([a, b]) = config.domain {
+                min = a.min(b);
+                max = a.max(b);
+            }
             AxisScale::Continuous {
                 col: col.name.clone(),
-                scale: ContinuousScale::new(min, max, range),
+                scale: continuous_scale(min, max, range, config),
             }
         }
         DataType::Temporal => {
@@ -428,5 +441,53 @@ fn build_vector_axis(
                 scale,
             }
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct AxisScaleConfig {
+    scale_type: Option<ScaleTypeIr>,
+    domain: Option<[f64; 2]>,
+    reverse: bool,
+}
+
+impl AxisScaleConfig {
+    fn apply_range(self, range: (f64, f64)) -> (f64, f64) {
+        if self.reverse {
+            (range.1, range.0)
+        } else {
+            range
+        }
+    }
+}
+
+fn axis_config(scales: &[ScaleIr], axis: AxisSelectorIr) -> AxisScaleConfig {
+    let mut config = AxisScaleConfig::default();
+    for scale in scales {
+        if scale.target == ScaleTargetIr::Axis(axis) {
+            if scale.scale_type.is_some() {
+                config.scale_type = scale.scale_type;
+            }
+            if scale.domain.is_some() {
+                config.domain = scale.domain;
+            }
+            if let Some(reverse) = scale.reverse {
+                config.reverse = reverse;
+            }
+        }
+    }
+    config
+}
+
+fn continuous_scale(
+    min: f64,
+    max: f64,
+    range: (f64, f64),
+    config: &AxisScaleConfig,
+) -> ContinuousScale {
+    if config.scale_type == Some(ScaleTypeIr::Log10) && min > 0.0 && max > 0.0 {
+        ContinuousScale::log10(min, max, range)
+    } else {
+        ContinuousScale::new(min, max, range)
     }
 }

@@ -1,0 +1,7 @@
+Chart(data: "penguins.csv", width: 720, height: 480, title: "Scale-driven legend label") {
+    Scale(fill: species, palette: "accent", label: "Penguin Species")
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, size: 4, alpha: 0.85)
+    }
+}

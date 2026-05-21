@@ -1,8 +1,8 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.1  
-Audience: implementers, language designers, runtime engineers, LSP authors, and test authors  
-Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer  
+Status: Draft 0.2.0
+Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
+Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
 ## 0. Document Contract
 
@@ -29,6 +29,14 @@ The Rust binary parses, validates, serves editor intelligence, evaluates data, t
 The specification is intentionally detailed.
 
 It is written to support implementation without relying on the original chat conversation.
+
+Released version 0.1 behavior is preserved by repository tags.
+
+This working copy is the active Draft 0.2.0 specification.
+
+The v0.2.0 release plan and optional-item audit live in [`V0_2_PLAN.md`](V0_2_PLAN.md).
+
+Items in the plan are planning guidance until they are promoted into normative sections of this specification.
 
 The keyword `MUST` means required behavior.
 
@@ -676,9 +684,21 @@ Comments MAY be omitted from the AST.
 
 The formatter SHOULD preserve comments near their original logical position.
 
-Block comments are not required in version 0.1.
+Block comments begin with `/*` and run until the first `*/`.
 
-If implemented later, block comments SHOULD use `/* ... */`.
+Block comments MAY span multiple lines.
+
+Block comments MUST NOT nest: the first `*/` closes the comment, and any
+`/*` inside the comment body is ordinary comment text.
+
+An unterminated block comment runs to end of input and MUST emit `E0020`.
+
+Block comments are trivia: like line comments they MUST be preserved in the
+CST, MAY be omitted from the AST, and the formatter SHOULD preserve them near
+their original logical position.
+
+> Promoted from v0.1 (where block comments were optional) to a v0.2.0
+> requirement; see `docs/V0_2_PLAN.md`.
 
 ### 6.4 Identifiers
 
@@ -3490,21 +3510,31 @@ It renders bin centers connected by lines.
 
 ### 14.9 Density
 
+> Promoted from a v0.1 `MAY` to a v0.2.0 requirement; see `docs/V0_2_PLAN.md`.
+
 Syntax:
 
 ```ag
-Density(fill: gender, alpha: 0.4)
+Density(fill: "#4c78a8", alpha: 0.4)
+Density(bandwidth: 0.5, n: 256)
 ```
 
 Supported spaces:
 
-1D continuous vector
+1D continuous (numeric) vector
 
-Density computes kernel density estimates.
+Density computes a kernel density estimate of the input column and renders it
+as a filled area from the curve down to a zero baseline.
 
-Version 0.1 MAY omit density if KDE is out of scope.
+Version 0.2.0 MUST advertise `Density` in the registry and implement the KDE
+described in §15.11.
 
-If omitted, registry MUST not advertise it.
+`Density` accepts `bandwidth` (positive number) and `n` (grid points, at least
+2) settings, plus the `fill`, `stroke`, `strokeWidth`, and `alpha` visual
+settings.
+
+A `Density` over a non-numeric column MUST emit `E1404`; over a non-vector
+space it MUST emit `E1302`.
 
 ### 14.10 Smooth
 
@@ -3964,13 +3994,11 @@ For temporal inputs, bin boundary columns are temporal if temporal binning is im
 
 Version 0.1 MUST support numeric binning.
 
-Version 0.1 MAY defer temporal binning even though temporal scales are supported.
+Version 0.2.0 MUST support temporal binning for `Bin` and `Histogram`.
 
-If version 0.1 defers temporal binning, `Bin` applied to a temporal column MUST produce a targeted diagnostic.
+For temporal inputs, `bins`, `boundary`, and `closed` use the same interval assignment semantics as numeric binning over UTC-equivalent microsecond instants.
 
-The diagnostic MUST say that temporal scales are supported but temporal binning is not yet supported.
-
-The diagnostic SHOULD suggest pre-aggregating the CSV or converting the temporal column to an explicit categorical period column.
+Calendar-aware interval syntax such as `interval: "month"` is not required in version 0.2.0.
 
 `Histogram` over a temporal vector MUST trigger the same diagnostic when temporal binning is unavailable.
 
@@ -4053,6 +4081,36 @@ drop rows with missing required columns.
 emit warning count in render metadata.
 
 do not warn for every row.
+
+### 15.11 Density Stat
+
+> Promoted to a v0.2.0 requirement; see `docs/V0_2_PLAN.md`.
+
+The Density stat computes a Gaussian kernel density estimate over a numeric
+input column.
+
+Output columns:
+
+`density_x` — evaluation grid position.
+
+`density` — estimated density at that position.
+
+The estimate MUST be deterministic. The default kernel is Gaussian. The default
+bandwidth MUST use Silverman's rule of thumb,
+`0.9 * min(stddev, IQR / 1.349) * n^(-1/5)`, where `n` is the count of finite
+input values. The estimate MUST be evaluated on a uniform grid of `n` points
+(default 256) spanning the data range extended by three bandwidths on each side.
+
+The `bandwidth` setting overrides the computed bandwidth and MUST be positive.
+
+The `n` setting overrides the grid-point count and MUST be at least 2.
+
+The resulting density MUST integrate to approximately 1.
+
+Fewer than two finite input values produces an empty result.
+
+`Density()` (§14.9) desugars to this stat plus an `Area` geometry over the
+`(density_x, density)` derived table.
 
 ## 16. Scale Training
 
@@ -4334,12 +4392,31 @@ Syntax example:
 
 ```ag
 Scale(axis: x, type: "log10")
+Scale(axis: x, domain: [0, 100])
+Scale(axis: y, reverse: true)
 Scale(fill: species, palette: "accent")
 ```
 
-Version 0.1 MAY implement minimal scale declarations.
+Version 0.2.0 MUST implement source-level `Scale` declarations.
 
-If scale declarations are parsed but unsupported, analyzer MUST emit a clear diagnostic.
+`Scale` declarations MAY appear at chart scope or space scope.
+
+Space-local scale declarations override chart-level declarations for the same target.
+
+Axis scale targets use `Scale(axis: x, ...)` or `Scale(axis: y, ...)`; axis selectors MUST be bare `x` and `y`, not string literals.
+
+Version 0.2.0 MUST support continuous position scale types `"linear"` and `"log10"`.
+
+Version 0.2.0 MUST support numeric position domains with `domain: [min, max]`.
+
+Version 0.2.0 MUST support `reverse: true` for position axes.
+
+Version 0.2.0 MUST support categorical `fill` and `stroke` palette selection with `palette: "default"` and `palette: "accent"`.
+
+Invalid scale/domain combinations MUST emit targeted diagnostics.
+
+Version 0.2.0 MUST support a `label` argument on `fill`/`stroke` scales that
+overrides the column-derived legend title (see §16.13).
 
 ### 16.12 Scale Resolution
 
@@ -4359,6 +4436,23 @@ impl ScaledSpace {
 The geometry uses this API.
 
 Nested behavior is encapsulated in `ScaledSpace`.
+
+### 16.13 Scale-Driven Legend Labels
+
+> Promoted to a v0.2.0 requirement; see `docs/V0_2_PLAN.md`.
+
+A `fill` or `stroke` scale MAY carry a `label` string:
+
+```ag
+Scale(fill: species, label: "Penguin Species")
+```
+
+When present, the label MUST be used as the legend title for that aesthetic
+instead of the column-derived default. `label` MUST be a string literal; a
+non-string value MUST emit `E1204`.
+
+The named categorical palette registry recognizes `"default"` and `"accent"`.
+Unknown palette names MUST emit `E1204`.
 
 ## 17. Layout
 
@@ -4799,7 +4893,7 @@ density y label: `density`
 
 fill-normalized stack y label: `proportion`
 
-Labels MAY be overridden:
+Version 0.2.0 MUST support axis label overrides:
 
 ```ag
 Guide(axis: x, label: "Flipper Length (mm)")
@@ -4808,6 +4902,8 @@ Guide(axis: x, label: "Flipper Length (mm)")
 Axis references MUST use bare `x` and `y` selector values.
 
 Axis references MUST NOT use string literals such as `"x"` in version 0.1.
+
+Axis references MUST NOT use string literals such as `"x"` in version 0.2.0.
 
 ### 19.5 Legend Generation
 
@@ -4835,17 +4931,44 @@ Guide suppression example:
 
 ```ag
 Guide(fill: null)
+Guide(stroke: null)
 ```
 
 Or:
 
 ```ag
 Guide(legend: false)
+Guide(grid: false)
 ```
 
-Final syntax MUST be chosen before implementation.
+Version 0.2.0 MUST support `Guide(legend: false)`.
 
-Version 0.1 SHOULD support at least `Guide(legend: false)`.
+Version 0.2.0 MUST support aesthetic-specific legend suppression with `Guide(fill: null)` and `Guide(stroke: null)`.
+
+Version 0.2.0 MUST support grid suppression with `Guide(grid: false)`.
+
+`Guide` declarations MAY appear at chart scope or space scope.
+
+Space-local guide declarations override chart-level guide declarations for that space.
+
+### 19.7 Legend Merging
+
+> Promoted from a v0.1 `MAY` to a v0.2.0 requirement for `fill`/`stroke`;
+> see `docs/V0_2_PLAN.md`.
+
+When `fill` and `stroke` map to the same categorical column with compatible
+domains, version 0.2.0 MUST merge them into a single legend rather than
+emitting two legends with the same title.
+
+Two discrete legends have compatible domains when their entry labels are
+equal and in the same order.
+
+A merged legend MUST render each swatch with the fill color as the swatch face
+and the stroke color as the swatch outline.
+
+Aesthetics mapped to different columns MUST keep separate legends.
+
+Continuous (gradient) legends are not merged in version 0.2.0.
 
 ## 20. Theme
 
@@ -5226,7 +5349,7 @@ number
 
 comment
 
-Version 0.1 MAY implement basic semantic tokens.
+Version 0.2.0 MUST implement semantic tokens for these categories.
 
 ### 21.12 Code Actions
 
@@ -5260,7 +5383,7 @@ Space((quarter / type) * amount) {
 }
 ```
 
-Version 0.1 MAY omit code actions.
+Version 0.2.0 MUST implement code actions for high-confidence existing diagnostics, including quoted enum/string fixes, quoted color literals, misspelled geometry suggestions, unsupported 3D Cartesian nesting suggestions, and blend-parenthesization fixes.
 
 ### 21.13 Cancellation and Shutdown
 
@@ -6011,6 +6134,12 @@ Chart(data: "examples/heatmap_data.csv") {
 
 `E0017 expected stat call after '='`
 
+`E0018 invalid escape sequence`
+
+`E0019 unterminated quoted identifier`
+
+`E0020 unterminated block comment`
+
 ### 26.2 Semantic Diagnostics
 
 `E1001 Chart requires data argument`
@@ -6435,7 +6564,9 @@ Render command SHOULD offer user-visible errors for files that are too large if 
 
 ### 30.1 Language Version
 
-Version 0.1 is implicit.
+Released version 0.1 files have no source-level version declaration.
+
+Draft version 0.2.0 continues to treat source files as unversioned unless this section is amended before release.
 
 Future files MAY include:
 
@@ -6443,7 +6574,7 @@ Future files MAY include:
 Algraf(version: "0.2")
 ```
 
-This is not version 0.1 syntax.
+This is not version 0.1 syntax and is not part of the v0.2.0 plan unless explicitly promoted.
 
 ### 30.2 Stability
 
@@ -6466,6 +6597,18 @@ plugins
 custom stats
 
 advanced quoted-identifier escape modes
+
+### 30.4 Version 0.2.0 Planning
+
+Version 0.2.0 development is tracked in [`V0_2_PLAN.md`](V0_2_PLAN.md).
+
+The release theme is chart control and editing polish.
+
+The intended v0.2.0 scope promotes a selected subset of original optional or deferred items.
+
+Promoted items MUST be copied into the relevant normative sections of this specification before or alongside implementation.
+
+Deferred optional items remain non-commitments until explicitly promoted.
 
 ## 31. Implementation Milestones
 

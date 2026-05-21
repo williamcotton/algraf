@@ -1,0 +1,13 @@
+Chart(data: "signups.csv", width: 760, height: 460, title: "Signups over the launch quarter") {
+    Guide(axis: x, label: "Signup date")
+
+    Space(signup_date) {
+        Histogram(
+            bins: 24,
+            fill: "steelblue",
+            stroke: "#ffffff",
+            strokeWidth: 1,
+            alpha: 0.86,
+        )
+    }
+}

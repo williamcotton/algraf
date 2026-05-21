@@ -16,6 +16,10 @@ RFC-2119-style keywords (`MUST`, `SHOULD`, `MAY`, `MUST NOT`) and assigns stable
 diagnostic codes (e.g. `E0012`); honor both. When code intentionally deviates
 from a `SHOULD`, document why in a comment.
 
+Active v0.2.0 planning lives in `docs/V0_2_PLAN.md`. Before promoting an
+old `MAY`, deferred item, or "later versions" idea into implementation scope,
+check that plan and then update the relevant normative spec section.
+
 ## Workspace layout
 
 Cargo workspace with seven crates under `crates/` (see spec §23):

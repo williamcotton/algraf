@@ -103,12 +103,26 @@ pub const CATEGORICAL_PALETTE: &[&str] = &[
     "#9C755F", "#BAB0AC",
 ];
 
+/// A higher-contrast categorical palette for `Scale(..., palette: "accent")`.
+pub const ACCENT_PALETTE: &[&str] = &[
+    "#006BA4", "#FF800E", "#ABABAB", "#595959", "#5F9ED1", "#C85200", "#898989", "#A2C8EC",
+    "#FFBC79", "#CFCFCF",
+];
+
 /// The default continuous gradient stops (spec §16.8), perceptually ordered.
 pub const CONTINUOUS_GRADIENT: &[&str] = &["#440154", "#31688E", "#35B779", "#FDE725"];
 
-/// Pick a categorical color by stable index (wraps around the palette).
-pub fn categorical_color(index: usize) -> &'static str {
-    CATEGORICAL_PALETTE[index % CATEGORICAL_PALETTE.len()]
+pub fn palette_colors(name: Option<&str>) -> &'static [&'static str] {
+    match name {
+        Some("accent") => ACCENT_PALETTE,
+        _ => CATEGORICAL_PALETTE,
+    }
+}
+
+/// Pick a categorical color from a named palette by stable index.
+pub fn categorical_color_from(name: Option<&str>, index: usize) -> &'static str {
+    let palette = palette_colors(name);
+    palette[index % palette.len()]
 }
 
 /// Interpolate the continuous gradient at `t` in `[0, 1]`, returning a hex color.

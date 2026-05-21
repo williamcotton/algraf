@@ -37,7 +37,7 @@ pub struct Layout {
 const MARGIN_TOP: f64 = 40.0;
 const MARGIN_RIGHT: f64 = 30.0;
 const MARGIN_BOTTOM: f64 = 50.0;
-const MARGIN_LEFT: f64 = 60.0;
+pub(crate) const MARGIN_LEFT: f64 = 60.0;
 const LEGEND_WIDTH: f64 = 120.0;
 const FACET_GAP_X: f64 = 24.0;
 const FACET_AXIS_GAP_X: f64 = 72.0;
@@ -49,10 +49,11 @@ const FACET_STRIP_GAP: f64 = 6.0;
 impl Layout {
     /// Compute layout for the given SVG dimensions (spec §17.3, fixed margins).
     pub fn compute(width: f64, height: f64, has_legend: bool, has_axes: bool) -> Layout {
-        Layout::compute_with_text(width, height, has_legend, has_axes, 0.0, 0.0)
+        Layout::compute_with_text(width, height, has_legend, has_axes, 0.0, 0.0, 0.0)
     }
 
-    /// Compute layout with extra title/caption reserve.
+    /// Compute layout with extra title/caption reserve. `left_extra` widens the
+    /// left margin to make room for wide y tick labels (spec §17.3).
     pub fn compute_with_text(
         width: f64,
         height: f64,
@@ -60,6 +61,7 @@ impl Layout {
         has_axes: bool,
         top_extra: f64,
         bottom_extra: f64,
+        left_extra: f64,
     ) -> Layout {
         let (top, right, bottom, left) = if has_axes {
             (MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT)
@@ -68,6 +70,7 @@ impl Layout {
         };
         let top = top + top_extra.max(0.0);
         let bottom = bottom + bottom_extra.max(0.0);
+        let left = left + left_extra.max(0.0);
         let legend_reserve = if has_legend { LEGEND_WIDTH } else { 0.0 };
 
         let plot = Rect {
@@ -115,6 +118,7 @@ impl Layout {
             columns,
             0.0,
             0.0,
+            0.0,
         )
     }
 
@@ -129,9 +133,17 @@ impl Layout {
         columns: Option<usize>,
         top_extra: f64,
         bottom_extra: f64,
+        left_extra: f64,
     ) -> Layout {
-        let mut layout =
-            Layout::compute_with_text(width, height, has_legend, has_axes, top_extra, bottom_extra);
+        let mut layout = Layout::compute_with_text(
+            width,
+            height,
+            has_legend,
+            has_axes,
+            top_extra,
+            bottom_extra,
+            left_extra,
+        );
         let panel_count = panel_count.max(1);
         let columns = columns
             .filter(|c| *c > 0)

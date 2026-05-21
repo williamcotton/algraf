@@ -54,6 +54,7 @@ const DEFAULT_WIDTH: u32 = 800;
 const DEFAULT_HEIGHT: u32 = 520;
 const CHART_ARGS: &[&str] = &["data", "width", "height", "title", "subtitle", "caption"];
 const THEME_NAMES: &[&str] = &["minimal", "classic", "light", "dark", "void"];
+const PALETTE_NAMES: &[&str] = &["default", "accent"];
 
 /// A resolvable table: column name to type, in declared order.
 struct ActiveTable {
@@ -117,8 +118,10 @@ impl<'a> Analyzer<'a> {
         let mut derived_tables = Vec::new();
         let mut layout = LayoutIr::default();
         let mut guides = GuideIr::default();
+        let mut scales = Vec::new();
         let mut theme: Option<String> = None;
         let mut spaces = Vec::new();
+        let primary_table = ActiveTable::from_schema(self.primary);
         for item in chart.items() {
             match item {
                 ChartItem::Derive(d) => {
@@ -138,13 +141,21 @@ impl<'a> Analyzer<'a> {
                     spaces.extend(analysis.spaces);
                 }
                 ChartItem::Layout(decl) => self.layout_decl(&decl, &mut layout),
-                ChartItem::Guide(decl) => self.guide_decl(&decl, &mut guides),
+                ChartItem::Guide(decl) => {
+                    let mut overrides = GuideOverridesIr::default();
+                    self.guide_decl(&decl, &mut overrides);
+                    guides = guides.with_overrides(&overrides);
+                }
                 ChartItem::Theme(decl) => {
                     if let Some(name) = self.theme_decl(&decl) {
                         theme = Some(name);
                     }
                 }
-                ChartItem::Scale(decl) => self.unsupported_decl(&decl),
+                ChartItem::Scale(decl) => {
+                    if let Some(scale) = self.scale_decl(&decl, &primary_table) {
+                        scales.push(scale);
+                    }
+                }
                 ChartItem::Error(_) => {}
             }
         }
@@ -154,6 +165,7 @@ impl<'a> Analyzer<'a> {
             derived_tables,
             layout,
             guides,
+            scales,
             theme,
             title,
             subtitle,
@@ -325,9 +337,9 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    fn guide_decl(&mut self, decl: &Decl, guides: &mut GuideIr) {
+    fn guide_decl(&mut self, decl: &Decl, guides: &mut GuideOverridesIr) {
         let mut seen: HashMap<String, Span> = HashMap::new();
-        let mut axis: Option<AxisSelector> = None;
+        let mut axis: Option<AxisSelectorIr> = None;
         let mut label: Option<String> = None;
         for arg in decl.args() {
             let Some(key) = arg.key() else { continue };
@@ -348,7 +360,7 @@ impl<'a> Analyzer<'a> {
             match key.as_str() {
                 "legend" => match arg.value() {
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Bool) => {
-                        guides.legend = lit.text().as_deref() == Some("true");
+                        guides.legend = Some(lit.text().as_deref() == Some("true"));
                     }
                     Some(value) => self.diag(Diagnostic::error(
                         "E1204",
@@ -361,8 +373,8 @@ impl<'a> Analyzer<'a> {
                     Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
                         let raw = name.name().unwrap_or_default();
                         match raw.as_str() {
-                            "x" => axis = Some(AxisSelector::X),
-                            "y" => axis = Some(AxisSelector::Y),
+                            "x" => axis = Some(AxisSelectorIr::X),
+                            "y" => axis = Some(AxisSelectorIr::Y),
                             _ => self.diag(Diagnostic::error(
                                 "E1204",
                                 "`axis` expects bare `x` or `y`",
@@ -390,11 +402,33 @@ impl<'a> Analyzer<'a> {
                 },
                 "fill" => match arg.value() {
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Null) => {
-                        guides.fill_legend = false;
+                        guides.fill_legend = Some(false);
                     }
                     Some(value) => self.diag(Diagnostic::error(
                         "E1204",
                         "`fill` in `Guide` expects `null` to suppress the legend",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                "stroke" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Null) => {
+                        guides.stroke_legend = Some(false);
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`stroke` in `Guide` expects `null` to suppress the legend",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                "grid" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Bool) => {
+                        guides.grid = Some(lit.text().as_deref() == Some("true"));
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`grid` expects a boolean literal",
                         node_span(value.syntax()),
                     )),
                     None => {}
@@ -407,8 +441,8 @@ impl<'a> Analyzer<'a> {
             }
         }
         match (axis, label) {
-            (Some(AxisSelector::X), Some(text)) => guides.x_label = Some(text),
-            (Some(AxisSelector::Y), Some(text)) => guides.y_label = Some(text),
+            (Some(AxisSelectorIr::X), Some(text)) => guides.x_label = Some(text),
+            (Some(AxisSelectorIr::Y), Some(text)) => guides.y_label = Some(text),
             (Some(_), None) => self.diag(Diagnostic::warning(
                 "W2006",
                 "`Guide(axis: ...)` without `label:` has no effect",
@@ -420,6 +454,233 @@ impl<'a> Analyzer<'a> {
                 node_span(decl.syntax()),
             )),
             (None, None) => {}
+        }
+    }
+
+    fn scale_decl(&mut self, decl: &Decl, table: &ActiveTable) -> Option<ScaleIr> {
+        let span = node_span(decl.syntax());
+        let mut seen: HashMap<String, Span> = HashMap::new();
+        let mut target: Option<ScaleTargetIr> = None;
+        let mut scale_type = None;
+        let mut domain = None;
+        let mut reverse = None;
+        let mut palette = None;
+        let mut label = None;
+
+        for arg in decl.args() {
+            let Some(key) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if let Some(&first) = seen.get(&key) {
+                self.diag(
+                    Diagnostic::error(
+                        "E1002",
+                        format!("duplicate Scale argument `{key}`"),
+                        key_span,
+                    )
+                    .with_related(first, "first defined here"),
+                );
+                continue;
+            }
+            seen.insert(key.clone(), key_span);
+
+            match key.as_str() {
+                "axis" => {
+                    if let Some(axis) = self.axis_selector(&arg, "`axis` expects bare `x` or `y`") {
+                        self.set_scale_target(&mut target, ScaleTargetIr::Axis(axis), key_span);
+                    }
+                }
+                "fill" | "stroke" => match arg.value() {
+                    Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
+                        let column = self.resolve_column(&name, table);
+                        self.set_scale_target(
+                            &mut target,
+                            ScaleTargetIr::Aesthetic {
+                                aesthetic: key,
+                                column: Some(column),
+                            },
+                            key_span,
+                        );
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        format!("`{key}` in `Scale` expects a column name"),
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                "type" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        let value = string_value(&lit.text().unwrap_or_default());
+                        match value.as_str() {
+                            "linear" => scale_type = Some(ScaleTypeIr::Linear),
+                            "log10" => scale_type = Some(ScaleTypeIr::Log10),
+                            _ => self.diag(Diagnostic::error(
+                                "E1204",
+                                format!("unknown scale type `{value}`"),
+                                node_span(lit.syntax()),
+                            )),
+                        }
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`type` expects a string literal",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                "domain" => {
+                    if let Some(value) = arg.value() {
+                        match ValueForm::of(&value) {
+                            ValueForm::Array(Some(values))
+                                if values.len() == 2
+                                    && values[0].is_finite()
+                                    && values[1].is_finite()
+                                    && (values[0] - values[1]).abs() > f64::EPSILON =>
+                            {
+                                domain = Some([values[0], values[1]]);
+                            }
+                            _ => self.diag(Diagnostic::error(
+                                "E1204",
+                                "`domain` expects two finite numeric values",
+                                node_span(value.syntax()),
+                            )),
+                        }
+                    }
+                }
+                "reverse" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Bool) => {
+                        reverse = Some(lit.text().as_deref() == Some("true"));
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`reverse` expects a boolean literal",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                "palette" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        let value = string_value(&lit.text().unwrap_or_default());
+                        if PALETTE_NAMES.contains(&value.as_str()) {
+                            palette = Some(value);
+                        } else {
+                            self.diag(Diagnostic::error(
+                                "E1204",
+                                format!("unknown palette `{value}`"),
+                                node_span(lit.syntax()),
+                            ));
+                        }
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`palette` expects a string literal",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                "label" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        label = Some(string_value(&lit.text().unwrap_or_default()));
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`label` expects a string literal",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                _ => self.diag(Diagnostic::error(
+                    "E1003",
+                    format!("unsupported Scale argument `{key}`"),
+                    key_span,
+                )),
+            }
+        }
+
+        let Some(target) = target else {
+            self.diag(Diagnostic::error(
+                "E1204",
+                "`Scale` requires `axis`, `fill`, or `stroke`",
+                span,
+            ));
+            return None;
+        };
+
+        match &target {
+            ScaleTargetIr::Axis(_) => {
+                if palette.is_some() {
+                    self.diag(Diagnostic::error(
+                        "E1204",
+                        "`palette` applies only to fill or stroke scales",
+                        span,
+                    ));
+                }
+            }
+            ScaleTargetIr::Aesthetic { .. } => {
+                if scale_type.is_some() || domain.is_some() || reverse.is_some() {
+                    self.diag(Diagnostic::error(
+                        "E1204",
+                        "`type`, `domain`, and `reverse` apply only to axis scales",
+                        span,
+                    ));
+                }
+            }
+        }
+
+        Some(ScaleIr {
+            target,
+            scale_type,
+            domain,
+            reverse,
+            palette,
+            label,
+            span,
+        })
+    }
+
+    fn axis_selector(&mut self, arg: &Arg, message: &'static str) -> Option<AxisSelectorIr> {
+        match arg.value() {
+            Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
+                let raw = name.name().unwrap_or_default();
+                match raw.as_str() {
+                    "x" => Some(AxisSelectorIr::X),
+                    "y" => Some(AxisSelectorIr::Y),
+                    _ => {
+                        self.diag(Diagnostic::error(
+                            "E1204",
+                            message,
+                            node_span(name.syntax()),
+                        ));
+                        None
+                    }
+                }
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    "E1204",
+                    message,
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn set_scale_target(
+        &mut self,
+        target: &mut Option<ScaleTargetIr>,
+        next: ScaleTargetIr,
+        span: Span,
+    ) {
+        if target.is_some() {
+            self.diag(Diagnostic::error(
+                "E1204",
+                "`Scale` accepts only one target",
+                span,
+            ));
+        } else {
+            *target = Some(next);
         }
     }
 
@@ -473,17 +734,6 @@ impl<'a> Analyzer<'a> {
         name_out
     }
 
-    fn unsupported_decl(&mut self, decl: &Decl) {
-        self.diag(Diagnostic::warning(
-            "W2006",
-            format!(
-                "{} declarations are parsed but not implemented in version 0.1",
-                decl.keyword()
-            ),
-            node_span(decl.syntax()),
-        ));
-    }
-
     // --- Derive (spec §13.4) ---
 
     fn derive(&mut self, derive: &DeriveDecl) -> Option<DeriveIr> {
@@ -510,22 +760,20 @@ impl<'a> Analyzer<'a> {
             return None;
         }
 
-        // Bin reads the primary table; its input must be one numeric column.
+        // Bin reads the primary table; its input must be one numeric or temporal column.
         let table = ActiveTable::from_schema(self.primary);
         let input = stat.input();
         let input_frame = match &input {
             Some(AlgebraExpr::Name(n)) => {
                 let col = self.resolve_column(n, &table);
                 match col.dtype {
-                    DataType::Temporal => self.diag(Diagnostic::error(
-                        "E1405",
-                        "temporal binning is not supported in this version",
-                        col.span,
-                    )),
-                    DataType::Integer | DataType::Float | DataType::Unknown => {}
+                    DataType::Temporal
+                    | DataType::Integer
+                    | DataType::Float
+                    | DataType::Unknown => {}
                     _ => self.diag(Diagnostic::error(
                         "E1404",
-                        format!("Bin input column `{}` is not numeric", col.name),
+                        format!("Bin input column `{}` is not numeric or temporal", col.name),
                         col.span,
                     )),
                 }
@@ -534,7 +782,7 @@ impl<'a> Analyzer<'a> {
             _ => {
                 self.diag(Diagnostic::error(
                     "E1404",
-                    "Bin requires a single numeric column as input",
+                    "Bin requires a single numeric or temporal column as input",
                     stat_span,
                 ));
                 FrameIr::Invalid
@@ -542,7 +790,10 @@ impl<'a> Analyzer<'a> {
         };
 
         let settings = self.collect_bin_settings(&stat.args(), stat_span);
-        let output_schema = bin_output_schema();
+        let output_schema = match &input_frame {
+            FrameIr::Vector(column) => bin_output_schema(column.dtype),
+            _ => bin_output_schema(DataType::Float),
+        };
 
         Some(DeriveIr {
             name,
@@ -683,8 +934,11 @@ impl<'a> Analyzer<'a> {
 
         let mut geometries = Vec::new();
         let mut histograms = Vec::new();
+        let mut densities = Vec::new();
         let mut count_bars = Vec::new();
         let mut theme: Option<String> = None;
+        let mut guides = GuideOverridesIr::default();
+        let mut scales = Vec::new();
         let mut saw_geometry = false;
         for item in space.items() {
             match item {
@@ -693,6 +947,8 @@ impl<'a> Analyzer<'a> {
                     if let Some(geo) = self.geometry(&call, &frame, &table) {
                         if geo.kind == GeometryKind::Histogram {
                             histograms.push(geo);
+                        } else if geo.kind == GeometryKind::Density {
+                            densities.push(geo);
                         } else if geo.kind == GeometryKind::Bar && has_count_stat(&geo) {
                             count_bars.push(geo);
                         } else {
@@ -705,7 +961,12 @@ impl<'a> Analyzer<'a> {
                         theme = Some(name);
                     }
                 }
-                SpaceItem::Scale(decl) | SpaceItem::Guide(decl) => self.unsupported_decl(&decl),
+                SpaceItem::Scale(decl) => {
+                    if let Some(scale) = self.scale_decl(&decl, &table) {
+                        scales.push(scale);
+                    }
+                }
+                SpaceItem::Guide(decl) => self.guide_decl(&decl, &mut guides),
                 SpaceItem::Error(_) => {}
             }
         }
@@ -715,17 +976,38 @@ impl<'a> Analyzer<'a> {
 
         let mut analysis = SpaceAnalysis::default();
         for histogram in histograms {
-            if let Some((derive, histogram_space)) =
-                self.desugar_histogram(&histogram, &frame, theme.clone())
-            {
+            if let Some((derive, histogram_space)) = self.desugar_histogram(
+                &histogram,
+                &frame,
+                theme.clone(),
+                guides.clone(),
+                scales.clone(),
+            ) {
                 analysis.derived.push(derive);
                 analysis.spaces.push(histogram_space);
             }
         }
+        for density in densities {
+            if let Some((derive, density_space)) = self.desugar_density(
+                &density,
+                &frame,
+                theme.clone(),
+                guides.clone(),
+                scales.clone(),
+            ) {
+                analysis.derived.push(derive);
+                analysis.spaces.push(density_space);
+            }
+        }
         for bar in count_bars {
-            if let Some((derive, count_space)) =
-                self.desugar_count_bar(&bar, &frame, &data_ref, theme.clone())
-            {
+            if let Some((derive, count_space)) = self.desugar_count_bar(
+                &bar,
+                &frame,
+                &data_ref,
+                theme.clone(),
+                guides.clone(),
+                scales.clone(),
+            ) {
                 analysis.derived.push(derive);
                 analysis.spaces.push(count_space);
             }
@@ -735,6 +1017,8 @@ impl<'a> Analyzer<'a> {
                 data: data_ref,
                 frame,
                 geometries,
+                guides,
+                scales,
                 theme,
                 span,
             });
@@ -747,6 +1031,8 @@ impl<'a> Analyzer<'a> {
         histogram: &GeometryIr,
         frame: &FrameIr,
         theme: Option<String>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
         let FrameIr::Vector(input) = frame else {
             self.diag(Diagnostic::error(
@@ -758,24 +1044,14 @@ impl<'a> Analyzer<'a> {
         };
 
         match input.dtype {
-            DataType::Temporal => {
-                self.diag(
-                    Diagnostic::error(
-                        "E1405",
-                        "temporal scales are supported, but temporal binning is not yet supported",
-                        input.span,
-                    )
-                    .with_help(
-                        "pre-aggregate the CSV or convert the temporal column to a categorical period",
-                    ),
-                );
-                return None;
-            }
-            DataType::Integer | DataType::Float | DataType::Unknown => {}
+            DataType::Temporal | DataType::Integer | DataType::Float | DataType::Unknown => {}
             _ => {
                 self.diag(Diagnostic::error(
                     "E1404",
-                    format!("Histogram input column `{}` is not numeric", input.name),
+                    format!(
+                        "Histogram input column `{}` is not numeric or temporal",
+                        input.name
+                    ),
                     input.span,
                 ));
                 return None;
@@ -784,7 +1060,7 @@ impl<'a> Analyzer<'a> {
 
         let name = self.next_histogram_name();
         let settings = self.histogram_bin_settings(histogram);
-        let output_schema = bin_output_schema();
+        let output_schema = bin_output_schema(input.dtype);
         let derive = DeriveIr {
             name: name.clone(),
             stat: StatCallIr {
@@ -797,8 +1073,9 @@ impl<'a> Analyzer<'a> {
             span: histogram.span,
         };
 
-        let bin_start = synthetic_column("bin_start", DataType::Float, histogram.span);
-        let bin_end = synthetic_column("bin_end", DataType::Float, histogram.span);
+        let boundary_dtype = bin_boundary_dtype(input.dtype);
+        let bin_start = synthetic_column("bin_start", boundary_dtype, histogram.span);
+        let bin_end = synthetic_column("bin_end", boundary_dtype, histogram.span);
         let count = synthetic_column("count", DataType::Integer, histogram.span);
         let rect = GeometryIr {
             kind: GeometryKind::Rect,
@@ -823,10 +1100,133 @@ impl<'a> Analyzer<'a> {
             data: SpaceDataRef::Derived(name),
             frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
             geometries: vec![rect],
+            guides,
+            scales,
             theme,
             span: histogram.span,
         };
         Some((derive, space))
+    }
+
+    /// Desugar `Density()` over a 1D numeric vector space into a kernel-density
+    /// derived table and a 2D `Area` space (spec §15.11). The KDE produces
+    /// `density_x` and `density` columns; the area is drawn from the curve down
+    /// to a zero baseline, mirroring how `Histogram` desugars to `Rect`.
+    fn desugar_density(
+        &mut self,
+        density: &GeometryIr,
+        frame: &FrameIr,
+        theme: Option<String>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+    ) -> Option<(DeriveIr, SpaceIr)> {
+        let FrameIr::Vector(input) = frame else {
+            self.diag(Diagnostic::error(
+                "E1302",
+                "Density requires a single numeric vector space",
+                density.span,
+            ));
+            return None;
+        };
+
+        match input.dtype {
+            DataType::Integer | DataType::Float | DataType::Unknown => {}
+            _ => {
+                self.diag(Diagnostic::error(
+                    "E1404",
+                    format!("Density input column `{}` is not numeric", input.name),
+                    input.span,
+                ));
+                return None;
+            }
+        }
+
+        let name = self.next_density_name();
+        let settings = self.density_settings(density);
+        let output_schema = vec![
+            ColumnDefIr {
+                name: "density_x".into(),
+                dtype: DataType::Float,
+            },
+            ColumnDefIr {
+                name: "density".into(),
+                dtype: DataType::Float,
+            },
+        ];
+        let derive = DeriveIr {
+            name: name.clone(),
+            stat: StatCallIr {
+                kind: StatKind::Density,
+                input: FrameIr::Vector(input.clone()),
+                settings,
+                span: density.span,
+            },
+            output_schema,
+            span: density.span,
+        };
+
+        let density_x = synthetic_column("density_x", DataType::Float, density.span);
+        let density_y = synthetic_column("density", DataType::Float, density.span);
+        let area = GeometryIr {
+            kind: GeometryKind::Area,
+            mappings: Vec::new(),
+            settings: density_area_settings(density),
+            span: density.span,
+        };
+        let space = SpaceIr {
+            data: SpaceDataRef::Derived(name),
+            frame: FrameIr::Cartesian(vec![FrameIr::Vector(density_x), FrameIr::Vector(density_y)]),
+            geometries: vec![area],
+            guides,
+            scales,
+            theme,
+            span: density.span,
+        };
+        Some((derive, space))
+    }
+
+    fn density_settings(&mut self, density: &GeometryIr) -> Vec<Setting> {
+        let settings: Vec<Setting> = density
+            .settings
+            .iter()
+            .filter(|setting| matches!(setting.name.as_str(), "bandwidth" | "n"))
+            .map(|setting| Setting {
+                name: setting.name.clone(),
+                value: setting.value.clone(),
+            })
+            .collect();
+
+        if settings.iter().any(|setting| {
+            setting.name == "bandwidth"
+                && !matches!(setting.value, SettingValue::Number(value) if value > 0.0)
+        }) {
+            self.diag(Diagnostic::error(
+                "E1404",
+                "`bandwidth` must be greater than 0",
+                density.span,
+            ));
+        }
+        if settings.iter().any(|setting| {
+            setting.name == "n"
+                && !matches!(setting.value, SettingValue::Number(value) if value >= 2.0)
+        }) {
+            self.diag(Diagnostic::error(
+                "E1404",
+                "`n` must be at least 2",
+                density.span,
+            ));
+        }
+        settings
+    }
+
+    fn next_density_name(&mut self) -> String {
+        loop {
+            let name = format!("__density_{}", self.synthetic_counter);
+            self.synthetic_counter += 1;
+            if !self.derived.contains_key(&name) && !self.reserved_derived_names.contains(&name) {
+                return name;
+            }
+        }
     }
 
     /// Desugar `Bar(stat: "count")` over a 1D categorical space into a Count
@@ -837,6 +1237,8 @@ impl<'a> Analyzer<'a> {
         frame: &FrameIr,
         data_ref: &SpaceDataRef,
         theme: Option<String>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
         // Find the categorical group column(s). For 0.1, support 1D categorical
         // space (`Space(category)`) and nested 1D (`Space(outer / inner)`).
@@ -957,6 +1359,8 @@ impl<'a> Analyzer<'a> {
             data: SpaceDataRef::Derived(name),
             frame: FrameIr::Cartesian(vec![x_frame, FrameIr::Vector(count_col)]),
             geometries: vec![bar_ir],
+            guides,
+            scales,
             theme,
             span: bar.span,
         };
@@ -1417,12 +1821,6 @@ enum PropOutcome {
     Invalid,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum AxisSelector {
-    X,
-    Y,
-}
-
 #[derive(Default)]
 struct SpaceAnalysis {
     derived: Vec<DeriveIr>,
@@ -1636,19 +2034,20 @@ fn chart_derived_names(chart: &ChartBlock) -> HashSet<String> {
         .collect()
 }
 
-fn bin_output_schema() -> Vec<ColumnDefIr> {
+fn bin_output_schema(input_dtype: DataType) -> Vec<ColumnDefIr> {
+    let boundary_dtype = bin_boundary_dtype(input_dtype);
     vec![
         ColumnDefIr {
             name: "bin_start".into(),
-            dtype: DataType::Float,
+            dtype: boundary_dtype,
         },
         ColumnDefIr {
             name: "bin_end".into(),
-            dtype: DataType::Float,
+            dtype: boundary_dtype,
         },
         ColumnDefIr {
             name: "bin_center".into(),
-            dtype: DataType::Float,
+            dtype: boundary_dtype,
         },
         ColumnDefIr {
             name: "count".into(),
@@ -1659,6 +2058,14 @@ fn bin_output_schema() -> Vec<ColumnDefIr> {
             dtype: DataType::Float,
         },
     ]
+}
+
+fn bin_boundary_dtype(input_dtype: DataType) -> DataType {
+    if input_dtype == DataType::Temporal {
+        DataType::Temporal
+    } else {
+        DataType::Float
+    }
 }
 
 fn synthetic_column(name: &str, dtype: DataType, span: Span) -> ColumnRef {
@@ -1676,6 +2083,28 @@ fn histogram_rect_settings(histogram: &GeometryIr) -> Vec<GeometrySetting> {
     }];
     settings.extend(
         histogram
+            .settings
+            .iter()
+            .filter(|setting| {
+                matches!(
+                    setting.name.as_str(),
+                    "fill" | "stroke" | "strokeWidth" | "alpha"
+                )
+            })
+            .cloned(),
+    );
+    settings
+}
+
+/// Pass the visual settings of a `Density` geometry through to the `Area` it
+/// desugars into. The KDE curve is filled to a zero baseline.
+fn density_area_settings(density: &GeometryIr) -> Vec<GeometrySetting> {
+    let mut settings = vec![GeometrySetting {
+        name: "baseline".into(),
+        value: SettingValue::Number(0.0),
+    }];
+    settings.extend(
+        density
             .settings
             .iter()
             .filter(|setting| {

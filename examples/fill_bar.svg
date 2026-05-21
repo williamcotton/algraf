@@ -35,7 +35,7 @@
   <text x="52" y="414" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
   <line x1="55" y1="40" x2="60" y2="40" stroke="#333333" stroke-width="1" />
   <text x="52" y="44" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
-  <text x="16" y="225" text-anchor="middle" transform="rotate(-90 16 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">amount</text>
+  <text x="38.8" y="225" text-anchor="middle" transform="rotate(-90 38.8 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">amount</text>
 </g>
 <g class="algraf-legends">
   <text x="626" y="44" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">type</text>

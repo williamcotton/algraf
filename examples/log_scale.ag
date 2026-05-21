@@ -1,0 +1,8 @@
+Chart(data: "cities.csv", width: 720, height: 460, title: "Population across settlement sizes") {
+    Scale(axis: y, type: "log10", domain: [100, 10000000])
+    Guide(axis: y, label: "Population (log scale)")
+
+    Space(place * population) {
+        Point(fill: place, size: 6)
+    }
+}

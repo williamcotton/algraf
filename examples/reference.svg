@@ -75,6 +75,6 @@
   <text x="52" y="183.182" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5000</text>
   <line x1="55" y1="100.365" x2="60" y2="100.365" stroke="#333333" stroke-width="1" />
   <text x="52" y="104.365" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5500</text>
-  <text x="16" y="258" text-anchor="middle" transform="rotate(-90 16 258)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">body mass</text>
+  <text x="17.2" y="258" text-anchor="middle" transform="rotate(-90 17.2 258)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">body mass</text>
 </g>
 </svg>

@@ -6,14 +6,15 @@ use std::collections::HashMap;
 use algraf_core::Diagnostic;
 use algraf_data::{DataFrame, Table};
 use algraf_semantics::{
-    ir::Setting, ChartIr, ColumnRef, FrameIr, GeometryIr, SettingValue, SpaceDataRef, StatKind,
+    ir::Setting, AxisSelectorIr, ChartIr, ColumnRef, FrameIr, GeometryIr, GuideIr, ScaleIr,
+    ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, StatKind,
 };
 
-use crate::aes::{color_spec, Legend};
+use crate::aes::{color_spec, Legend, LegendKind};
 use crate::domains::train_space_domains;
 use crate::error::RenderError;
 use crate::guide;
-use crate::layout::{Layout, Rect};
+use crate::layout::{Layout, Rect, MARGIN_LEFT};
 use crate::scale::{categorical_domain, cell_category};
 use crate::space::ScaledSpace;
 use crate::stats;
@@ -37,6 +38,8 @@ struct Panel<'t> {
     label: Option<String>,
     facet_index: Option<usize>,
     theme: Theme,
+    guides: GuideIr,
+    scales: Vec<ScaleIr>,
 }
 
 /// Render a chart IR against its primary data table (spec §24.4).
@@ -62,11 +65,12 @@ pub fn render(
     let (top_extra, bottom_extra) = chart_text_reserve(ir, theme);
     // A first pass with a provisional layout to discover legends.
     let provisional =
-        Layout::compute_with_text(width, height, false, has_axes, top_extra, bottom_extra);
-    let legends = if ir.guides.legend {
-        collect_legends(ir, primary, &derived, &provisional, ir.guides.fill_legend)
+        Layout::compute_with_text(width, height, false, has_axes, top_extra, bottom_extra, 0.0);
+    let legends = collect_legends(ir, primary, &derived, &provisional);
+    let left_extra = if has_axes {
+        y_label_left_extra(ir, primary, &derived, &provisional, theme)
     } else {
-        Vec::new()
+        0.0
     };
     let facet_panel_count = facet_panel_count(ir, primary, &derived);
     let layout = match facet_panel_count {
@@ -79,6 +83,7 @@ pub fn render(
             ir.layout.facet_columns,
             top_extra,
             bottom_extra,
+            left_extra,
         ),
         None => Layout::compute_with_text(
             width,
@@ -87,6 +92,7 @@ pub fn render(
             has_axes,
             top_extra,
             bottom_extra,
+            left_extra,
         ),
     };
 
@@ -97,6 +103,9 @@ pub fn render(
     for space in &ir.spaces {
         let table = active_table(&space.data, primary, &derived);
         let panel_theme = resolve_space_theme(theme, space.theme.as_deref(), cli_theme_override);
+        let space_guides = ir.guides.with_overrides(&space.guides);
+        let space_scales = merged_scales(&ir.scales, &space.scales);
+        validate_scale_configs(&space.frame, &space_scales, space.span, &mut diagnostics);
         if let Some((plane, facet_col)) = facet_frame(&space.frame) {
             let domain_hints = train_space_domains(plane, table, &space.geometries);
             for (index, category) in facet_categories(table, &facet_col.name).iter().enumerate() {
@@ -105,7 +114,14 @@ pub fn render(
                 };
                 let x_range = (facet.plot.x, facet.plot.right());
                 let y_range = (facet.plot.bottom(), facet.plot.y);
-                match ScaledSpace::build(plane, table, x_range, y_range, &domain_hints) {
+                match ScaledSpace::build(
+                    plane,
+                    table,
+                    x_range,
+                    y_range,
+                    &domain_hints,
+                    &space_scales,
+                ) {
                     Some(scaled) => panels.push(Panel {
                         table,
                         scaled,
@@ -115,6 +131,8 @@ pub fn render(
                         label: Some(category.clone()),
                         facet_index: Some(index),
                         theme: panel_theme.clone(),
+                        guides: space_guides.clone(),
+                        scales: space_scales.clone(),
                     }),
                     None => diagnostics.push(Diagnostic::warning(
                         "R0003",
@@ -125,7 +143,14 @@ pub fn render(
             }
         } else {
             let domain_hints = train_space_domains(&space.frame, table, &space.geometries);
-            match ScaledSpace::build(&space.frame, table, x_range, y_range, &domain_hints) {
+            match ScaledSpace::build(
+                &space.frame,
+                table,
+                x_range,
+                y_range,
+                &domain_hints,
+                &space_scales,
+            ) {
                 Some(scaled) => panels.push(Panel {
                     table,
                     scaled,
@@ -135,6 +160,8 @@ pub fn render(
                     label: None,
                     facet_index: None,
                     theme: panel_theme,
+                    guides: space_guides,
+                    scales: space_scales,
                 }),
                 None => diagnostics.push(Diagnostic::warning(
                     "R0003",
@@ -204,7 +231,9 @@ pub fn render(
     if layout.facets.is_empty() {
         // Grid (from the first laid-out panel).
         if let Some(first) = panels.first() {
-            guide::render_grid(&mut w, &first.scaled, first.plot, &first.theme);
+            if first.guides.grid {
+                guide::render_grid(&mut w, &first.scaled, first.plot, &first.theme);
+            }
         }
     } else {
         for_each_unique_facet_panel(&panels, |panel| {
@@ -216,7 +245,9 @@ pub fn render(
             );
         });
         for_each_unique_facet_panel(&panels, |panel| {
-            guide::render_grid(&mut w, &panel.scaled, panel.plot, &panel.theme);
+            if panel.guides.grid {
+                guide::render_grid(&mut w, &panel.scaled, panel.plot, &panel.theme);
+            }
         });
     }
 
@@ -232,6 +263,7 @@ pub fn render(
                     rows: panel.rows.as_deref(),
                     plot: panel.plot,
                     theme: &panel.theme,
+                    scales: &panel.scales,
                 },
                 &mut diagnostics,
             );
@@ -247,8 +279,8 @@ pub fn render(
                     &first.scaled,
                     first.plot,
                     &first.theme,
-                    ir.guides.x_label.as_deref(),
-                    ir.guides.y_label.as_deref(),
+                    first.guides.x_label.as_deref(),
+                    first.guides.y_label.as_deref(),
                 );
             }
         }
@@ -260,8 +292,8 @@ pub fn render(
                     &panel.scaled,
                     panel.plot,
                     &panel.theme,
-                    ir.guides.x_label.as_deref(),
-                    ir.guides.y_label.as_deref(),
+                    panel.guides.x_label.as_deref(),
+                    panel.guides.y_label.as_deref(),
                 );
             }
         });
@@ -295,6 +327,76 @@ fn resolve_space_theme(
         theme = Theme::by_name(name);
     }
     theme
+}
+
+fn merged_scales(chart_scales: &[ScaleIr], space_scales: &[ScaleIr]) -> Vec<ScaleIr> {
+    chart_scales
+        .iter()
+        .chain(space_scales.iter())
+        .cloned()
+        .collect()
+}
+
+fn validate_scale_configs(
+    frame: &FrameIr,
+    scales: &[ScaleIr],
+    span: algraf_core::Span,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for scale in scales {
+        let ScaleTargetIr::Axis(axis) = &scale.target else {
+            continue;
+        };
+        let Some(axis_frame) = frame_axis(frame, *axis) else {
+            continue;
+        };
+        if scale.scale_type == Some(ScaleTypeIr::Log10) {
+            let Some(column) = vector_column(axis_frame) else {
+                diagnostics.push(Diagnostic::warning(
+                    "R0004",
+                    "log10 scale requires a continuous numeric axis",
+                    scale.span,
+                ));
+                continue;
+            };
+            if !matches!(
+                column.dtype,
+                algraf_data::DataType::Integer | algraf_data::DataType::Float
+            ) {
+                diagnostics.push(Diagnostic::warning(
+                    "R0004",
+                    "log10 scale requires a continuous numeric axis",
+                    column.span,
+                ));
+            }
+        }
+        if let Some([a, b]) = scale.domain {
+            if (a - b).abs() <= f64::EPSILON {
+                diagnostics.push(Diagnostic::warning(
+                    "R0004",
+                    "scale domain endpoints must be distinct",
+                    scale.span,
+                ));
+            }
+            if scale.scale_type == Some(ScaleTypeIr::Log10) && (a <= 0.0 || b <= 0.0) {
+                diagnostics.push(Diagnostic::warning(
+                    "R0004",
+                    "log10 scale domain must be positive",
+                    scale.span,
+                ));
+            }
+        }
+    }
+
+    if frame_axis(frame, AxisSelectorIr::X).is_none()
+        && frame_axis(frame, AxisSelectorIr::Y).is_none()
+    {
+        diagnostics.push(Diagnostic::warning(
+            "R0004",
+            "scale declarations could not be matched to this space",
+            span,
+        ));
+    }
 }
 
 fn active_table<'t>(
@@ -352,6 +454,19 @@ fn compute_derived(ir: &ChartIr, primary: &dyn Table) -> HashMap<String, DataFra
                     derived.insert(d.name.clone(), stats::count_by(primary, &group_cols));
                 }
             }
+            StatKind::Density => {
+                let FrameIr::Vector(col) = &d.stat.input else {
+                    continue;
+                };
+                let options = stats::DensityOptions {
+                    bandwidth: numeric_setting(&d.stat.settings, "bandwidth").filter(|n| *n > 0.0),
+                    grid_points: numeric_setting(&d.stat.settings, "n")
+                        .filter(|n| *n >= 2.0)
+                        .map(|n| n.round() as usize)
+                        .unwrap_or(256),
+                };
+                derived.insert(d.name.clone(), stats::density(primary, &col.name, options));
+            }
             _ => {}
         }
     }
@@ -378,6 +493,41 @@ fn closed_setting(settings: &[Setting]) -> stats::BinClosed {
             _ => None,
         })
         .unwrap_or(stats::BinClosed::Left)
+}
+
+/// Extra left margin needed so the widest y tick label and the rotated y-axis
+/// title both fit (spec §17.3). Tick label *text* depends on the domain, not
+/// the pixel range, so a provisional layout is enough to measure it. Returns 0
+/// when no space has a continuous y axis or the labels fit the default margin.
+fn y_label_left_extra(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    derived: &HashMap<String, DataFrame>,
+    provisional: &Layout,
+    theme: &Theme,
+) -> f64 {
+    let x_range = (provisional.plot.x, provisional.plot.right());
+    let y_range = (provisional.plot.bottom(), provisional.plot.y);
+    let mut max_label_width = 0.0_f64;
+    for space in &ir.spaces {
+        let table = active_table(&space.data, primary, derived);
+        let space_scales = merged_scales(&ir.scales, &space.scales);
+        let frame = match facet_frame(&space.frame) {
+            Some((plane, _)) => plane,
+            None => &space.frame,
+        };
+        let hints = train_space_domains(frame, table, &space.geometries);
+        if let Some(scaled) =
+            ScaledSpace::build(frame, table, x_range, y_range, &hints, &space_scales)
+        {
+            max_label_width =
+                max_label_width.max(guide::max_y_tick_label_width(&scaled, theme.font_size));
+        }
+    }
+    if max_label_width <= 0.0 {
+        return 0.0;
+    }
+    (guide::y_axis_left_margin(max_label_width, theme.font_size) - MARGIN_LEFT).max(0.0)
 }
 
 fn chart_text_reserve(ir: &ChartIr, theme: &Theme) -> (f64, f64) {
@@ -460,29 +610,94 @@ fn collect_legends(
     primary: &dyn Table,
     derived: &HashMap<String, DataFrame>,
     _layout: &Layout,
-    include_fill: bool,
 ) -> Vec<Legend> {
-    let mut legends: Vec<Legend> = Vec::new();
+    // Candidate legends paired with the aesthetic that produced them, so a
+    // fill legend and a stroke legend over the same column can be merged below.
+    let mut candidates: Vec<(&'static str, Legend)> = Vec::new();
     for space in &ir.spaces {
+        let guides = ir.guides.with_overrides(&space.guides);
+        if !guides.legend {
+            continue;
+        }
+        let scales = merged_scales(&ir.scales, &space.scales);
         let table = active_table(&space.data, primary, derived);
         for geo in &space.geometries {
             for aesthetic in ["fill", "stroke"] {
-                if aesthetic == "fill" && !include_fill {
+                if aesthetic == "fill" && !guides.fill_legend {
+                    continue;
+                }
+                if aesthetic == "stroke" && !guides.stroke_legend {
                     continue;
                 }
                 if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == aesthetic) {
-                    let spec = color_spec(geo, aesthetic, table);
-                    let title = crate::svg::display_label(&mapping.column.name);
+                    let spec = color_spec(geo, aesthetic, table, &scales);
+                    // A `Scale(<aesthetic>: col, label: "...")` overrides the
+                    // column-derived legend title (spec §16.13).
+                    let title = scale_label(&scales, aesthetic)
+                        .unwrap_or_else(|| crate::svg::display_label(&mapping.column.name));
                     if let Some(legend) = spec.legend(&title) {
-                        if !legends.iter().any(|l| l.title == legend.title) {
-                            legends.push(legend);
+                        if !candidates
+                            .iter()
+                            .any(|(a, l)| *a == aesthetic && l.title == legend.title)
+                        {
+                            candidates.push((aesthetic, legend));
                         }
                     }
                 }
             }
         }
     }
-    legends
+    merge_fill_stroke_legends(candidates)
+}
+
+/// The explicit `label` of a `fill`/`stroke` aesthetic scale, if declared.
+fn scale_label(scales: &[ScaleIr], aesthetic: &str) -> Option<String> {
+    scales.iter().find_map(|scale| match &scale.target {
+        ScaleTargetIr::Aesthetic { aesthetic: a, .. } if a == aesthetic => scale.label.clone(),
+        _ => None,
+    })
+}
+
+/// Merge a `fill` legend and a `stroke` legend that share a title and have
+/// compatible (identical, discrete) domains into a single legend whose swatches
+/// show both colors (spec §19.7). Non-mergeable candidates pass through
+/// unchanged, deduplicated by title with the first occurrence winning.
+fn merge_fill_stroke_legends(candidates: Vec<(&'static str, Legend)>) -> Vec<Legend> {
+    let mut out: Vec<Legend> = Vec::new();
+    for (aesthetic, legend) in candidates {
+        let Some(existing) = out.iter_mut().find(|l| l.title == legend.title) else {
+            out.push(legend);
+            continue;
+        };
+
+        // A fill/stroke pair over the same column with identical discrete entry
+        // labels merges into one swatch set showing both colors. Only the first
+        // unmerged base accepts a partner.
+        let labels_match = existing.kind == LegendKind::Discrete
+            && legend.kind == LegendKind::Discrete
+            && existing.entries.len() == legend.entries.len()
+            && existing
+                .entries
+                .iter()
+                .zip(&legend.entries)
+                .all(|(a, b)| a.0 == b.0);
+        let new_colors: Vec<String> = legend.entries.iter().map(|(_, c)| c.clone()).collect();
+        if labels_match && existing.stroke_entries.is_empty() {
+            if aesthetic == "stroke" {
+                // Existing is the fill base; this stroke legend adds outlines.
+                existing.stroke_entries = new_colors;
+            } else {
+                // Existing was a stroke-only base seen first; promote the fill
+                // colors to the swatch face and demote the strokes to outlines.
+                existing.stroke_entries = existing.entries.iter().map(|(_, c)| c.clone()).collect();
+                for (entry, color) in existing.entries.iter_mut().zip(new_colors) {
+                    entry.1 = color;
+                }
+            }
+        }
+        // Otherwise the title already has a legend: keep the first.
+    }
+    out
 }
 
 fn facet_panel_count(
@@ -509,6 +724,22 @@ fn facet_frame(frame: &FrameIr) -> Option<(&FrameIr, &ColumnRef)> {
     }
     match inner.as_ref() {
         FrameIr::Vector(column) => Some((outer.as_ref(), column)),
+        _ => None,
+    }
+}
+
+fn frame_axis(frame: &FrameIr, axis: AxisSelectorIr) -> Option<&FrameIr> {
+    match (frame, axis) {
+        (FrameIr::Cartesian(axes), AxisSelectorIr::X) => axes.first(),
+        (FrameIr::Cartesian(axes), AxisSelectorIr::Y) => axes.get(1),
+        (_, AxisSelectorIr::X) => Some(frame),
+        (_, AxisSelectorIr::Y) => None,
+    }
+}
+
+fn vector_column(frame: &FrameIr) -> Option<&ColumnRef> {
+    match frame {
+        FrameIr::Vector(column) => Some(column),
         _ => None,
     }
 }

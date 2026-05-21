@@ -1,0 +1,5 @@
+Chart(data: "penguins.csv", width: 720, height: 480, title: "Merged fill and stroke legend") {
+    Space(flipper_length * body_mass) {
+        Point(fill: species, stroke: species, size: 4, alpha: 0.8)
+    }
+}

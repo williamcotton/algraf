@@ -32,13 +32,13 @@
 <g class="algraf-axes">
   <line x1="60" y1="470" x2="650" y2="470" stroke="#333333" stroke-width="1" />
   <line x1="60" y1="470" x2="60" y2="475" stroke="#333333" stroke-width="1" />
-  <text x="60" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <text x="60" y="488" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
   <line x1="256.667" y1="470" x2="256.667" y2="475" stroke="#333333" stroke-width="1" />
   <text x="256.667" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-02</text>
   <line x1="453.333" y1="470" x2="453.333" y2="475" stroke="#333333" stroke-width="1" />
   <text x="453.333" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-03</text>
   <line x1="650" y1="470" x2="650" y2="475" stroke="#333333" stroke-width="1" />
-  <text x="650" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-04</text>
+  <text x="650" y="488" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-04</text>
   <text x="355" y="508" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">time</text>
   <line x1="60" y1="40" x2="60" y2="470" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="454.074" x2="60" y2="454.074" stroke="#333333" stroke-width="1" />
@@ -57,13 +57,13 @@
   <text x="52" y="128.572" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">22</text>
   <line x1="55" y1="69.655" x2="60" y2="69.655" stroke="#333333" stroke-width="1" />
   <text x="52" y="73.655" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">24</text>
-  <text x="16" y="255" text-anchor="middle" transform="rotate(-90 16 255)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">value</text>
+  <text x="31.6" y="255" text-anchor="middle" transform="rotate(-90 31.6 255)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">value</text>
 </g>
 <g class="algraf-legends">
   <text x="666" y="44" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">series</text>
-  <rect x="666" y="52" width="12" height="12" fill="#4E79A7" />
+  <rect x="666" y="52" width="12" height="12" fill="#4E79A7" stroke="#4E79A7" stroke-width="2" />
   <text x="684" y="62" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Alpha</text>
-  <rect x="666" y="70" width="12" height="12" fill="#F28E2B" />
+  <rect x="666" y="70" width="12" height="12" fill="#F28E2B" stroke="#F28E2B" stroke-width="2" />
   <text x="684" y="80" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Beta</text>
 </g>
 </svg>

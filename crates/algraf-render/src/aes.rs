@@ -2,11 +2,11 @@
 //! colors, opacity, and size (spec §16.8).
 
 use algraf_data::{DataType, Table};
-use algraf_semantics::{GeometryIr, SettingValue};
+use algraf_semantics::{GeometryIr, ScaleIr, ScaleTargetIr, SettingValue};
 
 use crate::scale::{categorical_domain, cell_category, cell_f64, numeric_domain};
 use crate::svg::num;
-use crate::theme::{categorical_color, gradient_color};
+use crate::theme::{categorical_color_from, gradient_color};
 
 /// How an aesthetic resolves to a color.
 #[derive(Debug, Clone)]
@@ -16,6 +16,7 @@ pub enum ColorSpec {
     Categorical {
         col: String,
         categories: Vec<String>,
+        palette: Option<String>,
     },
     Gradient {
         col: String,
@@ -30,10 +31,14 @@ impl ColorSpec {
         match self {
             ColorSpec::None => None,
             ColorSpec::Constant(c) => Some(c.clone()),
-            ColorSpec::Categorical { col, categories } => {
+            ColorSpec::Categorical {
+                col,
+                categories,
+                palette,
+            } => {
                 let cat = cell_category(table, col, row)?;
                 let index = categories.iter().position(|c| *c == cat)?;
-                Some(categorical_color(index).to_string())
+                Some(categorical_color_from(palette.as_deref(), index).to_string())
             }
             ColorSpec::Gradient { col, min, max } => {
                 let v = cell_f64(table, col, row)?;
@@ -50,20 +55,31 @@ impl ColorSpec {
     /// A legend for this aesthetic, if it is a data mapping (spec §19.5).
     pub fn legend(&self, title: &str) -> Option<Legend> {
         match self {
-            ColorSpec::Categorical { categories, .. } => Some(Legend {
+            ColorSpec::Categorical {
+                categories,
+                palette,
+                ..
+            } => Some(Legend {
                 title: title.to_string(),
                 kind: LegendKind::Discrete,
                 entries: categories
                     .iter()
                     .enumerate()
-                    .map(|(i, c)| (c.clone(), categorical_color(i).to_string()))
+                    .map(|(i, c)| {
+                        (
+                            c.clone(),
+                            categorical_color_from(palette.as_deref(), i).to_string(),
+                        )
+                    })
                     .collect(),
+                stroke_entries: Vec::new(),
             }),
             ColorSpec::Gradient { min, max, .. } => {
                 let ticks = gradient_legend_ticks(*min, *max);
                 Some(Legend {
                     title: title.to_string(),
                     kind: LegendKind::Continuous,
+                    stroke_entries: Vec::new(),
                     entries: ticks
                         .into_iter()
                         .map(|value| {
@@ -96,11 +112,17 @@ fn gradient_legend_ticks(min: f64, max: f64) -> Vec<f64> {
 }
 
 /// A legend model (spec §19.5).
+///
+/// `entries` holds `(label, fill_color)` swatches. `stroke_entries`, when
+/// non-empty, is aligned with `entries` and supplies a per-entry stroke color
+/// for the swatch; it is populated when a `fill` and `stroke` legend over the
+/// same categorical column are merged into one (spec §19.7).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Legend {
     pub title: String,
     pub kind: LegendKind,
     pub entries: Vec<(String, String)>,
+    pub stroke_entries: Vec<String>,
 }
 
 /// How a legend's entries should be rendered.
@@ -111,7 +133,12 @@ pub enum LegendKind {
 }
 
 /// Build a color specification for an aesthetic (`"fill"` or `"stroke"`).
-pub fn color_spec(geo: &GeometryIr, aesthetic: &str, table: &dyn Table) -> ColorSpec {
+pub fn color_spec(
+    geo: &GeometryIr,
+    aesthetic: &str,
+    table: &dyn Table,
+    scales: &[ScaleIr],
+) -> ColorSpec {
     if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == aesthetic) {
         let col = &mapping.column.name;
         return match mapping.column.dtype {
@@ -126,6 +153,7 @@ pub fn color_spec(geo: &GeometryIr, aesthetic: &str, table: &dyn Table) -> Color
             _ => ColorSpec::Categorical {
                 col: col.clone(),
                 categories: categorical_domain(table, col),
+                palette: palette_for(scales, aesthetic, col),
             },
         };
     }
@@ -135,6 +163,20 @@ pub fn color_spec(geo: &GeometryIr, aesthetic: &str, table: &dyn Table) -> Color
         }
     }
     ColorSpec::None
+}
+
+fn palette_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<String> {
+    scales.iter().rev().find_map(|scale| match &scale.target {
+        ScaleTargetIr::Aesthetic {
+            aesthetic: target,
+            column: Some(scale_column),
+        } if target == aesthetic && scale_column.name == column => scale.palette.clone(),
+        ScaleTargetIr::Aesthetic {
+            aesthetic: target,
+            column: None,
+        } if target == aesthetic => scale.palette.clone(),
+        _ => None,
+    })
 }
 
 /// A constant numeric setting value, or a default.

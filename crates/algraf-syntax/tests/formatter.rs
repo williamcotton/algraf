@@ -94,6 +94,22 @@ fn test_trailing_comment_preserved() {
 }
 
 #[test]
+fn test_standalone_block_comment_preserved() {
+    let source =
+        "Chart(data: \"d.csv\") {\n    /* a note */\n    Space(a * b) {\n        Point()\n    }\n}";
+    let formatted = format(source);
+    assert!(formatted.contains("    /* a note */\n    Space(a * b) {"));
+}
+
+#[test]
+fn test_trailing_block_comment_preserved() {
+    let source =
+        "Chart(data: \"d.csv\") {\n    Space(a * b) {\n        Point() /* the points */\n    }\n}";
+    let formatted = format(source);
+    assert!(formatted.contains("Point()  /* the points */\n"));
+}
+
+#[test]
 fn test_malformed_source_returned_unchanged() {
     // Syntactically invalid input is returned verbatim (spec §2296).
     let source = "Chart(data: \"d.csv\" {";
