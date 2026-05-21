@@ -6592,7 +6592,7 @@ Render command SHOULD offer user-visible errors for files that are too large if 
 
 Released version 0.1 files have no source-level version declaration.
 
-Draft version 0.2.0 continues to treat source files as unversioned unless this section is amended before release.
+Releases through the current roadmap (0.2.0–0.6.0) continue to treat source files as unversioned unless this section is amended. Promotion of the optional version declaration is flagged for consideration in the v0.5.0 plan, when new source syntax lands; see §30.4.
 
 Future files MAY include:
 
@@ -6624,17 +6624,28 @@ custom stats
 
 advanced quoted-identifier escape modes
 
-### 30.4 Version 0.2.0 Planning
+### 30.4 Release Planning
 
-Version 0.2.0 development is tracked in [`V0_2_PLAN.md`](V0_2_PLAN.md).
+Each minor release is planned in a versioned plan file under `docs/`. A plan
+states the release thesis, lists Must/Should items, and records what stays
+deferred. Plans are guidance, not normative: a feature is real only once this
+specification says `MUST`/`SHOULD` and the implementation provides it.
 
-The release theme is chart control and editing polish.
+| Release | Plan | Thesis | Status |
+| ------- | ---- | ------ | ------ |
+| 0.2.0 | [`V0_2_PLAN.md`](V0_2_PLAN.md) | Chart control and editing polish | Released |
+| 0.3.0 | [`V0_3_PLAN.md`](V0_3_PLAN.md) | Expressiveness — more charts users can draw | Planned |
+| 0.4.0 | [`V0_4_PLAN.md`](V0_4_PLAN.md) | Editor & authoring experience | Planned |
+| 0.5.0 | [`V0_5_PLAN.md`](V0_5_PLAN.md) | Composition & reuse | Planned |
+| 0.6.0 | [`V0_6_PLAN.md`](V0_6_PLAN.md) | Data backends | Planned |
 
-The intended v0.2.0 scope promotes a selected subset of original optional or deferred items.
+The newest unreleased plan is the active one; released plans are a historical
+record and their scope is not reopened.
 
-Promoted items MUST be copied into the relevant normative sections of this specification before or alongside implementation.
-
-Deferred optional items remain non-commitments until explicitly promoted.
+Promoted items MUST be copied into the relevant normative sections of this
+specification before or alongside implementation. Deferred optional items remain
+non-commitments until explicitly promoted. The standing deferred list is
+maintained in [`V0_3_PLAN.md`](V0_3_PLAN.md) and referenced by later plans.
 
 ## 31. Implementation Milestones
 
