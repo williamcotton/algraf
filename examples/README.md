@@ -46,6 +46,7 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | `connected_scatter.ag` | `timeseries.csv` | `connected_scatter.svg`, `connected_scatter.png` | Layered line and point marks |
 | `barcode.ag` | `demographics.csv` | `barcode.svg`, `barcode.png` | Point strip/barcode-style categorical plot |
 | `floating.ag` | `intervals.csv` | `floating.svg`, `floating.png` | Primitive `Rect` intervals over temporal data |
+| `gantt.ag` | `gantt.csv` | `gantt.svg`, `gantt.png` | Gantt chart / timeline with `Rect` intervals and custom labels |
 | `smooth.ag` | `penguins.csv` | `smooth.svg`, `smooth.png` | Linear `Smooth(method: "lm")` overlay |
 | `boxplot.ag` | `demographics.csv` | `boxplot.svg`, `boxplot.png` | Boxplot summaries with rug ticks |
 | `ribbon.ag` | `ribbon.csv` | `ribbon.svg`, `ribbon.png` | Closed ribbon interval path |

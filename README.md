@@ -351,6 +351,40 @@ Chart(data: "intervals.csv") {
 
 ![floating](examples/floating.svg)
 
+## Gantt chart / timeline with `Rect` and `Text`
+
+A Gantt chart illustrates a project timeline by plotting intervals for each task. Because `Rect` bounds must map through continuous or temporal scales, we represent tasks vertically using numeric identifiers, and draw their text labels on the left of each bar. Dummy anchor rows in the CSV define the full date range for scale training.
+
+```algraf
+Chart(data: "gantt.csv", width: 760, height: 420, title: "Project Schedule") {
+    Theme(name: "classic")
+
+    Guide(axis: x, label: "Timeline")
+    Guide(axis: y, label: "")
+
+    Space(date * task_id) {
+        Rect(
+            xmin: start_date,
+            xmax: end_date,
+            ymin: ymin,
+            ymax: ymax,
+            fill: stage,
+            alpha: 0.85,
+        )
+        Text(
+            label: task,
+            anchor: "end",
+            dx: -10,
+            dy: 4,
+            fill: "#333333",
+            size: 11,
+        )
+    }
+}
+```
+
+![gantt](examples/gantt.svg)
+
 ## Faceting via nested algebra
 
 Nesting the space with `/ region` produces one panel per region, all

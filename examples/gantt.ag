@@ -1,0 +1,25 @@
+Chart(data: "gantt.csv", width: 760, height: 420, title: "Project Schedule") {
+    Theme(name: "classic")
+
+    Guide(axis: x, label: "Timeline")
+    Guide(axis: y, label: "")
+
+    Space(date * task_id) {
+        Rect(
+            xmin: start_date,
+            xmax: end_date,
+            ymin: ymin,
+            ymax: ymax,
+            fill: stage,
+            alpha: 0.85,
+        )
+        Text(
+            label: task,
+            anchor: "end",
+            dx: -10,
+            dy: 4,
+            fill: "#333333",
+            size: 11,
+        )
+    }
+}

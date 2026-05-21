@@ -17,6 +17,7 @@ charts=(
     connected_scatter
     barcode
     floating
+    gantt
     fill_bar
     smooth
     boxplot

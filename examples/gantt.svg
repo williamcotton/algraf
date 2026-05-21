@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420" viewBox="0 0 760 420" role="img" aria-label="Project Schedule">
+<title>Project Schedule</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Project Schedule</text>
+<rect class="algraf-plot-area" x="60" y="66" width="550" height="304" fill="#ffffff" />
+<g class="algraf-layer algraf-geom-rect">
+  <rect x="207.761" y="292.253" width="49.254" height="26.207" fill="#4E79A7" opacity="0.85" />
+  <rect x="257.015" y="248.575" width="65.672" height="26.207" fill="#4E79A7" opacity="0.85" />
+  <rect x="322.687" y="204.897" width="164.179" height="26.207" fill="#F28E2B" opacity="0.85" />
+  <rect x="454.03" y="161.218" width="114.925" height="26.207" fill="#F28E2B" opacity="0.85" />
+  <rect x="544.328" y="117.54" width="65.672" height="26.207" fill="#E15759" opacity="0.85" />
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="197.761" y="309.356" text-anchor="end" font-family="system-ui, sans-serif" font-size="11" fill="#333333" opacity="1">Requirements</text>
+  <text x="247.015" y="265.678" text-anchor="end" font-family="system-ui, sans-serif" font-size="11" fill="#333333" opacity="1">Design</text>
+  <text x="312.687" y="222" text-anchor="end" font-family="system-ui, sans-serif" font-size="11" fill="#333333" opacity="1">Development</text>
+  <text x="444.03" y="178.322" text-anchor="end" font-family="system-ui, sans-serif" font-size="11" fill="#333333" opacity="1">Testing</text>
+  <text x="534.328" y="134.644" text-anchor="end" font-family="system-ui, sans-serif" font-size="11" fill="#333333" opacity="1">Deployment</text>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="370" x2="610" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="207.761" y1="370" x2="207.761" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="207.761" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-01</text>
+  <line x1="454.03" y1="370" x2="454.03" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="454.03" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-07-01</text>
+  <text x="335" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Timeline</text>
+  <line x1="60" y1="66" x2="60" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="349.034" x2="60" y2="349.034" stroke="#333333" stroke-width="1" />
+  <text x="52" y="353.034" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="305.356" x2="60" y2="305.356" stroke="#333333" stroke-width="1" />
+  <text x="52" y="309.356" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="55" y1="261.678" x2="60" y2="261.678" stroke="#333333" stroke-width="1" />
+  <text x="52" y="265.678" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="55" y1="218" x2="60" y2="218" stroke="#333333" stroke-width="1" />
+  <text x="52" y="222" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <line x1="55" y1="174.322" x2="60" y2="174.322" stroke="#333333" stroke-width="1" />
+  <text x="52" y="178.322" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="55" y1="130.644" x2="60" y2="130.644" stroke="#333333" stroke-width="1" />
+  <text x="52" y="134.644" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <line x1="55" y1="86.966" x2="60" y2="86.966" stroke="#333333" stroke-width="1" />
+  <text x="52" y="90.966" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <text x="38.8" y="218" text-anchor="middle" transform="rotate(-90 38.8 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222"></text>
+</g>
+<g class="algraf-legends">
+  <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">stage</text>
+  <rect x="626" y="78" width="12" height="12" fill="#4E79A7" />
+  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Planning</text>
+  <rect x="626" y="96" width="12" height="12" fill="#F28E2B" />
+  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Execution</text>
+  <rect x="626" y="114" width="12" height="12" fill="#E15759" />
+  <text x="644" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Release</text>
+</g>
+</svg>
