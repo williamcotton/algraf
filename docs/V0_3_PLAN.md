@@ -149,7 +149,79 @@ Acceptance criteria:
 - Semantic tests cover chaining, cycle detection, and missing upstream columns;
   add an example that uses a two-step derivation.
 
-### 4. Spec, Version, and Example Hygiene
+### 4. Range Geometries over Categorical and Temporal Domains
+
+Status: Not started. Surfaced by hands-on exploration (see "Inputs from hands-on
+exploration"). The blockers are verified in the current renderer.
+
+Make the `Rect` primitive draw ranges over the domains users actually have —
+categorical bands and unified temporal axes — so range/Gantt-style charts are
+expressible without numeric-only coordinates.
+
+Minimum target:
+
+```ag
+Chart(data: "legal_caseload_tracking.csv") {
+    Space((start_date + end_date) * (attorney / phase)) {
+        Rect(xmin: start_date, xmax: end_date, ymin: phase, ymax: phase, fill: phase)
+    }
+}
+```
+
+Acceptance criteria:
+
+- **Categorical `Rect` bounds.** When a positional bound (`xmin`/`xmax`/`ymin`/
+  `ymax`) maps to a categorical column, `Rect` resolves it to that category's
+  band — center ± bandwidth/2 — instead of returning no coordinate. Today
+  `geom.rs::pos` returns `None` for categorical cells, so the row is skipped and
+  the geometry emits `W2002` ("produced no marks"). This unlocks categorical
+  Gantt bars and categorical ranges.
+- **Temporal `Union` (`+`) domains.** A blended axis over temporal columns
+  (e.g. `start_date + end_date`) trains a temporal scale spanning the combined
+  min/max, not the current fallback to `[0, 1]`. Today the `FrameIr::Union` arm
+  in `space.rs` uses only `numeric_domain`, so temporal members collapse the
+  axis. Reuse the existing `temporal_domain`/`TemporalScale` path.
+- **1D markers.** A `Rect` whose width or height resolves to zero (e.g.
+  `xmin == xmax` for a deadline marker) renders as a thin marker clamped to its
+  `strokeWidth` rather than being dropped by the SVG zero-extent rule.
+- Numeric and temporal `Rect` bounds (already working) are unchanged.
+- Spec: §8 (algebra/union frames) documents temporal union; §14.5 (`Rect`)
+  documents the categorical-bound fallback and 1D-marker behavior.
+- Render tests cover categorical bounds, temporal union scaling, and zero-extent
+  markers; add a Gantt example (`examples/gantt.ag`) with a checked-in CSV.
+
+### 5. Series Grouping (`group` Aesthetic)
+
+Status: Not started. Spec §14.3 already says `Line` honors a "group aesthetic if
+present" and §15.7 references group mappings, but the registry does not accept
+`group` and `line()` separates series solely by the `stroke` category. Today the
+only way to draw multiple series is to bind `stroke` to the series column, which
+forces each series to a palette color.
+
+Add a `group` aesthetic so a geometry can separate series without binding color.
+
+Minimum target:
+
+```ag
+Space(time * value) {
+    Line(group: series, stroke: "#888888")  # several gray lines, one per series
+    Point(fill: series)
+}
+```
+
+Acceptance criteria:
+
+- `group` is a registry-accepted aesthetic on `Line` (and `Smooth`, per §15.7);
+  it accepts a column mapping.
+- When `group` is present, `line()` partitions rows by the `group` category
+  (preserving domain order and per-group x-sort, per spec §14.3) independent of
+  `stroke`. When absent, behavior is unchanged (group by `stroke`).
+- A constant `stroke` with a `group` mapping yields one path per group in a
+  single color — the case that currently degenerates into one sawtooth path.
+- Spec §14.3/§15.7 made normative for `group`; semantic and render tests added,
+  plus an example showing constant-color multi-series lines.
+
+### 6. Spec, Version, and Example Hygiene
 
 Status: Not started; mirrors v0.2.0 item 5.
 
@@ -160,8 +232,10 @@ Acceptance criteria:
 - `Cargo.toml` workspace version is bumped to `0.3.0` when the release branch is
   ready (currently `0.2.0`).
 - Spec sections for each promoted feature (§14.8 if frequency polygon lands,
-  §14.12 Violin, §16.x gradients, §10.6/§15.3 chained derives) are made
-  normative, and `MAY defer` / "deferred" language is removed for shipped items.
+  §14.12 Violin, §16.x gradients, §10.6/§15.3 chained derives, §8 temporal
+  union, §14.5 categorical/1D `Rect`, §14.3/§15.7 `group` aesthetic, §14.2/§14.16
+  `shape` if it lands) are made normative, and `MAY defer` / "deferred" language
+  is removed for shipped items.
 - New diagnostic codes are reserved in the spec before implementation.
 - The README tutorial gains a section for each new example, placed by topic
   progression (basics → layering → stats → layouts → derived tables →
@@ -207,6 +281,23 @@ Acceptance criteria (if implemented):
 - New spec section(s) for 2D binning stat and geometry, with diagnostic codes.
 - Deterministic bin assignment with `bins`/`binwidth` parallel to 1D `Bin`.
 - Continuous-gradient fill via Must item 2; example and snapshot tests.
+
+### Shape Aesthetic Rendering
+
+Status: Not started. The registry already accepts `Point.shape` (and §14.2 lists
+a "shape string option"), but `point()` hardcodes `<circle>` and ignores the
+property, so `shape` currently has no visual effect.
+
+Render distinct point shapes (e.g. circle, square, triangle, diamond) driven by
+the `shape` setting or a categorical `shape` mapping, giving a non-color channel
+to distinguish series. Modest and additive; keep a Should.
+
+Acceptance criteria (if implemented):
+
+- `point()` renders the requested shape; an unknown shape falls back to circle
+  with a diagnostic or warning.
+- A categorical `shape` mapping assigns shapes deterministically by domain order.
+- Spec §14.2 enumerates the supported shape values; render tests added.
 
 ## Explicitly Deferred Past v0.3.0
 
