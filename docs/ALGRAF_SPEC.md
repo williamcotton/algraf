@@ -5342,6 +5342,10 @@ Render options:
 
 `--height <px>`
 
+`--png-scale <factor>`
+
+`--png-dpi <dpi>`
+
 `--base-dir <path>`
 
 `--data <path|->`

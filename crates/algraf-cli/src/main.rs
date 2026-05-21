@@ -64,6 +64,12 @@ struct RenderArgs {
     width: Option<u32>,
     #[arg(long)]
     height: Option<u32>,
+    /// PNG raster scale. The SVG viewport stays at --width/--height.
+    #[arg(long, default_value_t = png::DEFAULT_PNG_SCALE)]
+    png_scale: f32,
+    /// PNG physical DPI metadata. Defaults to 96 * --png-scale.
+    #[arg(long)]
+    png_dpi: Option<u32>,
     #[arg(long)]
     base_dir: Option<PathBuf>,
     /// CSV data path, or `-` for stdin (overrides the chart's data argument).
@@ -262,8 +268,12 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
     }
 
     match args.output {
-        Some(path) if is_png_path(&path) => png::write_png(result.svg.as_bytes(), &path)
-            .map_err(|e| CliError::Io(format!("failed to write PNG {}: {e}", path.display())))?,
+        Some(path) if is_png_path(&path) => {
+            let png_options =
+                png::PngOptions::new(args.png_scale, args.png_dpi).map_err(CliError::Usage)?;
+            png::write_png(result.svg.as_bytes(), &path, png_options)
+                .map_err(|e| CliError::Io(format!("failed to write PNG {}: {e}", path.display())))?
+        }
         Some(path) => std::fs::write(&path, result.svg)
             .map_err(|e| CliError::Io(format!("failed to write {}: {e}", path.display())))?,
         None => print!("{}", result.svg),

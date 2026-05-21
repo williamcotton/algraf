@@ -19,6 +19,7 @@ dependencies = [
  "algraf-semantics",
  "algraf-syntax",
  "clap",
+ "png",
  "resvg",
  "serde_json",
  "tiny-skia",
