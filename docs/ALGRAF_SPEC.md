@@ -2934,7 +2934,8 @@ Examples:
 
 `Rect.xmin`, `Rect.xmax`, `Rect.ymin`, and `Rect.ymax` accept column mappings or numeric/temporal literals.
 
-`Smooth.method` accepts string literal `"lm"` or `"loess"`.
+`Smooth.method` accepts string literal `"lm"`. The registry currently accepts
+only `"lm"`; `"loess"` is reserved and deferred (see §14.10 and §15.7).
 
 ### 13.10 Duplicate Argument Diagnostics
 
@@ -3730,7 +3731,16 @@ Text renders SVG `text`.
 
 Text MUST escape text content for SVG.
 
-Text SHOULD support alignment properties.
+Text supports the following alignment properties:
+
+`anchor` — string literal `"start"`, `"middle"`, or `"end"`, selecting the
+horizontal text anchor. The default is `"start"`.
+
+`dx` — number literal offsetting the rendered text horizontally, in pixels.
+
+`dy` — number literal offsetting the rendered text vertically, in pixels.
+
+Text also accepts `fill`, `alpha`, and `size`.
 
 ### 14.17 HLine
 
@@ -5044,7 +5054,23 @@ transparent or white background
 
 data marks only
 
-### 20.6 Theme Syntax
+### 20.6 Light Theme
+
+`light` theme:
+
+white background
+
+light gray grid
+
+dark text
+
+The `light` theme is currently an alias of `minimal`: it selects the same base
+theme values and differs only in reported name. It exists so source and CLI can
+request a neutral light theme by an explicit name. Later versions MAY give
+`light` distinct values; until then renderers MUST treat it as equivalent to
+`minimal`.
+
+### 20.7 Theme Syntax
 
 Theme declaration syntax:
 
@@ -5068,7 +5094,7 @@ Chart(data: "penguins.csv") {
 }
 ```
 
-### 20.7 Custom Theme
+### 20.8 Custom Theme
 
 Custom theme syntax is deferred.
 
