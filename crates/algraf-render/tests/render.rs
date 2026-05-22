@@ -99,6 +99,52 @@ fn test_chart_margin_below_default_is_a_floor() {
     assert_eq!(tiny.layout.plot.right(), default.layout.plot.right());
 }
 
+/// Extract the `y` attribute of the `<text>` element whose content is `label`.
+fn text_y(svg: &str, label: &str) -> f64 {
+    let needle = format!(">{label}</text>");
+    let element_start = svg[..svg.find(&needle).expect("label")]
+        .rfind("<text")
+        .unwrap();
+    let after_y = &svg[element_start..];
+    let y_start = after_y.find("y=\"").unwrap() + 3;
+    let y_end = after_y[y_start..].find('"').unwrap();
+    after_y[y_start..y_start + y_end].parse().unwrap()
+}
+
+#[test]
+fn test_text_declutter_separates_overlapping_labels() {
+    // `lo`/`hi` anchor the y domain; A and B map to nearly the same y.
+    let csv = "x,y,name\n2,0,lo\n2,100,hi\n2,50.0,A\n2,50.4,B\n";
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") { Space(x * y) { Text(label: name, size: 10, declutter: true) } }",
+        csv,
+    );
+    // gap = size * 1.2 = 12.
+    assert!((text_y(&svg, "A") - text_y(&svg, "B")).abs() >= 12.0 - 1e-6);
+}
+
+#[test]
+fn test_text_without_declutter_leaves_positions() {
+    let csv = "x,y,name\n2,0,lo\n2,100,hi\n2,50.0,A\n2,50.4,B\n";
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") { Space(x * y) { Text(label: name, size: 10) } }",
+        csv,
+    );
+    // Untouched: A and B keep their near-identical mapped positions.
+    assert!((text_y(&svg, "A") - text_y(&svg, "B")).abs() < 5.0);
+}
+
+#[test]
+fn test_text_dy_column_offsets_each_label() {
+    // A and B share the same y (same cy); only their `off` differs.
+    let csv = "x,y,name,off\n1,40,A,0\n2,40,B,20\n3,60,C,0\n";
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") { Space(x * y) { Text(label: name, dy: off) } }",
+        csv,
+    );
+    assert!((text_y(&svg, "B") - text_y(&svg, "A") - 20.0).abs() < 1e-6);
+}
+
 #[test]
 fn test_no_legend_for_literal_fill() {
     let svg = render_svg(

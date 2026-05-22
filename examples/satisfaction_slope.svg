@@ -35,10 +35,10 @@
 </g>
 <g class="algraf-layer algraf-geom-text">
   <text x="620" y="151.36" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#444444" opacity="1">Product Quality (+16)</text>
-  <text x="620" y="195.04" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#444444" opacity="1">Customer Support (+17)</text>
+  <text x="620" y="192.68" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#444444" opacity="1">Customer Support (+17)</text>
   <text x="620" y="246" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#444444" opacity="1">Pricing Value (-5)</text>
   <text x="620" y="282.4" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#444444" opacity="1">Delivery Speed (+15)</text>
-  <text x="620" y="202.32" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#444444" opacity="1">Platform Ease (-3)</text>
+  <text x="620" y="204.68" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#444444" opacity="1">Platform Ease (-3)</text>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="430" x2="610" y2="430" stroke="#333333" stroke-width="1" />

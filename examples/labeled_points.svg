@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="440" viewBox="0 0 640 440" role="img" aria-label="Product Positioning">
+<title>Product Positioning</title>
+<rect class="algraf-background" x="0" y="0" width="640" height="440" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Product Positioning</text>
+<rect class="algraf-plot-area" x="60" y="66" width="550" height="324" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="84.761" y1="66" x2="84.761" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150.613" y1="66" x2="150.613" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="216.466" y1="66" x2="216.466" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="282.318" y1="66" x2="282.318" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="348.17" y1="66" x2="348.17" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="414.023" y1="66" x2="414.023" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="479.875" y1="66" x2="479.875" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="545.728" y1="66" x2="545.728" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="368.4" x2="610" y2="368.4" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="325.2" x2="610" y2="325.2" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="282" x2="610" y2="282" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="238.8" x2="610" y2="238.8" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="195.6" x2="610" y2="195.6" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="152.4" x2="610" y2="152.4" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="109.2" x2="610" y2="109.2" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="150.613" cy="238.8" r="6" fill="#4E79A7" opacity="1" />
+  <circle cx="335" cy="109.2" r="6" fill="#4E79A7" opacity="1" />
+  <circle cx="572.069" cy="303.6" r="6" fill="#4E79A7" opacity="1" />
+  <circle cx="97.931" cy="174" r="6" fill="#4E79A7" opacity="1" />
+  <circle cx="466.705" cy="260.4" r="6" fill="#4E79A7" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="150.613" y="224.8" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333333" opacity="1">Alpha</text>
+  <text x="335" y="95.2" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333333" opacity="1">Beta</text>
+  <text x="572.069" y="321.6" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333333" opacity="1">Gamma</text>
+  <text x="97.931" y="192" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333333" opacity="1">Delta</text>
+  <text x="466.705" y="246.4" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333333" opacity="1">Epsilon</text>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="390" x2="610" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="84.761" y1="390" x2="84.761" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="84.761" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15</text>
+  <line x1="150.613" y1="390" x2="150.613" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="150.613" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="216.466" y1="390" x2="216.466" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="216.466" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <line x1="282.318" y1="390" x2="282.318" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="282.318" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <line x1="348.17" y1="390" x2="348.17" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="348.17" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">35</text>
+  <line x1="414.023" y1="390" x2="414.023" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="414.023" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <line x1="479.875" y1="390" x2="479.875" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="479.875" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">45</text>
+  <line x1="545.728" y1="390" x2="545.728" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="545.728" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
+  <text x="335" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Price ($)</text>
+  <line x1="60" y1="66" x2="60" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="368.4" x2="60" y2="368.4" stroke="#333333" stroke-width="1" />
+  <text x="52" y="372.4" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3.6</text>
+  <line x1="55" y1="325.2" x2="60" y2="325.2" stroke="#333333" stroke-width="1" />
+  <text x="52" y="329.2" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3.8</text>
+  <line x1="55" y1="282" x2="60" y2="282" stroke="#333333" stroke-width="1" />
+  <text x="52" y="286" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="55" y1="238.8" x2="60" y2="238.8" stroke="#333333" stroke-width="1" />
+  <text x="52" y="242.8" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4.2</text>
+  <line x1="55" y1="195.6" x2="60" y2="195.6" stroke="#333333" stroke-width="1" />
+  <text x="52" y="199.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4.4</text>
+  <line x1="55" y1="152.4" x2="60" y2="152.4" stroke="#333333" stroke-width="1" />
+  <text x="52" y="156.4" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4.6</text>
+  <line x1="55" y1="109.2" x2="60" y2="109.2" stroke="#333333" stroke-width="1" />
+  <text x="52" y="113.2" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4.8</text>
+  <text x="24.4" y="228" text-anchor="middle" transform="rotate(-90 24.4 228)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Rating</text>
+</g>
+</svg>

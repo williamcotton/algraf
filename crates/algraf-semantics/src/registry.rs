@@ -229,8 +229,9 @@ const TEXT: &[PropSpec] = &[
     opt("alpha", ALPHA),
     opt("size", SIZE),
     opt("anchor", &[Accept::Enum(&["start", "middle", "end"])]),
-    opt("dx", &[Accept::Number]),
-    opt("dy", &[Accept::Number]),
+    opt("dx", &[Accept::Column, Accept::Number]),
+    opt("dy", &[Accept::Column, Accept::Number]),
+    opt("declutter", &[Accept::Bool]),
 ];
 
 const SEGMENT: &[PropSpec] = &[

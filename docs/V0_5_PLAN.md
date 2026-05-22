@@ -169,6 +169,32 @@ Acceptance criteria:
 - Spec §17.3 and the Chart-properties section document the floor semantics.
 - An example exercises it (the slope chart) and the README stays in sync.
 
+### Text Label Decluttering & Mappable Offsets
+
+Status: Done. The follow-on to the margin fix: once the slope chart's end-labels
+fit on the canvas, two of them still overlapped vertically (values 1 unit apart),
+and Algraf had no way to keep labels from colliding.
+
+Two small `Text` geom additions (spec §14.16):
+
+- `dx`/`dy` MAY now be a column mapping, not just a literal, so labels can be
+  nudged per row from the data.
+- `declutter: true` (opt-in, default off) runs a deterministic vertical
+  label-spreading pass, scoped to labels sharing an x column and clamped to the
+  plot. Composes with `dx`/`dy` (it operates on the post-offset positions).
+
+(Placement in v0.5 is editorial — a self-contained geom-authoring primitive; the
+spec change is what makes it normative.)
+
+Acceptance criteria:
+
+- `Text(dy: <column>)` offsets each label by the column value; literals still
+  work unchanged.
+- `Text(declutter: true)` separates overlapping labels by ≥ `1.2 ×` font size,
+  deterministically; default (off) leaves positions unchanged.
+- Spec §14.16 documents both; examples (`satisfaction_slope`, `labeled_points`)
+  exercise them and the README stays in sync.
+
 ## Explicitly Deferred Past v0.5.0
 
 Carried forward and unchanged unless a later planning decision moves them:

@@ -636,6 +636,27 @@ fn test_ir_records_chart_margins() {
 }
 
 #[test]
+fn test_text_dy_column_and_declutter_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space(value * amount) {\n    Text(label: species, dy: amount, declutter: true)\n  }\n}",
+        &schema(),
+    );
+    let ir = analysis.ir.expect("ir");
+    let text = &ir.spaces[0].geometries[0];
+    assert_eq!(text.kind, GeometryKind::Text);
+    // `dy: amount` is a column mapping, not a setting.
+    assert!(text
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == "dy" && m.column.name == "amount"));
+    // `declutter: true` is a boolean setting.
+    assert!(text
+        .settings
+        .iter()
+        .any(|s| s.name == "declutter" && matches!(s.value, SettingValue::Bool(true))));
+}
+
+#[test]
 fn test_duplicate_chart_margin_is_reported() {
     assert!(has(
         "Chart(data: \"p.csv\", marginRight: 10, marginRight: 20) {\n  Space(value) { Point() }\n}",

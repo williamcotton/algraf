@@ -225,3 +225,19 @@ pub fn number_setting(geo: &GeometryIr, name: &str, default: f64) -> f64 {
         })
         .unwrap_or(default)
 }
+
+/// A per-row numeric value: a column mapping resolved at `row` if present,
+/// otherwise the constant setting, otherwise `default`. Non-numeric mapped cells
+/// fall back to `default` (spec §16.8).
+pub fn number_for_row(
+    geo: &GeometryIr,
+    name: &str,
+    table: &dyn Table,
+    row: usize,
+    default: f64,
+) -> f64 {
+    if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == name) {
+        return cell_f64(table, &mapping.column.name, row).unwrap_or(default);
+    }
+    number_setting(geo, name, default)
+}

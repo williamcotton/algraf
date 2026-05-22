@@ -11,6 +11,6 @@ Chart(data: "satisfaction.csv", width: 760, height: 480, marginRight: 150, title
     Space(year * value) {
         Line(group: metric, stroke: metric, strokeWidth: 3)
         Point(fill: metric, size: 6)
-        Text(label: label, dx: 10, dy: -2, anchor: "start", size: 10, fill: "#444444")
+        Text(label: label, dx: 10, dy: -2, anchor: "start", size: 10, fill: "#444444", declutter: true)
     }
 }

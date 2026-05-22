@@ -744,6 +744,8 @@ A slopegraph compares values at two points in time/categories (e.g. 2024 vs 2026
 
 Because the end-labels name the series directly, the `metric` legend is redundant, so it is turned off with `Guide(legend: false)`. With the legend gone there is nothing to reserve space on the right for those labels, so `marginRight: 150` keeps a minimum right margin wide enough for them to fit on the canvas.
 
+Two of the 2026 endpoints (Customer Support and Platform Ease) are nearly tied, so their labels would collide. `declutter: true` on the `Text` layer spreads vertically-overlapping labels apart automatically — it operates on the final label positions, is scoped to labels sharing the same x, and keeps them within the plot.
+
 ```algraf
 Chart(data: "satisfaction.csv", width: 760, height: 480, marginRight: 150, title: "Customer Satisfaction Shift (2024 vs 2026)") {
     Theme(name: "minimal")
@@ -758,12 +760,32 @@ Chart(data: "satisfaction.csv", width: 760, height: 480, marginRight: 150, title
     Space(year * value) {
         Line(group: metric, stroke: metric, strokeWidth: 3)
         Point(fill: metric, size: 6)
-        Text(label: label, dx: 10, dy: -2, anchor: "start", size: 10, fill: "#444444")
+        Text(label: label, dx: 10, dy: -2, anchor: "start", size: 10, fill: "#444444", declutter: true)
     }
 }
 ```
 
 ![satisfaction_slope](examples/satisfaction_slope.svg)
+
+## Per-row label offsets
+
+When you want full control over where each label sits rather than automatic decluttering, `dx` and `dy` can take a **column** instead of a literal number, so every label is offset by its own value from the data. Here a `labeldy` column lifts some labels above their point and drops others below, keeping each clear of its marker.
+
+```algraf
+Chart(data: "labeled_points.csv", width: 640, height: 440, title: "Product Positioning") {
+    Theme(name: "minimal")
+    Scale(axis: y, domain: [3.5, 5.0])
+    Guide(axis: x, label: "Price ($)")
+    Guide(axis: y, label: "Rating")
+
+    Space(price * rating) {
+        Point(size: 6, fill: "#4E79A7")
+        Text(label: label, dy: labeldy, anchor: "middle", size: 11, fill: "#333333")
+    }
+}
+```
+
+![labeled_points](examples/labeled_points.svg)
 
 ## Overriding labels and palettes
 

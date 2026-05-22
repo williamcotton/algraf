@@ -3803,9 +3803,21 @@ Text supports the following alignment properties:
 `anchor` — string literal `"start"`, `"middle"`, or `"end"`, selecting the
 horizontal text anchor. The default is `"start"`.
 
-`dx` — number literal offsetting the rendered text horizontally, in pixels.
+`dx` — offsets the rendered text horizontally, in pixels. It MAY be a number
+literal (one offset for the whole layer) or a column mapping (a per-row offset).
+A mapped non-numeric cell contributes a zero offset.
 
-`dy` — number literal offsetting the rendered text vertically, in pixels.
+`dy` — offsets the rendered text vertically, in pixels, with the same literal-or-
+column semantics as `dx`.
+
+`declutter` — boolean literal; default `false`. When `true`, labels that overlap
+vertically are spread apart before rendering. Decluttering operates on the final
+positions (after `dx`/`dy`), is scoped to labels sharing an x column (rounded to
+the nearest pixel), and keeps each adjusted group within the plot's vertical
+extent. The result MUST be deterministic: within a column, labels are laid out at
+a minimum gap of `1.2 ×` the font size, minimizing displacement from their
+targets, with stable ordering. Horizontal de-overlap and connector lines are not
+provided in this version.
 
 Text also accepts `fill`, `alpha`, and `size`.
 

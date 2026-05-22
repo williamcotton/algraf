@@ -1,0 +1,11 @@
+Chart(data: "labeled_points.csv", width: 640, height: 440, title: "Product Positioning") {
+    Theme(name: "minimal")
+    Scale(axis: y, domain: [3.5, 5.0])
+    Guide(axis: x, label: "Price ($)")
+    Guide(axis: y, label: "Rating")
+
+    Space(price * rating) {
+        Point(size: 6, fill: "#4E79A7")
+        Text(label: label, dy: labeldy, anchor: "middle", size: 11, fill: "#333333")
+    }
+}

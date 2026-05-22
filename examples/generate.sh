@@ -46,6 +46,7 @@ charts=(
     legend_merge
     scale_label
     satisfaction_slope
+    labeled_points
     flight_dumbbell
     violin_boxplot
     faceted_sales_performance
