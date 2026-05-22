@@ -623,6 +623,27 @@ fn test_ir_is_produced() {
 }
 
 #[test]
+fn test_ir_records_chart_margins() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\", marginRight: 150, marginTop: 12) {\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.margin_right, Some(150));
+    assert_eq!(ir.margin_top, Some(12));
+    assert_eq!(ir.margin_left, None);
+    assert_eq!(ir.margin_bottom, None);
+}
+
+#[test]
+fn test_duplicate_chart_margin_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\", marginRight: 10, marginRight: 20) {\n  Space(value) { Point() }\n}",
+        "E1002",
+    ));
+}
+
+#[test]
 fn test_ir_derived_table_schema() {
     let analysis = analyze_source(
         "Chart(data: \"d.csv\") {\n  Derive bins = Bin(value, bins: 25)\n  Space(bin_start * count, data: bins) { Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count) }\n}",

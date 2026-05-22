@@ -52,9 +52,34 @@ pub fn analyze_source(source: &str, primary_schema: &[ColumnDef]) -> Analysis {
 
 const DEFAULT_WIDTH: u32 = 800;
 const DEFAULT_HEIGHT: u32 = 520;
-const CHART_ARGS: &[&str] = &["data", "width", "height", "title", "subtitle", "caption"];
+const CHART_ARGS: &[&str] = &[
+    "data",
+    "width",
+    "height",
+    "title",
+    "subtitle",
+    "caption",
+    "marginTop",
+    "marginRight",
+    "marginBottom",
+    "marginLeft",
+];
 const THEME_NAMES: &[&str] = &["minimal", "classic", "light", "dark", "void"];
 const PALETTE_NAMES: &[&str] = &["default", "accent"];
+
+/// Parsed `Chart(...)` header arguments (spec §13.17 phase 2).
+struct ChartArgs {
+    data_source: DataSourceIr,
+    width: u32,
+    height: u32,
+    title: Option<String>,
+    subtitle: Option<String>,
+    caption: Option<String>,
+    margin_top: Option<u32>,
+    margin_right: Option<u32>,
+    margin_bottom: Option<u32>,
+    margin_left: Option<u32>,
+}
 
 /// A resolvable table: column name to type, in declared order.
 struct ActiveTable {
@@ -125,7 +150,18 @@ impl<'a> Analyzer<'a> {
     // --- Chart (spec §13.17 phases 2, 6–8) ---
 
     fn chart(&mut self, chart: &ChartBlock) -> Option<ChartIr> {
-        let (data_source, width, height, title, subtitle, caption) = self.chart_args(chart);
+        let ChartArgs {
+            data_source,
+            width,
+            height,
+            title,
+            subtitle,
+            caption,
+            margin_top,
+            margin_right,
+            margin_bottom,
+            margin_left,
+        } = self.chart_args(chart);
         self.reserved_derived_names = chart_derived_names(chart);
 
         let mut derived_tables = self.resolve_chart_derives(chart);
@@ -183,21 +219,15 @@ impl<'a> Analyzer<'a> {
             caption,
             width,
             height,
+            margin_top,
+            margin_right,
+            margin_bottom,
+            margin_left,
             spaces,
         })
     }
 
-    fn chart_args(
-        &mut self,
-        chart: &ChartBlock,
-    ) -> (
-        DataSourceIr,
-        u32,
-        u32,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    ) {
+    fn chart_args(&mut self, chart: &ChartBlock) -> ChartArgs {
         let span = node_span(chart.syntax());
         let args = chart.args();
 
@@ -208,6 +238,10 @@ impl<'a> Analyzer<'a> {
         let mut title = None;
         let mut subtitle = None;
         let mut caption = None;
+        let mut margin_top = None;
+        let mut margin_right = None;
+        let mut margin_bottom = None;
+        let mut margin_left = None;
 
         for arg in &args {
             let Some(key) = arg.key() else { continue };
@@ -249,6 +283,10 @@ impl<'a> Analyzer<'a> {
                 "title" => title = self.arg_string(arg, "title"),
                 "subtitle" => subtitle = self.arg_string(arg, "subtitle"),
                 "caption" => caption = self.arg_string(arg, "caption"),
+                "marginTop" => margin_top = self.arg_u32(arg),
+                "marginRight" => margin_right = self.arg_u32(arg),
+                "marginBottom" => margin_bottom = self.arg_u32(arg),
+                "marginLeft" => margin_left = self.arg_u32(arg),
                 _ => {}
             }
         }
@@ -262,7 +300,18 @@ impl<'a> Analyzer<'a> {
             DataSourceIr::Missing
         });
 
-        (data_source, width, height, title, subtitle, caption)
+        ChartArgs {
+            data_source,
+            width,
+            height,
+            title,
+            subtitle,
+            caption,
+            margin_top,
+            margin_right,
+            margin_bottom,
+            margin_left,
+        }
     }
 
     fn data_source(&mut self, arg: &Arg) -> DataSourceIr {

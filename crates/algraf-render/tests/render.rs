@@ -69,6 +69,37 @@ fn test_chart_title_subtitle_and_caption_render() {
 }
 
 #[test]
+fn test_chart_margin_right_reserves_space() {
+    let csv = "x,y\n1,2\n2,3\n";
+    let default = render_result(
+        "Chart(data: \"p.csv\", width: 800, height: 520) { Space(x * y) { Point() } }",
+        csv,
+    );
+    let wide = render_result(
+        "Chart(data: \"p.csv\", width: 800, height: 520, marginRight: 150) { Space(x * y) { Point() } }",
+        csv,
+    );
+    // The configured minimum widens the right margin, so the plot ends sooner.
+    assert!(wide.layout.plot.right() < default.layout.plot.right());
+    assert!((800.0 - wide.layout.plot.right() - 150.0).abs() < 0.001);
+}
+
+#[test]
+fn test_chart_margin_below_default_is_a_floor() {
+    let csv = "x,y\n1,2\n2,3\n";
+    let default = render_result(
+        "Chart(data: \"p.csv\", width: 800, height: 520) { Space(x * y) { Point() } }",
+        csv,
+    );
+    // A value below the computed default (right margin 30) must not shrink it.
+    let tiny = render_result(
+        "Chart(data: \"p.csv\", width: 800, height: 520, marginRight: 5) { Space(x * y) { Point() } }",
+        csv,
+    );
+    assert_eq!(tiny.layout.plot.right(), default.layout.plot.right());
+}
+
+#[test]
 fn test_no_legend_for_literal_fill() {
     let svg = render_svg(
         "Chart(data: \"p.csv\") { Space(x * y) { Point(fill: \"steelblue\") } }",

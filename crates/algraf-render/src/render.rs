@@ -14,7 +14,7 @@ use crate::aes::{color_spec, ColorSpec, Legend, LegendKind};
 use crate::domains::train_space_domains;
 use crate::error::RenderError;
 use crate::guide;
-use crate::layout::{Layout, Rect, MARGIN_LEFT};
+use crate::layout::{Layout, Margins, Rect, MARGIN_LEFT};
 use crate::scale::{categorical_domain, cell_category};
 use crate::space::ScaledSpace;
 use crate::stats;
@@ -62,10 +62,24 @@ pub fn render(
     let height = ir.height as f64;
 
     let has_axes = theme.axes;
+    let margins = Margins {
+        top: ir.margin_top.map(f64::from),
+        right: ir.margin_right.map(f64::from),
+        bottom: ir.margin_bottom.map(f64::from),
+        left: ir.margin_left.map(f64::from),
+    };
     let (top_extra, bottom_extra) = chart_text_reserve(ir, theme);
     // A first pass with a provisional layout to discover legends.
-    let provisional =
-        Layout::compute_with_text(width, height, false, has_axes, top_extra, bottom_extra, 0.0);
+    let provisional = Layout::compute_with_text(
+        width,
+        height,
+        false,
+        has_axes,
+        top_extra,
+        bottom_extra,
+        0.0,
+        margins,
+    );
     let legends = collect_legends(ir, primary, &derived, &provisional);
     let left_extra = if has_axes {
         y_label_left_extra(ir, primary, &derived, &provisional, theme)
@@ -84,6 +98,7 @@ pub fn render(
             top_extra,
             bottom_extra,
             left_extra,
+            margins,
         ),
         None => Layout::compute_with_text(
             width,
@@ -93,6 +108,7 @@ pub fn render(
             top_extra,
             bottom_extra,
             left_extra,
+            margins,
         ),
     };
 

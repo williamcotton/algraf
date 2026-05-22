@@ -1,0 +1,12 @@
+Chart(data: "regional_sales.csv", width: 840, height: 500, title: "Sales Distribution by Product and Region") {
+    Theme(name: "minimal")
+    Scale(fill: product, palette: "accent")
+    Scale(stroke: product, palette: "accent")
+    Guide(axis: y, label: "Sales Amount")
+
+    Space((product * sales) / region) {
+        Violin(fill: product, alpha: 0.5, quantiles: [0.25, 0.5, 0.75])
+        Boxplot(width: 0.12, fill: "#ffffff", stroke: "#000000", strokeWidth: 1.2, alpha: 0.9)
+        Rug(sides: "l", stroke: product, alpha: 0.35)
+    }
+}

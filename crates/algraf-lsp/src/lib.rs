@@ -1806,7 +1806,18 @@ fn dedupe_by_label(items: Vec<CompletionItem>) -> Vec<CompletionItem> {
         .collect()
 }
 
-const CHART_ARGS: &[&str] = &["data", "width", "height", "title", "subtitle", "caption"];
+const CHART_ARGS: &[&str] = &[
+    "data",
+    "width",
+    "height",
+    "title",
+    "subtitle",
+    "caption",
+    "marginTop",
+    "marginRight",
+    "marginBottom",
+    "marginLeft",
+];
 const CHART_BODY_ITEMS: &[&str] = &["Derive", "Space", "Scale", "Guide", "Theme", "Layout"];
 
 fn keyword(label: &str, doc: &str) -> CompletionItem {
@@ -2081,6 +2092,10 @@ fn property_doc(name: &str) -> &'static str {
         "xend" => "Segment end x position.",
         "yend" => "Segment end y position.",
         "sides" => "Rug sides setting.",
+        "marginTop" => "Minimum top plot margin in pixels (floor over the computed margin).",
+        "marginRight" => "Minimum right plot margin in pixels (floor over the computed margin).",
+        "marginBottom" => "Minimum bottom plot margin in pixels (floor over the computed margin).",
+        "marginLeft" => "Minimum left plot margin in pixels (floor over the computed margin).",
         _ => "Algraf argument.",
     }
 }

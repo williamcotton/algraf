@@ -1,4 +1,4 @@
-Chart(data: "satisfaction.csv", width: 760, height: 480, title: "Customer Satisfaction Shift (2024 vs 2026)") {
+Chart(data: "satisfaction.csv", width: 760, height: 480, marginRight: 150, title: "Customer Satisfaction Shift (2024 vs 2026)") {
     Theme(name: "minimal")
     Scale(axis: x, domain: [2024, 2026], integer: true)
     Scale(axis: y, domain: [50, 100])
@@ -6,6 +6,7 @@ Chart(data: "satisfaction.csv", width: 760, height: 480, title: "Customer Satisf
     Scale(fill: metric, palette: "accent")
     Guide(axis: x, label: "Year")
     Guide(axis: y, label: "Satisfaction Score (%)")
+    Guide(legend: false)
 
     Space(year * value) {
         Line(group: metric, stroke: metric, strokeWidth: 3)

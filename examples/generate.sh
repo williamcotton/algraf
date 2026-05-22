@@ -48,6 +48,11 @@ charts=(
     satisfaction_slope
     flight_dumbbell
     violin_boxplot
+    faceted_sales_performance
+    binned_heatmap_overlay
+    faceted_violin_boxplot
+    annotated_intervals
+    binned_regression_chain
 )
 
 cd "$repo_root"

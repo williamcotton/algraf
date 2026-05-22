@@ -34,6 +34,17 @@ pub struct Layout {
     pub facets: Vec<FacetPanel>,
 }
 
+/// Per-side minimum plot margins in pixels (spec §17.3). A `Some(n)` value sets
+/// a floor: the computed margin for that side is widened to at least `n`. `None`
+/// keeps the computed default.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Margins {
+    pub top: Option<f64>,
+    pub right: Option<f64>,
+    pub bottom: Option<f64>,
+    pub left: Option<f64>,
+}
+
 const MARGIN_TOP: f64 = 40.0;
 const MARGIN_RIGHT: f64 = 30.0;
 const MARGIN_BOTTOM: f64 = 50.0;
@@ -49,11 +60,22 @@ const FACET_STRIP_GAP: f64 = 6.0;
 impl Layout {
     /// Compute layout for the given SVG dimensions (spec §17.3, fixed margins).
     pub fn compute(width: f64, height: f64, has_legend: bool, has_axes: bool) -> Layout {
-        Layout::compute_with_text(width, height, has_legend, has_axes, 0.0, 0.0, 0.0)
+        Layout::compute_with_text(
+            width,
+            height,
+            has_legend,
+            has_axes,
+            0.0,
+            0.0,
+            0.0,
+            Margins::default(),
+        )
     }
 
     /// Compute layout with extra title/caption reserve. `left_extra` widens the
-    /// left margin to make room for wide y tick labels (spec §17.3).
+    /// left margin to make room for wide y tick labels (spec §17.3). `margins`
+    /// applies per-side user minimums on top of the computed margins.
+    #[allow(clippy::too_many_arguments)]
     pub fn compute_with_text(
         width: f64,
         height: f64,
@@ -62,6 +84,7 @@ impl Layout {
         top_extra: f64,
         bottom_extra: f64,
         left_extra: f64,
+        margins: Margins,
     ) -> Layout {
         let (top, right, bottom, left) = if has_axes {
             (MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT)
@@ -71,6 +94,11 @@ impl Layout {
         let top = top + top_extra.max(0.0);
         let bottom = bottom + bottom_extra.max(0.0);
         let left = left + left_extra.max(0.0);
+        // User-supplied minimums act as a floor over the computed margins.
+        let top = margins.top.map_or(top, |m| top.max(m));
+        let right = margins.right.map_or(right, |m| right.max(m));
+        let bottom = margins.bottom.map_or(bottom, |m| bottom.max(m));
+        let left = margins.left.map_or(left, |m| left.max(m));
         let legend_reserve = if has_legend { LEGEND_WIDTH } else { 0.0 };
 
         let plot = Rect {
@@ -119,6 +147,7 @@ impl Layout {
             0.0,
             0.0,
             0.0,
+            Margins::default(),
         )
     }
 
@@ -134,6 +163,7 @@ impl Layout {
         top_extra: f64,
         bottom_extra: f64,
         left_extra: f64,
+        margins: Margins,
     ) -> Layout {
         let mut layout = Layout::compute_with_text(
             width,
@@ -143,6 +173,7 @@ impl Layout {
             top_extra,
             bottom_extra,
             left_extra,
+            margins,
         );
         let panel_count = panel_count.max(1);
         let columns = columns

@@ -21,6 +21,12 @@ pub struct ChartIr {
     pub caption: Option<String>,
     pub width: u32,
     pub height: u32,
+    /// Per-side minimum plot margins in pixels (spec §17.3). `None` keeps the
+    /// computed default for that side.
+    pub margin_top: Option<u32>,
+    pub margin_right: Option<u32>,
+    pub margin_bottom: Option<u32>,
+    pub margin_left: Option<u32>,
     pub spaces: Vec<SpaceIr>,
 }
 

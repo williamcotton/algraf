@@ -272,6 +272,29 @@ Chart(data: "distribution.csv", width: 760, height: 460, title: "Binned trend") 
 
 ![derived_chain](examples/derived_chain.svg)
 
+## Binned 2D regression chain
+
+A multi-stage statistical chaining chart that runs 2D density binning (`Bin2D`), chains a linear regression (`Smooth`) over the binned coordinate centers, and overlays the binned rectangles, center points, and regression line.
+
+```algraf
+Chart(data: "samples.csv", width: 760, height: 500, title: "Binned 2D Regression Chain") {
+    Theme(name: "minimal")
+    Derive binned = Bin2D(x, y, bins: 10)
+    Derive trend = Smooth(x_center, y_center, method: "lm")
+
+    Space(x_center * y_center, data: binned) {
+        Rect(xmin: x_start, xmax: x_end, ymin: y_start, ymax: y_end, fill: count, alpha: 0.6)
+        Point(fill: "#333333", size: 4, alpha: 0.8)
+    }
+
+    Space(x * y, data: trend) {
+        Line(stroke: "red", strokeWidth: 3)
+    }
+}
+```
+
+![binned_regression_chain](examples/binned_regression_chain.svg)
+
 ## Binning over time
 
 `Bin` and `Histogram` work on temporal columns too. Mapping a single date
@@ -343,6 +366,29 @@ Chart(data: "samples.csv", width: 720, height: 500, title: "2D rectangular bins"
 
 ![bin2d](examples/bin2d.svg)
 
+## 2D binning with raw points and thresholds overlay
+
+Continuous 2D density heatmap using `Bin2D` overlaid with raw scatter points and threshold reference lines.
+
+```algraf
+Chart(data: "samples.csv", width: 760, height: 500, title: "2D Density Binning with Points Overlay") {
+    Theme(name: "minimal")
+    Scale(axis: x, domain: [165, 205])
+    Scale(axis: y, domain: [2000, 4500])
+    Guide(axis: x, label: "Variable X")
+    Guide(axis: y, label: "Variable Y")
+
+    Space(x * y) {
+        Bin2D(bins: 12, alpha: 0.8)
+        Point(fill: "red", stroke: "#ffffff", size: 3, alpha: 0.6)
+        HLine(y: 3500, stroke: "#111111", strokeWidth: 1.5, label: "Upper Limit")
+        VLine(x: 185, stroke: "#111111", strokeWidth: 1.5, label: "Midpoint")
+    }
+}
+```
+
+![binned_heatmap_overlay](examples/binned_heatmap_overlay.svg)
+
 ## Hex bins
 
 `HexBin` is the hexagonal counterpart for dense two-dimensional scatter data.
@@ -410,6 +456,27 @@ Chart(data: "demographics.csv", width: 720, height: 460, title: "Height Distribu
 ```
 
 ![violin_boxplot](examples/violin_boxplot.svg)
+
+## Faceted violin and boxplot distributions with rug
+
+Overlaying `Violin`, narrow `Boxplot`, and marginal `Rug` plots inside a faceted space layout.
+
+```algraf
+Chart(data: "regional_sales.csv", width: 840, height: 500, title: "Sales Distribution by Product and Region") {
+    Theme(name: "minimal")
+    Scale(fill: product, palette: "accent")
+    Scale(stroke: product, palette: "accent")
+    Guide(axis: y, label: "Sales Amount")
+
+    Space((product * sales) / region) {
+        Violin(fill: product, alpha: 0.5, quantiles: [0.25, 0.5, 0.75])
+        Boxplot(width: 0.12, fill: "#ffffff", stroke: "#000000", strokeWidth: 1.2, alpha: 0.9)
+        Rug(sides: "l", stroke: product, alpha: 0.35)
+    }
+}
+```
+
+![faceted_violin_boxplot](examples/faceted_violin_boxplot.svg)
 
 ## Density: a smooth distribution
 
@@ -503,6 +570,27 @@ Chart(data: "intervals.csv") {
 
 ![floating](examples/floating.svg)
 
+## Time series with shaded peak intervals
+
+Drawing shaded peak intervals (`Rect`) and overlaying a blue line trend series (`Line`, `Point`, `Text`) with shared temporal x and value-constrained y axes.
+
+```algraf
+Chart(data: "intervals.csv", width: 760, height: 460, title: "Time Series with Shaded Peak Intervals") {
+    Theme(name: "minimal")
+    Scale(axis: x, label: "Timeline")
+    Scale(axis: y, label: "Value")
+
+    Space(time * peak_value) {
+        Rect(xmin: start_time, xmax: end_time, ymin: value, ymax: peak_value, fill: "#e2e2e2", alpha: 0.6)
+        Line(stroke: "blue", strokeWidth: 2)
+        Point(fill: "blue", size: 6)
+        Text(label: peak_value, dy: -8, size: 9, fill: "#333333", anchor: "middle")
+    }
+}
+```
+
+![annotated_intervals](examples/annotated_intervals.svg)
+
 ## Gantt chart / timeline with categorical `Rect` bounds
 
 A Gantt chart illustrates a project timeline by plotting intervals for each
@@ -565,6 +653,29 @@ Chart(data: "regional_sales.csv") {
 ```
 
 ![facet](examples/facet.svg)
+
+## Faceted sales performance with target line
+
+Combining nested space algebra faceting, line and point series, custom axes/color scales, and reference overlays.
+
+```algraf
+Chart(data: "regional_sales.csv", width: 800, height: 480, title: "Regional Sales Performance vs. Target") {
+    Theme(name: "minimal")
+    Scale(stroke: product, palette: "accent")
+    Scale(fill: product, palette: "accent")
+    Scale(axis: y, domain: [50, 250])
+    Guide(axis: y, grid: true, label: "Sales (k$)")
+    Guide(axis: x, label: "Date")
+
+    Space((time * sales) / region) {
+        Line(stroke: product, strokeWidth: 2.5)
+        Point(fill: product, size: 5)
+        HLine(y: 150, stroke: "#ff4444", strokeWidth: 1.5, label: "Daily Target")
+    }
+}
+```
+
+![faceted_sales_performance](examples/faceted_sales_performance.svg)
 
 ## Reference marks: title, `HLine`, `VLine`, `Rug`
 
@@ -631,8 +742,10 @@ Chart(data: "penguins.csv", width: 720, height: 480) {
 
 A slopegraph compares values at two points in time/categories (e.g. 2024 vs 2026) for different groups, drawing a line between the two states. In Algraf, you can do this by using a continuous or categorical x-axis, using `Line` grouped and colored by group, `Point` markers, and `Text` labels. By leaving the label column blank for the starting year, text labels are rendered only at the end points to cleanly name the series.
 
+Because the end-labels name the series directly, the `metric` legend is redundant, so it is turned off with `Guide(legend: false)`. With the legend gone there is nothing to reserve space on the right for those labels, so `marginRight: 150` keeps a minimum right margin wide enough for them to fit on the canvas.
+
 ```algraf
-Chart(data: "satisfaction.csv", width: 760, height: 480, title: "Customer Satisfaction Shift (2024 vs 2026)") {
+Chart(data: "satisfaction.csv", width: 760, height: 480, marginRight: 150, title: "Customer Satisfaction Shift (2024 vs 2026)") {
     Theme(name: "minimal")
     Scale(axis: x, domain: [2024, 2026], integer: true)
     Scale(axis: y, domain: [50, 100])
@@ -640,6 +753,7 @@ Chart(data: "satisfaction.csv", width: 760, height: 480, title: "Customer Satisf
     Scale(fill: metric, palette: "accent")
     Guide(axis: x, label: "Year")
     Guide(axis: y, label: "Satisfaction Score (%)")
+    Guide(legend: false)
 
     Space(year * value) {
         Line(group: metric, stroke: metric, strokeWidth: 3)

@@ -965,6 +965,11 @@ ChartItem      ::= SpaceBlock
 
 `Chart` MAY include `title`, `subtitle`, and `caption` arguments.
 
+`Chart` MAY include `marginTop`, `marginRight`, `marginBottom`, and `marginLeft`
+arguments. Each is a non-negative integer giving a per-side minimum plot margin
+in pixels (see §17.3). They are useful to reserve room for annotations that sit
+outside the plot area, such as direct end-labels on a slope chart.
+
 `Chart` MUST NOT include `theme` as a shorthand in version 0.1.
 
 Themes are declared with `Theme(name: "minimal")` inside the chart body.
@@ -4685,6 +4690,14 @@ If x tick labels rotated, bottom margin increases.
 Dynamic text measurement is hard in pure SVG.
 
 Version 0.1 MAY approximate text dimensions.
+
+`Chart` MAY set a per-side minimum margin via `marginTop`, `marginRight`,
+`marginBottom`, and `marginLeft` (each a non-negative integer in pixels). A
+configured value acts as a floor: the margin for that side is widened to at
+least the configured value, composed with the computed margin (`max(computed,
+configured)`). Because it is a floor, it never shrinks a side below what the
+content requires (title, y tick labels, legend reserve). When an argument is
+absent, the computed default for that side is unchanged.
 
 ### 17.4 Facet Layout
 

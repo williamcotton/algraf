@@ -1,0 +1,12 @@
+Chart(data: "intervals.csv", width: 760, height: 460, title: "Time Series with Shaded Peak Intervals") {
+    Theme(name: "minimal")
+    Scale(axis: x, label: "Timeline")
+    Scale(axis: y, label: "Value")
+
+    Space(time * peak_value) {
+        Rect(xmin: start_time, xmax: end_time, ymin: value, ymax: peak_value, fill: "#e2e2e2", alpha: 0.6)
+        Line(stroke: "blue", strokeWidth: 2)
+        Point(fill: "blue", size: 6)
+        Text(label: peak_value, dy: -8, size: 9, fill: "#333333", anchor: "middle")
+    }
+}

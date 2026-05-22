@@ -62,6 +62,11 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | `satisfaction_slope.ag` | `satisfaction.csv` | `satisfaction_slope.svg`, `satisfaction_slope.png` | Slopegraph with line grouping and text labels |
 | `flight_dumbbell.ag` | `flights.csv` | `flight_dumbbell.svg`, `flight_dumbbell.png` | Dumbbell plot showing category-continuous range segments |
 | `violin_boxplot.ag` | `demographics.csv` | `violin_boxplot.svg`, `violin_boxplot.png` | Layered violin and boxplot distributions |
+| `faceted_sales_performance.ag` | `regional_sales.csv` | `faceted_sales_performance.svg`, `faceted_sales_performance.png` | Faceted line chart with point markers and a horizontal daily target reference line (`HLine`) |
+| `binned_heatmap_overlay.ag` | `samples.csv` | `binned_heatmap_overlay.svg`, `binned_heatmap_overlay.png` | Continuous 2D binned density heatmap (`Bin2D`) overlaid with raw data points and threshold limit lines |
+| `faceted_violin_boxplot.ag` | `regional_sales.csv` | `faceted_violin_boxplot.svg`, `faceted_violin_boxplot.png` | Faceted distribution chart overlaying `Violin`, narrow `Boxplot`, and marginal data `Rug` marks |
+| `annotated_intervals.ag` | `intervals.csv` | `annotated_intervals.svg`, `annotated_intervals.png` | Shaded interval rectangles (`Rect`) and trend markers aligned to temporal x and value-constrained y axes |
+| `binned_regression_chain.ag` | `samples.csv` | `binned_regression_chain.svg`, `binned_regression_chain.png` | Multi-stage statistical chaining: 2D binning (`Bin2D`) chained to a regression `Smooth` trend line |
 
 ## Notes
 

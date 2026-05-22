@@ -147,6 +147,28 @@ Consider letting a `let` binding hold a reusable property set applied to multipl
 geometries. Strictly additive on top of Must item 1; only pursue if the variable
 model generalizes cleanly.
 
+### Chart Margin Overrides
+
+Status: Done. Surfaced by real example use: `examples/satisfaction_slope.ag` is a
+slope chart whose direct end-labels were clipped by the canvas edge once the
+redundant legend was removed, because nothing reserved right-margin space for
+annotations.
+
+A small layout-authoring primitive: `Chart` accepts `marginTop`, `marginRight`,
+`marginBottom`, and `marginLeft` (non-negative integers, pixels). Each is a
+per-side minimum margin (floor) composed over the computed margin (spec §17.3),
+so it reserves room for annotations sitting outside the plot area without
+shrinking content-driven margins. (Placement in v0.5 is editorial — it is a
+self-contained layout knob rather than part of the composition/reuse thesis;
+the spec change is what makes it normative.)
+
+Acceptance criteria:
+
+- `Chart(marginRight: N)` (and the other three sides) widen the corresponding
+  margin to at least `N`; absent arguments leave layout unchanged.
+- Spec §17.3 and the Chart-properties section document the floor semantics.
+- An example exercises it (the slope chart) and the README stays in sync.
+
 ## Explicitly Deferred Past v0.5.0
 
 Carried forward and unchanged unless a later planning decision moves them:

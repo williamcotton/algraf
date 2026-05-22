@@ -1,0 +1,14 @@
+Chart(data: "regional_sales.csv", width: 800, height: 480, title: "Regional Sales Performance vs. Target") {
+    Theme(name: "minimal")
+    Scale(stroke: product, palette: "accent")
+    Scale(fill: product, palette: "accent")
+    Scale(axis: y, domain: [50, 250])
+    Guide(axis: y, grid: true, label: "Sales (k$)")
+    Guide(axis: x, label: "Date")
+
+    Space((time * sales) / region) {
+        Line(stroke: product, strokeWidth: 2.5)
+        Point(fill: product, size: 5)
+        HLine(y: 150, stroke: "#ff4444", strokeWidth: 1.5, label: "Daily Target")
+    }
+}

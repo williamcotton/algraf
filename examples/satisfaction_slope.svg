@@ -64,17 +64,4 @@
   <text x="52" y="70" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100</text>
   <text x="24.4" y="248" text-anchor="middle" transform="rotate(-90 24.4 248)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Satisfaction Score (%)</text>
 </g>
-<g class="algraf-legends">
-  <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">metric</text>
-  <rect x="626" y="78" width="12" height="12" fill="#006BA4" stroke="#006BA4" stroke-width="2" />
-  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Product Quality</text>
-  <rect x="626" y="96" width="12" height="12" fill="#FF800E" stroke="#FF800E" stroke-width="2" />
-  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Customer Support</text>
-  <rect x="626" y="114" width="12" height="12" fill="#ABABAB" stroke="#ABABAB" stroke-width="2" />
-  <text x="644" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Pricing Value</text>
-  <rect x="626" y="132" width="12" height="12" fill="#595959" stroke="#595959" stroke-width="2" />
-  <text x="644" y="142" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Delivery Speed</text>
-  <rect x="626" y="150" width="12" height="12" fill="#5F9ED1" stroke="#5F9ED1" stroke-width="2" />
-  <text x="644" y="160" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Platform Ease</text>
-</g>
 </svg>
