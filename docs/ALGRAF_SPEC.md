@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.2.0
+Status: Draft 0.3.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,9 +32,9 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.2.0 specification.
+This working copy is the active Draft 0.3.0 specification.
 
-The v0.2.0 release plan and optional-item audit live in [`V0_2_PLAN.md`](V0_2_PLAN.md).
+The v0.3.0 release plan and optional-item audit live in [`V0_3_PLAN.md`](V0_3_PLAN.md).
 
 Items in the plan are planning guidance until they are promoted into normative sections of this specification.
 
@@ -1897,6 +1897,21 @@ Derived table names MUST NOT shadow the primary data source.
 
 Derived table columns are referenced like ordinary columns inside spaces bound to that derived table.
 
+In version 0.3.0, a derived declaration MAY reference columns produced by
+another derived declaration in the same chart.
+
+The analyzer MUST build a dependency graph between derived declarations from
+their column inputs and output schemas.
+
+The graph resolution order MUST be deterministic.
+
+If a cycle exists between derived declarations, the analyzer MUST emit `E1501`
+and MUST NOT loop.
+
+If a derived declaration references no source column and no upstream derived
+output column, the analyzer MUST emit the ordinary unknown-column diagnostic
+`E1101`.
+
 Example:
 
 ```ag
@@ -3181,6 +3196,21 @@ Default shape:
 
 circle
 
+Version 0.3.0 point shapes are:
+
+circle
+
+square
+
+triangle
+
+diamond
+
+Unknown literal shapes SHOULD render as `circle` with a warning.
+
+Categorical shape mappings MUST assign shapes deterministically in domain
+order and wrap when there are more categories than supported shapes.
+
 Point rendering emits SVG `circle`, `path`, or `use` elements.
 
 Point MUST skip rows with missing x or y.
@@ -3312,6 +3342,17 @@ strokeWidth
 `Rect` MUST accept column mappings for all bounds.
 
 `Rect` MUST skip rows with missing required bound values.
+
+When a bound maps to a categorical column on a band or nested-band axis,
+`Rect` MUST resolve that category to the category band edge: `xmin`/`ymin`
+use the lower edge and `xmax`/`ymax` use the upper edge.
+
+For nested bands, a bound mapped to the inner category column MUST use the
+row's outer and inner category values to resolve the nested sub-band.
+
+When a mapped rectangle has zero width or zero height, the renderer MUST draw
+a thin marker at least as wide as the effective `strokeWidth` rather than
+emitting a zero-extent SVG rectangle.
 
 `Rect` is the primitive mark used by histogram desugaring.
 
@@ -3509,6 +3550,12 @@ Frequency polygon shares binning with histogram.
 
 It renders bin centers connected by lines.
 
+Version 0.3.0 MUST advertise `FreqPoly` in the registry.
+
+`FreqPoly` MUST use the same `Bin` stat and bin settings as `Histogram`.
+
+`FreqPoly` MUST render a `Line` over `bin_center * count`.
+
 ### 14.9 Density
 
 > Promoted from a v0.1 `MAY` to a v0.2.0 requirement; see `docs/V0_2_PLAN.md`.
@@ -3569,7 +3616,9 @@ Smooth computes predicted values.
 
 Smooth renders a line.
 
-Smooth grouping SHOULD follow stroke, fill, or group mappings.
+Smooth grouping MUST follow the `group` aesthetic when present.
+
+When `group` is absent, Smooth grouping SHOULD follow stroke or fill mappings.
 
 Smooth MUST report diagnostic if x or y is non-continuous for `lm`.
 
@@ -3629,7 +3678,20 @@ categorical x by continuous y
 
 Violin computes density per group.
 
-Version 0.1 MAY defer Violin.
+Version 0.3.0 MUST advertise `Violin` in the registry.
+
+Violin MUST support categorical x by continuous y spaces.
+
+Violin MUST compute one Gaussian KDE per category using the same deterministic
+defaults as `Density`: Silverman bandwidth, 256 grid points, and a
+three-bandwidth extension.
+
+`bandwidth` and `n` MUST override those KDE defaults.
+
+`quantiles` MUST accept an ordered numeric array. When omitted, no quantile
+lines are drawn.
+
+Violin MUST render a symmetric mirrored density area inside each category band.
 
 If implemented, quantile lines MUST be deterministic.
 
@@ -3806,7 +3868,31 @@ Supported spaces:
 
 Rug renders tick marks along axis edges.
 
-### 14.21 Geometry Extensibility
+### 14.21 2D Binning Geometries
+
+Syntax:
+
+```ag
+Bin2D(bins: 30)
+HexBin(bins: 30)
+```
+
+Supported spaces:
+
+2D Cartesian continuous x and y
+
+`Bin2D` MUST assign observations to deterministic rectangular bins and render
+non-empty bins as rectangles filled by `count`.
+
+`HexBin` MUST assign observations to deterministic hexagonal bins and render
+non-empty bins as SVG polygons filled by `count`.
+
+Both geometries accept `bins`, `fill`, `stroke`, `strokeWidth`, and `alpha`.
+
+When `fill` is omitted, the fill channel MUST use a continuous gradient over
+bin count.
+
+### 14.22 Geometry Extensibility
 
 The registry MUST be data-driven enough that LSP docs and completions can use the same metadata as semantic analysis.
 
@@ -3898,9 +3984,11 @@ Derived stat declarations MUST produce an output schema.
 
 The output schema MUST be available before spaces using `data: bins` are analyzed.
 
-Derived stat declarations MAY depend on previously declared derived tables in later versions.
+In version 0.3.0, derived stat declarations MAY depend on derived tables in
+the same chart, subject to the acyclic dependency rules in §10.6.
 
-Version 0.1 SHOULD require derived stats to read from the primary data table.
+When no upstream dependency exists, derived stats read from the primary data
+table.
 
 ### 15.4 Identity Stat
 
@@ -4121,6 +4209,45 @@ Fewer than two finite input values produces an empty result.
 
 `Density()` (§14.9) desugars to this stat plus an `Area` geometry over the
 `(density_x, density)` derived table.
+
+### 15.12 2D Binning Stats
+
+`Bin2D` groups two continuous input columns into deterministic rectangular
+bins.
+
+Output columns:
+
+x_start
+
+x_end
+
+x_center
+
+y_start
+
+y_end
+
+y_center
+
+count
+
+density
+
+`HexBin` groups two continuous input columns into deterministic hexagonal bins.
+
+Output columns:
+
+x
+
+y
+
+radius
+
+count
+
+density
+
+Both stats accept `bins`, which MUST be at least 1 and defaults to 30.
 
 ## 16. Scale Training
 
@@ -4405,6 +4532,7 @@ Scale(axis: x, type: "log10")
 Scale(axis: x, domain: [0, 100])
 Scale(axis: y, reverse: true)
 Scale(fill: species, palette: "accent")
+Scale(fill: value, gradient: ["#3366cc", "#cc3333"])
 ```
 
 Version 0.2.0 MUST implement source-level `Scale` declarations.
@@ -4422,6 +4550,20 @@ Version 0.2.0 MUST support numeric position domains with `domain: [min, max]`.
 Version 0.2.0 MUST support `reverse: true` for position axes.
 
 Version 0.2.0 MUST support categorical `fill` and `stroke` palette selection with `palette: "default"` and `palette: "accent"`.
+
+Version 0.3.0 MUST support continuous `fill` and `stroke` gradient selection
+with `gradient: [...]`.
+
+`gradient` MUST accept an ordered array of two or more color string literals.
+
+Gradient stops MUST be interpolated evenly across the trained continuous
+domain.
+
+Gradient stop positions are deferred.
+
+`gradient` MUST be valid only for continuous color mappings. Invalid gradient
+arrays MUST emit `E1601`; using `gradient` with a categorical mapping MUST emit
+`E1602`.
 
 Invalid scale/domain combinations MUST emit targeted diagnostics.
 
@@ -6224,6 +6366,12 @@ Chart(data: "examples/heatmap_data.csv") {
 
 `E1405 temporal binning is not supported in this version`
 
+`E1501 cycle between derived table declarations`
+
+`E1601 invalid gradient declaration`
+
+`E1602 gradient requires continuous color mapping`
+
 ### 26.3 Warning Diagnostics
 
 `W2001 empty Space block`
@@ -6634,7 +6782,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | Release | Plan | Thesis | Status |
 | ------- | ---- | ------ | ------ |
 | 0.2.0 | [`V0_2_PLAN.md`](V0_2_PLAN.md) | Chart control and editing polish | Released |
-| 0.3.0 | [`V0_3_PLAN.md`](V0_3_PLAN.md) | Expressiveness — more charts users can draw | Planned |
+| 0.3.0 | [`V0_3_PLAN.md`](V0_3_PLAN.md) | Expressiveness — more charts users can draw | Implemented |
 | 0.4.0 | [`V0_4_PLAN.md`](V0_4_PLAN.md) | Editor & authoring experience | Planned |
 | 0.5.0 | [`V0_5_PLAN.md`](V0_5_PLAN.md) | Composition & reuse | Planned |
 | 0.6.0 | [`V0_6_PLAN.md`](V0_6_PLAN.md) | Data backends | Planned |

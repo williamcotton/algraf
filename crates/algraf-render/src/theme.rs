@@ -127,14 +127,24 @@ pub fn categorical_color_from(name: Option<&str>, index: usize) -> &'static str 
 
 /// Interpolate the continuous gradient at `t` in `[0, 1]`, returning a hex color.
 pub fn gradient_color(t: f64) -> String {
+    gradient_color_from(CONTINUOUS_GRADIENT, t)
+}
+
+pub fn gradient_color_from(stops: &[&str], t: f64) -> String {
     let t = t.clamp(0.0, 1.0);
-    let stops = CONTINUOUS_GRADIENT;
+    if stops.is_empty() {
+        return "#000000".to_string();
+    }
+    if stops.len() == 1 {
+        let (r, g, b) = parse_color(stops[0]);
+        return format!("#{r:02x}{g:02x}{b:02x}");
+    }
     let segments = stops.len() - 1;
     let scaled = t * segments as f64;
     let i = (scaled.floor() as usize).min(segments - 1);
     let local = scaled - i as f64;
-    let (r1, g1, b1) = parse_hex(stops[i]);
-    let (r2, g2, b2) = parse_hex(stops[i + 1]);
+    let (r1, g1, b1) = parse_color(stops[i]);
+    let (r2, g2, b2) = parse_color(stops[i + 1]);
     let lerp = |a: u8, b: u8| (a as f64 + (b as f64 - a as f64) * local).round() as u8;
     format!(
         "#{:02x}{:02x}{:02x}",
@@ -144,10 +154,32 @@ pub fn gradient_color(t: f64) -> String {
     )
 }
 
-fn parse_hex(hex: &str) -> (u8, u8, u8) {
-    let h = hex.trim_start_matches('#');
-    let r = u8::from_str_radix(&h[0..2], 16).unwrap_or(0);
-    let g = u8::from_str_radix(&h[2..4], 16).unwrap_or(0);
-    let b = u8::from_str_radix(&h[4..6], 16).unwrap_or(0);
-    (r, g, b)
+fn parse_color(color: &str) -> (u8, u8, u8) {
+    match color.to_ascii_lowercase().as_str() {
+        "black" => return (0, 0, 0),
+        "white" => return (255, 255, 255),
+        "red" => return (255, 0, 0),
+        "green" => return (0, 128, 0),
+        "blue" => return (0, 0, 255),
+        "steelblue" => return (70, 130, 180),
+        "orange" => return (255, 165, 0),
+        "purple" => return (128, 0, 128),
+        _ => {}
+    }
+    let h = color.trim_start_matches('#');
+    if h.len() == 3 {
+        let expand = |i: usize| {
+            u8::from_str_radix(&h[i..=i], 16)
+                .map(|v| v * 17)
+                .unwrap_or(0)
+        };
+        return (expand(0), expand(1), expand(2));
+    }
+    if h.len() == 6 {
+        let r = u8::from_str_radix(&h[0..2], 16).unwrap_or(0);
+        let g = u8::from_str_radix(&h[2..4], 16).unwrap_or(0);
+        let b = u8::from_str_radix(&h[4..6], 16).unwrap_or(0);
+        return (r, g, b);
+    }
+    (0, 0, 0)
 }

@@ -134,6 +134,14 @@ fn committed_examples_check_and_render() {
         "smooth",
         "boxplot",
         "ribbon",
+        "violin",
+        "freqpoly",
+        "derived_chain",
+        "gradient",
+        "group_line",
+        "shapes",
+        "bin2d",
+        "hexbin",
         "reference",
     ];
 

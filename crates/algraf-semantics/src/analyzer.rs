@@ -74,6 +74,19 @@ impl ActiveTable {
         }
     }
 
+    fn merged(primary: &[ColumnDef], derived: &[&[ColumnDefIr]]) -> Self {
+        let mut columns: Vec<(String, DataType)> =
+            primary.iter().map(|c| (c.name.clone(), c.dtype)).collect();
+        for schema in derived {
+            for column in *schema {
+                if !columns.iter().any(|(name, _)| name == &column.name) {
+                    columns.push((column.name.clone(), column.dtype));
+                }
+            }
+        }
+        ActiveTable { columns }
+    }
+
     fn get(&self, name: &str) -> Option<DataType> {
         self.columns
             .iter()
@@ -115,7 +128,11 @@ impl<'a> Analyzer<'a> {
         let (data_source, width, height, title, subtitle, caption) = self.chart_args(chart);
         self.reserved_derived_names = chart_derived_names(chart);
 
-        let mut derived_tables = Vec::new();
+        let mut derived_tables = self.resolve_chart_derives(chart);
+        for ir in &derived_tables {
+            self.derived
+                .insert(ir.name.clone(), ir.output_schema.clone());
+        }
         let mut layout = LayoutIr::default();
         let mut guides = GuideIr::default();
         let mut scales = Vec::new();
@@ -124,13 +141,7 @@ impl<'a> Analyzer<'a> {
         let primary_table = ActiveTable::from_schema(self.primary);
         for item in chart.items() {
             match item {
-                ChartItem::Derive(d) => {
-                    if let Some(ir) = self.derive(&d) {
-                        self.derived
-                            .insert(ir.name.clone(), ir.output_schema.clone());
-                        derived_tables.push(ir);
-                    }
-                }
+                ChartItem::Derive(_) => {}
                 ChartItem::Space(s) => {
                     let analysis = self.space(&s);
                     for ir in analysis.derived {
@@ -465,6 +476,8 @@ impl<'a> Analyzer<'a> {
         let mut domain = None;
         let mut reverse = None;
         let mut palette = None;
+        let mut gradient: Option<Vec<String>> = None;
+        let mut gradient_span: Option<Span> = None;
         let mut label = None;
 
         for arg in decl.args() {
@@ -578,6 +591,23 @@ impl<'a> Analyzer<'a> {
                     )),
                     None => {}
                 },
+                "gradient" => {
+                    let Some(value) = arg.value() else { continue };
+                    gradient_span = Some(node_span(value.syntax()));
+                    match ValueForm::of(&value) {
+                        ValueForm::StringArray(Some(values))
+                            if values.len() >= 2
+                                && values.iter().all(|value| is_color_literal(value)) =>
+                        {
+                            gradient = Some(values);
+                        }
+                        _ => self.diag(Diagnostic::error(
+                            "E1601",
+                            "`gradient` expects an array of two or more color strings",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
                 "label" => match arg.value() {
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
                         label = Some(string_value(&lit.text().unwrap_or_default()));
@@ -608,20 +638,34 @@ impl<'a> Analyzer<'a> {
 
         match &target {
             ScaleTargetIr::Axis(_) => {
-                if palette.is_some() {
+                if palette.is_some() || gradient.is_some() {
                     self.diag(Diagnostic::error(
                         "E1204",
-                        "`palette` applies only to fill or stroke scales",
+                        "`palette` and `gradient` apply only to fill or stroke scales",
                         span,
                     ));
                 }
             }
-            ScaleTargetIr::Aesthetic { .. } => {
+            ScaleTargetIr::Aesthetic { column, .. } => {
                 if scale_type.is_some() || domain.is_some() || reverse.is_some() {
                     self.diag(Diagnostic::error(
                         "E1204",
                         "`type`, `domain`, and `reverse` apply only to axis scales",
                         span,
+                    ));
+                }
+                if gradient.is_some()
+                    && !column.as_ref().is_some_and(|column| {
+                        matches!(
+                            column.dtype,
+                            DataType::Integer | DataType::Float | DataType::Unknown
+                        )
+                    })
+                {
+                    self.diag(Diagnostic::error(
+                        "E1602",
+                        "`gradient` is valid only for continuous fill or stroke mappings",
+                        gradient_span.unwrap_or(span),
                     ));
                 }
             }
@@ -633,6 +677,7 @@ impl<'a> Analyzer<'a> {
             domain,
             reverse,
             palette,
+            gradient,
             label,
             span,
         })
@@ -736,69 +781,228 @@ impl<'a> Analyzer<'a> {
 
     // --- Derive (spec §13.4) ---
 
-    fn derive(&mut self, derive: &DeriveDecl) -> Option<DeriveIr> {
+    fn resolve_chart_derives(&mut self, chart: &ChartBlock) -> Vec<DeriveIr> {
+        let primary_table = ActiveTable::from_schema(self.primary);
+        let mut decls = Vec::new();
+        let mut seen_names: HashMap<String, Span> = HashMap::new();
+
+        for item in chart.items() {
+            let ChartItem::Derive(derive) = item else {
+                continue;
+            };
+            let span = node_span(derive.syntax());
+            let Some(name) = derive.name() else { continue };
+            if let Some(&first) = seen_names.get(&name) {
+                self.diag(
+                    Diagnostic::error("E1104", format!("duplicate derived table `{name}`"), span)
+                        .with_related(first, "first defined here"),
+                );
+                continue;
+            }
+            seen_names.insert(name.clone(), span);
+            decls.push((name, derive));
+        }
+
+        let mut producer_by_column: HashMap<String, usize> = HashMap::new();
+        for (index, (_, derive)) in decls.iter().enumerate() {
+            for output in derive_output_names(derive) {
+                producer_by_column.entry(output).or_insert(index);
+            }
+        }
+
+        let mut deps: Vec<HashSet<usize>> = vec![HashSet::new(); decls.len()];
+        for (index, (_, derive)) in decls.iter().enumerate() {
+            for input in derive_input_names(derive) {
+                if primary_table.get(&input).is_some() {
+                    continue;
+                }
+                if let Some(&producer) = producer_by_column.get(&input) {
+                    deps[index].insert(producer);
+                }
+            }
+        }
+
+        let mut resolved = HashSet::new();
+        let mut pending: HashSet<usize> = (0..decls.len()).collect();
+        let mut out = Vec::new();
+        let mut schemas: HashMap<usize, Vec<ColumnDefIr>> = HashMap::new();
+
+        while !pending.is_empty() {
+            let mut ready: Vec<usize> = pending
+                .iter()
+                .copied()
+                .filter(|index| deps[*index].iter().all(|dep| resolved.contains(dep)))
+                .collect();
+            ready.sort_unstable();
+
+            if ready.is_empty() {
+                for index in pending.iter().copied() {
+                    let (_, derive) = &decls[index];
+                    self.diag(Diagnostic::error(
+                        "E1501",
+                        "cycle between derived table declarations",
+                        node_span(derive.syntax()),
+                    ));
+                }
+                break;
+            }
+
+            for index in ready {
+                pending.remove(&index);
+                let mut upstream: Vec<usize> = deps[index].iter().copied().collect();
+                upstream.sort_unstable();
+                let data = if upstream.is_empty() {
+                    SpaceDataRef::Primary
+                } else if upstream.len() == 1 {
+                    SpaceDataRef::Derived(decls[upstream[0]].0.clone())
+                } else {
+                    self.diag(Diagnostic::error(
+                        "E1404",
+                        "derived stat inputs must come from one upstream table",
+                        node_span(decls[index].1.syntax()),
+                    ));
+                    SpaceDataRef::Derived(decls[upstream[0]].0.clone())
+                };
+                let upstream_schemas: Vec<&[ColumnDefIr]> = upstream
+                    .iter()
+                    .filter_map(|dep| schemas.get(dep).map(Vec::as_slice))
+                    .collect();
+                let table = ActiveTable::merged(self.primary, &upstream_schemas);
+                if let Some(ir) = self.derive(&decls[index].1, &table, data) {
+                    schemas.insert(index, ir.output_schema.clone());
+                    resolved.insert(index);
+                    out.push(ir);
+                }
+            }
+        }
+
+        out
+    }
+
+    fn derive(
+        &mut self,
+        derive: &DeriveDecl,
+        table: &ActiveTable,
+        data: SpaceDataRef,
+    ) -> Option<DeriveIr> {
         let span = node_span(derive.syntax());
         let name = derive.name()?;
-        if self.derived.contains_key(&name) {
-            self.diag(Diagnostic::error(
-                "E1104",
-                format!("duplicate derived table `{name}`"),
-                span,
-            ));
-            return None;
-        }
 
         let stat = derive.stat()?;
         let stat_name = stat.name().unwrap_or_default();
         let stat_span = node_span(stat.syntax());
-        if stat_name != "Bin" {
-            self.diag(Diagnostic::error(
-                "E1403",
-                format!("unknown stat `{stat_name}`; version 0.1 supports `Bin`"),
-                stat_span,
-            ));
-            return None;
-        }
-
-        // Bin reads the primary table; its input must be one numeric or temporal column.
-        let table = ActiveTable::from_schema(self.primary);
-        let input = stat.input();
-        let input_frame = match &input {
-            Some(AlgebraExpr::Name(n)) => {
-                let col = self.resolve_column(n, &table);
-                match col.dtype {
-                    DataType::Temporal
-                    | DataType::Integer
-                    | DataType::Float
-                    | DataType::Unknown => {}
-                    _ => self.diag(Diagnostic::error(
-                        "E1404",
-                        format!("Bin input column `{}` is not numeric or temporal", col.name),
-                        col.span,
-                    )),
-                }
-                FrameIr::Vector(col)
-            }
+        let kind = match stat_name.as_str() {
+            "Bin" => StatKind::Bin,
+            "Smooth" => StatKind::Smooth,
+            "Bin2D" => StatKind::Bin2D,
+            "HexBin" => StatKind::HexBin,
             _ => {
                 self.diag(Diagnostic::error(
-                    "E1404",
-                    "Bin requires a single numeric or temporal column as input",
+                    "E1403",
+                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `Bin2D`, and `HexBin`"),
                     stat_span,
                 ));
-                FrameIr::Invalid
+                return None;
             }
         };
 
-        let settings = self.collect_bin_settings(&stat.args(), stat_span);
-        let output_schema = match &input_frame {
-            FrameIr::Vector(column) => bin_output_schema(column.dtype),
-            _ => bin_output_schema(DataType::Float),
+        let inputs = stat.inputs();
+        let (input_frame, settings, output_schema) = match kind {
+            StatKind::Bin => {
+                let input_frame = self.single_stat_input(&inputs, table, stat_span, "Bin")?;
+                if let FrameIr::Vector(col) = &input_frame {
+                    match col.dtype {
+                        DataType::Temporal
+                        | DataType::Integer
+                        | DataType::Float
+                        | DataType::Unknown => {}
+                        _ => self.diag(Diagnostic::error(
+                            "E1404",
+                            format!("Bin input column `{}` is not numeric or temporal", col.name),
+                            col.span,
+                        )),
+                    }
+                }
+                let settings = self.collect_bin_settings(&stat.args(), stat_span);
+                let output_schema = match &input_frame {
+                    FrameIr::Vector(column) => bin_output_schema(column.dtype),
+                    _ => bin_output_schema(DataType::Float),
+                };
+                (input_frame, settings, output_schema)
+            }
+            StatKind::Smooth => {
+                let input_frame = self.two_stat_inputs(&inputs, table, stat_span, "Smooth")?;
+                if let FrameIr::Cartesian(columns) = &input_frame {
+                    for frame in columns {
+                        if let FrameIr::Vector(col) = frame {
+                            if !matches!(
+                                col.dtype,
+                                DataType::Integer | DataType::Float | DataType::Unknown
+                            ) {
+                                self.diag(Diagnostic::error(
+                                    "E1404",
+                                    format!("Smooth input column `{}` is not numeric", col.name),
+                                    col.span,
+                                ));
+                            }
+                        }
+                    }
+                }
+                (
+                    input_frame,
+                    self.collect_smooth_settings(&stat.args(), stat_span),
+                    smooth_output_schema(),
+                )
+            }
+            StatKind::Bin2D | StatKind::HexBin => {
+                let label = if kind == StatKind::Bin2D {
+                    "Bin2D"
+                } else {
+                    "HexBin"
+                };
+                let input_frame = self.two_stat_inputs(&inputs, table, stat_span, label)?;
+                if let FrameIr::Cartesian(columns) = &input_frame {
+                    for frame in columns {
+                        if let FrameIr::Vector(col) = frame {
+                            if !matches!(
+                                col.dtype,
+                                DataType::Integer | DataType::Float | DataType::Unknown
+                            ) {
+                                self.diag(Diagnostic::error(
+                                    "E1404",
+                                    format!("{label} input column `{}` is not numeric", col.name),
+                                    col.span,
+                                ));
+                            }
+                        }
+                    }
+                }
+                let output_schema = if kind == StatKind::Bin2D {
+                    bin2d_output_schema()
+                } else {
+                    hexbin_output_schema()
+                };
+                (
+                    input_frame,
+                    self.collect_bin2d_settings(&stat.args(), stat_span, label),
+                    output_schema,
+                )
+            }
+            _ => {
+                self.diag(Diagnostic::error(
+                    "E1403",
+                    format!("unsupported stat `{stat_name}`"),
+                    stat_span,
+                ));
+                return None;
+            }
         };
 
         Some(DeriveIr {
             name,
+            data,
             stat: StatCallIr {
-                kind: StatKind::Bin,
+                kind,
                 input: input_frame,
                 settings,
                 span: stat_span,
@@ -806,6 +1010,167 @@ impl<'a> Analyzer<'a> {
             output_schema,
             span,
         })
+    }
+
+    fn single_stat_input(
+        &mut self,
+        inputs: &[AlgebraExpr],
+        table: &ActiveTable,
+        stat_span: Span,
+        stat_name: &str,
+    ) -> Option<FrameIr> {
+        if inputs.len() != 1 {
+            self.diag(Diagnostic::error(
+                "E1404",
+                format!("{stat_name} requires exactly one input column"),
+                stat_span,
+            ));
+            return None;
+        }
+        match &inputs[0] {
+            AlgebraExpr::Name(n) => Some(FrameIr::Vector(self.resolve_column(n, table))),
+            _ => {
+                self.diag(Diagnostic::error(
+                    "E1404",
+                    format!("{stat_name} requires a column input"),
+                    stat_span,
+                ));
+                Some(FrameIr::Invalid)
+            }
+        }
+    }
+
+    fn two_stat_inputs(
+        &mut self,
+        inputs: &[AlgebraExpr],
+        table: &ActiveTable,
+        stat_span: Span,
+        stat_name: &str,
+    ) -> Option<FrameIr> {
+        if inputs.len() != 2 {
+            self.diag(Diagnostic::error(
+                "E1404",
+                format!("{stat_name} requires exactly two input columns"),
+                stat_span,
+            ));
+            return None;
+        }
+        let mut frames = Vec::new();
+        for input in inputs {
+            match input {
+                AlgebraExpr::Name(n) => frames.push(FrameIr::Vector(self.resolve_column(n, table))),
+                _ => {
+                    self.diag(Diagnostic::error(
+                        "E1404",
+                        format!("{stat_name} requires column inputs"),
+                        stat_span,
+                    ));
+                    frames.push(FrameIr::Invalid);
+                }
+            }
+        }
+        Some(FrameIr::Cartesian(frames))
+    }
+
+    fn collect_smooth_settings(&mut self, args: &[Arg], stat_span: Span) -> Vec<Setting> {
+        let mut settings = Vec::new();
+        let mut seen: HashMap<String, Span> = HashMap::new();
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if let Some(&first) = seen.get(&name) {
+                self.diag(
+                    Diagnostic::error(
+                        "E1404",
+                        format!("duplicate Smooth setting `{name}`"),
+                        key_span,
+                    )
+                    .with_related(first, "first defined here"),
+                );
+                continue;
+            }
+            seen.insert(name.clone(), key_span);
+            match name.as_str() {
+                "method" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Str(s) if s == "lm" => settings.push(Setting {
+                            name,
+                            value: SettingValue::String(s),
+                        }),
+                        _ => self.diag(Diagnostic::error(
+                            "E1404",
+                            "`method` expects \"lm\"",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    "E1404",
+                    format!("unknown Smooth setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        if settings.is_empty() {
+            settings.push(Setting {
+                name: "method".into(),
+                value: SettingValue::String("lm".into()),
+            });
+        }
+        let _ = stat_span;
+        settings
+    }
+
+    fn collect_bin2d_settings(
+        &mut self,
+        args: &[Arg],
+        stat_span: Span,
+        stat_name: &str,
+    ) -> Vec<Setting> {
+        let mut settings = Vec::new();
+        let mut seen: HashMap<String, Span> = HashMap::new();
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if let Some(&first) = seen.get(&name) {
+                self.diag(
+                    Diagnostic::error(
+                        "E1404",
+                        format!("duplicate {stat_name} setting `{name}`"),
+                        key_span,
+                    )
+                    .with_related(first, "first defined here"),
+                );
+                continue;
+            }
+            seen.insert(name.clone(), key_span);
+            match name.as_str() {
+                "bins" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Number(n) if n.is_finite() && n >= 1.0 => {
+                            settings.push(Setting {
+                                name,
+                                value: SettingValue::Number(n),
+                            });
+                        }
+                        _ => self.diag(Diagnostic::error(
+                            "E1404",
+                            "`bins` must be at least 1",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    "E1404",
+                    format!("unknown {stat_name} setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        let _ = stat_span;
+        settings
     }
 
     fn collect_bin_settings(&mut self, args: &[Arg], stat_span: Span) -> Vec<Setting> {
@@ -934,6 +1299,8 @@ impl<'a> Analyzer<'a> {
 
         let mut geometries = Vec::new();
         let mut histograms = Vec::new();
+        let mut freq_polys = Vec::new();
+        let mut bin2ds = Vec::new();
         let mut densities = Vec::new();
         let mut count_bars = Vec::new();
         let mut theme: Option<String> = None;
@@ -947,6 +1314,10 @@ impl<'a> Analyzer<'a> {
                     if let Some(geo) = self.geometry(&call, &frame, &table) {
                         if geo.kind == GeometryKind::Histogram {
                             histograms.push(geo);
+                        } else if geo.kind == GeometryKind::FreqPoly {
+                            freq_polys.push(geo);
+                        } else if geo.kind == GeometryKind::Bin2D {
+                            bin2ds.push(geo);
                         } else if geo.kind == GeometryKind::Density {
                             densities.push(geo);
                         } else if geo.kind == GeometryKind::Bar && has_count_stat(&geo) {
@@ -985,6 +1356,30 @@ impl<'a> Analyzer<'a> {
             ) {
                 analysis.derived.push(derive);
                 analysis.spaces.push(histogram_space);
+            }
+        }
+        for freq_poly in freq_polys {
+            if let Some((derive, freq_space)) = self.desugar_freq_poly(
+                &freq_poly,
+                &frame,
+                theme.clone(),
+                guides.clone(),
+                scales.clone(),
+            ) {
+                analysis.derived.push(derive);
+                analysis.spaces.push(freq_space);
+            }
+        }
+        for bin2d in bin2ds {
+            if let Some((derive, bin2d_space)) = self.desugar_bin2d(
+                &bin2d,
+                &frame,
+                theme.clone(),
+                guides.clone(),
+                scales.clone(),
+            ) {
+                analysis.derived.push(derive);
+                analysis.spaces.push(bin2d_space);
             }
         }
         for density in densities {
@@ -1063,6 +1458,7 @@ impl<'a> Analyzer<'a> {
         let output_schema = bin_output_schema(input.dtype);
         let derive = DeriveIr {
             name: name.clone(),
+            data: SpaceDataRef::Primary,
             stat: StatCallIr {
                 kind: StatKind::Bin,
                 input: FrameIr::Vector(input.clone()),
@@ -1104,6 +1500,180 @@ impl<'a> Analyzer<'a> {
             scales,
             theme,
             span: histogram.span,
+        };
+        Some((derive, space))
+    }
+
+    fn desugar_freq_poly(
+        &mut self,
+        freq_poly: &GeometryIr,
+        frame: &FrameIr,
+        theme: Option<String>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+    ) -> Option<(DeriveIr, SpaceIr)> {
+        let FrameIr::Vector(input) = frame else {
+            self.diag(Diagnostic::error(
+                "E1302",
+                "FreqPoly requires a single numeric vector space",
+                freq_poly.span,
+            ));
+            return None;
+        };
+        match input.dtype {
+            DataType::Temporal | DataType::Integer | DataType::Float | DataType::Unknown => {}
+            _ => {
+                self.diag(Diagnostic::error(
+                    "E1404",
+                    format!(
+                        "FreqPoly input column `{}` is not numeric or temporal",
+                        input.name
+                    ),
+                    input.span,
+                ));
+                return None;
+            }
+        }
+
+        let name = self.next_freq_poly_name();
+        let settings = self.histogram_bin_settings(freq_poly);
+        let output_schema = bin_output_schema(input.dtype);
+        let derive = DeriveIr {
+            name: name.clone(),
+            data: SpaceDataRef::Primary,
+            stat: StatCallIr {
+                kind: StatKind::Bin,
+                input: FrameIr::Vector(input.clone()),
+                settings,
+                span: freq_poly.span,
+            },
+            output_schema,
+            span: freq_poly.span,
+        };
+
+        let boundary_dtype = bin_boundary_dtype(input.dtype);
+        let bin_center = synthetic_column("bin_center", boundary_dtype, freq_poly.span);
+        let count = synthetic_column("count", DataType::Integer, freq_poly.span);
+        let line = GeometryIr {
+            kind: GeometryKind::Line,
+            mappings: Vec::new(),
+            settings: line_settings_from(freq_poly),
+            span: freq_poly.span,
+        };
+        let space = SpaceIr {
+            data: SpaceDataRef::Derived(name),
+            frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_center), FrameIr::Vector(count)]),
+            geometries: vec![line],
+            guides,
+            scales,
+            theme,
+            span: freq_poly.span,
+        };
+        Some((derive, space))
+    }
+
+    fn desugar_bin2d(
+        &mut self,
+        bin2d: &GeometryIr,
+        frame: &FrameIr,
+        theme: Option<String>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+    ) -> Option<(DeriveIr, SpaceIr)> {
+        let FrameIr::Cartesian(axes) = frame else {
+            self.diag(Diagnostic::error(
+                "E1302",
+                "Bin2D requires a two-dimensional continuous space",
+                bin2d.span,
+            ));
+            return None;
+        };
+        let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) = (axes.first(), axes.get(1))
+        else {
+            self.diag(Diagnostic::error(
+                "E1302",
+                "Bin2D requires two vector dimensions",
+                bin2d.span,
+            ));
+            return None;
+        };
+        for col in [x, y] {
+            if !matches!(
+                col.dtype,
+                DataType::Integer | DataType::Float | DataType::Unknown
+            ) {
+                self.diag(Diagnostic::error(
+                    "E1404",
+                    format!("Bin2D input column `{}` is not numeric", col.name),
+                    col.span,
+                ));
+                return None;
+            }
+        }
+
+        let name = self.next_bin2d_name();
+        let derive = DeriveIr {
+            name: name.clone(),
+            data: SpaceDataRef::Primary,
+            stat: StatCallIr {
+                kind: StatKind::Bin2D,
+                input: FrameIr::Cartesian(vec![
+                    FrameIr::Vector(x.clone()),
+                    FrameIr::Vector(y.clone()),
+                ]),
+                settings: self.bin2d_geom_settings(bin2d),
+                span: bin2d.span,
+            },
+            output_schema: bin2d_output_schema(),
+            span: bin2d.span,
+        };
+
+        let x_start = synthetic_column("x_start", DataType::Float, bin2d.span);
+        let x_end = synthetic_column("x_end", DataType::Float, bin2d.span);
+        let y_start = synthetic_column("y_start", DataType::Float, bin2d.span);
+        let y_end = synthetic_column("y_end", DataType::Float, bin2d.span);
+        let count = synthetic_column("count", DataType::Integer, bin2d.span);
+        let mut mappings = vec![
+            AestheticMapping {
+                aesthetic: "xmin".into(),
+                column: x_start.clone(),
+            },
+            AestheticMapping {
+                aesthetic: "xmax".into(),
+                column: x_end.clone(),
+            },
+            AestheticMapping {
+                aesthetic: "ymin".into(),
+                column: y_start.clone(),
+            },
+            AestheticMapping {
+                aesthetic: "ymax".into(),
+                column: y_end.clone(),
+            },
+        ];
+        if !bin2d.settings.iter().any(|setting| setting.name == "fill") {
+            mappings.push(AestheticMapping {
+                aesthetic: "fill".into(),
+                column: count,
+            });
+        }
+        let rect = GeometryIr {
+            kind: GeometryKind::Rect,
+            mappings,
+            settings: bin2d_rect_settings(bin2d),
+            span: bin2d.span,
+        };
+        let space = SpaceIr {
+            data: SpaceDataRef::Derived(name),
+            frame: FrameIr::Cartesian(vec![
+                FrameIr::Union(vec![FrameIr::Vector(x_start), FrameIr::Vector(x_end)]),
+                FrameIr::Union(vec![FrameIr::Vector(y_start), FrameIr::Vector(y_end)]),
+            ]),
+            geometries: vec![rect],
+            guides,
+            scales,
+            theme,
+            span: bin2d.span,
         };
         Some((derive, space))
     }
@@ -1155,6 +1725,7 @@ impl<'a> Analyzer<'a> {
         ];
         let derive = DeriveIr {
             name: name.clone(),
+            data: SpaceDataRef::Primary,
             stat: StatCallIr {
                 kind: StatKind::Density,
                 input: FrameIr::Vector(input.clone()),
@@ -1303,6 +1874,7 @@ impl<'a> Analyzer<'a> {
 
         let derive = DeriveIr {
             name: name.clone(),
+            data: SpaceDataRef::Primary,
             stat: StatCallIr {
                 kind: StatKind::Count,
                 input: stat_input,
@@ -1425,6 +1997,38 @@ impl<'a> Analyzer<'a> {
                 return name;
             }
         }
+    }
+
+    fn next_freq_poly_name(&mut self) -> String {
+        loop {
+            let name = format!("__freqpoly_{}", self.synthetic_counter);
+            self.synthetic_counter += 1;
+            if !self.derived.contains_key(&name) && !self.reserved_derived_names.contains(&name) {
+                return name;
+            }
+        }
+    }
+
+    fn next_bin2d_name(&mut self) -> String {
+        loop {
+            let name = format!("__bin2d_{}", self.synthetic_counter);
+            self.synthetic_counter += 1;
+            if !self.derived.contains_key(&name) && !self.reserved_derived_names.contains(&name) {
+                return name;
+            }
+        }
+    }
+
+    fn bin2d_geom_settings(&mut self, bin2d: &GeometryIr) -> Vec<Setting> {
+        bin2d
+            .settings
+            .iter()
+            .filter(|setting| setting.name == "bins")
+            .map(|setting| Setting {
+                name: setting.name.clone(),
+                value: setting.value.clone(),
+            })
+            .collect()
     }
 
     fn space_data(&mut self, space: &SpaceBlock) -> (SpaceDataRef, ActiveTable) {
@@ -1836,6 +2440,7 @@ enum ValueForm {
     Bool(bool),
     Null,
     Array(Option<Vec<f64>>),
+    StringArray(Option<Vec<String>>),
     Stdin,
     Error,
 }
@@ -1861,14 +2466,24 @@ impl ValueForm {
             ValueExpr::Stdin(_) => ValueForm::Stdin,
             ValueExpr::Array(array) => {
                 let mut nums = Vec::new();
+                let mut strings = Vec::new();
                 let mut all_numeric = true;
+                let mut all_strings = true;
                 for item in array.values() {
                     match ValueForm::of(&item) {
                         ValueForm::Number(n) => nums.push(n),
                         _ => all_numeric = false,
                     }
+                    match ValueForm::of(&item) {
+                        ValueForm::Str(s) => strings.push(s),
+                        _ => all_strings = false,
+                    }
                 }
-                ValueForm::Array(all_numeric.then_some(nums))
+                if all_strings {
+                    ValueForm::StringArray(Some(strings))
+                } else {
+                    ValueForm::Array(all_numeric.then_some(nums))
+                }
             }
             ValueExpr::Error(_) => ValueForm::Error,
         }
@@ -1882,7 +2497,7 @@ impl ValueForm {
             ValueForm::Str(_) => "a string",
             ValueForm::Bool(_) => "a boolean",
             ValueForm::Null => "null",
-            ValueForm::Array(_) => "an array",
+            ValueForm::Array(_) | ValueForm::StringArray(_) => "an array",
             ValueForm::Stdin => "the stdin sentinel",
             ValueForm::Error => "an invalid value",
         }
@@ -1983,6 +2598,17 @@ fn is_css_color_name(name: &str) -> bool {
     )
 }
 
+fn is_color_literal(value: &str) -> bool {
+    is_hex_color(value) || is_css_color_name(value)
+}
+
+fn is_hex_color(value: &str) -> bool {
+    let Some(hex) = value.strip_prefix('#') else {
+        return false;
+    };
+    matches!(hex.len(), 3 | 6) && hex.chars().all(|ch| ch.is_ascii_hexdigit())
+}
+
 fn has_count_stat(geo: &GeometryIr) -> bool {
     geo.settings.iter().any(|setting| {
         setting.name == "stat" && matches!(&setting.value, SettingValue::String(v) if v == "count")
@@ -2034,6 +2660,46 @@ fn chart_derived_names(chart: &ChartBlock) -> HashSet<String> {
         .collect()
 }
 
+fn derive_input_names(derive: &DeriveDecl) -> Vec<String> {
+    derive
+        .stat()
+        .map(|stat| {
+            stat.inputs()
+                .into_iter()
+                .filter_map(|input| match input {
+                    AlgebraExpr::Name(name) => name.name(),
+                    _ => None,
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn derive_output_names(derive: &DeriveDecl) -> Vec<String> {
+    let Some(stat) = derive.stat() else {
+        return Vec::new();
+    };
+    match stat.name().unwrap_or_default().as_str() {
+        "Bin" => bin_output_schema(DataType::Float)
+            .into_iter()
+            .map(|column| column.name)
+            .collect(),
+        "Smooth" => smooth_output_schema()
+            .into_iter()
+            .map(|column| column.name)
+            .collect(),
+        "Bin2D" => bin2d_output_schema()
+            .into_iter()
+            .map(|column| column.name)
+            .collect(),
+        "HexBin" => hexbin_output_schema()
+            .into_iter()
+            .map(|column| column.name)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
 fn bin_output_schema(input_dtype: DataType) -> Vec<ColumnDefIr> {
     let boundary_dtype = bin_boundary_dtype(input_dtype);
     vec![
@@ -2048,6 +2714,81 @@ fn bin_output_schema(input_dtype: DataType) -> Vec<ColumnDefIr> {
         ColumnDefIr {
             name: "bin_center".into(),
             dtype: boundary_dtype,
+        },
+        ColumnDefIr {
+            name: "count".into(),
+            dtype: DataType::Integer,
+        },
+        ColumnDefIr {
+            name: "density".into(),
+            dtype: DataType::Float,
+        },
+    ]
+}
+
+fn smooth_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "x".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y".into(),
+            dtype: DataType::Float,
+        },
+    ]
+}
+
+fn bin2d_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "x_start".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "x_end".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "x_center".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y_start".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y_end".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y_center".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "count".into(),
+            dtype: DataType::Integer,
+        },
+        ColumnDefIr {
+            name: "density".into(),
+            dtype: DataType::Float,
+        },
+    ]
+}
+
+fn hexbin_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "x".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "radius".into(),
+            dtype: DataType::Float,
         },
         ColumnDefIr {
             name: "count".into(),
@@ -2094,6 +2835,29 @@ fn histogram_rect_settings(histogram: &GeometryIr) -> Vec<GeometrySetting> {
             .cloned(),
     );
     settings
+}
+
+fn line_settings_from(geometry: &GeometryIr) -> Vec<GeometrySetting> {
+    geometry
+        .settings
+        .iter()
+        .filter(|setting| matches!(setting.name.as_str(), "stroke" | "strokeWidth" | "alpha"))
+        .cloned()
+        .collect()
+}
+
+fn bin2d_rect_settings(bin2d: &GeometryIr) -> Vec<GeometrySetting> {
+    bin2d
+        .settings
+        .iter()
+        .filter(|setting| {
+            matches!(
+                setting.name.as_str(),
+                "fill" | "stroke" | "strokeWidth" | "alpha"
+            )
+        })
+        .cloned()
+        .collect()
 }
 
 /// Pass the visual settings of a `Density` geometry through to the `Area` it

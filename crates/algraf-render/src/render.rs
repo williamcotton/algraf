@@ -6,11 +6,11 @@ use std::collections::HashMap;
 use algraf_core::Diagnostic;
 use algraf_data::{DataFrame, Table};
 use algraf_semantics::{
-    ir::Setting, AxisSelectorIr, ChartIr, ColumnRef, FrameIr, GeometryIr, GuideIr, ScaleIr,
-    ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, StatKind,
+    ir::Setting, AxisSelectorIr, ChartIr, ColumnRef, FrameIr, GeometryIr, GeometryKind, GuideIr,
+    ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, StatKind,
 };
 
-use crate::aes::{color_spec, Legend, LegendKind};
+use crate::aes::{color_spec, ColorSpec, Legend, LegendKind};
 use crate::domains::train_space_domains;
 use crate::error::RenderError;
 use crate::guide;
@@ -416,58 +416,124 @@ fn active_table<'t>(
 fn compute_derived(ir: &ChartIr, primary: &dyn Table) -> HashMap<String, DataFrame> {
     let mut derived = HashMap::new();
     for d in &ir.derived_tables {
-        match d.stat.kind {
-            StatKind::Bin => {
-                let FrameIr::Vector(col) = &d.stat.input else {
-                    continue;
-                };
-                let bins = numeric_setting(&d.stat.settings, "bins")
-                    .filter(|n| *n >= 1.0)
-                    .map(|n| n.round() as usize)
-                    .unwrap_or(30);
-                let options = stats::BinOptions {
-                    bins,
-                    bin_width: numeric_setting(&d.stat.settings, "binWidth").filter(|n| *n > 0.0),
-                    boundary: numeric_setting(&d.stat.settings, "boundary"),
-                    closed: closed_setting(&d.stat.settings),
-                };
-                derived.insert(
-                    d.name.clone(),
-                    stats::bin_with_options(primary, &col.name, options),
-                );
-            }
-            StatKind::Count => {
-                let mut group_cols: Vec<&str> = Vec::new();
-                match &d.stat.input {
-                    FrameIr::Vector(col) => group_cols.push(&col.name),
-                    FrameIr::Nested { outer, inner } => {
-                        if let (FrameIr::Vector(o), FrameIr::Vector(i)) =
-                            (outer.as_ref(), inner.as_ref())
-                        {
-                            group_cols.push(&o.name);
-                            group_cols.push(&i.name);
-                        }
+        let frame = {
+            let source = active_table(&d.data, primary, &derived);
+            match d.stat.kind {
+                StatKind::Bin => {
+                    if let FrameIr::Vector(col) = &d.stat.input {
+                        let bins = numeric_setting(&d.stat.settings, "bins")
+                            .filter(|n| *n >= 1.0)
+                            .map(|n| n.round() as usize)
+                            .unwrap_or(30);
+                        let options = stats::BinOptions {
+                            bins,
+                            bin_width: numeric_setting(&d.stat.settings, "binWidth")
+                                .filter(|n| *n > 0.0),
+                            boundary: numeric_setting(&d.stat.settings, "boundary"),
+                            closed: closed_setting(&d.stat.settings),
+                        };
+                        Some(stats::bin_with_options(source, &col.name, options))
+                    } else {
+                        None
                     }
-                    _ => {}
                 }
-                if !group_cols.is_empty() {
-                    derived.insert(d.name.clone(), stats::count_by(primary, &group_cols));
+                StatKind::Bin2D => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
+                            (cols.first(), cols.get(1))
+                        {
+                            let bins = numeric_setting(&d.stat.settings, "bins")
+                                .filter(|n| *n >= 1.0)
+                                .map(|n| n.round() as usize)
+                                .unwrap_or(30);
+                            Some(stats::bin2d(
+                                source,
+                                &x.name,
+                                &y.name,
+                                stats::Bin2DOptions { bins },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 }
+                StatKind::HexBin => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
+                            (cols.first(), cols.get(1))
+                        {
+                            let bins = numeric_setting(&d.stat.settings, "bins")
+                                .filter(|n| *n >= 1.0)
+                                .map(|n| n.round() as usize)
+                                .unwrap_or(30);
+                            Some(stats::hexbin_frame(
+                                source,
+                                &x.name,
+                                &y.name,
+                                stats::Bin2DOptions { bins },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatKind::Count => {
+                    let mut group_cols: Vec<&str> = Vec::new();
+                    match &d.stat.input {
+                        FrameIr::Vector(col) => group_cols.push(&col.name),
+                        FrameIr::Nested { outer, inner } => {
+                            if let (FrameIr::Vector(o), FrameIr::Vector(i)) =
+                                (outer.as_ref(), inner.as_ref())
+                            {
+                                group_cols.push(&o.name);
+                                group_cols.push(&i.name);
+                            }
+                        }
+                        _ => {}
+                    }
+                    if group_cols.is_empty() {
+                        None
+                    } else {
+                        Some(stats::count_by(source, &group_cols))
+                    }
+                }
+                StatKind::Density => {
+                    if let FrameIr::Vector(col) = &d.stat.input {
+                        let options = stats::DensityOptions {
+                            bandwidth: numeric_setting(&d.stat.settings, "bandwidth")
+                                .filter(|n| *n > 0.0),
+                            grid_points: numeric_setting(&d.stat.settings, "n")
+                                .filter(|n| *n >= 2.0)
+                                .map(|n| n.round() as usize)
+                                .unwrap_or(256),
+                        };
+                        Some(stats::density(source, &col.name, options))
+                    } else {
+                        None
+                    }
+                }
+                StatKind::Smooth => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
+                            (cols.first(), cols.get(1))
+                        {
+                            Some(stats::smooth_lm(source, &x.name, &y.name))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
             }
-            StatKind::Density => {
-                let FrameIr::Vector(col) = &d.stat.input else {
-                    continue;
-                };
-                let options = stats::DensityOptions {
-                    bandwidth: numeric_setting(&d.stat.settings, "bandwidth").filter(|n| *n > 0.0),
-                    grid_points: numeric_setting(&d.stat.settings, "n")
-                        .filter(|n| *n >= 2.0)
-                        .map(|n| n.round() as usize)
-                        .unwrap_or(256),
-                };
-                derived.insert(d.name.clone(), stats::density(primary, &col.name, options));
-            }
-            _ => {}
+        };
+        if let Some(frame) = frame {
+            derived.insert(d.name.clone(), frame);
         }
     }
     derived
@@ -645,9 +711,72 @@ fn collect_legends(
                     }
                 }
             }
+            // `HexBin` is rendered by a bespoke geometry rather than desugared
+            // to a fill-mapped `Rect` (as `Bin2D` is), so it has no `fill`
+            // mapping for the loop above to find. Synthesize the same continuous
+            // count legend here, over the binned count domain (spec §19.5).
+            if geo.kind == GeometryKind::HexBin && guides.fill_legend {
+                if let Some(legend) = hexbin_count_legend(geo, &space.frame, table, &scales) {
+                    if !candidates
+                        .iter()
+                        .any(|(a, l)| *a == "fill" && l.title == legend.title)
+                    {
+                        candidates.push(("fill", legend));
+                    }
+                }
+            }
         }
     }
     merge_fill_stroke_legends(candidates)
+}
+
+/// Build the continuous `count` legend for a bespoke `HexBin` geometry, unless
+/// `fill` is set to a constant color. The count domain is derived by running
+/// the same binning the renderer uses, so the legend's swatch colors match the
+/// rendered hexagons.
+fn hexbin_count_legend(
+    geo: &GeometryIr,
+    frame: &FrameIr,
+    table: &dyn Table,
+    scales: &[ScaleIr],
+) -> Option<Legend> {
+    if geo
+        .settings
+        .iter()
+        .any(|s| s.name == "fill" && matches!(s.value, SettingValue::String(_)))
+    {
+        return None;
+    }
+    let FrameIr::Cartesian(axes) = frame else {
+        return None;
+    };
+    let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) = (axes.first(), axes.get(1)) else {
+        return None;
+    };
+    let bins = geo
+        .settings
+        .iter()
+        .find(|s| s.name == "bins")
+        .and_then(|s| match s.value {
+            SettingValue::Number(n) if n >= 1.0 => Some(n.round() as usize),
+            _ => None,
+        })
+        .unwrap_or(30);
+    let cells = stats::hexbin(table, &x.name, &y.name, stats::Bin2DOptions { bins });
+    let min = cells.iter().map(|c| c.count).min()? as f64;
+    let max = cells.iter().map(|c| c.count).max()? as f64;
+    let stops = crate::theme::CONTINUOUS_GRADIENT
+        .iter()
+        .map(|stop| (*stop).to_string())
+        .collect();
+    let spec = ColorSpec::Gradient {
+        col: "count".to_string(),
+        min,
+        max,
+        stops,
+    };
+    let title = scale_label(scales, "fill").unwrap_or_else(|| "count".to_string());
+    spec.legend(&title)
 }
 
 /// The explicit `label` of a `fill`/`stroke` aesthetic scale, if declared.

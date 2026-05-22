@@ -1,0 +1,6 @@
+Chart(data: "series.csv", width: 760, height: 460, title: "Series shapes") {
+    Space(day * value) {
+        Line(group: series, stroke: "#888888")
+        Point(shape: series, fill: series, size: 4)
+    }
+}

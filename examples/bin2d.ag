@@ -1,0 +1,5 @@
+Chart(data: "samples.csv", width: 720, height: 500, title: "2D rectangular bins") {
+    Space(x * y) {
+        Bin2D(bins: 12)
+    }
+}

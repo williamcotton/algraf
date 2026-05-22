@@ -1,6 +1,6 @@
 # Algraf v0.3.0 Plan
 
-Status: Planned (not started)
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_2_PLAN.md`](V0_2_PLAN.md)
@@ -46,10 +46,8 @@ architecture. No new data sources, no interactivity, no new runtime targets.
 
 ### 1. Violin Geometry
 
-Status: Not started. `GeometryKind::Violin` exists as an enum variant and is
-named by the CLI, but it is not in the geometry registry, has no render
-implementation, and does not desugar. The Gaussian KDE stat (§15.11) it depends
-on is already implemented for `Density`.
+Status: Implemented. `Violin` is registered and rendered directly using the
+Gaussian KDE path shared with `Density`.
 
 Implement `Violin` as a real geometry, reusing the existing KDE path.
 
@@ -82,9 +80,8 @@ Acceptance criteria:
 
 ### 2. Source-Level Continuous Color Gradients
 
-Status: Not started. Gradient fills already render for continuous color
-mappings, but there is no source syntax to configure the gradient. This is the
-explicitly-still-deferred item from the v0.2.0 "Scale Completeness" section.
+Status: Implemented. Continuous `fill` and `stroke` scales accept source-level
+`gradient` stops.
 
 Add `Scale(...)` syntax to declare continuous color gradient stops.
 
@@ -113,8 +110,8 @@ Acceptance criteria:
 
 ### 3. Chained Derived Tables
 
-Status: Not started. Listed as "derived stats depending on earlier derived
-tables" under v0.2.0 "Keep Deferred."
+Status: Implemented. Derived declarations are dependency-resolved and may feed
+later derived stats.
 
 Allow a `Derive` declaration to reference a column produced by an earlier
 `Derive` in the same scope.
@@ -151,8 +148,8 @@ Acceptance criteria:
 
 ### 4. Range Geometries over Categorical and Temporal Domains
 
-Status: Not started. Surfaced by hands-on exploration (see "Inputs from hands-on
-exploration"). The blockers are verified in the current renderer.
+Status: Implemented. `Rect` supports categorical bounds, temporal union axes,
+and zero-extent markers.
 
 Make the `Rect` primitive draw ranges over the domains users actually have —
 categorical bands and unified temporal axes — so range/Gantt-style charts are
@@ -192,11 +189,8 @@ Acceptance criteria:
 
 ### 5. Series Grouping (`group` Aesthetic)
 
-Status: Not started. Spec §14.3 already says `Line` honors a "group aesthetic if
-present" and §15.7 references group mappings, but the registry does not accept
-`group` and `line()` separates series solely by the `stroke` category. Today the
-only way to draw multiple series is to bind `stroke` to the series column, which
-forces each series to a palette color.
+Status: Implemented. `Line` and `Smooth` accept `group` and separate series
+independently from color.
 
 Add a `group` aesthetic so a geometry can separate series without binding color.
 
@@ -223,7 +217,7 @@ Acceptance criteria:
 
 ### 6. Spec, Version, and Example Hygiene
 
-Status: Not started; mirrors v0.2.0 item 5.
+Status: Implemented.
 
 Bring documentation and package metadata into alignment with the release.
 
@@ -248,14 +242,14 @@ Acceptance criteria:
 
 ### Frequency Polygon
 
-Status: Not started. Spec §14.8 is drafted but unimplemented (no enum variant,
-not registered, not rendered).
+Status: Implemented. `FreqPoly` is registered and desugars through `Bin` plus
+`Line`.
 
 Implement `FreqPoly` as a line drawn over histogram bin centers, reusing the
 existing `Bin` stat and `Line` rendering. Low cost given both halves already
 exist; promote to Must only if it can land with the binning work cleanly.
 
-Acceptance criteria (if implemented):
+Acceptance criteria:
 
 - Registered geometry with the `Bin` stat as default, rendering a line over
   `bin_center` against `count`.
@@ -264,7 +258,8 @@ Acceptance criteria (if implemented):
 
 ### 2D Binning and Hex Bins
 
-Status: Not started; not currently in the spec.
+Status: Implemented. `Bin2D` renders rectangular 2D bins and `HexBin` renders
+hexagonal bins.
 
 Add 2D density via rectangular or hexagonal binning for two continuous
 positions, rendering through the existing `Tile`/`Rect` fill path with a
@@ -276,7 +271,7 @@ land with capacity to spare, and split rectangular 2D binning (cheaper, reuses
 `Tile`) from hexagonal binning (new tessellation + render) so the former can
 ship without the latter.
 
-Acceptance criteria (if implemented):
+Acceptance criteria:
 
 - New spec section(s) for 2D binning stat and geometry, with diagnostic codes.
 - Deterministic bin assignment with `bins`/`binwidth` parallel to 1D `Bin`.
@@ -284,15 +279,14 @@ Acceptance criteria (if implemented):
 
 ### Shape Aesthetic Rendering
 
-Status: Not started. The registry already accepts `Point.shape` (and §14.2 lists
-a "shape string option"), but `point()` hardcodes `<circle>` and ignores the
-property, so `shape` currently has no visual effect.
+Status: Implemented. `Point.shape` renders circle, square, triangle, and
+diamond marks for literal settings or categorical mappings.
 
 Render distinct point shapes (e.g. circle, square, triangle, diamond) driven by
 the `shape` setting or a categorical `shape` mapping, giving a non-color channel
 to distinguish series. Modest and additive; keep a Should.
 
-Acceptance criteria (if implemented):
+Acceptance criteria:
 
 - `point()` renders the requested shape; an unknown shape falls back to circle
   with a diagnostic or warning.
@@ -335,10 +329,11 @@ them. These remain out of v0.3.0:
 - Source-level continuous color gradient declarations.
 - Chained derived tables (`Derive` referencing earlier `Derive`).
 
-### Consider If Capacity Allows (Should)
+### Implemented In v0.3.0 (Should)
 
 - Frequency polygon geometry.
-- 2D rectangular binning (and, secondarily, hex bins).
+- 2D rectangular binning and hex bins.
+- Shape aesthetic rendering.
 
 ### Keep Deferred
 

@@ -6,7 +6,7 @@ binary parses the source, validates it against the data, trains scales, and
 emits deterministic SVG.
 
 The normative reference is [`docs/ALGRAF_SPEC.md`](docs/ALGRAF_SPEC.md).
-Active v0.2.0 planning lives in [`docs/V0_2_PLAN.md`](docs/V0_2_PLAN.md).
+Active v0.3.0 planning lives in [`docs/V0_3_PLAN.md`](docs/V0_3_PLAN.md).
 
 ```bash
 cargo run -p algraf-cli -- render examples/scatter.ag --output /tmp/scatter.svg
@@ -53,6 +53,22 @@ Chart(data: "series.csv", width: 760, height: 460) {
 
 ![line](examples/line.svg)
 
+## Grouping lines without changing color
+
+`group:` separates series independently from `stroke`, so several series can
+share a constant visual style while still drawing as separate paths.
+
+```algraf
+Chart(data: "series.csv", width: 760, height: 460, title: "Grouped constant-color lines") {
+    Space(day * value) {
+        Line(group: series, stroke: "#777777", strokeWidth: 2)
+        Point(fill: series, size: 4)
+    }
+}
+```
+
+![group_line](examples/group_line.svg)
+
 ## Layered marks: connected scatter
 
 Geometries inside a `Space` render in source order, so listing `Line`
@@ -68,6 +84,22 @@ Chart(data: "timeseries.csv") {
 ```
 
 ![connected_scatter](examples/connected_scatter.svg)
+
+## Point shapes as a non-color channel
+
+`shape:` can be a literal shape or a categorical mapping. Category order
+assigns shapes deterministically.
+
+```algraf
+Chart(data: "series.csv", width: 760, height: 460, title: "Series shapes") {
+    Space(day * value) {
+        Line(group: series, stroke: "#888888")
+        Point(shape: series, fill: series, size: 4)
+    }
+}
+```
+
+![shapes](examples/shapes.svg)
 
 ## Statistical overlay: linear smooth
 
@@ -203,6 +235,43 @@ Chart(data: "distribution.csv", width: 760, height: 460) {
 
 ![histogram_direct](examples/histogram_direct.svg)
 
+## Frequency polygon
+
+`FreqPoly` uses the same binning controls as `Histogram`, but connects bin
+centers with a line instead of drawing bars.
+
+```algraf
+Chart(data: "distribution.csv", width: 760, height: 460, title: "Frequency polygon") {
+    Space(value) {
+        FreqPoly(bins: 16, stroke: "steelblue", strokeWidth: 2)
+    }
+}
+```
+
+![freqpoly](examples/freqpoly.svg)
+
+## Chained derived tables
+
+A `Derive` can reference columns produced by an earlier derived table. Here
+`Smooth` fits a line over binned counts.
+
+```algraf
+Chart(data: "distribution.csv", width: 760, height: 460, title: "Binned trend") {
+    Derive bins = Bin(value, bins: 12)
+    Derive trend = Smooth(bin_center, count, method: "lm")
+
+    Space(bin_center * count, data: bins) {
+        Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count, fill: "#c7dcef")
+    }
+
+    Space(x * y, data: trend) {
+        Line(stroke: "#333333", strokeWidth: 2)
+    }
+}
+```
+
+![derived_chain](examples/derived_chain.svg)
+
 ## Binning over time
 
 `Bin` and `Histogram` work on temporal columns too. Mapping a single date
@@ -242,6 +311,54 @@ Chart(data: "heatmap.csv", width: 700, height: 460) {
 
 ![heatmap](examples/heatmap.svg)
 
+## Custom continuous gradients
+
+`Scale(fill: ..., gradient: [...])` sets evenly spaced color stops for a
+continuous fill or stroke mapping.
+
+```algraf
+Chart(data: "heatmap.csv", width: 700, height: 460, title: "Custom continuous gradient") {
+    Scale(fill: value, gradient: ["#3366cc", "#cc3333"], label: "Intensity")
+
+    Space(day * hour) {
+        Tile(fill: value, alpha: 0.92)
+    }
+}
+```
+
+![gradient](examples/gradient.svg)
+
+## Rectangular 2D bins
+
+`Bin2D` groups observations over two continuous axes and fills rectangles by
+count.
+
+```algraf
+Chart(data: "samples.csv", width: 720, height: 500, title: "2D rectangular bins") {
+    Space(x * y) {
+        Bin2D(bins: 12)
+    }
+}
+```
+
+![bin2d](examples/bin2d.svg)
+
+## Hex bins
+
+`HexBin` is the hexagonal counterpart for dense two-dimensional scatter data.
+Observations are assigned to the nearest hexagon on a tessellating lattice and
+each cell is shaded by count.
+
+```algraf
+Chart(data: "samples.csv", width: 720, height: 500, title: "Hex bins") {
+    Space(x * y) {
+        HexBin(bins: 12, alpha: 0.9)
+    }
+}
+```
+
+![hexbin](examples/hexbin.svg)
+
 ## Boxplot with a rug
 
 `Boxplot` summarizes a continuous distribution per categorical level,
@@ -258,6 +375,22 @@ Chart(data: "demographics.csv", width: 700, height: 460) {
 ```
 
 ![boxplot](examples/boxplot.svg)
+
+## Violin distributions
+
+`Violin` mirrors a Gaussian KDE within each categorical band. Optional
+`quantiles` draw deterministic reference lines inside each violin.
+
+```algraf
+Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribution by group") {
+    Space(gender * height) {
+        Violin(fill: gender, quantiles: [0.25, 0.5, 0.75], alpha: 0.62)
+        Rug(sides: "l", alpha: 0.25)
+    }
+}
+```
+
+![violin](examples/violin.svg)
 
 ## Density: a smooth distribution
 
@@ -351,33 +484,26 @@ Chart(data: "intervals.csv") {
 
 ![floating](examples/floating.svg)
 
-## Gantt chart / timeline with `Rect` and `Text`
+## Gantt chart / timeline with categorical `Rect` bounds
 
-A Gantt chart illustrates a project timeline by plotting intervals for each task. Because `Rect` bounds must map through continuous or temporal scales, we represent tasks vertically using numeric identifiers, and draw their text labels on the left of each bar. Dummy anchor rows in the CSV define the full date range for scale training.
+A Gantt chart illustrates a project timeline by plotting intervals for each
+phase. `Rect` can use temporal bounds on x and categorical band bounds on y.
 
 ```algraf
 Chart(data: "gantt.csv", width: 760, height: 420, title: "Project Schedule") {
     Theme(name: "classic")
 
     Guide(axis: x, label: "Timeline")
-    Guide(axis: y, label: "")
+    Guide(axis: y, label: "Attorney / phase")
 
-    Space(date * task_id) {
+    Space((start_date + end_date) * (attorney / phase)) {
         Rect(
             xmin: start_date,
             xmax: end_date,
-            ymin: ymin,
-            ymax: ymax,
-            fill: stage,
+            ymin: phase,
+            ymax: phase,
+            fill: phase,
             alpha: 0.85,
-        )
-        Text(
-            label: task,
-            anchor: "end",
-            dx: -10,
-            dy: 4,
-            fill: "#333333",
-            size: 11,
         )
     }
 }

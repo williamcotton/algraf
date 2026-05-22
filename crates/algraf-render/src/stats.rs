@@ -163,6 +163,12 @@ pub struct DensityOptions {
     pub grid_points: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DensityPoint {
+    pub x: f64,
+    pub density: f64,
+}
+
 impl Default for DensityOptions {
     fn default() -> Self {
         DensityOptions {
@@ -184,21 +190,35 @@ pub fn density(table: &dyn Table, input_column: &str, options: DensityOptions) -
         .filter_map(|row| cell_f64(table, input_column, row))
         .filter(|v| v.is_finite())
         .collect();
-    values.sort_by(f64::total_cmp);
 
     let schema = vec![
         col_def("density_x", DataType::Float),
         col_def("density", DataType::Float),
     ];
-    if values.len() < 2 {
+    let points = density_values(&mut values, options);
+    if points.is_empty() {
         return DataFrame::new(schema, vec![Column::Float(vec![]), Column::Float(vec![])]);
     }
 
+    DataFrame::new(
+        schema,
+        vec![
+            Column::Float(points.iter().map(|point| Some(point.x)).collect()),
+            Column::Float(points.iter().map(|point| Some(point.density)).collect()),
+        ],
+    )
+}
+
+pub fn density_values(values: &mut [f64], options: DensityOptions) -> Vec<DensityPoint> {
+    values.sort_by(f64::total_cmp);
+    if values.len() < 2 {
+        return Vec::new();
+    }
     let n = values.len() as f64;
     let bandwidth = options
         .bandwidth
         .filter(|h| h.is_finite() && *h > 0.0)
-        .unwrap_or_else(|| silverman_bandwidth(&values));
+        .unwrap_or_else(|| silverman_bandwidth(values));
     // Degenerate spread: every value equal. Emit a single spike-free flat curve.
     let bandwidth = if bandwidth > f64::EPSILON {
         bandwidth
@@ -213,19 +233,19 @@ pub fn density(table: &dyn Table, input_column: &str, options: DensityOptions) -
     let step = (hi - lo) / (grid_points - 1) as f64;
 
     let inv = 1.0 / (n * bandwidth);
-    let mut xs = Vec::with_capacity(grid_points);
-    let mut ds = Vec::with_capacity(grid_points);
+    let mut points = Vec::with_capacity(grid_points);
     for i in 0..grid_points {
         let x = lo + step * i as f64;
         let sum: f64 = values
             .iter()
             .map(|v| gaussian_kernel((x - v) / bandwidth))
             .sum();
-        xs.push(Some(x));
-        ds.push(Some(sum * inv));
+        points.push(DensityPoint {
+            x,
+            density: sum * inv,
+        });
     }
-
-    DataFrame::new(schema, vec![Column::Float(xs), Column::Float(ds)])
+    points
 }
 
 /// Silverman's rule-of-thumb bandwidth. `values` must be sorted ascending.
@@ -244,7 +264,7 @@ fn silverman_bandwidth(values: &[f64]) -> f64 {
 }
 
 /// Linear-interpolated percentile of a sorted slice.
-fn percentile(sorted: &[f64], q: f64) -> f64 {
+pub fn percentile(sorted: &[f64], q: f64) -> f64 {
     if sorted.is_empty() {
         return 0.0;
     }
@@ -309,6 +329,320 @@ pub fn count_by(table: &dyn Table, group_columns: &[&str]) -> DataFrame {
     schema.push(col_def("count", DataType::Integer));
     columns.push(Column::Int(rows.iter().map(|r| Some(r.2)).collect()));
     DataFrame::new(schema, columns)
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Bin2DOptions {
+    pub bins: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HexBinCell {
+    pub x: f64,
+    pub y: f64,
+    /// Horizontal half-extent of the bin, in x-data units.
+    pub radius: f64,
+    /// Vertical half-extent of the bin, in y-data units. Carried separately
+    /// from `radius` because x and y live on independent scales: reusing the
+    /// x-unit `radius` for the y axis collapses every hexagon into a sliver.
+    pub y_radius: f64,
+    pub count: i64,
+    pub density: f64,
+}
+
+/// Compute rectangular 2D bins for two numeric columns.
+pub fn bin2d(table: &dyn Table, x_col: &str, y_col: &str, options: Bin2DOptions) -> DataFrame {
+    let cells = bin2d_cells(table, x_col, y_col, options);
+    let schema = vec![
+        col_def("x_start", DataType::Float),
+        col_def("x_end", DataType::Float),
+        col_def("x_center", DataType::Float),
+        col_def("y_start", DataType::Float),
+        col_def("y_end", DataType::Float),
+        col_def("y_center", DataType::Float),
+        col_def("count", DataType::Integer),
+        col_def("density", DataType::Float),
+    ];
+    DataFrame::new(
+        schema,
+        vec![
+            Column::Float(cells.iter().map(|c| Some(c.0)).collect()),
+            Column::Float(cells.iter().map(|c| Some(c.1)).collect()),
+            Column::Float(cells.iter().map(|c| Some((c.0 + c.1) / 2.0)).collect()),
+            Column::Float(cells.iter().map(|c| Some(c.2)).collect()),
+            Column::Float(cells.iter().map(|c| Some(c.3)).collect()),
+            Column::Float(cells.iter().map(|c| Some((c.2 + c.3) / 2.0)).collect()),
+            Column::Int(cells.iter().map(|c| Some(c.4)).collect()),
+            Column::Float(cells.iter().map(|c| Some(c.5)).collect()),
+        ],
+    )
+}
+
+fn bin2d_cells(
+    table: &dyn Table,
+    x_col: &str,
+    y_col: &str,
+    options: Bin2DOptions,
+) -> Vec<(f64, f64, f64, f64, i64, f64)> {
+    let bins = options.bins.max(1);
+    let (x_min, x_max) = numeric_domain(table, x_col).unwrap_or((0.0, 1.0));
+    let (y_min, y_max) = numeric_domain(table, y_col).unwrap_or((0.0, 1.0));
+    let (x_start, x_width, x_bins) = bin_layout(
+        x_min,
+        x_max,
+        bins,
+        BinOptions {
+            bins,
+            bin_width: None,
+            boundary: None,
+            closed: BinClosed::Left,
+        },
+    );
+    let (y_start, y_width, y_bins) = bin_layout(
+        y_min,
+        y_max,
+        bins,
+        BinOptions {
+            bins,
+            bin_width: None,
+            boundary: None,
+            closed: BinClosed::Left,
+        },
+    );
+    let mut counts = vec![0i64; x_bins * y_bins];
+    let mut total = 0i64;
+    for row in 0..table.row_count() {
+        let (Some(x), Some(y)) = (cell_f64(table, x_col, row), cell_f64(table, y_col, row)) else {
+            continue;
+        };
+        let xi = bin_index(x, x_start, x_width, x_bins, BinClosed::Left);
+        let yi = bin_index(y, y_start, y_width, y_bins, BinClosed::Left);
+        counts[yi * x_bins + xi] += 1;
+        total += 1;
+    }
+    let area = (x_width * y_width).abs();
+    let denom = total as f64 * area;
+    let mut cells = Vec::new();
+    for yi in 0..y_bins {
+        for xi in 0..x_bins {
+            let count = counts[yi * x_bins + xi];
+            if count == 0 {
+                continue;
+            }
+            let xs = x_start + xi as f64 * x_width;
+            let xe = xs + x_width;
+            let ys = y_start + yi as f64 * y_width;
+            let ye = ys + y_width;
+            let density = if denom > f64::EPSILON {
+                count as f64 / denom
+            } else {
+                0.0
+            };
+            cells.push((xs, xe, ys, ye, count, density));
+        }
+    }
+    cells
+}
+
+/// Compute deterministic hexagonal bins for two numeric columns.
+///
+/// Binning happens in normalized `[0, 1]` space so that the hexagon lattice
+/// tessellates regardless of the x/y data ranges: a regular hexagon honeycomb
+/// in normalized coordinates maps, under the (independent, linear) x and y
+/// scales, to a gap-free tiling of stretched hexagons in pixel space. Each
+/// observation is assigned to its *nearest* lattice center (the standard
+/// pointy-top, odd-row-offset scheme), so occupied neighbors share edges.
+pub fn hexbin(
+    table: &dyn Table,
+    x_col: &str,
+    y_col: &str,
+    options: Bin2DOptions,
+) -> Vec<HexBinCell> {
+    let bins = options.bins.max(1);
+    let (x_min, x_max) = numeric_domain(table, x_col).unwrap_or((0.0, 1.0));
+    let (y_min, y_max) = numeric_domain(table, y_col).unwrap_or((0.0, 1.0));
+    let x_span = if (x_max - x_min).abs() < f64::EPSILON {
+        1.0
+    } else {
+        x_max - x_min
+    };
+    let y_span = if (y_max - y_min).abs() < f64::EPSILON {
+        1.0
+    } else {
+        y_max - y_min
+    };
+
+    // Hexagon radius (center-to-vertex) in normalized units, sized so roughly
+    // `bins` columns span the unit width. For a pointy-top lattice the column
+    // spacing is `dx = r*sqrt(3)` and the row spacing is `dy = r*1.5`.
+    let r = 1.0 / (bins as f64 * 3.0_f64.sqrt());
+    let dx = r * 3.0_f64.sqrt();
+    let dy = r * 1.5;
+
+    // Accumulate counts keyed by lattice center. `(2*pi, pj)` is an integer
+    // key (pi is a multiple of 0.5), and a BTreeMap keeps emission order
+    // deterministic (spec §18.12).
+    let mut counts: std::collections::BTreeMap<(i64, i64), i64> = std::collections::BTreeMap::new();
+    let mut total = 0i64;
+    for row in 0..table.row_count() {
+        let (Some(x), Some(y)) = (cell_f64(table, x_col, row), cell_f64(table, y_col, row)) else {
+            continue;
+        };
+        let u = (x - x_min) / x_span;
+        let v = (y - y_min) / y_span;
+        let (pi, pj) = hex_lattice_index(u, v, dx, dy);
+        let key = ((pi * 2.0).round() as i64, pj as i64);
+        *counts.entry(key).or_insert(0) += 1;
+        total += 1;
+    }
+
+    // Hex area in data units, using the (stretched) x and y radii.
+    let rx_data = r * x_span.abs();
+    let ry_data = r * y_span.abs();
+    let hex_area = 3.0 * 3.0_f64.sqrt() * rx_data * ry_data / 2.0;
+    let denom = total as f64 * hex_area;
+
+    counts
+        .into_iter()
+        .map(|((pi2, pj), count)| {
+            let pi = pi2 as f64 / 2.0;
+            let pj = pj as f64;
+            let u = pi * dx;
+            let v = pj * dy;
+            let x = x_min + u * x_span;
+            let y = y_min + v * y_span;
+            let density = if denom > f64::EPSILON {
+                count as f64 / denom
+            } else {
+                0.0
+            };
+            HexBinCell {
+                x,
+                y,
+                radius: rx_data,
+                y_radius: ry_data,
+                count,
+                density,
+            }
+        })
+        .collect()
+}
+
+/// Assign a normalized point `(u, v)` to the nearest pointy-top hex-lattice
+/// center, returning the center as `(pi, pj)` where the center is at
+/// `(pi*dx, pj*dy)`. `pi` is a multiple of `0.5` (odd rows are offset by half a
+/// column). Mirrors the d3-hexbin assignment.
+fn hex_lattice_index(u: f64, v: f64, dx: f64, dy: f64) -> (f64, f64) {
+    let py = v / dy;
+    let pj = py.round();
+    let px = u / dx
+        - if (pj as i64).rem_euclid(2) == 1 {
+            0.5
+        } else {
+            0.0
+        };
+    let pi = px.round();
+    let py1 = py - pj;
+    if py1.abs() * 3.0 > 1.0 {
+        let px1 = px - pi;
+        let pi2 = pi + if px < pi { -0.5 } else { 0.5 };
+        let pj2 = pj + if py < pj { -1.0 } else { 1.0 };
+        let px2 = px - pi2;
+        let py2 = py - pj2;
+        if px1 * px1 + py1 * py1 > px2 * px2 + py2 * py2 {
+            let pi = pi2
+                + if (pj as i64).rem_euclid(2) == 1 {
+                    0.5
+                } else {
+                    -0.5
+                };
+            return (
+                pi + if (pj2 as i64).rem_euclid(2) == 1 {
+                    0.5
+                } else {
+                    0.0
+                },
+                pj2,
+            );
+        }
+    }
+    (
+        pi + if (pj as i64).rem_euclid(2) == 1 {
+            0.5
+        } else {
+            0.0
+        },
+        pj,
+    )
+}
+
+pub fn hexbin_frame(
+    table: &dyn Table,
+    x_col: &str,
+    y_col: &str,
+    options: Bin2DOptions,
+) -> DataFrame {
+    let cells = hexbin(table, x_col, y_col, options);
+    let schema = vec![
+        col_def("x", DataType::Float),
+        col_def("y", DataType::Float),
+        col_def("radius", DataType::Float),
+        col_def("count", DataType::Integer),
+        col_def("density", DataType::Float),
+    ];
+    DataFrame::new(
+        schema,
+        vec![
+            Column::Float(cells.iter().map(|c| Some(c.x)).collect()),
+            Column::Float(cells.iter().map(|c| Some(c.y)).collect()),
+            Column::Float(cells.iter().map(|c| Some(c.radius)).collect()),
+            Column::Int(cells.iter().map(|c| Some(c.count)).collect()),
+            Column::Float(cells.iter().map(|c| Some(c.density)).collect()),
+        ],
+    )
+}
+
+pub fn smooth_lm(table: &dyn Table, x_col: &str, y_col: &str) -> DataFrame {
+    let mut points: Vec<(f64, f64)> = (0..table.row_count())
+        .filter_map(|row| Some((cell_f64(table, x_col, row)?, cell_f64(table, y_col, row)?)))
+        .collect();
+    points.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let schema = vec![col_def("x", DataType::Float), col_def("y", DataType::Float)];
+    let Some((x0, y0, x1, y1)) = linear_fit_segment(&points) else {
+        return DataFrame::new(schema, vec![Column::Float(vec![]), Column::Float(vec![])]);
+    };
+    DataFrame::new(
+        schema,
+        vec![
+            Column::Float(vec![Some(x0), Some(x1)]),
+            Column::Float(vec![Some(y0), Some(y1)]),
+        ],
+    )
+}
+
+fn linear_fit_segment(points: &[(f64, f64)]) -> Option<(f64, f64, f64, f64)> {
+    if points.len() < 2 {
+        return None;
+    }
+    let n = points.len() as f64;
+    let sum_x: f64 = points.iter().map(|(x, _)| *x).sum();
+    let sum_y: f64 = points.iter().map(|(_, y)| *y).sum();
+    let mean_x = sum_x / n;
+    let mean_y = sum_y / n;
+    let mut numerator = 0.0;
+    let mut denominator = 0.0;
+    for (x, y) in points {
+        numerator += (x - mean_x) * (y - mean_y);
+        denominator += (x - mean_x).powi(2);
+    }
+    if denominator.abs() <= f64::EPSILON {
+        return None;
+    }
+    let slope = numerator / denominator;
+    let intercept = mean_y - slope * mean_x;
+    let x0 = points.first()?.0;
+    let x1 = points.last()?.0;
+    Some((x0, intercept + slope * x0, x1, intercept + slope * x1))
 }
 
 fn bin_layout(min: f64, max: f64, bins: usize, options: BinOptions) -> (f64, f64, usize) {

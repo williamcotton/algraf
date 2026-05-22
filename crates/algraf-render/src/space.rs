@@ -37,6 +37,10 @@ pub enum AxisScale {
         label: String,
         scale: ContinuousScale,
     },
+    TemporalUnion {
+        label: String,
+        scale: TemporalScale,
+    },
 }
 
 impl AxisScale {
@@ -58,7 +62,7 @@ impl AxisScale {
                 let inner = cell_category(table, inner_col, row)?;
                 scale.band(&outer, &inner).map(|(start, w)| start + w / 2.0)
             }
-            AxisScale::Union { .. } => None,
+            AxisScale::Union { .. } | AxisScale::TemporalUnion { .. } => None,
         }
     }
 
@@ -84,9 +88,15 @@ impl AxisScale {
             AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => {
                 Some(scale.map(value))
             }
-            AxisScale::Temporal { scale, .. } => Some(scale.map(value as i64)),
+            AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
+                Some(scale.map(value as i64))
+            }
             _ => None,
         }
+    }
+
+    pub(crate) fn map_value_public(&self, value: f64) -> Option<f64> {
+        self.map_value(value)
     }
 
     /// The axis title (column name or joined union member names).
@@ -96,7 +106,7 @@ impl AxisScale {
             | AxisScale::Temporal { col, .. }
             | AxisScale::Band { col, .. } => col,
             AxisScale::NestedBand { outer_col, .. } => outer_col,
-            AxisScale::Union { label, .. } => label,
+            AxisScale::Union { label, .. } | AxisScale::TemporalUnion { label, .. } => label,
         };
         crate::svg::display_label(raw)
     }
@@ -108,7 +118,7 @@ impl AxisScale {
             | AxisScale::Temporal { col, .. }
             | AxisScale::Band { col, .. } => Some(col),
             AxisScale::NestedBand { outer_col, .. } => Some(outer_col),
-            AxisScale::Union { .. } => None,
+            AxisScale::Union { .. } | AxisScale::TemporalUnion { .. } => None,
         }
     }
 
@@ -126,6 +136,10 @@ impl AxisScale {
                 .map(|t| (scale.map(t), crate::svg::num(t)))
                 .collect(),
             AxisScale::Temporal { scale, .. } => temporal_ticks(scale)
+                .into_iter()
+                .map(|micros| (scale.map(micros), format_temporal(micros, scale.precision)))
+                .collect(),
+            AxisScale::TemporalUnion { scale, .. } => temporal_ticks(scale)
                 .into_iter()
                 .map(|micros| (scale.map(micros), format_temporal(micros, scale.precision)))
                 .collect(),
@@ -357,6 +371,36 @@ fn build_axis(
                     _ => None,
                 })
                 .collect();
+            let label = cols
+                .iter()
+                .map(|c| c.name.clone())
+                .collect::<Vec<_>>()
+                .join(" + ");
+            if !cols.is_empty() && cols.iter().all(|column| column.dtype == DataType::Temporal) {
+                let mut min = i64::MAX;
+                let mut max = i64::MIN;
+                let mut precision = TemporalPrecision::Date;
+                for c in &cols {
+                    if let Some((lo, hi, p)) = temporal_domain(table, &c.name) {
+                        min = min.min(lo);
+                        max = max.max(hi);
+                        if p == TemporalPrecision::DateTime {
+                            precision = TemporalPrecision::DateTime;
+                        }
+                    }
+                }
+                if min > max {
+                    min = 0;
+                    max = 1;
+                }
+                if let Some(hints) = hints {
+                    hints.apply_temporal(&mut min, &mut max);
+                }
+                return Some(AxisScale::TemporalUnion {
+                    label,
+                    scale: TemporalScale::new(min, max, range, precision),
+                });
+            }
             let mut min = f64::INFINITY;
             let mut max = f64::NEG_INFINITY;
             for c in &cols {
@@ -365,11 +409,6 @@ fn build_axis(
                     max = max.max(hi);
                 }
             }
-            let label = cols
-                .iter()
-                .map(|c| c.name.clone())
-                .collect::<Vec<_>>()
-                .join(" + ");
             if min > max {
                 min = 0.0;
                 max = 1.0;

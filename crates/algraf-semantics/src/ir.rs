@@ -102,6 +102,7 @@ pub struct ScaleIr {
     pub domain: Option<[f64; 2]>,
     pub reverse: Option<bool>,
     pub palette: Option<String>,
+    pub gradient: Option<Vec<String>>,
     /// An explicit legend title that overrides the column-derived default for a
     /// `fill`/`stroke` aesthetic scale (spec §16.13).
     pub label: Option<String>,
@@ -133,6 +134,7 @@ pub enum ScaleTypeIr {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeriveIr {
     pub name: String,
+    pub data: SpaceDataRef,
     pub stat: StatCallIr,
     pub output_schema: Vec<ColumnDefIr>,
     pub span: Span,
@@ -149,6 +151,8 @@ pub struct StatCallIr {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StatKind {
     Bin,
+    Bin2D,
+    HexBin,
     Count,
     Smooth,
     Boxplot,
@@ -219,6 +223,9 @@ pub enum GeometryKind {
     Bar,
     Rect,
     Histogram,
+    FreqPoly,
+    Bin2D,
+    HexBin,
     Smooth,
     Boxplot,
     Violin,

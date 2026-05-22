@@ -1219,7 +1219,7 @@ fn declaration_arg_items(decl: &str) -> Vec<CompletionItem> {
         "Guide" => &["axis", "label", "legend", "fill", "stroke", "grid"],
         "Theme" => &["name"],
         "Scale" => &[
-            "axis", "type", "domain", "reverse", "fill", "stroke", "palette", "label",
+            "axis", "type", "domain", "reverse", "fill", "stroke", "palette", "gradient", "label",
         ],
         _ => &[],
     };
@@ -1260,6 +1260,12 @@ fn declaration_value_items(
             value_item("\"default\"", "Default categorical palette"),
             value_item("\"accent\"", "Accent categorical palette"),
         ],
+        ("Scale", "gradient") => {
+            vec![value_item(
+                "[\"#3366cc\", \"#cc3333\"]",
+                "Color gradient stops",
+            )]
+        }
         _ => Vec::new(),
     }
 }
@@ -1518,8 +1524,12 @@ fn geometry_doc(name: &str) -> &'static str {
         "Bar" => "Draws bars in the inherited categorical or Cartesian space.",
         "Rect" => "Draws rectangles from explicit boundary properties.",
         "Histogram" => "Bins one continuous vector and draws count bars.",
+        "FreqPoly" => "Bins one continuous vector and connects bin centers.",
+        "Bin2D" => "Bins two continuous dimensions into rectangles.",
+        "HexBin" => "Bins two continuous dimensions into hexagons.",
         "Smooth" => "Draws a fitted smooth line over a two-dimensional space.",
         "Boxplot" => "Draws distribution summaries for grouped values.",
+        "Violin" => "Draws mirrored KDE distributions per category.",
         "Ribbon" => "Draws a band between lower and upper y values.",
         "Tile" => "Draws heatmap-style tiles in a two-dimensional space.",
         "HLine" => "Draws a horizontal reference line.",
@@ -1540,12 +1550,17 @@ fn property_doc(name: &str) -> &'static str {
         "alpha" => "Opacity setting or data column mapping.",
         "size" => "Point or text size setting or data column mapping.",
         "shape" => "Point shape setting or data column mapping.",
+        "group" => "Series grouping column, independent from color aesthetics.",
         "layout" => "Bar collision layout: `\"identity\"`, `\"stack\"`, or `\"fill\"`.",
         "stat" => "Geometry statistic option.",
         "bins" => "Histogram bin count.",
         "binWidth" => "Histogram bin width.",
         "boundary" => "Histogram bin boundary.",
         "closed" => "Histogram interval closure: `\"left\"` or `\"right\"`.",
+        "bandwidth" => "Kernel density bandwidth.",
+        "n" => "Number of kernel density grid points.",
+        "quantiles" => "Violin quantile line positions.",
+        "gradient" => "Continuous color gradient stops.",
         "xmin" => "Rectangle minimum x boundary.",
         "xmax" => "Rectangle maximum x boundary.",
         "ymin" => "Lower y boundary.",

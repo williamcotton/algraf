@@ -1,0 +1,6 @@
+Chart(data: "series.csv", width: 760, height: 460, title: "Grouped constant-color lines") {
+    Space(day * value) {
+        Line(group: series, stroke: "#777777", strokeWidth: 2)
+        Point(fill: series, size: 4)
+    }
+}

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="460" viewBox="0 0 760 460" role="img" aria-label="Frequency polygon">
+<title>Frequency polygon</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="460" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Frequency polygon</text>
+<rect class="algraf-plot-area" x="60" y="66" width="670" height="344" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="170.967" y1="66" x2="170.967" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="282.983" y1="66" x2="282.983" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="395" y1="66" x2="395" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="507.017" y1="66" x2="507.017" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="619.033" y1="66" x2="619.033" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="386.276" x2="730" y2="386.276" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="306.127" x2="730" y2="306.127" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="225.978" x2="730" y2="225.978" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="145.829" x2="730" y2="145.829" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M106.207 354.216 L144.713 378.261 L183.218 322.157 L221.724 282.082 L260.23 298.112 L298.736 266.052 L337.241 177.888 L375.747 169.873 L414.253 113.769 L452.759 89.724 L491.264 193.918 L529.77 233.993 L568.276 250.022 L606.782 370.246 L645.287 386.276 L683.793 370.246" fill="none" stroke="steelblue" stroke-width="2" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="410" x2="730" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="170.967" y1="410" x2="170.967" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="170.967" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="282.983" y1="410" x2="282.983" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="282.983" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="395" y1="410" x2="395" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="395" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <line x1="507.017" y1="410" x2="507.017" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="507.017" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
+  <line x1="619.033" y1="410" x2="619.033" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="619.033" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <text x="395" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">bin center</text>
+  <line x1="60" y1="66" x2="60" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="386.276" x2="60" y2="386.276" stroke="#333333" stroke-width="1" />
+  <text x="52" y="390.276" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="306.127" x2="60" y2="306.127" stroke="#333333" stroke-width="1" />
+  <text x="52" y="310.127" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="55" y1="225.978" x2="60" y2="225.978" stroke="#333333" stroke-width="1" />
+  <text x="52" y="229.978" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55" y1="145.829" x2="60" y2="145.829" stroke="#333333" stroke-width="1" />
+  <text x="52" y="149.829" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <text x="31.6" y="238" text-anchor="middle" transform="rotate(-90 31.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">count</text>
+</g>
+</svg>

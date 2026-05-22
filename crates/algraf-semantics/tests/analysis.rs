@@ -132,6 +132,35 @@ fn test_derived_table_resolution() {
 }
 
 #[test]
+fn test_chained_derived_table_resolution() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Derive bins = Bin(value, bins: 4)\n  Derive trend = Smooth(bin_center, count, method: \"lm\")\n  Space(x * y, data: trend) { Line() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.derived_tables.len(), 2);
+    assert_eq!(ir.derived_tables[1].name, "trend");
+    assert_eq!(
+        ir.derived_tables[1].data,
+        SpaceDataRef::Derived("bins".into())
+    );
+    assert_eq!(ir.derived_tables[1].stat.kind, StatKind::Smooth);
+}
+
+#[test]
+fn test_derived_cycle_is_diagnostic() {
+    assert!(has(
+        "Chart(data: \"d.csv\") {\n  Derive a = Bin(bin_center)\n  Derive b = Bin(count)\n  Space(value * amount) { Point() }\n}",
+        "E1501"
+    ));
+}
+
+#[test]
 fn test_bin_rejects_bins_and_bin_width_together() {
     assert!(has(
         "Chart(data: \"d.csv\") {\n  Derive bins = Bin(value, bins: 25, binWidth: 1)\n  Space(bin_start * count, data: bins) {\n    Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count)\n  }\n}",
@@ -336,6 +365,37 @@ fn test_scale_label_must_be_string() {
 }
 
 #[test]
+fn test_scale_gradient_is_recorded_for_continuous_fill() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: value, gradient: [\"#3366cc\", \"#cc3333\"], label: \"Value\")\n  Space(flipper_length * body_mass) { Point(fill: value) }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(
+        ir.scales[0].gradient.as_ref().unwrap(),
+        &vec!["#3366cc".to_string(), "#cc3333".to_string()]
+    );
+    assert_eq!(ir.scales[0].label.as_deref(), Some("Value"));
+}
+
+#[test]
+fn test_scale_gradient_rejects_bad_arrays_and_categorical_columns() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: value, gradient: [\"#3366cc\", \"not-a-color\"])\n  Space(flipper_length * body_mass) { Point(fill: value) }\n}",
+        "E1601"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: species, gradient: [\"#3366cc\", \"#cc3333\"])\n  Space(flipper_length * body_mass) { Point(fill: species) }\n}",
+        "E1602"
+    ));
+}
+
+#[test]
 fn test_theme_name_is_validated() {
     assert!(has(
         "Chart(data: \"p.csv\") {\n  Theme(name: \"neon\")\n  Space(flipper_length * body_mass) { Point() }\n}",
@@ -401,11 +461,13 @@ fn test_smooth_loess_is_deferred_in_version_0_1() {
 }
 
 #[test]
-fn test_violin_is_not_advertised_until_renderer_exists() {
-    assert!(has(
-        "Chart(data: \"p.csv\") {\n  Space(species * body_mass) {\n    Violin()\n  }\n}",
-        "E1201"
-    ));
+fn test_violin_is_registered() {
+    clean("Chart(data: \"p.csv\") {\n  Space(species * body_mass) {\n    Violin(quantiles: [0.25, 0.5, 0.75], fill: species)\n  }\n}");
+}
+
+#[test]
+fn test_line_and_smooth_accept_group_aesthetic() {
+    clean("Chart(data: \"p.csv\") {\n  Space(time * value) {\n    Line(group: group, stroke: \"#888888\")\n    Smooth(group: group, stroke: \"#444444\")\n  }\n}");
 }
 
 #[test]
@@ -472,8 +534,16 @@ fn test_direct_histogram_name_avoids_user_derived_names() {
         analysis.diagnostics
     );
     let ir = analysis.ir.expect("ir");
-    assert_ne!(ir.derived_tables[0].name, "__histogram_0");
-    assert_eq!(ir.derived_tables[1].name, "__histogram_0");
+    let synthetic = ir
+        .derived_tables
+        .iter()
+        .find(|table| table.name.starts_with("__histogram_") && table.name != "__histogram_0")
+        .expect("synthetic histogram table");
+    assert_ne!(synthetic.name, "__histogram_0");
+    assert!(ir
+        .derived_tables
+        .iter()
+        .any(|table| table.name == "__histogram_0"));
 }
 
 #[test]
@@ -617,6 +687,11 @@ fn test_density_rejects_non_vector_space() {
         "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Density()\n  }\n}",
         "E1302"
     ));
+}
+
+#[test]
+fn test_freqpoly_and_2d_binning_geometries_are_registered() {
+    clean("Chart(data: \"p.csv\") {\n  Space(value) { FreqPoly(bins: 8, stroke: \"steelblue\") }\n  Space(flipper_length * body_mass) { Bin2D(bins: 6) HexBin(bins: 6) }\n}");
 }
 
 #[test]

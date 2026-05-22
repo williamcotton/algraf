@@ -452,13 +452,17 @@ impl Parser {
             if self.at_arg_start() {
                 self.arg_list();
             } else {
-                self.algebra_expr(0); // stat input
+                self.algebra_expr(0); // first stat input
                 while self.at(SyntaxKind::COMMA) {
                     self.bump();
                     if self.at(SyntaxKind::R_PAREN) || self.at_eof() {
                         break;
                     }
-                    self.arg();
+                    if self.at_arg_start() {
+                        self.arg();
+                    } else {
+                        self.algebra_expr(0);
+                    }
                 }
             }
         }

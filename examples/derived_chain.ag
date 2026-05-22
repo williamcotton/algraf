@@ -1,0 +1,12 @@
+Chart(data: "distribution.csv", width: 760, height: 460, title: "Binned trend") {
+    Derive bins = Bin(value, bins: 12)
+    Derive trend = Smooth(bin_center, count, method: "lm")
+
+    Space(bin_center * count, data: bins) {
+        Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count, fill: "#c7dcef")
+    }
+
+    Space(x * y, data: trend) {
+        Line(stroke: "#333333", strokeWidth: 2)
+    }
+}

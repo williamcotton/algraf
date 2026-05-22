@@ -35,6 +35,14 @@ charts=(
     temporal_histogram
     space_theme
     density
+    violin
+    freqpoly
+    derived_chain
+    gradient
+    group_line
+    shapes
+    bin2d
+    hexbin
     legend_merge
     scale_label
 )

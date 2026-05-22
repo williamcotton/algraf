@@ -1,0 +1,5 @@
+Chart(data: "distribution.csv", width: 760, height: 460, title: "Frequency polygon") {
+    Space(value) {
+        FreqPoly(bins: 16, stroke: "steelblue", strokeWidth: 2)
+    }
+}

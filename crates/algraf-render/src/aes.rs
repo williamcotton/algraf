@@ -6,7 +6,7 @@ use algraf_semantics::{GeometryIr, ScaleIr, ScaleTargetIr, SettingValue};
 
 use crate::scale::{categorical_domain, cell_category, cell_f64, numeric_domain};
 use crate::svg::num;
-use crate::theme::{categorical_color_from, gradient_color};
+use crate::theme::{categorical_color_from, gradient_color_from, CONTINUOUS_GRADIENT};
 
 /// How an aesthetic resolves to a color.
 #[derive(Debug, Clone)]
@@ -22,6 +22,7 @@ pub enum ColorSpec {
         col: String,
         min: f64,
         max: f64,
+        stops: Vec<String>,
     },
 }
 
@@ -40,14 +41,19 @@ impl ColorSpec {
                 let index = categories.iter().position(|c| *c == cat)?;
                 Some(categorical_color_from(palette.as_deref(), index).to_string())
             }
-            ColorSpec::Gradient { col, min, max } => {
+            ColorSpec::Gradient {
+                col,
+                min,
+                max,
+                stops,
+            } => {
                 let v = cell_f64(table, col, row)?;
                 let t = if (max - min).abs() < f64::EPSILON {
                     0.5
                 } else {
                     (v - min) / (max - min)
                 };
-                Some(gradient_color(t))
+                Some(gradient_at(stops, t))
             }
         }
     }
@@ -74,7 +80,9 @@ impl ColorSpec {
                     .collect(),
                 stroke_entries: Vec::new(),
             }),
-            ColorSpec::Gradient { min, max, .. } => {
+            ColorSpec::Gradient {
+                min, max, stops, ..
+            } => {
                 let ticks = gradient_legend_ticks(*min, *max);
                 Some(Legend {
                     title: title.to_string(),
@@ -88,7 +96,7 @@ impl ColorSpec {
                             } else {
                                 (value - min) / (max - min)
                             };
-                            (num(value), gradient_color(t))
+                            (num(value), gradient_at(stops, t))
                         })
                         .collect(),
                 })
@@ -148,6 +156,7 @@ pub fn color_spec(
                     col: col.clone(),
                     min,
                     max,
+                    stops: gradient_for(scales, aesthetic, col).unwrap_or_else(default_gradient),
                 }
             }
             _ => ColorSpec::Categorical {
@@ -163,6 +172,32 @@ pub fn color_spec(
         }
     }
     ColorSpec::None
+}
+
+fn gradient_at(stops: &[String], t: f64) -> String {
+    let borrowed: Vec<&str> = stops.iter().map(String::as_str).collect();
+    gradient_color_from(&borrowed, t)
+}
+
+fn default_gradient() -> Vec<String> {
+    CONTINUOUS_GRADIENT
+        .iter()
+        .map(|stop| (*stop).to_string())
+        .collect()
+}
+
+fn gradient_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<Vec<String>> {
+    scales.iter().rev().find_map(|scale| match &scale.target {
+        ScaleTargetIr::Aesthetic {
+            aesthetic: target,
+            column: Some(scale_column),
+        } if target == aesthetic && scale_column.name == column => scale.gradient.clone(),
+        ScaleTargetIr::Aesthetic {
+            aesthetic: target,
+            column: None,
+        } if target == aesthetic => scale.gradient.clone(),
+        _ => None,
+    })
 }
 
 fn palette_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<String> {

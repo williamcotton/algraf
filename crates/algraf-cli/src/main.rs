@@ -766,6 +766,8 @@ fn span_json(span: algraf_core::Span) -> Value {
 fn stat_kind_str(kind: StatKind) -> &'static str {
     match kind {
         StatKind::Bin => "Bin",
+        StatKind::Bin2D => "Bin2D",
+        StatKind::HexBin => "HexBin",
         StatKind::Count => "Count",
         StatKind::Smooth => "Smooth",
         StatKind::Boxplot => "Boxplot",
@@ -780,6 +782,9 @@ fn geometry_kind_str(kind: GeometryKind) -> &'static str {
         GeometryKind::Bar => "Bar",
         GeometryKind::Rect => "Rect",
         GeometryKind::Histogram => "Histogram",
+        GeometryKind::FreqPoly => "FreqPoly",
+        GeometryKind::Bin2D => "Bin2D",
+        GeometryKind::HexBin => "HexBin",
         GeometryKind::Smooth => "Smooth",
         GeometryKind::Boxplot => "Boxplot",
         GeometryKind::Violin => "Violin",

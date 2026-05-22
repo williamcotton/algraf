@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="460" viewBox="0 0 760 460" role="img" aria-label="Grouped constant-color lines">
+<title>Grouped constant-color lines</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="460" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Grouped constant-color lines</text>
+<rect class="algraf-plot-area" x="60" y="66" width="550" height="344" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="60" y1="66" x2="60" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="202.083" y1="66" x2="202.083" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="330.417" y1="66" x2="330.417" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="472.5" y1="66" x2="472.5" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="610" y1="66" x2="610" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="386.276" x2="610" y2="386.276" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="340.653" x2="610" y2="340.653" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="295.029" x2="610" y2="295.029" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="249.406" x2="610" y2="249.406" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="203.782" x2="610" y2="203.782" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="158.159" x2="610" y2="158.159" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="112.536" x2="610" y2="112.536" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="66.912" x2="610" y2="66.912" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M60 295.029 L202.083 226.594 L330.417 158.159 L472.5 203.782 L610 89.724" fill="none" stroke="#777777" stroke-width="2" opacity="1" />
+  <path d="M60 386.276 L202.083 340.653 L330.417 363.464 L472.5 272.218 L610 180.971" fill="none" stroke="#777777" stroke-width="2" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="60" cy="295.029" r="4" fill="#4E79A7" opacity="1" />
+  <circle cx="202.083" cy="226.594" r="4" fill="#4E79A7" opacity="1" />
+  <circle cx="330.417" cy="158.159" r="4" fill="#4E79A7" opacity="1" />
+  <circle cx="472.5" cy="203.782" r="4" fill="#4E79A7" opacity="1" />
+  <circle cx="610" cy="89.724" r="4" fill="#4E79A7" opacity="1" />
+  <circle cx="60" cy="386.276" r="4" fill="#F28E2B" opacity="1" />
+  <circle cx="202.083" cy="340.653" r="4" fill="#F28E2B" opacity="1" />
+  <circle cx="330.417" cy="363.464" r="4" fill="#F28E2B" opacity="1" />
+  <circle cx="472.5" cy="272.218" r="4" fill="#F28E2B" opacity="1" />
+  <circle cx="610" cy="180.971" r="4" fill="#F28E2B" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="410" x2="610" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="60" y1="410" x2="60" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="60" y="428" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <line x1="202.083" y1="410" x2="202.083" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="202.083" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-02-01</text>
+  <line x1="330.417" y1="410" x2="330.417" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="330.417" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-03-01</text>
+  <line x1="472.5" y1="410" x2="472.5" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="472.5" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-04-01</text>
+  <line x1="610" y1="410" x2="610" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="610" y="428" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-01</text>
+  <text x="335" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">day</text>
+  <line x1="60" y1="66" x2="60" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="386.276" x2="60" y2="386.276" stroke="#333333" stroke-width="1" />
+  <text x="52" y="390.276" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
+  <line x1="55" y1="340.653" x2="60" y2="340.653" stroke="#333333" stroke-width="1" />
+  <text x="52" y="344.653" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="55" y1="295.029" x2="60" y2="295.029" stroke="#333333" stroke-width="1" />
+  <text x="52" y="299.029" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">12</text>
+  <line x1="55" y1="249.406" x2="60" y2="249.406" stroke="#333333" stroke-width="1" />
+  <text x="52" y="253.406" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">14</text>
+  <line x1="55" y1="203.782" x2="60" y2="203.782" stroke="#333333" stroke-width="1" />
+  <text x="52" y="207.782" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">16</text>
+  <line x1="55" y1="158.159" x2="60" y2="158.159" stroke="#333333" stroke-width="1" />
+  <text x="52" y="162.159" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">18</text>
+  <line x1="55" y1="112.536" x2="60" y2="112.536" stroke="#333333" stroke-width="1" />
+  <text x="52" y="116.536" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55" y1="66.912" x2="60" y2="66.912" stroke="#333333" stroke-width="1" />
+  <text x="52" y="70.912" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">22</text>
+  <text x="31.6" y="238" text-anchor="middle" transform="rotate(-90 31.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">value</text>
+</g>
+<g class="algraf-legends">
+  <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">series</text>
+  <rect x="626" y="78" width="12" height="12" fill="#4E79A7" />
+  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">north</text>
+  <rect x="626" y="96" width="12" height="12" fill="#F28E2B" />
+  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">south</text>
+</g>
+</svg>

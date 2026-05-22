@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="500" viewBox="0 0 720 500" role="img" aria-label="Hex bins">
+<title>Hex bins</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="500" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Hex bins</text>
+<rect class="algraf-plot-area" x="60" y="66" width="510" height="384" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="107.734" y1="66" x2="107.734" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="170.542" y1="66" x2="170.542" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="233.35" y1="66" x2="233.35" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="296.158" y1="66" x2="296.158" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="358.966" y1="66" x2="358.966" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="421.773" y1="66" x2="421.773" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="484.581" y1="66" x2="484.581" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="547.389" y1="66" x2="547.389" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="432.978" x2="570" y2="432.978" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="385.674" x2="570" y2="385.674" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="338.37" x2="570" y2="338.37" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="291.066" x2="570" y2="291.066" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="243.761" x2="570" y2="243.761" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="196.457" x2="570" y2="196.457" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="149.153" x2="570" y2="149.153" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="101.849" x2="570" y2="101.849" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-hexbin">
+  <polygon points="95.172,439.444 76.853,431.481 76.853,415.554 95.172,407.59 113.491,415.554 113.491,431.481" fill="#410f5c" opacity="0.9" />
+  <polygon points="95.172,391.663 76.853,383.7 76.853,367.773 95.172,359.81 113.491,367.773 113.491,383.7" fill="#440154" opacity="0.9" />
+  <polygon points="113.491,415.554 95.172,407.59 95.172,391.663 113.491,383.7 131.81,391.663 131.81,407.59" fill="#440154" opacity="0.9" />
+  <polygon points="113.491,319.992 95.172,312.029 95.172,296.102 113.491,288.139 131.81,296.102 131.81,312.029" fill="#440154" opacity="0.9" />
+  <polygon points="131.81,391.663 113.491,383.7 113.491,367.773 131.81,359.81 150.129,367.773 150.129,383.7" fill="#410f5c" opacity="0.9" />
+  <polygon points="150.129,415.554 131.81,407.59 131.81,391.663 150.129,383.7 168.448,391.663 168.448,407.59" fill="#440154" opacity="0.9" />
+  <polygon points="150.129,367.773 131.81,359.81 131.81,343.883 150.129,335.919 168.448,343.883 168.448,359.81" fill="#410f5c" opacity="0.9" />
+  <polygon points="168.448,391.663 150.129,383.7 150.129,367.773 168.448,359.81 186.767,367.773 186.767,383.7" fill="#3c2b6c" opacity="0.9" />
+  <polygon points="168.448,343.883 150.129,335.919 150.129,319.992 168.448,312.029 186.767,319.992 186.767,335.919" fill="#440154" opacity="0.9" />
+  <polygon points="186.767,367.773 168.448,359.81 168.448,343.883 186.767,335.919 205.086,343.883 205.086,359.81" fill="#410f5c" opacity="0.9" />
+  <polygon points="186.767,319.992 168.448,312.029 168.448,296.102 186.767,288.139 205.086,296.102 205.086,312.029" fill="#3f1d64" opacity="0.9" />
+  <polygon points="205.086,439.444 186.767,431.481 186.767,415.554 205.086,407.59 223.405,415.554 223.405,431.481" fill="#440154" opacity="0.9" />
+  <polygon points="205.086,391.663 186.767,383.7 186.767,367.773 205.086,359.81 223.405,367.773 223.405,383.7" fill="#3f1d64" opacity="0.9" />
+  <polygon points="205.086,343.883 186.767,335.919 186.767,319.992 205.086,312.029 223.405,319.992 223.405,335.919" fill="#316f8c" opacity="0.9" />
+  <polygon points="205.086,296.102 186.767,288.139 186.767,272.212 205.086,264.248 223.405,272.212 223.405,288.139" fill="#3c2b6c" opacity="0.9" />
+  <polygon points="223.405,367.773 205.086,359.81 205.086,343.883 223.405,335.919 241.724,343.883 241.724,359.81" fill="#410f5c" opacity="0.9" />
+  <polygon points="223.405,319.992 205.086,312.029 205.086,296.102 223.405,288.139 241.724,296.102 241.724,312.029" fill="#c6da3c" opacity="0.9" />
+  <polygon points="223.405,272.212 205.086,264.248 205.086,248.321 223.405,240.358 241.724,248.321 241.724,264.248" fill="#440154" opacity="0.9" />
+  <polygon points="241.724,343.883 223.405,335.919 223.405,319.992 241.724,312.029 260.043,319.992 260.043,335.919" fill="#fde725" opacity="0.9" />
+  <polygon points="241.724,296.102 223.405,288.139 223.405,272.212 241.724,264.248 260.043,272.212 260.043,288.139" fill="#328586" opacity="0.9" />
+  <polygon points="241.724,248.321 223.405,240.358 223.405,224.431 241.724,216.467 260.043,224.431 260.043,240.358" fill="#440154" opacity="0.9" />
+  <polygon points="260.043,367.773 241.724,359.81 241.724,343.883 260.043,335.919 278.362,343.883 278.362,359.81" fill="#410f5c" opacity="0.9" />
+  <polygon points="260.043,319.992 241.724,312.029 241.724,296.102 260.043,288.139 278.362,296.102 278.362,312.029" fill="#35b07b" opacity="0.9" />
+  <polygon points="260.043,272.212 241.724,264.248 241.724,248.321 260.043,240.358 278.362,248.321 278.362,264.248" fill="#410f5c" opacity="0.9" />
+  <polygon points="278.362,343.883 260.043,335.919 260.043,319.992 278.362,312.029 296.681,319.992 296.681,335.919" fill="#328586" opacity="0.9" />
+  <polygon points="278.362,296.102 260.043,288.139 260.043,272.212 278.362,264.248 296.681,272.212 296.681,288.139" fill="#34a57e" opacity="0.9" />
+  <polygon points="278.362,248.321 260.043,240.358 260.043,224.431 278.362,216.467 296.681,224.431 296.681,240.358" fill="#410f5c" opacity="0.9" />
+  <polygon points="278.362,200.541 260.043,192.577 260.043,176.65 278.362,168.687 296.681,176.65 296.681,192.577" fill="#3f1d64" opacity="0.9" />
+  <polygon points="296.681,319.992 278.362,312.029 278.362,296.102 296.681,288.139 315,296.102 315,312.029" fill="#32638b" opacity="0.9" />
+  <polygon points="296.681,272.212 278.362,264.248 278.362,248.321 296.681,240.358 315,248.321 315,264.248" fill="#32638b" opacity="0.9" />
+  <polygon points="296.681,224.431 278.362,216.467 278.362,200.541 296.681,192.577 315,200.541 315,216.467" fill="#3f1d64" opacity="0.9" />
+  <polygon points="315,343.883 296.681,335.919 296.681,319.992 315,312.029 333.319,319.992 333.319,335.919" fill="#410f5c" opacity="0.9" />
+  <polygon points="315,296.102 296.681,288.139 296.681,272.212 315,264.248 333.319,272.212 333.319,288.139" fill="#316f8c" opacity="0.9" />
+  <polygon points="315,248.321 296.681,240.358 296.681,224.431 315,216.467 333.319,224.431 333.319,240.358" fill="#345583" opacity="0.9" />
+  <polygon points="315,200.541 296.681,192.577 296.681,176.65 315,168.687 333.319,176.65 333.319,192.577" fill="#410f5c" opacity="0.9" />
+  <polygon points="333.319,319.992 315,312.029 315,296.102 333.319,288.139 351.638,296.102 351.638,312.029" fill="#3c2b6c" opacity="0.9" />
+  <polygon points="333.319,272.212 315,264.248 315,248.321 333.319,240.358 351.638,248.321 351.638,264.248" fill="#316f8c" opacity="0.9" />
+  <polygon points="333.319,224.431 315,216.467 315,200.541 333.319,192.577 351.638,200.541 351.638,216.467" fill="#328586" opacity="0.9" />
+  <polygon points="333.319,176.65 315,168.687 315,152.76 333.319,144.796 351.638,152.76 351.638,168.687" fill="#410f5c" opacity="0.9" />
+  <polygon points="351.638,296.102 333.319,288.139 333.319,272.212 351.638,264.248 369.957,272.212 369.957,288.139" fill="#3c2b6c" opacity="0.9" />
+  <polygon points="351.638,248.321 333.319,240.358 333.319,224.431 351.638,216.467 369.957,224.431 369.957,240.358" fill="#328586" opacity="0.9" />
+  <polygon points="351.638,200.541 333.319,192.577 333.319,176.65 351.638,168.687 369.957,176.65 369.957,192.577" fill="#3f1d64" opacity="0.9" />
+  <polygon points="369.957,272.212 351.638,264.248 351.638,248.321 369.957,240.358 388.276,248.321 388.276,264.248" fill="#410f5c" opacity="0.9" />
+  <polygon points="369.957,224.431 351.638,216.467 351.638,200.541 369.957,192.577 388.276,200.541 388.276,216.467" fill="#327a89" opacity="0.9" />
+  <polygon points="369.957,176.65 351.638,168.687 351.638,152.76 369.957,144.796 388.276,152.76 388.276,168.687" fill="#440154" opacity="0.9" />
+  <polygon points="388.276,296.102 369.957,288.139 369.957,272.212 388.276,264.248 406.595,272.212 406.595,288.139" fill="#440154" opacity="0.9" />
+  <polygon points="388.276,248.321 369.957,240.358 369.957,224.431 388.276,216.467 406.595,224.431 406.595,240.358" fill="#345583" opacity="0.9" />
+  <polygon points="388.276,200.541 369.957,192.577 369.957,176.65 388.276,168.687 406.595,176.65 406.595,192.577" fill="#339084" opacity="0.9" />
+  <polygon points="388.276,152.76 369.957,144.796 369.957,128.87 388.276,120.906 406.595,128.87 406.595,144.796" fill="#3c2b6c" opacity="0.9" />
+  <polygon points="406.595,272.212 388.276,264.248 388.276,248.321 406.595,240.358 424.914,248.321 424.914,264.248" fill="#440154" opacity="0.9" />
+  <polygon points="406.595,224.431 388.276,216.467 388.276,200.541 406.595,192.577 424.914,200.541 424.914,216.467" fill="#316f8c" opacity="0.9" />
+  <polygon points="406.595,176.65 388.276,168.687 388.276,152.76 406.595,144.796 424.914,152.76 424.914,168.687" fill="#3a3974" opacity="0.9" />
+  <polygon points="406.595,128.87 388.276,120.906 388.276,104.979 406.595,97.016 424.914,104.979 424.914,120.906" fill="#440154" opacity="0.9" />
+  <polygon points="424.914,248.321 406.595,240.358 406.595,224.431 424.914,216.467 443.233,224.431 443.233,240.358" fill="#3f1d64" opacity="0.9" />
+  <polygon points="424.914,200.541 406.595,192.577 406.595,176.65 424.914,168.687 443.233,176.65 443.233,192.577" fill="#37477c" opacity="0.9" />
+  <polygon points="424.914,152.76 406.595,144.796 406.595,128.87 424.914,120.906 443.233,128.87 443.233,144.796" fill="#3c2b6c" opacity="0.9" />
+  <polygon points="443.233,224.431 424.914,216.467 424.914,200.541 443.233,192.577 461.552,200.541 461.552,216.467" fill="#410f5c" opacity="0.9" />
+  <polygon points="443.233,176.65 424.914,168.687 424.914,152.76 443.233,144.796 461.552,152.76 461.552,168.687" fill="#3a3974" opacity="0.9" />
+  <polygon points="461.552,200.541 443.233,192.577 443.233,176.65 461.552,168.687 479.871,176.65 479.871,192.577" fill="#440154" opacity="0.9" />
+  <polygon points="461.552,152.76 443.233,144.796 443.233,128.87 461.552,120.906 479.871,128.87 479.871,144.796" fill="#440154" opacity="0.9" />
+  <polygon points="461.552,104.979 443.233,97.016 443.233,81.089 461.552,73.125 479.871,81.089 479.871,97.016" fill="#440154" opacity="0.9" />
+  <polygon points="479.871,176.65 461.552,168.687 461.552,152.76 479.871,144.796 498.19,152.76 498.19,168.687" fill="#440154" opacity="0.9" />
+  <polygon points="479.871,128.87 461.552,120.906 461.552,104.979 479.871,97.016 498.19,104.979 498.19,120.906" fill="#440154" opacity="0.9" />
+  <polygon points="498.19,152.76 479.871,144.796 479.871,128.87 498.19,120.906 516.509,128.87 516.509,144.796" fill="#410f5c" opacity="0.9" />
+  <polygon points="534.828,152.76 516.509,144.796 516.509,128.87 534.828,120.906 553.147,128.87 553.147,144.796" fill="#440154" opacity="0.9" />
+  <polygon points="534.828,104.979 516.509,97.016 516.509,81.089 534.828,73.125 553.147,81.089 553.147,97.016" fill="#440154" opacity="0.9" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="450" x2="570" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="107.734" y1="450" x2="107.734" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="107.734" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">170</text>
+  <line x1="170.542" y1="450" x2="170.542" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="170.542" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">180</text>
+  <line x1="233.35" y1="450" x2="233.35" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="233.35" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">190</text>
+  <line x1="296.158" y1="450" x2="296.158" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="296.158" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">200</text>
+  <line x1="358.966" y1="450" x2="358.966" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="358.966" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">210</text>
+  <line x1="421.773" y1="450" x2="421.773" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="421.773" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">220</text>
+  <line x1="484.581" y1="450" x2="484.581" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="484.581" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">230</text>
+  <line x1="547.389" y1="450" x2="547.389" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="547.389" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">240</text>
+  <text x="315" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">x</text>
+  <line x1="60" y1="66" x2="60" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="432.978" x2="60" y2="432.978" stroke="#333333" stroke-width="1" />
+  <text x="52" y="436.978" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2500</text>
+  <line x1="55" y1="385.674" x2="60" y2="385.674" stroke="#333333" stroke-width="1" />
+  <text x="52" y="389.674" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3000</text>
+  <line x1="55" y1="338.37" x2="60" y2="338.37" stroke="#333333" stroke-width="1" />
+  <text x="52" y="342.37" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3500</text>
+  <line x1="55" y1="291.066" x2="60" y2="291.066" stroke="#333333" stroke-width="1" />
+  <text x="52" y="295.066" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4000</text>
+  <line x1="55" y1="243.761" x2="60" y2="243.761" stroke="#333333" stroke-width="1" />
+  <text x="52" y="247.761" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4500</text>
+  <line x1="55" y1="196.457" x2="60" y2="196.457" stroke="#333333" stroke-width="1" />
+  <text x="52" y="200.457" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5000</text>
+  <line x1="55" y1="149.153" x2="60" y2="149.153" stroke="#333333" stroke-width="1" />
+  <text x="52" y="153.153" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5500</text>
+  <line x1="55" y1="101.849" x2="60" y2="101.849" stroke="#333333" stroke-width="1" />
+  <text x="52" y="105.849" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6000</text>
+  <text x="17.2" y="258" text-anchor="middle" transform="rotate(-90 17.2 258)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">y</text>
+</g>
+<g class="algraf-legends">
+  <text x="586" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">count</text>
+  <rect x="586" y="78" width="12" height="16" fill="#fde725" />
+  <text x="604" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">23</text>
+  <rect x="586" y="94" width="12" height="16" fill="#67c364" />
+  <text x="604" y="104" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">17.5</text>
+  <rect x="586" y="110" width="12" height="16" fill="#339084" />
+  <text x="604" y="120" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">12</text>
+  <rect x="586" y="126" width="12" height="16" fill="#364e80" />
+  <text x="604" y="136" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6.5</text>
+  <rect x="586" y="142" width="12" height="16" fill="#440154" />
+  <text x="604" y="152" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+</g>
+</svg>

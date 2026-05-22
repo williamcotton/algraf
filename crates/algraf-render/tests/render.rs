@@ -154,6 +154,16 @@ fn test_line_groups_by_stroke() {
 }
 
 #[test]
+fn test_line_group_aesthetic_separates_constant_color_series() {
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Space(time * value) { Line(group: series, stroke: \"#888888\") } }",
+        "time,value,series\n1,2,a\n2,3,a\n1,5,b\n2,1,b\n",
+    );
+    assert_eq!(svg.matches("<path").count(), 2);
+    assert_eq!(svg.matches("stroke=\"#888888\"").count(), 2);
+}
+
+#[test]
 fn test_smooth_lm_renders_fit_line() {
     let result = render_result(
         "Chart(data: \"s.csv\") { Space(x * y) { Smooth(method: \"lm\", stroke: \"#333333\") } }",
@@ -316,6 +326,16 @@ fn test_gradient_legend_for_numeric_fill() {
 }
 
 #[test]
+fn test_source_gradient_controls_numeric_fill_colors() {
+    let svg = render_svg(
+        "Chart(data: \"h.csv\") { Scale(fill: value, gradient: [\"#3366cc\", \"#cc3333\"]) Space(day * hour) { Tile(fill: value) } }",
+        "day,hour,value\nMon,9am,1\nMon,10am,9\n",
+    );
+    assert!(svg.contains("fill=\"#3366cc\""));
+    assert!(svg.contains("fill=\"#cc3333\""));
+}
+
+#[test]
 fn test_histogram_via_derive_and_rect() {
     let svg = render_svg(
         "Chart(data: \"d.csv\") { Derive bins = Bin(value, bins: 4) Space(bin_start * count, data: bins) { Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count) } }",
@@ -377,6 +397,31 @@ fn test_rect_renders_stroke_border() {
     );
     assert!(svg.contains("stroke=\"#ffffff\""));
     assert!(svg.contains("stroke-width=\"1\""));
+}
+
+#[test]
+fn test_rect_supports_temporal_union_and_categorical_bounds() {
+    let result = render_result(
+        "Chart(data: \"g.csv\") { Space((start + end) * phase) { Rect(xmin: start, xmax: end, ymin: phase, ymax: phase, fill: phase) } }",
+        "start,end,phase\n2026-01-01,2026-01-05,Review\n2026-01-03,2026-01-07,Filing\n",
+    );
+    assert!(
+        result.diagnostics.iter().all(|diag| diag.code != "W2002"),
+        "{:?}",
+        result.diagnostics
+    );
+    assert_eq!(result.svg.matches("opacity=").count(), 2);
+    assert!(result.svg.contains(">2026-01-01</text>"));
+    assert!(result.svg.contains(">Review</text>"));
+}
+
+#[test]
+fn test_rect_zero_extent_renders_as_marker() {
+    let svg = render_svg(
+        "Chart(data: \"r.csv\") { Space(x * y) { Rect(xmin: x, xmax: x, ymin: 0, ymax: y, strokeWidth: 3) } }",
+        "x,y\n1,5\n",
+    );
+    assert!(svg.contains("width=\"3\""));
 }
 
 #[test]
@@ -635,6 +680,86 @@ fn test_density_geom_renders_filled_area() {
     assert!(svg.contains("fill=\"#4c78a8\""));
     // The area is a single closed path.
     assert_eq!(svg.matches("<path").count(), 1);
+}
+
+#[test]
+fn test_violin_renders_mirrored_density_and_quantiles() {
+    let result = render_result(
+        "Chart(data: \"v.csv\") { Space(group * value) { Violin(fill: group, quantiles: [0.25, 0.5, 0.75]) } }",
+        "group,value\na,1\na,2\na,2\na,3\na,4\nb,2\nb,3\nb,4\nb,4\nb,5\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-violin"));
+    assert_eq!(result.svg.matches("<path").count(), 2);
+    assert!(result.svg.matches("<line").count() >= 6);
+}
+
+#[test]
+fn test_freqpoly_renders_bin_count_line() {
+    let result = render_result(
+        "Chart(data: \"d.csv\") { Space(v) { FreqPoly(bins: 4, stroke: \"steelblue\") } }",
+        "v\n1\n2\n3\n4\n5\n6\n7\n8\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-line"));
+    assert_eq!(result.svg.matches("<path").count(), 1);
+}
+
+#[test]
+fn test_bin2d_renders_rectangular_bins() {
+    let result = render_result(
+        "Chart(data: \"b.csv\") { Space(x * y) { Bin2D(bins: 2) } }",
+        "x,y\n1,1\n1,2\n2,1\n8,8\n9,9\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-rect"));
+    assert!(result.svg.contains(">count</text>"));
+}
+
+#[test]
+fn test_hexbin_renders_hexagonal_bins() {
+    let result = render_result(
+        "Chart(data: \"b.csv\") { Space(x * y) { HexBin(bins: 3) } }",
+        "x,y\n1,1\n1,2\n2,1\n8,8\n9,9\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-hexbin"));
+    assert!(result.svg.contains("<polygon"));
+    // When `fill` is omitted, HexBin shades by count and emits a continuous
+    // count legend, matching Bin2D.
+    assert!(result.svg.contains(">count</text>"));
+}
+
+#[test]
+fn test_hexbin_constant_fill_omits_count_legend() {
+    let result = render_result(
+        "Chart(data: \"b.csv\") { Space(x * y) { HexBin(bins: 3, fill: \"#333333\") } }",
+        "x,y\n1,1\n1,2\n2,1\n8,8\n9,9\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-hexbin"));
+    assert!(!result.svg.contains(">count</text>"));
+}
+
+#[test]
+fn test_point_shape_setting_and_mapping_render_distinct_marks() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") { Space(x * y) { Point(shape: kind, fill: kind, size: 4) Point(shape: \"diamond\", fill: \"#333333\", size: 4) } }",
+        "x,y,kind\n1,2,circle\n2,3,square\n3,4,triangle\n4,5,diamond\n",
+    );
+    assert!(svg.contains("<circle"));
+    assert!(svg.contains("<rect"));
+    assert!(svg.contains("<path"));
+}
+
+#[test]
+fn test_chained_derived_smooth_table_renders() {
+    let result = render_result(
+        "Chart(data: \"d.csv\") { Derive bins = Bin(value, bins: 4) Derive trend = Smooth(bin_center, count) Space(x * y, data: trend) { Line() } }",
+        "value\n1\n2\n3\n4\n5\n6\n7\n8\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.svg.matches("<path").count(), 1);
 }
 
 // --- Density column ---

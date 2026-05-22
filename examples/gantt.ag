@@ -2,24 +2,16 @@ Chart(data: "gantt.csv", width: 760, height: 420, title: "Project Schedule") {
     Theme(name: "classic")
 
     Guide(axis: x, label: "Timeline")
-    Guide(axis: y, label: "")
+    Guide(axis: y, label: "Attorney / phase")
 
-    Space(date * task_id) {
+    Space((start_date + end_date) * (attorney / phase)) {
         Rect(
             xmin: start_date,
             xmax: end_date,
-            ymin: ymin,
-            ymax: ymax,
-            fill: stage,
+            ymin: phase,
+            ymax: phase,
+            fill: phase,
             alpha: 0.85,
-        )
-        Text(
-            label: task,
-            anchor: "end",
-            dx: -10,
-            dy: 4,
-            fill: "#333333",
-            size: 11,
         )
     }
 }

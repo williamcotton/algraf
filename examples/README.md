@@ -49,6 +49,14 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | `gantt.ag` | `gantt.csv` | `gantt.svg`, `gantt.png` | Gantt chart / timeline with `Rect` intervals and custom labels |
 | `smooth.ag` | `penguins.csv` | `smooth.svg`, `smooth.png` | Linear `Smooth(method: "lm")` overlay |
 | `boxplot.ag` | `demographics.csv` | `boxplot.svg`, `boxplot.png` | Boxplot summaries with rug ticks |
+| `violin.ag` | `demographics.csv` | `violin.svg`, `violin.png` | Violin geometry with quantile lines |
+| `freqpoly.ag` | `distribution.csv` | `freqpoly.svg`, `freqpoly.png` | Frequency polygon over binned counts |
+| `derived_chain.ag` | `distribution.csv` | `derived_chain.svg`, `derived_chain.png` | Chained `Derive` declarations |
+| `gradient.ag` | `heatmap.csv` | `gradient.svg`, `gradient.png` | Source-level continuous gradient stops |
+| `group_line.ag` | `series.csv` | `group_line.svg`, `group_line.png` | `group` aesthetic with constant line stroke |
+| `shapes.ag` | `series.csv` | `shapes.svg`, `shapes.png` | Categorical point shape mapping |
+| `bin2d.ag` | `penguins.csv` | `bin2d.svg`, `bin2d.png` | Rectangular 2D binning |
+| `hexbin.ag` | `penguins.csv` | `hexbin.svg`, `hexbin.png` | Hexagonal binning |
 | `ribbon.ag` | `ribbon.csv` | `ribbon.svg`, `ribbon.png` | Closed ribbon interval path |
 | `reference.ag` | `penguins.csv` | `reference.svg`, `reference.png` | `HLine`, `VLine`, `Rug`, title, and legend suppression |
 

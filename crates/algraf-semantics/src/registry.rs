@@ -65,6 +65,7 @@ const SIZE: &[Accept] = &[Accept::Number, Accept::Column];
 const SHAPE: &[Accept] = &[Accept::Column, Accept::Str];
 const STROKE_WIDTH: &[Accept] = &[Accept::Number];
 const POS: &[Accept] = &[Accept::Column, Accept::Number];
+const GROUP: &[Accept] = &[Accept::Column];
 
 const POINT: &[PropSpec] = &[
     opt("fill", FILL),
@@ -78,6 +79,7 @@ const LINE: &[PropSpec] = &[
     opt("stroke", STROKE),
     opt("strokeWidth", STROKE_WIDTH),
     opt("alpha", ALPHA),
+    opt("group", GROUP),
 ];
 
 const BAR: &[PropSpec] = &[
@@ -111,11 +113,39 @@ const HISTOGRAM: &[PropSpec] = &[
     opt("alpha", ALPHA),
 ];
 
+const FREQ_POLY: &[PropSpec] = &[
+    opt("bins", &[Accept::Number]),
+    opt("binWidth", &[Accept::Number]),
+    opt("boundary", &[Accept::Number]),
+    opt("closed", &[Accept::Enum(&["left", "right"])]),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+    opt("group", GROUP),
+];
+
+const BIN2D: &[PropSpec] = &[
+    opt("bins", &[Accept::Number]),
+    opt("fill", &[Accept::Color]),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+];
+
+const HEXBIN: &[PropSpec] = &[
+    opt("bins", &[Accept::Number]),
+    opt("fill", &[Accept::Color]),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+];
+
 const SMOOTH: &[PropSpec] = &[
     opt("method", &[Accept::Enum(&["lm"])]),
     opt("stroke", STROKE),
     opt("strokeWidth", STROKE_WIDTH),
     opt("alpha", ALPHA),
+    opt("group", GROUP),
 ];
 
 const DENSITY: &[PropSpec] = &[
@@ -128,6 +158,17 @@ const DENSITY: &[PropSpec] = &[
 ];
 
 const BOXPLOT: &[PropSpec] = &[
+    opt("fill", FILL),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+    opt("width", &[Accept::Number]),
+];
+
+const VIOLIN: &[PropSpec] = &[
+    opt("bandwidth", &[Accept::Number]),
+    opt("n", &[Accept::Number]),
+    opt("quantiles", &[Accept::NumberArray]),
     opt("fill", FILL),
     opt("stroke", STROKE),
     opt("strokeWidth", STROKE_WIDTH),
@@ -229,6 +270,21 @@ const GEOMETRIES: &[GeometryDef] = &[
         props: HISTOGRAM,
     },
     GeometryDef {
+        name: "FreqPoly",
+        kind: GeometryKind::FreqPoly,
+        props: FREQ_POLY,
+    },
+    GeometryDef {
+        name: "Bin2D",
+        kind: GeometryKind::Bin2D,
+        props: BIN2D,
+    },
+    GeometryDef {
+        name: "HexBin",
+        kind: GeometryKind::HexBin,
+        props: HEXBIN,
+    },
+    GeometryDef {
         name: "Smooth",
         kind: GeometryKind::Smooth,
         props: SMOOTH,
@@ -237,6 +293,11 @@ const GEOMETRIES: &[GeometryDef] = &[
         name: "Boxplot",
         kind: GeometryKind::Boxplot,
         props: BOXPLOT,
+    },
+    GeometryDef {
+        name: "Violin",
+        kind: GeometryKind::Violin,
+        props: VIOLIN,
     },
     GeometryDef {
         name: "Density",

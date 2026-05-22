@@ -103,7 +103,7 @@
       "patterns": [
         {
           "name": "entity.name.function.geometry.algraf",
-          "match": "\\b(?:Point|Line|Bar|Rect|Histogram|Smooth|Boxplot|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment)\\b(?=\\s*\\()"
+          "match": "\\b(?:Point|Line|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment)\\b(?=\\s*\\()"
         }
       ]
     },
@@ -111,7 +111,7 @@
       "patterns": [
         {
           "name": "entity.name.function.stat.algraf",
-          "match": "\\b(?:Bin|Count|Smooth|Boxplot)\\b(?=\\s*\\()"
+          "match": "\\b(?:Bin|Bin2D|HexBin|Count|Smooth|Boxplot|Density)\\b(?=\\s*\\()"
         }
       ]
     },
@@ -127,7 +127,7 @@
       "patterns": [
         {
           "name": "variable.parameter.property.algraf",
-          "match": "\\b(?:data|width|height|title|subtitle|caption|facetColumns|legend|fill|stroke|strokeWidth|alpha|size|shape|group|sort|layout|baseline|stat|xmin|xmax|ymin|ymax|bins|binWidth|boundary|closed|method|label|anchor|dx|dy|x|y|xend|yend|sides)\\b(?=\\s*:)"
+          "match": "\\b(?:data|width|height|title|subtitle|caption|facetColumns|legend|fill|stroke|strokeWidth|alpha|size|shape|group|sort|layout|baseline|stat|xmin|xmax|ymin|ymax|bins|binWidth|boundary|closed|bandwidth|n|quantiles|gradient|method|label|anchor|dx|dy|x|y|xend|yend|sides)\\b(?=\\s*:)"
         },
         {
           "name": "variable.parameter.property.unknown.algraf",

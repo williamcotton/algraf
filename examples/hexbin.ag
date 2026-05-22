@@ -1,0 +1,5 @@
+Chart(data: "samples.csv", width: 720, height: 500, title: "Hex bins") {
+    Space(x * y) {
+        HexBin(bins: 12, alpha: 0.9)
+    }
+}

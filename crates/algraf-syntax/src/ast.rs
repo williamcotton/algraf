@@ -188,6 +188,11 @@ impl StatCall {
         self.syntax.children().find_map(AlgebraExpr::cast)
     }
 
+    /// Positional algebra inputs before named arguments.
+    pub fn inputs(&self) -> Vec<AlgebraExpr> {
+        child_nodes(&self.syntax, AlgebraExpr::cast)
+    }
+
     /// The stat's keyword arguments.
     pub fn args(&self) -> Vec<Arg> {
         child_nodes(&self.syntax, Arg::cast)

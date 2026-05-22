@@ -10,6 +10,7 @@ use algraf_data::Table;
 use algraf_semantics::{FrameIr, GeometryIr, GeometryKind, SettingValue};
 
 use crate::scale::{cell_category, cell_f64, cell_micros};
+use crate::stats;
 
 #[derive(Debug, Clone, Default)]
 pub struct SpaceDomainHints {
@@ -145,6 +146,7 @@ pub fn train_space_domains(
         match geometry.kind {
             GeometryKind::Bar => train_bar(frame, table, geometry, &mut hints),
             GeometryKind::Rect => train_rect(table, geometry, &mut hints),
+            GeometryKind::Violin => train_violin(frame, table, geometry, &mut hints),
             // Area's baseline is a y-domain value: the polygon closes back to
             // it, so the trained y domain must reach the baseline or the
             // bottom edge will fall outside the plot rect. When the baseline
@@ -191,6 +193,42 @@ pub fn train_space_domains(
         }
     }
     hints
+}
+
+fn train_violin(
+    frame: &FrameIr,
+    table: &dyn Table,
+    geometry: &GeometryIr,
+    hints: &mut SpaceDomainHints,
+) {
+    let Some(y_col) = frame_axis(frame, 1).and_then(vector_column) else {
+        return;
+    };
+    let Some(x_axis) = frame_axis(frame, 0) else {
+        return;
+    };
+    let mut groups: HashMap<String, Vec<f64>> = HashMap::new();
+    for row in 0..table.row_count() {
+        let Some(key) = axis_group_key(x_axis, table, row) else {
+            continue;
+        };
+        let Some(value) = cell_f64(table, y_col, row) else {
+            continue;
+        };
+        groups.entry(key).or_default().push(value);
+    }
+    let options = stats::DensityOptions {
+        bandwidth: numeric_setting(geometry, "bandwidth").filter(|value| *value > 0.0),
+        grid_points: numeric_setting(geometry, "n")
+            .filter(|value| *value >= 2.0)
+            .map(|value| value.round() as usize)
+            .unwrap_or(256),
+    };
+    for values in groups.values_mut() {
+        for point in stats::density_values(values, options) {
+            hints.y.add_numeric(point.x);
+        }
+    }
 }
 
 fn train_bar(
