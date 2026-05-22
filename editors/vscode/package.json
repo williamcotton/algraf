@@ -44,6 +44,44 @@
     "vscode-languageclient": "^9.0.1"
   },
   "contributes": {
+    "commands": [
+      {
+        "command": "algraf.showPreview",
+        "title": "Algraf: Open Preview",
+        "category": "Algraf",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "algraf.refreshPreview",
+        "title": "Algraf: Refresh Preview",
+        "category": "Algraf",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "algraf.restartServer",
+        "title": "Algraf: Restart Language Server",
+        "category": "Algraf"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "algraf.showPreview",
+          "when": "editorLangId == algraf",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "algraf.showPreview",
+          "when": "editorLangId == algraf"
+        },
+        {
+          "command": "algraf.refreshPreview",
+          "when": "editorLangId == algraf"
+        }
+      ]
+    },
     "languages": [
       {
         "id": "algraf",
@@ -106,12 +144,6 @@
           "description": "Trace communication between VS Code and the Algraf language server."
         }
       }
-    },
-    "commands": [
-      {
-        "command": "algraf.restartServer",
-        "title": "Algraf: Restart Language Server"
-      }
-    ]
+    }
   }
 }

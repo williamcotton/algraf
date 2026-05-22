@@ -5290,7 +5290,9 @@ The LSP MAY provide code actions.
 
 The authoritative preview/render path is the `algraf render` command.
 
-The LSP MAY provide inline previews later through a custom request, but it MUST call the same internal render pipeline as `algraf render`.
+The LSP provides inline previews through the `algraf/preview` custom request
+(spec §21.18), and it MUST call the same internal render pipeline as
+`algraf render`.
 
 LSP preview rendering MUST run asynchronously and MUST be cancellable.
 
@@ -5651,6 +5653,47 @@ The LSP MAY provide inlay hints (`textDocument/inlayHint`). Version 0.4.0 shows,
 after each in-document `Derive`, the output columns the stat produces with their
 inferred types (e.g. `bin_start`, `bin_end`, `bin_center`, `count`). Hints are
 filtered to the requested range.
+
+### 21.18 Preview Rendering
+
+The LSP provides an SVG preview through the `algraf/preview` custom request.
+
+Request params: `{ "uri": <document URI> }`.
+
+Result:
+
+```json
+{
+  "svg": "<svg …>…</svg>" | null,
+  "message": "human-facing explanation" | null,
+  "superseded": false,
+  "generation": 3,
+  "dataPaths": ["/abs/path/to/data.csv"]
+}
+```
+
+The server renders by calling the same pipeline as `algraf render`: it parses
+the cached document, loads the full CSV identified by the chart's `data:` path,
+analyzes against that schema, and renders to SVG.
+
+`dataPaths` reports the resolved data dependencies so the client can watch them
+and re-request when the underlying data changes without a source edit. Path
+resolution stays on the server; the client watches (so remote workspaces work)
+and SHOULD also offer a manual refresh, which is the fallback for data sources
+that cannot signal change. `data: stdin` and a missing
+data source return a `message` rather than an SVG. A document with blocking
+parse or semantic errors returns a `message` so the previous preview is not
+replaced with a broken render.
+
+Rendering MUST run off the request reactor (e.g. on a blocking task) so it does
+not delay diagnostics, completion, or hover. Each document carries a request
+generation counter; when a newer preview request supersedes an older one, the
+older result MUST be reported with `superseded: true` and MUST NOT carry stale
+SVG (spec §21.13). The client SHOULD debounce edits and ignore superseded or
+out-of-order replies using `generation`.
+
+The preview is read-only and renders inline SVG; the client MUST NOT execute
+scripts in the preview surface.
 
 ## 22. CLI Specification
 

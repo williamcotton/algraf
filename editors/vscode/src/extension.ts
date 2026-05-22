@@ -10,6 +10,23 @@ import {
 let client: LanguageClient | undefined;
 let outputChannel: vscode.OutputChannel | undefined;
 
+// Preview pane state. The webview renders SVG returned by the server's
+// `algraf/preview` custom request; all rendering happens in the `algraf`
+// binary, never in the extension.
+let previewPanel: vscode.WebviewPanel | undefined;
+let previewUri: vscode.Uri | undefined;
+let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+let dataWatchers: vscode.FileSystemWatcher[] = [];
+let watchedPaths: string[] = [];
+
+interface PreviewResult {
+    svg: string | null;
+    message: string | null;
+    superseded: boolean;
+    generation: number;
+    dataPaths: string[];
+}
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     outputChannel = vscode.window.createOutputChannel("Algraf Language Server");
     context.subscriptions.push(outputChannel);
@@ -18,6 +35,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         vscode.commands.registerCommand("algraf.restartServer", async () => {
             await restartClient(context);
         }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand("algraf.showPreview", () => showPreview(context)),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand("algraf.refreshPreview", () => {
+            if (previewPanel) {
+                void refreshPreview();
+            }
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument((event) => onDocumentChanged(event.document)),
+        vscode.workspace.onDidSaveTextDocument((document) => onDocumentChanged(document)),
     );
 
     context.subscriptions.push(
@@ -146,4 +180,161 @@ function traceFromSetting(value: string): Trace {
         default:
             return Trace.Off;
     }
+}
+
+// --- Preview pane -----------------------------------------------------------
+
+async function showPreview(context: vscode.ExtensionContext): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== "algraf") {
+        void vscode.window.showInformationMessage("Open an Algraf (.ag) file to preview it.");
+        return;
+    }
+
+    previewUri = editor.document.uri;
+    if (!previewPanel) {
+        previewPanel = vscode.window.createWebviewPanel(
+            "algrafPreview",
+            "Algraf Preview",
+            { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
+            { enableScripts: false, retainContextWhenHidden: true },
+        );
+        previewPanel.onDidDispose(
+            () => {
+                previewPanel = undefined;
+                previewUri = undefined;
+                disposeDataWatchers();
+            },
+            null,
+            context.subscriptions,
+        );
+    }
+
+    previewPanel.title = `Algraf Preview — ${path.basename(previewUri.fsPath)}`;
+    previewPanel.reveal(vscode.ViewColumn.Beside, true);
+    previewPanel.webview.html = renderMessage("Rendering…");
+    await refreshPreview();
+}
+
+function onDocumentChanged(document: vscode.TextDocument): void {
+    if (!previewPanel || !previewUri) {
+        return;
+    }
+    if (document.uri.toString() !== previewUri.toString()) {
+        return;
+    }
+    scheduleRefresh();
+}
+
+// Debounce so rapid edits or data-file writes coalesce into one render request.
+function scheduleRefresh(): void {
+    if (refreshTimer) {
+        clearTimeout(refreshTimer);
+    }
+    refreshTimer = setTimeout(() => {
+        void refreshPreview();
+    }, 250);
+}
+
+// Watch the data files the document depends on (reported by the server) and
+// refresh when they change. File globs are resolved on the server, watched on
+// the client, so this works in remote workspaces too.
+function updateDataWatchers(paths: string[]): void {
+    const unchanged =
+        paths.length === watchedPaths.length && paths.every((p, i) => p === watchedPaths[i]);
+    if (unchanged) {
+        return;
+    }
+    disposeDataWatchers();
+    watchedPaths = [...paths];
+    for (const filePath of paths) {
+        const pattern = new vscode.RelativePattern(
+            vscode.Uri.file(path.dirname(filePath)),
+            path.basename(filePath),
+        );
+        const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+        watcher.onDidChange(scheduleRefresh);
+        watcher.onDidCreate(scheduleRefresh);
+        watcher.onDidDelete(scheduleRefresh);
+        dataWatchers.push(watcher);
+    }
+}
+
+function disposeDataWatchers(): void {
+    for (const watcher of dataWatchers) {
+        watcher.dispose();
+    }
+    dataWatchers = [];
+    watchedPaths = [];
+}
+
+async function refreshPreview(): Promise<void> {
+    if (!previewPanel || !previewUri || !client) {
+        return;
+    }
+    const uri = client.code2ProtocolConverter.asUri(previewUri);
+    try {
+        const result = await client.sendRequest<PreviewResult>("algraf/preview", { uri });
+        if (!previewPanel) {
+            return;
+        }
+        // A newer request superseded this one; its result is stale.
+        if (result.superseded) {
+            return;
+        }
+        updateDataWatchers(result.dataPaths ?? []);
+        previewPanel.webview.html = renderHtml(result);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (previewPanel) {
+            previewPanel.webview.html = renderMessage(
+                `Preview request failed: ${escapeHtml(message)}`,
+            );
+        }
+    }
+}
+
+function renderHtml(result: PreviewResult): string {
+    if (result.svg) {
+        return wrapHtml(`<div class="canvas">${result.svg}</div>`);
+    }
+    return renderMessage(escapeHtml(result.message ?? "No preview available."));
+}
+
+function renderMessage(message: string): string {
+    return wrapHtml(`<div class="message">${message}</div>`);
+}
+
+function wrapHtml(body: string): string {
+    // Inline SVG is part of the document DOM, so a strict CSP that forbids
+    // external resources still renders it. Only inline styles are allowed.
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;" />
+    <style>
+        body {
+            margin: 0;
+            padding: 16px;
+            background: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+            font-family: var(--vscode-font-family);
+        }
+        .canvas { display: flex; justify-content: center; }
+        .canvas svg { max-width: 100%; height: auto; }
+        .message { opacity: 0.8; font-size: 13px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>${body}</body>
+</html>`;
+}
+
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
 }

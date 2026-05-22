@@ -26,7 +26,7 @@ fn temp_project(name: &str) -> PathBuf {
 }
 
 async fn initialized_service() -> (tower_lsp::LspService<Backend>, tower_lsp::ClientSocket) {
-    let (mut service, socket) = LspService::new(Backend::new);
+    let (mut service, socket) = algraf_lsp::build_service();
     let response = call(
         &mut service,
         Request::build("initialize")
@@ -890,6 +890,62 @@ async fn inlay_hints_show_derive_output_columns() {
     assert!(!hints.is_empty());
     let serialized = serde_json::to_string(&hints).unwrap();
     assert!(serialized.contains("bin_start"), "{serialized}");
+}
+
+#[tokio::test]
+async fn preview_renders_svg_through_render_pipeline() {
+    let dir = temp_project("preview-render");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "x,y\n1,2\n3,4\n5,6\n").unwrap();
+    let source = "Chart(data: \"data.csv\") {\n    Space(x * y) { Point() }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let response = call(
+        &mut service,
+        Request::build("algraf/preview")
+            .params(json!({ "uri": uri }))
+            .id(20)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = response_result(response);
+    let svg = value["svg"].as_str().expect("svg string");
+    assert!(svg.contains("<svg"), "{svg}");
+    assert_eq!(value["superseded"], json!(false));
+    // The resolved data dependency is reported so the client can watch it.
+    let data_paths = value["dataPaths"].as_array().expect("dataPaths");
+    assert_eq!(data_paths.len(), 1);
+    assert!(data_paths[0].as_str().unwrap().ends_with("data.csv"));
+}
+
+#[tokio::test]
+async fn preview_reports_missing_data_source() {
+    let dir = temp_project("preview-missing");
+    let source_path = dir.join("chart.ag");
+    let source = "Chart() {\n    Space() { Point() }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let response = call(
+        &mut service,
+        Request::build("algraf/preview")
+            .params(json!({ "uri": uri }))
+            .id(21)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = response_result(response);
+    assert!(value["svg"].is_null());
+    assert!(value["message"].as_str().unwrap().contains("data source"));
 }
 
 #[test]

@@ -6,17 +6,21 @@
 
 use std::collections::{HashMap, HashSet};
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use algraf_core::{Diagnostic as CoreDiagnostic, Severity, Span};
-use algraf_data::{read_csv_schema, ColumnDef, DataError, DataType, DEFAULT_SCHEMA_SAMPLE};
+use algraf_data::{
+    read_csv_path, read_csv_schema, ColumnDef, DataError, DataType, Table, DEFAULT_SCHEMA_SAMPLE,
+};
+use algraf_render::{render, Theme};
 use algraf_semantics::{analyze, registry, ChartIr};
 use algraf_syntax::ast::{
     AlgebraName, Arg, ChartItem, DeriveDecl, GeometryCall, LiteralKind, Root, SpaceItem, ValueExpr,
 };
 use algraf_syntax::{format, parse, tokenize, SyntaxKind, SyntaxNode};
 use dashmap::DashMap;
+use serde::{Deserialize, Serialize};
 use tokio::runtime::Runtime;
 use tower_lsp::jsonrpc::Result as LspResult;
 use tower_lsp::lsp_types::{
@@ -51,8 +55,16 @@ pub fn run_stdio() -> io::Result<()> {
 pub async fn serve_stdio() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-    let (service, socket) = LspService::new(Backend::new);
+    let (service, socket) = build_service();
     Server::new(stdin, stdout, socket).serve(service).await;
+}
+
+/// Build the LSP service with the standard methods plus the custom
+/// `algraf/preview` render request (spec §21.18).
+pub fn build_service() -> (LspService<Backend>, tower_lsp::ClientSocket) {
+    LspService::build(Backend::new)
+        .custom_method("algraf/preview", Backend::preview)
+        .finish()
 }
 
 /// The Algraf LSP backend state (spec §21.3).
@@ -60,6 +72,9 @@ pub struct Backend {
     client: Client,
     documents: Arc<DashMap<Url, DocumentState>>,
     schema_cache: Arc<DashMap<DataSourceKey, SchemaState>>,
+    /// Per-document preview request counter. A newer request supersedes older
+    /// in-flight preview tasks for the same document (spec §21.13, §21.18).
+    preview_generations: Arc<DashMap<Url, u64>>,
 }
 
 impl Backend {
@@ -68,6 +83,7 @@ impl Backend {
             client,
             documents: Arc::new(DashMap::new()),
             schema_cache: Arc::new(DashMap::new()),
+            preview_generations: Arc::new(DashMap::new()),
         }
     }
 
@@ -209,6 +225,167 @@ impl Backend {
     fn document(&self, uri: &Url) -> Option<DocumentState> {
         self.documents.get(uri).map(|entry| entry.value().clone())
     }
+
+    /// Render an SVG preview of a document through the same pipeline as
+    /// `algraf render` (spec §21.18). Rendering runs on a blocking task so it
+    /// never stalls diagnostics, completion, or hover, and a per-document
+    /// generation counter discards output that a newer request superseded.
+    pub async fn preview(&self, params: PreviewParams) -> LspResult<PreviewResult> {
+        let uri = params.uri;
+        let generation = {
+            let mut counter = self.preview_generations.entry(uri.clone()).or_insert(0);
+            *counter += 1;
+            *counter
+        };
+
+        let Some(state) = self.document(&uri) else {
+            return Ok(PreviewResult::message(generation, "document is not open"));
+        };
+
+        // Resolve the data path in a scope so the `!Send` syntax tree is dropped
+        // before the `.await`, keeping the preview future `Send`.
+        let data_path = {
+            let syntax = parse(&state.text).syntax();
+            match extract_data_source(&syntax) {
+                AstDataSource::Path { value, .. } => Ok(resolve_data_path(&uri, &value)),
+                AstDataSource::Stdin => {
+                    Err("preview does not support `stdin` data; use a CSV path")
+                }
+                AstDataSource::Missing => {
+                    Err("chart has no data source; add Chart(data: \"file.csv\")")
+                }
+            }
+        };
+        let data_path = match data_path {
+            Ok(path) => path,
+            Err(message) => return Ok(PreviewResult::message(generation, message)),
+        };
+
+        // The resolved dependency paths let the client watch them and re-request
+        // when the underlying data changes (spec §21.18).
+        let data_paths = vec![data_path.display().to_string()];
+
+        let text = state.text.clone();
+        let render_path = data_path.clone();
+        let outcome =
+            tokio::task::spawn_blocking(move || render_preview(&text, &render_path)).await;
+
+        // If a newer request bumped the counter while we rendered, this output
+        // is stale; report supersession rather than returning it (spec §21.13).
+        let superseded = self
+            .preview_generations
+            .get(&uri)
+            .is_some_and(|latest| *latest != generation);
+        if superseded {
+            return Ok(PreviewResult::superseded(generation).with_data_paths(data_paths));
+        }
+
+        let result = match outcome {
+            Ok(Ok(svg)) => PreviewResult::svg(generation, svg),
+            Ok(Err(message)) => PreviewResult::message(generation, &message),
+            Err(_) => PreviewResult::message(generation, "preview rendering task failed"),
+        };
+        Ok(result.with_data_paths(data_paths))
+    }
+}
+
+/// Parameters for the `algraf/preview` custom request.
+#[derive(Debug, Clone, Deserialize)]
+pub struct PreviewParams {
+    /// The document to render.
+    pub uri: Url,
+}
+
+/// Result of the `algraf/preview` custom request.
+#[derive(Debug, Clone, Serialize)]
+pub struct PreviewResult {
+    /// The rendered SVG, when rendering succeeded.
+    pub svg: Option<String>,
+    /// A human-facing explanation when no SVG was produced.
+    pub message: Option<String>,
+    /// Whether a newer request superseded this one.
+    pub superseded: bool,
+    /// The request generation, so a client can ignore out-of-order replies.
+    pub generation: u64,
+    /// Resolved data dependency paths the client may watch for changes.
+    #[serde(rename = "dataPaths")]
+    pub data_paths: Vec<String>,
+}
+
+impl PreviewResult {
+    fn svg(generation: u64, svg: String) -> PreviewResult {
+        PreviewResult {
+            svg: Some(svg),
+            message: None,
+            superseded: false,
+            generation,
+            data_paths: Vec::new(),
+        }
+    }
+
+    fn message(generation: u64, message: &str) -> PreviewResult {
+        PreviewResult {
+            svg: None,
+            message: Some(message.to_string()),
+            superseded: false,
+            generation,
+            data_paths: Vec::new(),
+        }
+    }
+
+    fn superseded(generation: u64) -> PreviewResult {
+        PreviewResult {
+            svg: None,
+            message: None,
+            superseded: true,
+            generation,
+            data_paths: Vec::new(),
+        }
+    }
+
+    fn with_data_paths(mut self, data_paths: Vec<String>) -> PreviewResult {
+        self.data_paths = data_paths;
+        self
+    }
+}
+
+/// Render a document to SVG using the full data and the shared render pipeline.
+/// Returns a human-facing message on any condition that blocks rendering.
+fn render_preview(source: &str, data_path: &Path) -> Result<String, String> {
+    let parsed = parse(source);
+    let root = parsed.syntax();
+    if parsed
+        .diagnostics()
+        .iter()
+        .any(|d| d.severity == Severity::Error)
+    {
+        return Err("source has parse errors; fix them to preview".to_string());
+    }
+
+    let loaded = read_csv_path(data_path)
+        .map_err(|e| format!("failed to load data {}: {e}", data_path.display()))?;
+    let frame = loaded.frame;
+
+    let analysis = analyze(&root, frame.schema());
+    if analysis
+        .diagnostics
+        .iter()
+        .any(|d| d.severity == Severity::Error)
+    {
+        return Err("chart has errors; fix diagnostics to preview".to_string());
+    }
+    let ir = analysis
+        .ir
+        .ok_or_else(|| "analysis produced no chart".to_string())?;
+
+    let theme = ir
+        .theme
+        .clone()
+        .map(|name| Theme::by_name(&name))
+        .unwrap_or_default();
+
+    let result = render(&ir, &frame, &theme, None).map_err(|e| e.to_string())?;
+    Ok(result.svg)
 }
 
 #[tower_lsp::async_trait]
@@ -302,6 +479,7 @@ impl LanguageServer for Backend {
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
         self.documents.remove(&uri);
+        self.preview_generations.remove(&uri);
         self.client.publish_diagnostics(uri, Vec::new(), None).await;
     }
 

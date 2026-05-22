@@ -20,9 +20,17 @@ provides:
   explicit `Derive` + `Rect`.
 - Rename for derived-table names, whole-document formatting (also via range
   formatting), and inlay hints showing the columns a `Derive` produces.
+- A live preview pane: run **Algraf: Open Preview** (also on the editor title
+  bar) to render the chart beside the source. It refreshes as you type, watches
+  the chart's data file and re-renders when it changes on disk, and offers
+  **Algraf: Refresh Preview** for a manual refresh. Rendering goes through the
+  same pipeline as `algraf render`.
 
 Code actions surface through the editor lightbulb (enable
 `editor.lightbulb.enabled`) or `Cmd/Ctrl+.`.
+
+The preview is served by the `algraf/preview` LSP request; the extension only
+displays the SVG the server returns.
 
 ## Development
 

@@ -1,7 +1,9 @@
 # Algraf v0.4.0 Plan
 
 Status: Implemented. All Must items and the Should items (range formatting,
-rename, inlay hints) shipped; on-type formatting is intentionally deferred.
+rename, inlay hints) shipped; on-type formatting is intentionally deferred. The
+in-editor preview pane — originally deferred to a later platform release — was
+also pulled forward and implemented (see "Pulled Forward" below).
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_3_PLAN.md`](V0_3_PLAN.md)
@@ -38,8 +40,9 @@ tooling over the language that already exists.
 - Advertise an LSP capability only when it is implemented (spec §21).
 - Prefer high-confidence behavior: navigation and edits must not surprise.
 - Code actions and refactors preserve unrelated formatting where practical.
-- Keep the in-editor *preview pane* deferred (it belongs to a later platform
-  release, not this one).
+- The in-editor *preview pane* was pulled into this release (see "Pulled
+  Forward"); it reuses the `algraf render` pipeline and adds no new chart
+  surface.
 
 ## Current LSP Surface (baseline)
 
@@ -172,11 +175,22 @@ derived-table names across the `Derive` declaration and every `data:` use; spec
 Status: Done. Inlay hints show the output columns each in-document `Derive`
 produces, with inferred types (spec §21.17).
 
+## Pulled Forward Into v0.4.0
+
+### In-Editor Preview Pane
+
+Status: Done. Implemented as the `algraf/preview` custom LSP request plus a VS
+Code webview (`Algraf: Open Preview`). The request renders SVG through the same
+pipeline as `algraf render` (full CSV load → analyze → render), runs off the
+request reactor on a blocking task, and uses a per-document generation counter
+so a newer request supersedes an older one. The webview is script-free and
+auto-refreshes on debounced edits. Spec §21.18 is normative; §21.1 no longer
+calls preview a later addition.
+
 ## Explicitly Deferred Past v0.4.0
 
 Carried forward and unchanged unless a later planning decision moves them:
 
-- In-editor preview pane / custom render request (platform-level; later release).
 - All v0.5 composition features (user variables, custom themes, multi-chart).
 - All v0.6 data-backend features (SQL, Polars, large data).
 - Everything under the standing deferred list in [`V0_3_PLAN.md`](V0_3_PLAN.md)
@@ -199,7 +213,6 @@ Carried forward and unchanged unless a later planning decision moves them:
 
 ### Keep Deferred
 
-- In-editor preview pane.
 - Everything assigned to v0.5 and v0.6.
 
 ## Promotion Workflow
