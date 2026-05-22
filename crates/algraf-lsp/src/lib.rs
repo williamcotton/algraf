@@ -1219,7 +1219,8 @@ fn declaration_arg_items(decl: &str) -> Vec<CompletionItem> {
         "Guide" => &["axis", "label", "legend", "fill", "stroke", "grid"],
         "Theme" => &["name"],
         "Scale" => &[
-            "axis", "type", "domain", "reverse", "fill", "stroke", "palette", "gradient", "label",
+            "axis", "type", "domain", "reverse", "integer", "fill", "stroke", "palette",
+            "gradient", "label",
         ],
         _ => &[],
     };
@@ -1243,7 +1244,7 @@ fn declaration_value_items(
             vec![value_item("x", "X axis"), value_item("y", "Y axis")]
         }
         ("Guide", "label") => vec![value_item("\"\"", "Axis label")],
-        ("Guide", "legend") | ("Guide", "grid") | ("Scale", "reverse") => {
+        ("Guide", "legend") | ("Guide", "grid") | ("Scale", "reverse") | ("Scale", "integer") => {
             vec![
                 value_item("true", "Boolean literal"),
                 value_item("false", "Boolean literal"),

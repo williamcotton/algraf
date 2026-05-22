@@ -596,6 +596,20 @@ fn test_scale_domain_reverse_and_log_render() {
 }
 
 #[test]
+fn test_scale_integer_constrains_axis_ticks_to_whole_numbers() {
+    // A small integer-valued domain would otherwise pick a 0.5 tick step once
+    // the 8% padding makes the bounds fractional.
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, integer: true)\n  Scale(axis: y, integer: true)\n  Space(x * y) { Point() }\n}",
+        "x,y\n1,1\n2,2\n3,3\n4,3\n",
+    );
+    assert!(svg.contains(">2</text>"));
+    assert!(svg.contains(">3</text>"));
+    assert!(!svg.contains(">1.5</text>"));
+    assert!(!svg.contains(">2.5</text>"));
+}
+
+#[test]
 fn test_scale_accent_palette_changes_categorical_colors() {
     let svg = render_svg(
         "Chart(data: \"p.csv\") {\n  Scale(fill: g, palette: \"accent\")\n  Space(x * y) { Point(fill: g) }\n}",

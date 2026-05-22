@@ -475,6 +475,7 @@ impl<'a> Analyzer<'a> {
         let mut scale_type = None;
         let mut domain = None;
         let mut reverse = None;
+        let mut integer = None;
         let mut palette = None;
         let mut gradient: Option<Vec<String>> = None;
         let mut gradient_span: Option<Span> = None;
@@ -571,6 +572,17 @@ impl<'a> Analyzer<'a> {
                     )),
                     None => {}
                 },
+                "integer" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Bool) => {
+                        integer = Some(lit.text().as_deref() == Some("true"));
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        "E1204",
+                        "`integer` expects a boolean literal",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
                 "palette" => match arg.value() {
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
                         let value = string_value(&lit.text().unwrap_or_default());
@@ -647,10 +659,14 @@ impl<'a> Analyzer<'a> {
                 }
             }
             ScaleTargetIr::Aesthetic { column, .. } => {
-                if scale_type.is_some() || domain.is_some() || reverse.is_some() {
+                if scale_type.is_some()
+                    || domain.is_some()
+                    || reverse.is_some()
+                    || integer.is_some()
+                {
                     self.diag(Diagnostic::error(
                         "E1204",
-                        "`type`, `domain`, and `reverse` apply only to axis scales",
+                        "`type`, `domain`, `reverse`, and `integer` apply only to axis scales",
                         span,
                     ));
                 }
@@ -676,6 +692,7 @@ impl<'a> Analyzer<'a> {
             scale_type,
             domain,
             reverse,
+            integer,
             palette,
             gradient,
             label,

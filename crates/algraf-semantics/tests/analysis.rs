@@ -342,6 +342,42 @@ fn test_scale_declaration_is_recorded() {
 }
 
 #[test]
+fn test_scale_integer_is_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: y, integer: true)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.scales[0].integer, Some(true));
+}
+
+#[test]
+fn test_scale_integer_rejects_non_boolean_and_aesthetic_target() {
+    let bad_value = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: y, integer: 1)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(bad_value
+        .diagnostics
+        .iter()
+        .any(|d| d.code == "E1204" && d.message.contains("integer")));
+
+    let wrong_target = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: species, integer: true)\n  Space(flipper_length * body_mass) { Point(fill: species) }\n}",
+        &schema(),
+    );
+    assert!(wrong_target
+        .diagnostics
+        .iter()
+        .any(|d| d.code == "E1204" && d.message.contains("integer")));
+}
+
+#[test]
 fn test_scale_label_is_recorded() {
     let analysis = analyze_source(
         "Chart(data: \"p.csv\") {\n  Scale(fill: species, label: \"Penguin Species\")\n  Space(flipper_length * body_mass) { Point(fill: species) }\n}",

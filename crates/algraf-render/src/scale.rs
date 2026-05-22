@@ -10,6 +10,8 @@ pub struct ContinuousScale {
     pub max: f64,
     pub range: (f64, f64),
     pub transform: ContinuousTransform,
+    /// Constrain ticks to whole integers (`Scale(integer: true)`, spec §16.10).
+    pub integer: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +50,7 @@ impl ContinuousScale {
             max,
             range,
             transform,
+            integer: false,
         }
     }
 
@@ -65,6 +68,9 @@ impl ContinuousScale {
 
     pub fn ticks(&self, target: usize) -> Vec<f64> {
         match self.transform {
+            ContinuousTransform::Linear if self.integer => {
+                integer_ticks(self.min, self.max, target)
+            }
             ContinuousTransform::Linear => nice_ticks(self.min, self.max, target),
             ContinuousTransform::Log10 => log_ticks(self.min, self.max),
         }
@@ -298,6 +304,41 @@ pub fn nice_ticks(min: f64, max: f64, target: usize) -> Vec<f64> {
         });
         value += step;
         guard += 1;
+    }
+    ticks
+}
+
+/// Generate ticks constrained to whole integers across `[min, max]`
+/// (`Scale(integer: true)`, spec §16.10). The step is the nice step rounded up
+/// to at least 1, so small ranges land on consecutive integers and large ones
+/// keep a human-friendly integer stride (1, 2, 5, 10, …).
+pub fn integer_ticks(min: f64, max: f64, target: usize) -> Vec<f64> {
+    if !min.is_finite() || !max.is_finite() || target == 0 {
+        return vec![];
+    }
+    let span = max - min;
+    let step = if span.abs() < f64::EPSILON {
+        1.0
+    } else {
+        nice_step(span, target).max(1.0).round()
+    };
+    let start = (min / step).ceil() * step;
+    let mut ticks = Vec::new();
+    let mut value = start;
+    let mut guard = 0;
+    while value <= max + step * 1e-9 && guard < 1000 {
+        ticks.push(if value.abs() < step * 1e-9 {
+            0.0
+        } else {
+            value
+        });
+        value += step;
+        guard += 1;
+    }
+    // A range narrower than a single integer step (e.g. all observations equal)
+    // still deserves one labelled tick.
+    if ticks.is_empty() {
+        ticks.push(min.round());
     }
     ticks
 }

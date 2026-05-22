@@ -488,6 +488,7 @@ struct AxisScaleConfig {
     scale_type: Option<ScaleTypeIr>,
     domain: Option<[f64; 2]>,
     reverse: bool,
+    integer: bool,
 }
 
 impl AxisScaleConfig {
@@ -513,6 +514,9 @@ fn axis_config(scales: &[ScaleIr], axis: AxisSelectorIr) -> AxisScaleConfig {
             if let Some(reverse) = scale.reverse {
                 config.reverse = reverse;
             }
+            if let Some(integer) = scale.integer {
+                config.integer = integer;
+            }
         }
     }
     config
@@ -524,9 +528,11 @@ fn continuous_scale(
     range: (f64, f64),
     config: &AxisScaleConfig,
 ) -> ContinuousScale {
-    if config.scale_type == Some(ScaleTypeIr::Log10) && min > 0.0 && max > 0.0 {
+    let mut scale = if config.scale_type == Some(ScaleTypeIr::Log10) && min > 0.0 && max > 0.0 {
         ContinuousScale::log10(min, max, range)
     } else {
         ContinuousScale::new(min, max, range)
-    }
+    };
+    scale.integer = config.integer;
+    scale
 }

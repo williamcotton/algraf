@@ -1,5 +1,6 @@
 Chart(data: "rankings.csv", width: 720, height: 440, title: "League standings by week") {
-    Scale(axis: y, reverse: true)
+    Scale(axis: x, integer: true)
+    Scale(axis: y, reverse: true, integer: true)
     Guide(axis: y, label: "Rank")
 
     Space(week * rank) {

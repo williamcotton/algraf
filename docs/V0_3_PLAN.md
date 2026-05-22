@@ -293,6 +293,25 @@ Acceptance criteria:
 - A categorical `shape` mapping assigns shapes deterministically by domain order.
 - Spec §14.2 enumerates the supported shape values; render tests added.
 
+### Integer Axis Ticks
+
+Status: Implemented. `Scale(axis: …, integer: true)` constrains continuous axis
+ticks to whole integers while preserving expansion padding.
+
+Rank-, week-, and count-style charts have integer-valued domains, but the 8%
+expansion padding makes the bounds fractional, so the nice-tick algorithm picks
+a 0.5 step. `integer: true` lets a chart request whole-number ticks without
+pinning an explicit `domain` (which would also drop the padding).
+
+Acceptance criteria:
+
+- `integer: true` is accepted only on axis scales; a non-boolean value or an
+  aesthetic target emits `E1204`.
+- Ticks use the nice step rounded up to at least 1, so small domains land on
+  consecutive integers and large ones keep an integer stride (§16.10).
+- Spec §16.10/§16.11 document the key; semantic + render tests and the
+  `reversed_axis` example exercise it.
+
 ## Explicitly Deferred Past v0.3.0
 
 Carried forward from v0.2.0 and unchanged unless a later planning decision moves

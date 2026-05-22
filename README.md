@@ -686,11 +686,14 @@ Chart(data: "penguins.csv", width: 720, height: 480) {
 
 `Scale(axis: y, reverse: true)` flips the axis direction. For rank-style
 data — where 1 is best — reversing the y axis puts first place at the top,
-turning a line chart into a bump chart.
+turning a line chart into a bump chart. Adding `integer: true` constrains the
+ticks to whole numbers, so ranks and weeks read as `1, 2, 3` instead of
+half-steps — without having to pin an explicit `domain`.
 
 ```algraf
 Chart(data: "rankings.csv", width: 720, height: 440, title: "League standings by week") {
-    Scale(axis: y, reverse: true)
+    Scale(axis: x, integer: true)
+    Scale(axis: y, reverse: true, integer: true)
     Guide(axis: y, label: "Rank")
 
     Space(week * rank) {

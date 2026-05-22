@@ -4523,6 +4523,12 @@ handles zero crossing
 
 handles zero-width domain
 
+When a continuous axis scale declares `integer: true`, ticks MUST be whole
+integers. The tick stride MUST be the nice step rounded up to at least 1, so a
+small domain lands on consecutive integers (1, 2, 3, …) and a large domain
+keeps a human-friendly integer stride (2, 5, 10, …). Expansion padding is
+unaffected; only the tick values are constrained.
+
 ### 16.11 Scale Declarations
 
 Syntax example:
@@ -4531,6 +4537,7 @@ Syntax example:
 Scale(axis: x, type: "log10")
 Scale(axis: x, domain: [0, 100])
 Scale(axis: y, reverse: true)
+Scale(axis: y, integer: true)
 Scale(fill: species, palette: "accent")
 Scale(fill: value, gradient: ["#3366cc", "#cc3333"])
 ```
@@ -4548,6 +4555,11 @@ Version 0.2.0 MUST support continuous position scale types `"linear"` and `"log1
 Version 0.2.0 MUST support numeric position domains with `domain: [min, max]`.
 
 Version 0.2.0 MUST support `reverse: true` for position axes.
+
+Version 0.3.0 MUST support `integer: true` for continuous position axes, which
+constrains axis ticks to whole integers (see §16.10). `integer` applies only to
+axis scales; using it on a `fill`/`stroke` scale MUST emit `E1204`, as must a
+non-boolean value.
 
 Version 0.2.0 MUST support categorical `fill` and `stroke` palette selection with `palette: "default"` and `palette: "accent"`.
 

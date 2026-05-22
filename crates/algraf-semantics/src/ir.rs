@@ -101,6 +101,9 @@ pub struct ScaleIr {
     pub scale_type: Option<ScaleTypeIr>,
     pub domain: Option<[f64; 2]>,
     pub reverse: Option<bool>,
+    /// Constrain axis ticks to whole integers (spec §16.10). Applies only to
+    /// continuous axis scales.
+    pub integer: Option<bool>,
     pub palette: Option<String>,
     pub gradient: Option<Vec<String>>,
     /// An explicit legend title that overrides the column-derived default for a
