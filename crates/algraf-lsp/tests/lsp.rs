@@ -6,10 +6,14 @@ use serde_json::json;
 use tower_lsp::jsonrpc::{Request, Response};
 use tower_lsp::lsp_types::{
     CodeActionContext, CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
-    DidChangeTextDocumentParams, DidOpenTextDocumentParams, Hover, HoverContents, HoverParams,
-    InitializeResult, Position, PublishDiagnosticsParams, Range, SemanticTokensParams,
-    SemanticTokensResult, TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem,
-    TextDocumentPositionParams, Url, VersionedTextDocumentIdentifier,
+    DidChangeTextDocumentParams, DidOpenTextDocumentParams, DocumentHighlight,
+    DocumentHighlightParams, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents,
+    HoverParams, InitializeResult, InlayHint, InlayHintParams, Location, PartialResultParams,
+    Position, PublishDiagnosticsParams, Range, ReferenceContext, ReferenceParams, RenameParams,
+    SemanticTokensParams, SemanticTokensResult, SignatureHelp, SignatureHelpParams,
+    TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem,
+    TextDocumentPositionParams, Url, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
+    WorkspaceEdit,
 };
 use tower_lsp::{ClientSocket, LspService};
 use tower_service::Service;
@@ -488,6 +492,404 @@ async fn declaration_diagnostic_span_starts_at_declaration_keyword() {
 
     let scale_start = utf16_position(source, source.find("Scale(").unwrap());
     assert_eq!(diagnostic.range.start, scale_start);
+}
+
+// --- v0.4.0 navigation & authoring features ---------------------------------
+
+/// A chart that derives a binned table and uses its output columns.
+const BINNED_CHART: &str = "Chart(data: \"data.csv\") {\n    Derive binned = Bin(value, bins: 10)\n    Space(bin_start * count, data: binned) {\n        Rect(xmin: bin_start, xmax: bin_end, ymax: count)\n    }\n}";
+
+async fn open_binned(service: &mut LspService<Backend>, name: &str) -> (Url, String) {
+    let dir = temp_project(name);
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "value\n1\n2\n3\n4\n5\n").unwrap();
+    std::fs::write(&source_path, BINNED_CHART).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+    open_document(service, uri.clone(), BINNED_CHART).await;
+    (uri, BINNED_CHART.to_string())
+}
+
+fn position_params(uri: Url, text: &str, offset: usize) -> TextDocumentPositionParams {
+    request_position(uri, text, offset)
+}
+
+#[tokio::test]
+async fn definition_derived_column_jumps_to_derive() {
+    let (mut service, _socket) = initialized_service().await;
+    let (uri, source) = open_binned(&mut service, "definition-derived").await;
+
+    // The `bin_start` in the space frame is produced by the `Derive`.
+    let offset = source.find("bin_start").unwrap();
+    let params = GotoDefinitionParams {
+        text_document_position_params: position_params(uri, &source, offset),
+        work_done_progress_params: WorkDoneProgressParams::default(),
+        partial_result_params: PartialResultParams::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/definition")
+            .params(serde_json::to_value(params).unwrap())
+            .id(5)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<GotoDefinitionResponse> = response_result(response);
+    let GotoDefinitionResponse::Scalar(location) = result.expect("definition") else {
+        panic!("expected scalar definition");
+    };
+    let expected = utf16_position(&source, source.find("binned").unwrap());
+    assert_eq!(location.range.start, expected);
+}
+
+#[tokio::test]
+async fn definition_data_string_opens_csv_file() {
+    let (mut service, _socket) = initialized_service().await;
+    let (uri, source) = open_binned(&mut service, "definition-data").await;
+
+    let offset = source.find("data.csv").unwrap();
+    let params = GotoDefinitionParams {
+        text_document_position_params: position_params(uri.clone(), &source, offset),
+        work_done_progress_params: WorkDoneProgressParams::default(),
+        partial_result_params: PartialResultParams::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/definition")
+            .params(serde_json::to_value(params).unwrap())
+            .id(5)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<GotoDefinitionResponse> = response_result(response);
+    let GotoDefinitionResponse::Scalar(location) = result.expect("definition") else {
+        panic!("expected scalar definition");
+    };
+    assert!(location.uri.path().ends_with("data.csv"));
+    assert_ne!(location.uri, uri);
+}
+
+#[tokio::test]
+async fn references_report_column_uses_across_spaces() {
+    let dir = temp_project("references-column");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "x,y,z\n1,2,3\n").unwrap();
+    let source = "Chart(data: \"data.csv\") {\n    Space(x * y) { Point() }\n    Space(x * z) { Point() }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let offset = source.find("x * y").unwrap();
+    let params = ReferenceParams {
+        text_document_position: position_params(uri, source, offset),
+        work_done_progress_params: WorkDoneProgressParams::default(),
+        partial_result_params: PartialResultParams::default(),
+        context: ReferenceContext {
+            include_declaration: true,
+        },
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/references")
+            .params(serde_json::to_value(params).unwrap())
+            .id(6)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<Vec<Location>> = response_result(response);
+    let locations = result.expect("references");
+    assert_eq!(locations.len(), 2, "expected both `x` uses");
+}
+
+#[tokio::test]
+async fn document_highlight_marks_derive_declaration_and_use() {
+    let (mut service, _socket) = initialized_service().await;
+    let (uri, source) = open_binned(&mut service, "highlight-derive").await;
+
+    let offset = source.find("data: binned").unwrap() + "data: ".len();
+    let params = DocumentHighlightParams {
+        text_document_position_params: position_params(uri, &source, offset),
+        work_done_progress_params: WorkDoneProgressParams::default(),
+        partial_result_params: PartialResultParams::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/documentHighlight")
+            .params(serde_json::to_value(params).unwrap())
+            .id(7)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<Vec<DocumentHighlight>> = response_result(response);
+    let highlights = result.expect("highlights");
+    // The declaration name plus the `data: binned` reference.
+    assert_eq!(highlights.len(), 2);
+    assert!(highlights
+        .iter()
+        .any(|h| h.kind == Some(tower_lsp::lsp_types::DocumentHighlightKind::WRITE)));
+}
+
+#[tokio::test]
+async fn references_are_byte_accurate_for_non_ascii_columns() {
+    let dir = temp_project("references-utf8");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "naïve,y\n1,2\n").unwrap();
+    let source =
+        "Chart(data: \"data.csv\") {\n    Space(naïve * y) { Point() }\n    Space(naïve / y) { Point() }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let offset = source.find("naïve").unwrap();
+    let params = ReferenceParams {
+        text_document_position: position_params(uri, source, offset),
+        work_done_progress_params: WorkDoneProgressParams::default(),
+        partial_result_params: PartialResultParams::default(),
+        context: ReferenceContext {
+            include_declaration: true,
+        },
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/references")
+            .params(serde_json::to_value(params).unwrap())
+            .id(8)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let locations: Option<Vec<Location>> = response_result(response);
+    let locations = locations.expect("references");
+    assert_eq!(locations.len(), 2);
+    let first = utf16_position(source, source.find("naïve").unwrap());
+    assert!(locations.iter().any(|loc| loc.range.start == first));
+}
+
+#[tokio::test]
+async fn signature_help_lists_point_properties() {
+    let dir = temp_project("signature-point");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "x,y\n1,2\n").unwrap();
+    let source = "Chart(data: \"data.csv\") {\n    Space(x * y) {\n        Point()\n    }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let offset = source.find("Point(").unwrap() + "Point(".len();
+    let params = SignatureHelpParams {
+        context: None,
+        text_document_position_params: position_params(uri, source, offset),
+        work_done_progress_params: WorkDoneProgressParams::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/signatureHelp")
+            .params(serde_json::to_value(params).unwrap())
+            .id(9)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<SignatureHelp> = response_result(response);
+    let help = result.expect("signature help");
+    let signature = &help.signatures[0];
+    assert!(signature.label.starts_with("Point("));
+    assert!(signature.label.contains("fill"));
+    assert_eq!(help.active_parameter, Some(0));
+}
+
+#[tokio::test]
+async fn signature_help_tracks_active_parameter_past_comma() {
+    let dir = temp_project("signature-scale");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "x,y\n1,2\n").unwrap();
+    let source =
+        "Chart(data: \"data.csv\") {\n    Scale(axis: x, )\n    Space(x * y) { Point() }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let offset = source.find("axis: x, ").unwrap() + "axis: x, ".len();
+    let params = SignatureHelpParams {
+        context: None,
+        text_document_position_params: position_params(uri, source, offset),
+        work_done_progress_params: WorkDoneProgressParams::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/signatureHelp")
+            .params(serde_json::to_value(params).unwrap())
+            .id(10)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<SignatureHelp> = response_result(response);
+    let help = result.expect("signature help");
+    assert!(help.signatures[0].label.starts_with("Scale("));
+    assert_eq!(help.active_parameter, Some(1));
+}
+
+#[tokio::test]
+async fn code_action_suggests_corrected_column() {
+    let dir = temp_project("code-action-column");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "species,mass\nA,1\n").unwrap();
+    let source =
+        "Chart(data: \"data.csv\") {\n    Space(species * mass) { Point(fill: speces) }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, mut socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+    let notification = next_client_notification(&mut socket).await;
+    let params: PublishDiagnosticsParams =
+        serde_json::from_value(notification.params().unwrap().clone()).unwrap();
+    let diagnostic = params
+        .diagnostics
+        .into_iter()
+        .find(|diag| {
+            diag.code.as_ref().is_some_and(|code| {
+                matches!(code, tower_lsp::lsp_types::NumberOrString::String(value) if value == "E1101")
+            })
+        })
+        .expect("expected E1101 diagnostic");
+
+    let action_params = CodeActionParams {
+        text_document: TextDocumentIdentifier { uri },
+        range: diagnostic.range,
+        context: CodeActionContext {
+            diagnostics: vec![diagnostic],
+            only: None,
+            trigger_kind: None,
+        },
+        work_done_progress_params: Default::default(),
+        partial_result_params: Default::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/codeAction")
+            .params(serde_json::to_value(action_params).unwrap())
+            .id(11)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<CodeActionResponse> = response_result(response);
+    let serialized = serde_json::to_string(&result.expect("actions")).unwrap();
+    assert!(serialized.contains("Use suggested column"), "{serialized}");
+    assert!(serialized.contains("species"), "{serialized}");
+}
+
+#[tokio::test]
+async fn code_action_desugars_histogram() {
+    let dir = temp_project("code-action-histogram");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "value\n1\n2\n3\n").unwrap();
+    let source =
+        "Chart(data: \"data.csv\") {\n    Space(value) {\n        Histogram(bins: 10)\n    }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let start = source.find("Space(").unwrap();
+    let action_params = CodeActionParams {
+        text_document: TextDocumentIdentifier { uri },
+        range: Range {
+            start: utf16_position(source, start),
+            end: utf16_position(source, start),
+        },
+        context: CodeActionContext {
+            diagnostics: vec![],
+            only: None,
+            trigger_kind: None,
+        },
+        work_done_progress_params: Default::default(),
+        partial_result_params: Default::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/codeAction")
+            .params(serde_json::to_value(action_params).unwrap())
+            .id(12)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<CodeActionResponse> = response_result(response);
+    let serialized = serde_json::to_string(&result.expect("actions")).unwrap();
+    assert!(serialized.contains("Desugar Histogram"), "{serialized}");
+    assert!(serialized.contains("Bin(value, bins: 10)"), "{serialized}");
+    assert!(serialized.contains("Rect(xmin: bin_start"), "{serialized}");
+}
+
+#[tokio::test]
+async fn rename_updates_derived_table_declaration_and_use() {
+    let (mut service, _socket) = initialized_service().await;
+    let (uri, source) = open_binned(&mut service, "rename-derive").await;
+
+    let offset = source.find("binned").unwrap();
+    let params = RenameParams {
+        text_document_position: position_params(uri.clone(), &source, offset),
+        new_name: "histogram".to_string(),
+        work_done_progress_params: WorkDoneProgressParams::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/rename")
+            .params(serde_json::to_value(params).unwrap())
+            .id(13)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<WorkspaceEdit> = response_result(response);
+    let edit = result.expect("rename edit");
+    let edits = edit.changes.unwrap().remove(&uri).unwrap();
+    assert_eq!(edits.len(), 2, "declaration plus the data: reference");
+    assert!(edits.iter().all(|e| e.new_text == "histogram"));
+}
+
+#[tokio::test]
+async fn inlay_hints_show_derive_output_columns() {
+    let (mut service, _socket) = initialized_service().await;
+    let (uri, source) = open_binned(&mut service, "inlay-derive").await;
+
+    let params = InlayHintParams {
+        text_document: TextDocumentIdentifier { uri },
+        range: Range {
+            start: Position::new(0, 0),
+            end: utf16_position(&source, source.len()),
+        },
+        work_done_progress_params: WorkDoneProgressParams::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/inlayHint")
+            .params(serde_json::to_value(params).unwrap())
+            .id(14)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<Vec<InlayHint>> = response_result(response);
+    let hints = result.expect("inlay hints");
+    assert!(!hints.is_empty());
+    let serialized = serde_json::to_string(&hints).unwrap();
+    assert!(serialized.contains("bin_start"), "{serialized}");
 }
 
 #[test]

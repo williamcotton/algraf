@@ -7,6 +7,23 @@ syntax highlighting, and starts the Algraf language server with:
 algraf lsp
 ```
 
+All language behavior comes from the `algraf` binary over LSP. The server
+provides:
+
+- Diagnostics, completion, hover, document symbols, and semantic tokens.
+- Go to definition: derived columns jump to their `Derive`; the `data:` string
+  opens the CSV; source columns jump to the CSV header.
+- Find references and document highlight for columns and derived-table names.
+- Signature help inside geometry and `Scale`/`Guide`/`Theme`/`Layout` calls.
+- Code actions, including quick fixes (quote color/string, suggested
+  geometry/column/property) and a refactor that desugars a `Histogram` into an
+  explicit `Derive` + `Rect`.
+- Rename for derived-table names, whole-document formatting (also via range
+  formatting), and inlay hints showing the columns a `Derive` produces.
+
+Code actions surface through the editor lightbulb (enable
+`editor.lightbulb.enabled`) or `Cmd/Ctrl+.`.
+
 ## Development
 
 Install dependencies:

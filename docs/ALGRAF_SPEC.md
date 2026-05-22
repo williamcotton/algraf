@@ -5469,11 +5469,23 @@ Explains blend operator.
 
 ### 21.8 Go To Definition
 
-Version 0.1 MAY not support go to definition.
+The LSP SHOULD provide go to definition (`textDocument/definition`) using the
+same name resolution as completion and analysis (spec §9.4). It MUST NOT require
+rendering.
 
-Column identifiers could go to CSV header if editor can open CSV and position is known.
+Definition resolution:
 
-This is optional.
+- A column reference produced by a `Derive` (a derived column such as
+  `bin_start`) resolves to that `Derive` declaration's table-name identifier.
+- A `data:` reference to a derived table resolves to that `Derive` declaration.
+- A column reference that resolves to a CSV header resolves to that header's
+  position in the data file, when the data path resolves (best effort).
+- The chart-level `data:` string value resolves to the start of the resolved
+  CSV file.
+
+When a reference is ambiguous (for example a derived column produced by more
+than one `Derive`) or does not resolve, the LSP MUST return no definition
+rather than guess.
 
 ### 21.9 Document Symbols
 
@@ -5508,6 +5520,12 @@ parentheses around mixed algebra operators where clarity requires
 Formatter MUST preserve comments where practical.
 
 Formatter MAY be deferred in version 0.1.
+
+The LSP SHOULD provide range formatting (`textDocument/rangeFormatting`). Because
+the Algraf formatter is holistic and deterministic, a range request reformats
+the whole document and returns a single edit rather than implementing a partial
+formatter. On-type formatting is deferred: reformatting on each keystroke would
+surprise authors, which §21.1-style high-confidence behavior avoids.
 
 ### 21.11 Semantic Tokens
 
@@ -5565,6 +5583,20 @@ Space((quarter / type) * amount) {
 
 Version 0.2.0 MUST implement code actions for high-confidence existing diagnostics, including quoted enum/string fixes, quoted color literals, misspelled geometry suggestions, unsupported 3D Cartesian nesting suggestions, and blend-parenthesization fixes.
 
+Version 0.4.0 adds:
+
+- A `quickfix` for `E1101` (unknown column) that applies the suggested column
+  name, quoting it when it is not a plain identifier.
+- A `quickfix` for `E1202` (unknown property) that applies the suggested
+  property name.
+- A `refactor.rewrite` action that desugars a single-`Histogram` space into the
+  explicit `Derive ... = Bin(...)` plus `Rect` form the analyzer produces. The
+  action fires only when the space holds exactly one `Histogram` over a
+  single-column frame and is a direct chart-body item, so the rewrite is
+  unambiguous. The LSP MUST advertise the `refactor` kind only while this action
+  exists. None of these actions require rendering, and they preserve unrelated
+  formatting.
+
 ### 21.13 Cancellation and Shutdown
 
 The LSP MUST honor client cancellation for long-running custom requests.
@@ -5580,6 +5612,45 @@ Cancelled preview tasks MUST NOT publish stale preview output.
 The LSP MUST handle `shutdown` by stopping new work and allowing in-flight lightweight requests to finish promptly.
 
 The LSP MUST handle `exit` by terminating the process after shutdown according to LSP conventions.
+
+### 21.14 Find References and Document Highlight
+
+The LSP SHOULD provide find references (`textDocument/references`) and document
+highlight (`textDocument/documentHighlight`) for column names and derived-table
+names, using the same name resolution as completion and go to definition.
+
+For a column name, references are every column occurrence with that name in the
+document (frames, aesthetic mappings, and stat inputs).
+
+For a derived-table name, references are the `Derive` declaration plus every
+`data:` use of that table. Document highlight MUST mark the declaration as a
+write and uses as reads. References honor `context.includeDeclaration`.
+
+Spans MUST be byte-accurate, including non-ASCII identifiers (spec §6.12).
+
+### 21.15 Signature Help
+
+The LSP SHOULD provide signature help (`textDocument/signatureHelp`) while the
+cursor is inside a geometry call or a `Scale`/`Guide`/`Theme`/`Layout`/`Chart`
+call. The signature lists the accepted properties from the geometry/property
+registry (spec §13.8–13.9) — the same metadata completion uses.
+
+The active parameter MUST follow the cursor across top-level argument commas,
+ignoring commas nested in array values.
+
+### 21.16 Rename
+
+The LSP SHOULD provide rename (`textDocument/rename`) and prepare-rename
+(`textDocument/prepareRename`) for derived-table names, updating the `Derive`
+declaration and every `data:` use. Source CSV columns are not user-introduced
+and MUST NOT be renameable; prepare-rename returns nothing for them.
+
+### 21.17 Inlay Hints
+
+The LSP MAY provide inlay hints (`textDocument/inlayHint`). Version 0.4.0 shows,
+after each in-document `Derive`, the output columns the stat produces with their
+inferred types (e.g. `bin_start`, `bin_end`, `bin_center`, `count`). Hints are
+filtered to the requested range.
 
 ## 22. CLI Specification
 

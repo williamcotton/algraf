@@ -1,6 +1,7 @@
 # Algraf v0.4.0 Plan
 
-Status: Planned (not started)
+Status: Implemented. All Must items and the Should items (range formatting,
+rename, inlay hints) shipped; on-type formatting is intentionally deferred.
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_3_PLAN.md`](V0_3_PLAN.md)
@@ -51,7 +52,8 @@ highlight, signature help, rename, and range/on-type formatting.
 
 ### 1. Go To Definition
 
-Status: Not started. Spec §21.8 currently says version 0.1 MAY not support it.
+Status: Done. `textDocument/definition` is implemented and advertised; spec §21.8
+is rewritten as normative `SHOULD` behavior.
 
 Implement definition navigation for the references that resolve unambiguously
 within a document plus its data source.
@@ -73,7 +75,9 @@ Acceptance criteria:
 
 ### 2. Find References and Document Highlight
 
-Status: Not started.
+Status: Done. `textDocument/references` and `textDocument/documentHighlight` are
+implemented and advertised; spec §21.14 covers them. Byte accuracy is tested
+with non-ASCII identifiers.
 
 For a column or derived-table name, report every use within the document.
 
@@ -88,7 +92,8 @@ Acceptance criteria:
 
 ### 3. Signature Help
 
-Status: Not started.
+Status: Done. `textDocument/signatureHelp` is implemented and advertised, driven
+by the geometry/property registry; spec §21.15 covers it.
 
 While the cursor is inside a geometry or declaration call, surface the accepted
 properties and indicate the active argument.
@@ -111,8 +116,10 @@ Acceptance criteria:
 
 ### 4. Expanded Code Actions
 
-Status: Partial. v0.2.0 shipped quickfix actions (quoted enum/string, quoted
-color, misspelled geometry, blend parenthesization).
+Status: Done. Added `E1101` (column) and `E1202` (property) suggestion
+quickfixes plus a `refactor.rewrite` that desugars a single-`Histogram` space
+into `Derive ... = Bin(...)` + `Rect`. The `refactor` kind is advertised; spec
+§21.12 documents the new actions.
 
 Add a small set of additional high-confidence actions, including at least one
 refactor-kind action.
@@ -132,7 +139,9 @@ Acceptance criteria:
 
 ### 5. Spec, Version, and Example Hygiene
 
-Status: Not started; mirrors prior releases.
+Status: Done. Workspace and VS Code extension bumped to `0.4.0`; spec §21
+sections made normative; capability advertisement matches implementation; editor
+README documents the new features.
 
 Acceptance criteria:
 
@@ -147,25 +156,21 @@ Acceptance criteria:
 
 ### Range and On-Type Formatting
 
-Status: Not started. Whole-document formatting exists (spec §21.10).
-
-Add `textDocument/rangeFormatting` and possibly on-type formatting, reusing the
-existing formatter. Promote to Must only if it lands cleanly with the formatter.
+Status: Done (range), deferred (on-type). `textDocument/rangeFormatting` is
+implemented by reusing the holistic formatter (it reformats the whole document
+and returns one edit; spec §21.10). On-type formatting is intentionally deferred
+because reformatting on each keystroke surprises authors.
 
 ### Rename
 
-Status: Not started.
-
-`textDocument/rename` for derived-table names and user-introduced identifiers,
-updating all in-scope uses. Lower priority until composition features (v0.5)
-introduce more renameable bindings.
+Status: Done. `textDocument/rename` and `textDocument/prepareRename` rename
+derived-table names across the `Derive` declaration and every `data:` use; spec
+§21.16 covers it. Source CSV columns are not renameable.
 
 ### Inlay Hints
 
-Status: Not started.
-
-Inlay hints showing inferred column types or the output columns a stat produces
-(e.g. `bin_start`, `bin_end`, `bin_center`). Useful but additive; keep optional.
+Status: Done. Inlay hints show the output columns each in-document `Derive`
+produces, with inferred types (spec §21.17).
 
 ## Explicitly Deferred Past v0.4.0
 

@@ -12,8 +12,10 @@ use std::sync::Arc;
 use algraf_core::{Diagnostic as CoreDiagnostic, Severity, Span};
 use algraf_data::{read_csv_schema, ColumnDef, DataError, DataType, DEFAULT_SCHEMA_SAMPLE};
 use algraf_semantics::{analyze, registry, ChartIr};
-use algraf_syntax::ast::{ChartItem, LiteralKind, Root, SpaceItem, ValueExpr};
-use algraf_syntax::{format, parse, tokenize, SyntaxNode};
+use algraf_syntax::ast::{
+    AlgebraName, Arg, ChartItem, DeriveDecl, GeometryCall, LiteralKind, Root, SpaceItem, ValueExpr,
+};
+use algraf_syntax::{format, parse, tokenize, SyntaxKind, SyntaxNode};
 use dashmap::DashMap;
 use tokio::runtime::Runtime;
 use tower_lsp::jsonrpc::Result as LspResult;
@@ -23,13 +25,19 @@ use tower_lsp::lsp_types::{
     CompletionOptions, CompletionParams, CompletionResponse, Diagnostic,
     DiagnosticRelatedInformation, DiagnosticSeverity, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, DocumentSymbolResponse::Nested,
-    Hover, HoverContents, HoverParams, HoverProviderCapability, InitializeParams, InitializeResult,
-    InitializedParams, InsertTextFormat, Location, MarkupContent, MarkupKind, MessageType,
-    NumberOrString, OneOf, Position, Range, SemanticToken, SemanticTokenType, SemanticTokens,
-    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams,
-    SemanticTokensResult, SemanticTokensServerCapabilities, ServerCapabilities, SymbolKind,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkspaceEdit,
+    DocumentHighlight, DocumentHighlightKind, DocumentHighlightParams,
+    DocumentRangeFormattingParams, DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse,
+    DocumentSymbolResponse::Nested, GotoDefinitionParams, GotoDefinitionResponse, Hover,
+    HoverContents, HoverParams, HoverProviderCapability, InitializeParams, InitializeResult,
+    InitializedParams, InlayHint, InlayHintKind, InlayHintLabel, InlayHintParams, InsertTextFormat,
+    Location, MarkupContent, MarkupKind, MessageType, NumberOrString, OneOf, ParameterInformation,
+    ParameterLabel, Position, PrepareRenameResponse, Range, ReferenceParams, RenameOptions,
+    RenameParams, SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensFullOptions,
+    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams, SemanticTokensResult,
+    SemanticTokensServerCapabilities, ServerCapabilities, SignatureHelp, SignatureHelpOptions,
+    SignatureHelpParams, SignatureInformation, SymbolKind, TextDocumentPositionParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
+    WorkspaceEdit,
 };
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
@@ -236,11 +244,28 @@ impl LanguageServer for Backend {
                 ),
                 code_action_provider: Some(CodeActionProviderCapability::Options(
                     CodeActionOptions {
-                        code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+                        code_action_kinds: Some(vec![
+                            CodeActionKind::QUICKFIX,
+                            CodeActionKind::REFACTOR_REWRITE,
+                        ]),
                         resolve_provider: Some(false),
                         work_done_progress_options: Default::default(),
                     },
                 )),
+                definition_provider: Some(OneOf::Left(true)),
+                references_provider: Some(OneOf::Left(true)),
+                document_highlight_provider: Some(OneOf::Left(true)),
+                signature_help_provider: Some(SignatureHelpOptions {
+                    trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
+                    retrigger_characters: Some(vec![",".to_string()]),
+                    work_done_progress_options: Default::default(),
+                }),
+                document_range_formatting_provider: Some(OneOf::Left(true)),
+                rename_provider: Some(OneOf::Right(RenameOptions {
+                    prepare_provider: Some(true),
+                    work_done_progress_options: WorkDoneProgressOptions::default(),
+                })),
+                inlay_hint_provider: Some(OneOf::Left(true)),
                 ..ServerCapabilities::default()
             },
             server_info: None,
@@ -349,6 +374,128 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         Ok(Some(code_actions_for(&state, params)))
+    }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> LspResult<Option<GotoDefinitionResponse>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let Some(state) = self.document(&uri) else {
+            return Ok(None);
+        };
+        let offset = position_to_offset(&state.text, params.text_document_position_params.position);
+        Ok(definition_at(&state, &uri, offset))
+    }
+
+    async fn references(&self, params: ReferenceParams) -> LspResult<Option<Vec<Location>>> {
+        let uri = params.text_document_position.text_document.uri;
+        let Some(state) = self.document(&uri) else {
+            return Ok(None);
+        };
+        let offset = position_to_offset(&state.text, params.text_document_position.position);
+        let include_decl = params.context.include_declaration;
+        let Some(sites) = reference_sites(&state, offset) else {
+            return Ok(None);
+        };
+        let locations = sites
+            .into_iter()
+            .filter(|site| include_decl || !site.is_decl)
+            .map(|site| Location {
+                uri: uri.clone(),
+                range: span_to_range(&state.text, site.span),
+            })
+            .collect();
+        Ok(Some(locations))
+    }
+
+    async fn document_highlight(
+        &self,
+        params: DocumentHighlightParams,
+    ) -> LspResult<Option<Vec<DocumentHighlight>>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let Some(state) = self.document(&uri) else {
+            return Ok(None);
+        };
+        let offset = position_to_offset(&state.text, params.text_document_position_params.position);
+        let Some(sites) = reference_sites(&state, offset) else {
+            return Ok(None);
+        };
+        let highlights = sites
+            .into_iter()
+            .map(|site| DocumentHighlight {
+                range: span_to_range(&state.text, site.span),
+                kind: Some(if site.is_decl {
+                    DocumentHighlightKind::WRITE
+                } else {
+                    DocumentHighlightKind::READ
+                }),
+            })
+            .collect();
+        Ok(Some(highlights))
+    }
+
+    async fn signature_help(
+        &self,
+        params: SignatureHelpParams,
+    ) -> LspResult<Option<SignatureHelp>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let Some(state) = self.document(&uri) else {
+            return Ok(None);
+        };
+        let offset = position_to_offset(&state.text, params.text_document_position_params.position);
+        Ok(signature_help_at(&state.text, offset))
+    }
+
+    async fn range_formatting(
+        &self,
+        params: DocumentRangeFormattingParams,
+    ) -> LspResult<Option<Vec<TextEdit>>> {
+        let Some(state) = self.document(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        // The Algraf formatter is holistic and deterministic (spec §21.10), so a
+        // range request reformats the whole document and returns one edit. This
+        // keeps output stable rather than re-implementing a partial formatter.
+        let formatted = format(&state.text);
+        if formatted == state.text {
+            return Ok(Some(Vec::new()));
+        }
+        Ok(Some(vec![TextEdit {
+            range: Range {
+                start: Position::new(0, 0),
+                end: offset_to_position(&state.text, state.text.len()),
+            },
+            new_text: formatted,
+        }]))
+    }
+
+    async fn prepare_rename(
+        &self,
+        params: TextDocumentPositionParams,
+    ) -> LspResult<Option<PrepareRenameResponse>> {
+        let Some(state) = self.document(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let offset = position_to_offset(&state.text, params.position);
+        Ok(renameable_at(&state, offset)
+            .map(|span| PrepareRenameResponse::Range(span_to_range(&state.text, span))))
+    }
+
+    async fn rename(&self, params: RenameParams) -> LspResult<Option<WorkspaceEdit>> {
+        let uri = params.text_document_position.text_document.uri;
+        let Some(state) = self.document(&uri) else {
+            return Ok(None);
+        };
+        let offset = position_to_offset(&state.text, params.text_document_position.position);
+        Ok(rename_edits(&state, &uri, offset, &params.new_name))
+    }
+
+    async fn inlay_hint(&self, params: InlayHintParams) -> LspResult<Option<Vec<InlayHint>>> {
+        let Some(state) = self.document(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        Ok(Some(inlay_hints_for(&state, params.range)))
     }
 }
 
@@ -725,6 +872,32 @@ fn code_actions_for(state: &DocumentState, params: CodeActionParams) -> CodeActi
                     }
                 }
             }
+            "E1101" => {
+                if let Some(suggestion) = extract_backtick_suggestion(&diagnostic.message) {
+                    if let Some(range) = first_ident_range(&state.text, diagnostic.range) {
+                        actions.push(edit_action(
+                            "Use suggested column",
+                            &uri,
+                            range,
+                            quote_identifier_if_needed(&suggestion),
+                            diagnostic.clone(),
+                        ));
+                    }
+                }
+            }
+            "E1202" => {
+                if let Some(suggestion) = extract_backtick_suggestion(&diagnostic.message) {
+                    if let Some(range) = first_ident_range(&state.text, diagnostic.range) {
+                        actions.push(edit_action(
+                            "Use suggested property",
+                            &uri,
+                            range,
+                            suggestion,
+                            diagnostic.clone(),
+                        ));
+                    }
+                }
+            }
             "E1306" => {
                 if let Some((start, end)) = range_to_offsets(&state.text, diagnostic.range) {
                     let text = state.text[start..end].trim();
@@ -758,7 +931,169 @@ fn code_actions_for(state: &DocumentState, params: CodeActionParams) -> CodeActi
             _ => {}
         }
     }
+    if let Some(action) = histogram_refactor_action(&state.text, &uri, params.range) {
+        actions.push(action);
+    }
     actions
+}
+
+/// Offer a `refactor.rewrite` that desugars a single-`Histogram` space into the
+/// explicit `Derive ... = Bin(...)` plus `Rect` form the analyzer produces
+/// (spec §21.12). High-confidence only: fires when the space holds exactly one
+/// `Histogram` over a single-column frame and is a direct chart-body item.
+fn histogram_refactor_action(source: &str, uri: &Url, range: Range) -> Option<CodeActionOrCommand> {
+    let (start, end) = range_to_offsets(source, range)?;
+    let syntax = parse(source).syntax();
+    let root = Root::cast(syntax)?;
+    let chart = root.chart()?;
+
+    for item in chart.items() {
+        let ChartItem::Space(space) = item else {
+            continue;
+        };
+        // Only desugar a space that is a direct chart-body item, so the new
+        // `Derive` can be inserted as its sibling at the same indentation.
+        if space.syntax().parent().map(|p| p.kind()) != Some(SyntaxKind::CHART_BLOCK) {
+            continue;
+        }
+        let space_span = node_span(space.syntax());
+        if end < space_span.start || start > space_span.end {
+            continue;
+        }
+
+        // Exactly one geometry, a Histogram, and no scale/guide/theme items.
+        let mut histogram: Option<GeometryCall> = None;
+        let mut other_items = false;
+        for child in space.items() {
+            match child {
+                SpaceItem::Geometry(call) if call.name().as_deref() == Some("Histogram") => {
+                    if histogram.is_some() {
+                        other_items = true;
+                    } else {
+                        histogram = Some(call);
+                    }
+                }
+                SpaceItem::Error(_) => {}
+                _ => other_items = true,
+            }
+        }
+        let histogram = histogram?;
+        if other_items {
+            return None;
+        }
+
+        // The frame must be a single column identifier (the binned vector).
+        let frame = space.frame()?;
+        let input = match frame {
+            algraf_syntax::ast::AlgebraExpr::Name(name) => name.raw_text()?,
+            _ => return None,
+        };
+
+        let bin_args = collect_arg_text(&histogram, &["bins", "binWidth", "boundary", "closed"]);
+        let rect_args = collect_arg_text(&histogram, &["fill", "stroke", "strokeWidth", "alpha"]);
+        let derive_name = unique_derive_name(&chart, &input);
+
+        let bin_call = if bin_args.is_empty() {
+            format!("Bin({input})")
+        } else {
+            format!("Bin({input}, {})", bin_args.join(", "))
+        };
+        let rect_props = if rect_args.is_empty() {
+            String::new()
+        } else {
+            format!(", {}", rect_args.join(", "))
+        };
+
+        let indent = line_indent(source, space_span.start);
+        let replacement = format!(
+            "Derive {derive_name} = {bin_call}\n\
+             {indent}Space(bin_start * count, data: {derive_name}) {{\n\
+             {indent}    Rect(xmin: bin_start, xmax: bin_end, ymax: count{rect_props})\n\
+             {indent}}}"
+        );
+
+        let mut changes = HashMap::new();
+        changes.insert(
+            uri.clone(),
+            vec![TextEdit {
+                range: span_to_range(source, space_span),
+                new_text: replacement,
+            }],
+        );
+        return Some(CodeActionOrCommand::CodeAction(CodeAction {
+            title: "Desugar Histogram into Derive + Rect".to_string(),
+            kind: Some(CodeActionKind::REFACTOR_REWRITE),
+            edit: Some(WorkspaceEdit {
+                changes: Some(changes),
+                document_changes: None,
+                change_annotations: None,
+            }),
+            ..CodeAction::default()
+        }));
+    }
+    None
+}
+
+/// Render `key: value` fragments for the named args present on a geometry call,
+/// preserving the source text of each value.
+fn collect_arg_text(call: &GeometryCall, keys: &[&str]) -> Vec<String> {
+    let mut out = Vec::new();
+    for arg in call.args() {
+        let Some(key) = arg.key() else { continue };
+        if !keys.contains(&key.as_str()) {
+            continue;
+        }
+        if let Some(value) = arg.value() {
+            let text = value.syntax().text().to_string();
+            out.push(format!("{key}: {}", text.trim()));
+        }
+    }
+    out
+}
+
+/// Pick a derived-table name that does not collide with an existing `Derive`.
+fn unique_derive_name(chart: &algraf_syntax::ast::ChartBlock, input: &str) -> String {
+    let base_root: String = input
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
+        .collect();
+    let base_root = base_root.trim_matches('_');
+    let base = if base_root.is_empty() {
+        "binned".to_string()
+    } else {
+        format!("{base_root}_binned")
+    };
+    let existing: HashSet<String> = chart
+        .items()
+        .into_iter()
+        .filter_map(|item| match item {
+            ChartItem::Derive(decl) => decl.name(),
+            _ => None,
+        })
+        .collect();
+    if !existing.contains(&base) {
+        return base;
+    }
+    let mut n = 2;
+    loop {
+        let candidate = format!("{base}_{n}");
+        if !existing.contains(&candidate) {
+            return candidate;
+        }
+        n += 1;
+    }
+}
+
+/// The whitespace prefix of the line that `offset` falls on.
+fn line_indent(source: &str, offset: usize) -> String {
+    let line_start = source[..offset.min(source.len())]
+        .rfind('\n')
+        .map(|i| i + 1)
+        .unwrap_or(0);
+    source[line_start..offset]
+        .chars()
+        .take_while(|ch| *ch == ' ' || *ch == '\t')
+        .collect()
 }
 
 fn diagnostic_code(diagnostic: &Diagnostic) -> Option<&str> {
@@ -1214,17 +1549,7 @@ fn property_value_items(
 }
 
 fn declaration_arg_items(decl: &str) -> Vec<CompletionItem> {
-    let names: &[&str] = match decl {
-        "Layout" => &["facetColumns"],
-        "Guide" => &["axis", "label", "legend", "fill", "stroke", "grid"],
-        "Theme" => &["name"],
-        "Scale" => &[
-            "axis", "type", "domain", "reverse", "integer", "fill", "stroke", "palette",
-            "gradient", "label",
-        ],
-        _ => &[],
-    };
-    names
+    declaration_arg_names(decl)
         .iter()
         .map(|name| property(name, "Declaration argument"))
         .collect()
@@ -1711,6 +2036,525 @@ fn is_plain_identifier(name: &str) -> bool {
         return false;
     }
     chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+}
+
+// --- Navigation: definition, references, highlight, rename (spec §21.8) -----
+
+/// A `Derive` declaration site within the document.
+struct DeriveSite {
+    name: String,
+    /// Span of the table-name identifier token (the navigation target).
+    name_span: Span,
+}
+
+/// A name occurrence carrying its byte span.
+struct NameRef {
+    name: String,
+    span: Span,
+}
+
+/// An index of all in-document name occurrences, partitioned by namespace
+/// (spec §9.4). Built by walking the CST so spans are byte-accurate.
+#[derive(Default)]
+struct NameIndex {
+    /// `Derive` declarations (derived-table definitions).
+    derives: Vec<DeriveSite>,
+    /// `data:` references to a derived table (e.g. `Space(..., data: binned)`).
+    table_refs: Vec<NameRef>,
+    /// Column references in frames, aesthetic mappings, and stat inputs.
+    column_refs: Vec<NameRef>,
+}
+
+fn build_name_index(root: &SyntaxNode) -> NameIndex {
+    let mut index = NameIndex::default();
+    for node in root.descendants() {
+        match node.kind() {
+            SyntaxKind::DERIVE_DECL => {
+                if let Some(decl) = DeriveDecl::cast(node.clone()) {
+                    if let (Some(name), Some(span)) = (decl.name(), derive_name_span(&node)) {
+                        index.derives.push(DeriveSite {
+                            name,
+                            name_span: span,
+                        });
+                    }
+                }
+            }
+            SyntaxKind::ALGEBRA_NAME => {
+                if let Some(algebra) = AlgebraName::cast(node.clone()) {
+                    if let (Some(name), Some(span)) = (algebra.name(), algebra.ident_span()) {
+                        if is_data_arg_value(&node) {
+                            index.table_refs.push(NameRef { name, span });
+                        } else {
+                            index.column_refs.push(NameRef { name, span });
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    index
+}
+
+/// The span of the table-name identifier inside a `DERIVE_DECL` node. The
+/// `Derive` keyword is its own token kind, so the first `IDENT` is the name.
+fn derive_name_span(node: &SyntaxNode) -> Option<Span> {
+    node.children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::IDENT)
+        .map(|token| {
+            let range = token.text_range();
+            Span::new(
+                u32::from(range.start()) as usize,
+                u32::from(range.end()) as usize,
+            )
+        })
+}
+
+/// Whether an `ALGEBRA_NAME` node sits in the value position of a `data:`
+/// argument (a derived-table reference) rather than a column position.
+fn is_data_arg_value(node: &SyntaxNode) -> bool {
+    let mut current = node.parent();
+    while let Some(parent) = current {
+        if parent.kind() == SyntaxKind::ARG {
+            return Arg::cast(parent).and_then(|arg| arg.key()).as_deref() == Some("data");
+        }
+        current = parent.parent();
+    }
+    false
+}
+
+/// What the identifier under the cursor refers to.
+enum Target {
+    DerivedTable(String),
+    Column(String),
+    /// The chart's `data:` string literal.
+    DataPath,
+}
+
+fn target_at(index: &NameIndex, root: &SyntaxNode, offset: usize) -> Option<Target> {
+    for derive in &index.derives {
+        if derive.name_span.contains(offset) {
+            return Some(Target::DerivedTable(derive.name.clone()));
+        }
+    }
+    for reference in &index.table_refs {
+        if reference.span.contains(offset) {
+            return Some(Target::DerivedTable(reference.name.clone()));
+        }
+    }
+    for reference in &index.column_refs {
+        if reference.span.contains(offset) {
+            return Some(Target::Column(reference.name.clone()));
+        }
+    }
+    if chart_data_literal_span(root).is_some_and(|span| span.contains(offset)) {
+        return Some(Target::DataPath);
+    }
+    None
+}
+
+/// The span of the chart-level `data:` string literal, if present.
+fn chart_data_literal_span(root: &SyntaxNode) -> Option<Span> {
+    let chart = Root::cast(root.clone())?.chart()?;
+    for arg in chart.args() {
+        if arg.key().as_deref() == Some("data") {
+            if let Some(ValueExpr::Literal(literal)) = arg.value() {
+                if literal.kind() == Some(LiteralKind::String) {
+                    return literal.token_span();
+                }
+            }
+        }
+    }
+    None
+}
+
+fn definition_at(
+    state: &DocumentState,
+    uri: &Url,
+    offset: usize,
+) -> Option<GotoDefinitionResponse> {
+    let root = parse(&state.text).syntax();
+    let index = build_name_index(&root);
+    match target_at(&index, &root, offset)? {
+        Target::DataPath => {
+            let path = state.data_path.as_ref()?;
+            let target_uri = Url::from_file_path(path).ok()?;
+            Some(GotoDefinitionResponse::Scalar(Location {
+                uri: target_uri,
+                range: Range::default(),
+            }))
+        }
+        Target::DerivedTable(name) => {
+            let site = index.derives.iter().find(|derive| derive.name == name)?;
+            Some(GotoDefinitionResponse::Scalar(Location {
+                uri: uri.clone(),
+                range: span_to_range(&state.text, site.name_span),
+            }))
+        }
+        Target::Column(name) => {
+            let producers = derives_producing(state, &name);
+            match producers.len() {
+                // A derived column jumps to the `Derive` that produces it.
+                1 => {
+                    let site = index
+                        .derives
+                        .iter()
+                        .find(|derive| derive.name == producers[0])?;
+                    Some(GotoDefinitionResponse::Scalar(Location {
+                        uri: uri.clone(),
+                        range: span_to_range(&state.text, site.name_span),
+                    }))
+                }
+                // Ambiguous: refuse rather than guess (spec §21.8).
+                n if n > 1 => None,
+                // A source column opens the CSV header (best effort).
+                _ => {
+                    let (path, range) = csv_header_location(state, &name)?;
+                    let target_uri = Url::from_file_path(path).ok()?;
+                    Some(GotoDefinitionResponse::Scalar(Location {
+                        uri: target_uri,
+                        range,
+                    }))
+                }
+            }
+        }
+    }
+}
+
+/// Names of in-document `Derive` tables whose output schema contains `column`.
+fn derives_producing(state: &DocumentState, column: &str) -> Vec<String> {
+    state
+        .analysis
+        .as_ref()
+        .and_then(|analysis| analysis.ir.as_ref())
+        .map(|ir| {
+            ir.derived_tables
+                .iter()
+                .filter(|table| table.output_schema.iter().any(|col| col.name == column))
+                .map(|table| table.name.clone())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Locate a column's header within the resolved CSV file (best effort).
+fn csv_header_location(state: &DocumentState, name: &str) -> Option<(PathBuf, Range)> {
+    let path = state.data_path.clone()?;
+    let content = std::fs::read_to_string(&path).ok()?;
+    let header = content.lines().next()?;
+    let (start, end) = csv_header_field(header, name)?;
+    Some((
+        path,
+        Range {
+            start: offset_to_position(&content, start),
+            end: offset_to_position(&content, end),
+        },
+    ))
+}
+
+/// Byte range of the header field equal to `name` in a CSV header line,
+/// honoring minimal RFC-4180 double-quoting.
+fn csv_header_field(header: &str, name: &str) -> Option<(usize, usize)> {
+    let bytes = header.as_bytes();
+    let mut field_start = 0usize;
+    let mut value = String::new();
+    let mut in_quotes = false;
+    let mut idx = 0usize;
+    while idx < bytes.len() {
+        let ch = bytes[idx] as char;
+        match ch {
+            '"' => {
+                if in_quotes && bytes.get(idx + 1) == Some(&b'"') {
+                    value.push('"');
+                    idx += 1;
+                } else {
+                    in_quotes = !in_quotes;
+                }
+            }
+            ',' if !in_quotes => {
+                if value == name {
+                    return Some((field_start, idx));
+                }
+                value.clear();
+                field_start = idx + 1;
+            }
+            other => value.push(other),
+        }
+        idx += 1;
+    }
+    (value == name).then_some((field_start, header.len()))
+}
+
+/// A reference site for highlight/references, flagged if it is a declaration.
+struct RefSite {
+    span: Span,
+    is_decl: bool,
+}
+
+fn reference_sites(state: &DocumentState, offset: usize) -> Option<Vec<RefSite>> {
+    let root = parse(&state.text).syntax();
+    let index = build_name_index(&root);
+    match target_at(&index, &root, offset)? {
+        Target::DataPath => None,
+        Target::DerivedTable(name) => {
+            let mut sites = Vec::new();
+            for derive in &index.derives {
+                if derive.name == name {
+                    sites.push(RefSite {
+                        span: derive.name_span,
+                        is_decl: true,
+                    });
+                }
+            }
+            for reference in &index.table_refs {
+                if reference.name == name {
+                    sites.push(RefSite {
+                        span: reference.span,
+                        is_decl: false,
+                    });
+                }
+            }
+            Some(sites)
+        }
+        Target::Column(name) => Some(
+            index
+                .column_refs
+                .iter()
+                .filter(|reference| reference.name == name)
+                .map(|reference| RefSite {
+                    span: reference.span,
+                    is_decl: false,
+                })
+                .collect(),
+        ),
+    }
+}
+
+/// The span of a renameable identifier under the cursor, if one exists. Only
+/// derived-table names are user-introduced and therefore renameable.
+fn renameable_at(state: &DocumentState, offset: usize) -> Option<Span> {
+    let root = parse(&state.text).syntax();
+    let index = build_name_index(&root);
+    for derive in &index.derives {
+        if derive.name_span.contains(offset) {
+            return Some(derive.name_span);
+        }
+    }
+    for reference in &index.table_refs {
+        if reference.span.contains(offset) {
+            return Some(reference.span);
+        }
+    }
+    None
+}
+
+fn rename_edits(
+    state: &DocumentState,
+    uri: &Url,
+    offset: usize,
+    new_name: &str,
+) -> Option<WorkspaceEdit> {
+    let sites = reference_sites(state, offset)?;
+    if sites.is_empty() {
+        return None;
+    }
+    let edits: Vec<TextEdit> = sites
+        .into_iter()
+        .map(|site| TextEdit {
+            range: span_to_range(&state.text, site.span),
+            new_text: new_name.to_string(),
+        })
+        .collect();
+    let mut changes = HashMap::new();
+    changes.insert(uri.clone(), edits);
+    Some(WorkspaceEdit {
+        changes: Some(changes),
+        document_changes: None,
+        change_annotations: None,
+    })
+}
+
+// --- Signature help (spec §21.15) -------------------------------------------
+
+/// A call/array nesting frame tracked while scanning toward the cursor.
+struct CallFrame {
+    /// The call name (`None` for anonymous parens and array brackets).
+    name: Option<String>,
+    /// Whether this frame is a `(` call rather than an array `[`.
+    is_call: bool,
+    /// Top-level argument separators seen so far in this frame.
+    commas: usize,
+}
+
+fn signature_help_at(text: &str, offset: usize) -> Option<SignatureHelp> {
+    let prefix = &text[..offset.min(text.len())];
+    let tokens: Vec<_> = tokenize(prefix)
+        .tokens
+        .into_iter()
+        .filter(|token| !token.kind.is_trivia())
+        .collect();
+
+    let mut stack: Vec<CallFrame> = Vec::new();
+    let mut previous_ident: Option<String> = None;
+    for token in &tokens {
+        use algraf_syntax::TokenKind;
+        match &token.kind {
+            TokenKind::Ident(name) => previous_ident = Some(name.clone()),
+            TokenKind::LParen => {
+                stack.push(CallFrame {
+                    name: previous_ident.take(),
+                    is_call: true,
+                    commas: 0,
+                });
+            }
+            TokenKind::LBracket => {
+                stack.push(CallFrame {
+                    name: None,
+                    is_call: false,
+                    commas: 0,
+                });
+                previous_ident = None;
+            }
+            TokenKind::RParen | TokenKind::RBracket => {
+                stack.pop();
+                previous_ident = None;
+            }
+            TokenKind::Comma => {
+                if let Some(frame) = stack.last_mut() {
+                    frame.commas += 1;
+                }
+                previous_ident = None;
+            }
+            _ => previous_ident = None,
+        }
+    }
+
+    let frame = stack.iter().rev().find(|frame| frame.is_call)?;
+    let name = frame.name.as_deref()?;
+    let params = signature_params(name)?;
+    Some(build_signature(name, &params, frame.commas))
+}
+
+/// The ordered parameter names for a call, drawn from the registry and the
+/// declaration metadata that also drives completion (spec §13.8–13.9).
+fn signature_params(name: &str) -> Option<Vec<&'static str>> {
+    if let Some(geometry) = registry::geometry(name) {
+        return Some(geometry.prop_names().collect());
+    }
+    match name {
+        "Chart" => Some(CHART_ARGS.to_vec()),
+        "Scale" | "Guide" | "Theme" | "Layout" => Some(declaration_arg_names(name).to_vec()),
+        "Bin" => Some(vec!["bins", "binWidth", "boundary", "closed"]),
+        _ => None,
+    }
+}
+
+fn build_signature(name: &str, params: &[&str], commas: usize) -> SignatureHelp {
+    let mut label = format!("{name}(");
+    let mut parameters = Vec::new();
+    for (i, param) in params.iter().enumerate() {
+        if i > 0 {
+            label.push_str(", ");
+        }
+        let start = label.chars().map(char::len_utf16).sum::<usize>() as u32;
+        label.push_str(param);
+        let end = label.chars().map(char::len_utf16).sum::<usize>() as u32;
+        parameters.push(ParameterInformation {
+            label: ParameterLabel::LabelOffsets([start, end]),
+            documentation: Some(markup(property_doc(param))),
+        });
+    }
+    label.push(')');
+
+    let active_parameter = if params.is_empty() {
+        None
+    } else {
+        Some(commas.min(params.len() - 1) as u32)
+    };
+
+    SignatureHelp {
+        signatures: vec![SignatureInformation {
+            label,
+            documentation: None,
+            parameters: Some(parameters),
+            active_parameter,
+        }],
+        active_signature: Some(0),
+        active_parameter,
+    }
+}
+
+/// The ordered argument names for a declaration keyword. Mirrors the lists
+/// `declaration_arg_items` uses for completion.
+fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
+    match decl {
+        "Layout" => &["facetColumns"],
+        "Guide" => &["axis", "label", "legend", "fill", "stroke", "grid"],
+        "Theme" => &["name"],
+        "Scale" => &[
+            "axis", "type", "domain", "reverse", "integer", "fill", "stroke", "palette",
+            "gradient", "label",
+        ],
+        _ => &[],
+    }
+}
+
+// --- Inlay hints (spec §21.17) ----------------------------------------------
+
+/// Inlay hints showing the output columns each in-document `Derive` produces
+/// (e.g. `bin_start`, `bin_end`, `bin_center`, `count`).
+fn inlay_hints_for(state: &DocumentState, range: Range) -> Vec<InlayHint> {
+    let Some(ir) = state
+        .analysis
+        .as_ref()
+        .and_then(|analysis| analysis.ir.as_ref())
+    else {
+        return Vec::new();
+    };
+    let (range_start, range_end) = match range_to_offsets(&state.text, range) {
+        Some(offsets) => offsets,
+        None => (0, state.text.len()),
+    };
+
+    let root = parse(&state.text).syntax();
+    let mut hints = Vec::new();
+    for node in root.descendants() {
+        if node.kind() != SyntaxKind::DERIVE_DECL {
+            continue;
+        }
+        let Some(decl) = DeriveDecl::cast(node.clone()) else {
+            continue;
+        };
+        let Some(name) = decl.name() else { continue };
+        let span = node_span(&node);
+        if span.end < range_start || span.start > range_end {
+            continue;
+        }
+        let Some(table) = ir.derived_tables.iter().find(|table| table.name == name) else {
+            continue;
+        };
+        if table.output_schema.is_empty() {
+            continue;
+        }
+        let columns = table
+            .output_schema
+            .iter()
+            .map(|col| format!("{}: {}", col.name, dtype_name(col.dtype)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        hints.push(InlayHint {
+            position: offset_to_position(&state.text, span.end),
+            label: InlayHintLabel::String(format!(" → {columns}")),
+            kind: Some(InlayHintKind::TYPE),
+            text_edits: None,
+            tooltip: None,
+            padding_left: Some(true),
+            padding_right: Some(false),
+            data: None,
+        });
+    }
+    hints
 }
 
 #[cfg(test)]
