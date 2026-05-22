@@ -392,6 +392,25 @@ Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribu
 
 ![violin](examples/violin.svg)
 
+## Layered violin and boxplot distributions
+
+Geometries can be overlaid inside a single `Space` to build compound charts. Here, a transparent `Violin` is paired with a narrow, opaque `Boxplot` to show both the detailed density curve and summary statistics.
+
+```algraf
+Chart(data: "demographics.csv", width: 720, height: 460, title: "Height Distribution by Group (Violin + Boxplot)") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Gender Group")
+    Guide(axis: y, label: "Height (cm)")
+
+    Space(gender * height) {
+        Violin(fill: gender, alpha: 0.45)
+        Boxplot(width: 15, fill: "#ffffff", stroke: "#2b2b2b", strokeWidth: 1.5)
+    }
+}
+```
+
+![violin_boxplot](examples/violin_boxplot.svg)
+
 ## Density: a smooth distribution
 
 `Density` estimates the distribution of a single numeric column with a
@@ -511,6 +530,27 @@ Chart(data: "gantt.csv", width: 760, height: 420, title: "Project Schedule") {
 
 ![gantt](examples/gantt.svg)
 
+## Flight price dumbbell plot
+
+A dumbbell plot displays range changes or category comparisons using horizontal segments connecting two points per category. In Algraf, you can build this by combining a `Line` (grouped by category with a constant stroke) and a `Point` geometry over a category-continuous space.
+
+```algraf
+Chart(data: "flights.csv", width: 760, height: 440, title: "Flight Ticket Prices by Airline and Class") {
+    Theme(name: "classic")
+    Scale(axis: x, domain: [100, 1000])
+    Scale(fill: class, palette: "default")
+    Guide(axis: x, label: "Ticket Price ($)")
+    Guide(axis: y, label: "Airline")
+
+    Space(price * airline) {
+        Line(group: airline, stroke: "#cccccc", strokeWidth: 4)
+        Point(fill: class, size: 7)
+    }
+}
+```
+
+![flight_dumbbell](examples/flight_dumbbell.svg)
+
 ## Faceting via nested algebra
 
 Nesting the space with `/ region` produces one panel per region, all
@@ -586,6 +626,30 @@ Chart(data: "penguins.csv", width: 720, height: 480) {
 ```
 
 ![labels](examples/labels.svg)
+
+## Slopegraph with text labels
+
+A slopegraph compares values at two points in time/categories (e.g. 2024 vs 2026) for different groups, drawing a line between the two states. In Algraf, you can do this by using a continuous or categorical x-axis, using `Line` grouped and colored by group, `Point` markers, and `Text` labels. By leaving the label column blank for the starting year, text labels are rendered only at the end points to cleanly name the series.
+
+```algraf
+Chart(data: "satisfaction.csv", width: 760, height: 480, title: "Customer Satisfaction Shift (2024 vs 2026)") {
+    Theme(name: "minimal")
+    Scale(axis: x, domain: [2024, 2026], integer: true)
+    Scale(axis: y, domain: [50, 100])
+    Scale(stroke: metric, palette: "accent")
+    Scale(fill: metric, palette: "accent")
+    Guide(axis: x, label: "Year")
+    Guide(axis: y, label: "Satisfaction Score (%)")
+
+    Space(year * value) {
+        Line(group: metric, stroke: metric, strokeWidth: 3)
+        Point(fill: metric, size: 6)
+        Text(label: label, dx: 10, dy: -2, anchor: "start", size: 10, fill: "#444444")
+    }
+}
+```
+
+![satisfaction_slope](examples/satisfaction_slope.svg)
 
 ## Overriding labels and palettes
 

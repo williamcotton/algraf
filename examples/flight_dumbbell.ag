@@ -1,0 +1,12 @@
+Chart(data: "flights.csv", width: 760, height: 440, title: "Flight Ticket Prices by Airline and Class") {
+    Theme(name: "classic")
+    Scale(axis: x, domain: [100, 1000])
+    Scale(fill: class, palette: "default")
+    Guide(axis: x, label: "Ticket Price ($)")
+    Guide(axis: y, label: "Airline")
+
+    Space(price * airline) {
+        Line(group: airline, stroke: "#cccccc", strokeWidth: 4)
+        Point(fill: class, size: 7)
+    }
+}

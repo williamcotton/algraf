@@ -45,6 +45,9 @@ charts=(
     hexbin
     legend_merge
     scale_label
+    satisfaction_slope
+    flight_dumbbell
+    violin_boxplot
 )
 
 cd "$repo_root"

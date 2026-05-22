@@ -1,0 +1,11 @@
+metric,year,value,label
+Product Quality,2024,72,
+Product Quality,2026,88,Product Quality (+16)
+Customer Support,2024,65,
+Customer Support,2026,82,Customer Support (+17)
+Pricing Value,2024,80,
+Pricing Value,2026,75,Pricing Value (-5)
+Delivery Speed,2024,55,
+Delivery Speed,2026,70,Delivery Speed (+15)
+Platform Ease,2024,84,
+Platform Ease,2026,81,Platform Ease (-3)

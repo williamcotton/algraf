@@ -59,6 +59,9 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | `hexbin.ag` | `penguins.csv` | `hexbin.svg`, `hexbin.png` | Hexagonal binning |
 | `ribbon.ag` | `ribbon.csv` | `ribbon.svg`, `ribbon.png` | Closed ribbon interval path |
 | `reference.ag` | `penguins.csv` | `reference.svg`, `reference.png` | `HLine`, `VLine`, `Rug`, title, and legend suppression |
+| `satisfaction_slope.ag` | `satisfaction.csv` | `satisfaction_slope.svg`, `satisfaction_slope.png` | Slopegraph with line grouping and text labels |
+| `flight_dumbbell.ag` | `flights.csv` | `flight_dumbbell.svg`, `flight_dumbbell.png` | Dumbbell plot showing category-continuous range segments |
+| `violin_boxplot.ag` | `demographics.csv` | `violin_boxplot.svg`, `violin_boxplot.png` | Layered violin and boxplot distributions |
 
 ## Notes
 
