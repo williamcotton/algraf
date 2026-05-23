@@ -56,9 +56,14 @@ ast_node!(
 );
 
 impl Root {
-    /// The chart block, if one was parsed.
+    /// The first chart block, if one was parsed.
     pub fn chart(&self) -> Option<ChartBlock> {
         self.syntax.children().find_map(ChartBlock::cast)
+    }
+
+    /// Every top-level chart block, in source order (spec §7.1).
+    pub fn charts(&self) -> Vec<ChartBlock> {
+        child_nodes(&self.syntax, ChartBlock::cast)
     }
 }
 
@@ -84,6 +89,7 @@ impl ChartBlock {
 pub enum ChartItem {
     Space(SpaceBlock),
     Derive(DeriveDecl),
+    Let(LetDecl),
     Scale(Decl),
     Guide(Decl),
     Theme(Decl),
@@ -96,6 +102,7 @@ impl ChartItem {
         match node.kind() {
             SyntaxKind::SPACE_BLOCK => SpaceBlock::cast(node).map(ChartItem::Space),
             SyntaxKind::DERIVE_DECL => DeriveDecl::cast(node).map(ChartItem::Derive),
+            SyntaxKind::LET_DECL => LetDecl::cast(node).map(ChartItem::Let),
             SyntaxKind::SCALE_DECL => Decl::cast(node).map(ChartItem::Scale),
             SyntaxKind::GUIDE_DECL => Decl::cast(node).map(ChartItem::Guide),
             SyntaxKind::THEME_DECL => Decl::cast(node).map(ChartItem::Theme),
@@ -134,6 +141,7 @@ impl SpaceBlock {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpaceItem {
     Geometry(GeometryCall),
+    Let(LetDecl),
     Scale(Decl),
     Guide(Decl),
     Theme(Decl),
@@ -144,6 +152,7 @@ impl SpaceItem {
     pub fn cast(node: SyntaxNode) -> Option<SpaceItem> {
         match node.kind() {
             SyntaxKind::GEOMETRY_CALL => GeometryCall::cast(node).map(SpaceItem::Geometry),
+            SyntaxKind::LET_DECL => LetDecl::cast(node).map(SpaceItem::Let),
             SyntaxKind::SCALE_DECL => Decl::cast(node).map(SpaceItem::Scale),
             SyntaxKind::GUIDE_DECL => Decl::cast(node).map(SpaceItem::Guide),
             SyntaxKind::THEME_DECL => Decl::cast(node).map(SpaceItem::Theme),
@@ -196,6 +205,36 @@ impl StatCall {
     /// The stat's keyword arguments.
     pub fn args(&self) -> Vec<Arg> {
         child_nodes(&self.syntax, Arg::cast)
+    }
+}
+
+// --- Let bindings ---------------------------------------------------------
+
+ast_node!(
+    /// A `let name = value` variable binding (spec §7.10, §11.14).
+    LetDecl = LET_DECL
+);
+
+impl LetDecl {
+    /// The bound variable name.
+    pub fn name(&self) -> Option<String> {
+        first_token(&self.syntax, SyntaxKind::IDENT).map(|t| t.text().to_string())
+    }
+
+    /// The span of the variable-name identifier token, excluding trivia.
+    pub fn name_span(&self) -> Option<Span> {
+        first_token(&self.syntax, SyntaxKind::IDENT).map(|t| {
+            let range = t.text_range();
+            Span::new(
+                u32::from(range.start()) as usize,
+                u32::from(range.end()) as usize,
+            )
+        })
+    }
+
+    /// The bound value expression.
+    pub fn value(&self) -> Option<ValueExpr> {
+        self.syntax.children().find_map(ValueExpr::cast)
     }
 }
 
@@ -283,6 +322,7 @@ pub enum ValueExpr {
     Literal(Literal),
     Stdin(StdinValue),
     Array(ArrayValue),
+    Call(CallValue),
     Error(Error),
 }
 
@@ -295,6 +335,7 @@ impl ValueExpr {
             SyntaxKind::LITERAL => Literal::cast(node).map(ValueExpr::Literal),
             SyntaxKind::STDIN_VALUE => StdinValue::cast(node).map(ValueExpr::Stdin),
             SyntaxKind::ARRAY_VALUE => ArrayValue::cast(node).map(ValueExpr::Array),
+            SyntaxKind::CALL_VALUE => CallValue::cast(node).map(ValueExpr::Call),
             SyntaxKind::ERROR => Error::cast(node).map(ValueExpr::Error),
             _ => None,
         }
@@ -306,6 +347,7 @@ impl ValueExpr {
             ValueExpr::Literal(it) => it.syntax(),
             ValueExpr::Stdin(it) => it.syntax(),
             ValueExpr::Array(it) => it.syntax(),
+            ValueExpr::Call(it) => it.syntax(),
             ValueExpr::Error(it) => it.syntax(),
         }
     }
@@ -375,6 +417,23 @@ impl ArrayValue {
     /// The array elements.
     pub fn values(&self) -> Vec<ValueExpr> {
         child_nodes(&self.syntax, ValueExpr::cast)
+    }
+}
+
+ast_node!(
+    /// A nested call value such as `Text(size: 12)` (spec §7.8, §20.8).
+    CallValue = CALL_VALUE
+);
+
+impl CallValue {
+    /// The call name (e.g. `Text`).
+    pub fn name(&self) -> Option<String> {
+        first_token(&self.syntax, SyntaxKind::IDENT).map(|t| t.text().to_string())
+    }
+
+    /// The call's arguments.
+    pub fn args(&self) -> Vec<Arg> {
+        child_nodes(&self.syntax, Arg::cast)
     }
 }
 

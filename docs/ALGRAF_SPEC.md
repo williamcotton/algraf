@@ -754,11 +754,19 @@ The following identifiers are reserved in version 0.1:
 
 `Layout`
 
+`let`
+
 `true`
 
 `false`
 
 `null`
+
+`let` is a contextual keyword that introduces a variable binding (spec §7.10,
+§9.6). It is reserved at the start of a chart-body or space-body item; the lexer
+emits it as an identifier and the parser retags it as a keyword in that position.
+`let` MUST NOT be used as a plain column identifier; a column literally named
+`let` MUST be referenced with backticks.
 
 `stdin` is a contextual keyword only in `Chart(data: stdin)`.
 
@@ -933,16 +941,31 @@ It is intentionally simple enough for recursive descent plus Pratt expression pa
 ### 7.1 Program
 
 ```ebnf
-Program        ::= Trivia* ChartBlock Trivia* EOF
+Program        ::= Trivia* ChartBlock (Trivia* ChartBlock)* Trivia* EOF
 ```
 
 `Trivia` means whitespace and comments retained by the lexer/CST layer.
 
 Trivia is not represented as typed AST children.
 
-A source file MUST contain exactly one chart block in version 0.1.
+A source file MUST contain at least one chart block.
 
-If extra top-level tokens appear after `ChartBlock`, the parser MUST emit diagnostics and recover.
+A source file MAY contain more than one top-level chart block. Each chart is a
+complete, independent chart: it has its own data source, scales, guides, theme,
+and layout, and renders separately. Charts do not share layout or a viewport;
+multiple charts are distinct from multiple `Space` blocks within one chart
+(spec §17.5).
+
+When multiple charts are present, the CLI `render` command writes one output per
+chart. With a single chart the `--output` path is used verbatim; with multiple
+charts a 1-based `-{n}` suffix is inserted before the extension (so
+`--output out.svg` produces `out-1.svg`, `out-2.svg`, …). Rendering a
+multi-chart document to stdout (no `--output`) is a usage error, since several
+SVG documents cannot be concatenated into one. Each chart resolves its own
+`data` source; sharing the `stdin` data sentinel across charts is a usage error.
+
+If extra top-level tokens appear between or after chart blocks, the parser MUST
+emit diagnostics and recover.
 
 ### 7.2 Chart Block
 
@@ -952,6 +975,7 @@ ChartArgs      ::= Arg ("," Arg)* ","?
 ChartBody      ::= ChartItem*
 ChartItem      ::= SpaceBlock
                  | DeriveDecl
+                 | LetDecl
                  | ScaleDecl
                  | GuideDecl
                  | ThemeDecl
@@ -993,6 +1017,7 @@ SpaceBlock     ::= "Space" "(" Algebra SpaceArgs? ")" BlockStart SpaceBody Block
 SpaceArgs      ::= "," Arg ("," Arg)* ","?
 SpaceBody      ::= SpaceItem*
 SpaceItem      ::= GeometryCall
+                 | LetDecl
                  | ScaleDecl
                  | GuideDecl
                  | ThemeDecl
@@ -1075,7 +1100,13 @@ Value          ::= Algebra
                  | Literal
                  | StdinSentinel
                  | Array
+                 | CallValue
+CallValue      ::= Ident "(" ArgList? ")"
 ```
+
+A `CallValue` is a nested `Name(args)` value. It is used by custom theme
+overrides (spec §20.8), e.g. `axisText: Text(size: 12)`. Semantic analysis
+decides which properties accept a call value; most geometry properties do not.
 
 This grammar admits algebra expressions as property values.
 
@@ -1200,6 +1231,43 @@ known block keywords
 known geometry identifiers if inside a space
 
 EOF
+
+### 7.10 Let Binding
+
+```ebnf
+LetDecl        ::= "let" Ident "=" Value
+```
+
+A `let` declaration binds a name to a constant value. It is valid as a chart-body
+item and as a space-body item.
+
+`let` MUST be followed by an identifier name, then `=`, then a `Value`.
+
+The bound value MUST be a constant: a string, number, boolean, null literal, or
+an array of those (spec §7.8). Column mappings, algebra expressions, the `stdin`
+sentinel, and references to other variables MUST produce diagnostic `E1701`.
+Version 0.1 of variables intentionally excludes user-defined functions and
+column shadowing; the first cut is constant values only.
+
+The bound name lives in a variable namespace separate from columns and derived
+tables (spec §9.6). A variable name MUST be unique within its scope; a second
+binding of the same name in the same scope MUST produce diagnostic `E1702`.
+
+A `Value` parser error after `=` follows the usual value recovery (spec §12.13);
+a missing `=` MUST produce diagnostic `E0021`.
+
+Example:
+
+```ag
+Chart(data: "penguins.csv") {
+    let primary = "#3366cc"
+    let dim_alpha = 0.4
+
+    Space(flipper_length * body_mass) {
+        Point(fill: primary, alpha: dim_alpha)
+    }
+}
+```
 
 ## 8. Algebra Semantics
 
@@ -1625,15 +1693,38 @@ Geometries MAY inherit aesthetic defaults from theme.
 
 ### 9.6 Shadowing
 
-Version 0.1 does not have user variables.
+A `let` declaration introduces a variable in a namespace separate from columns
+and derived tables (spec §7.10). Variables hold constant values only.
 
-There is no user-defined shadowing in version 0.1.
+Variables are resolved up front per scope, so a `let` MAY be referenced
+regardless of its position within the same block.
 
-Future versions with variables MUST define shadowing explicitly.
+Scopes:
+
+- A chart-scope `let` (a chart-body item) is visible in every space of the
+  chart.
+- A space-scope `let` (a space-body item) is visible only within that space and
+  MUST NOT leak into sibling spaces.
+
+A space-scope `let` MUST shadow a chart-scope `let` of the same name for the
+duration of that space.
+
+Variable resolution applies only in property value positions. A bare,
+unquoted identifier in a property value position MUST resolve to an in-scope
+variable when one exists with that name, taking precedence over a column of the
+same name; otherwise it resolves as a column reference (spec §9.4). A
+backtick-quoted identifier is always a column reference and is never resolved as
+a variable.
+
+Variables MUST NOT be resolved inside algebra (`Space(...)` frames and stat
+inputs); identifiers there are always columns.
+
+After resolution, a variable's value is type-checked against the property's
+accepted forms (spec §13.9); a mismatch produces `E1204` at the use site.
 
 Column names SHOULD NOT shadow keywords inside grammar positions.
 
-Quoted identifiers MUST be used to reference keyword-like column names in version 0.1.
+Quoted identifiers MUST be used to reference keyword-like column names.
 
 ## 10. Data Sources
 
@@ -2956,6 +3047,11 @@ Examples:
 
 `Smooth.method` accepts string literal `"lm"`. The registry currently accepts
 only `"lm"`; `"loess"` is reserved and deferred (see §14.10 and §15.7).
+
+Before a property value is checked against its accepted forms, an unquoted
+bare-identifier value MUST be resolved against in-scope `let` variables (spec
+§9.6). When the identifier names a variable, the bound constant is substituted
+and checked in its place; the type rules above then apply to the constant.
 
 ### 13.10 Duplicate Argument Diagnostics
 
@@ -4765,6 +4861,11 @@ Incompatible spaces MAY require separate panels or produce diagnostics.
 
 Version 0.1 SHOULD allow overlays when x and y domains are compatible.
 
+Multiple `Space` blocks are distinct from multiple `Chart` blocks (spec §7.1).
+Spaces within one chart may overlay in a shared plot area and share position
+scales, guides, theme, and layout. Separate charts share none of these and
+render to separate outputs.
+
 ### 17.6 Layer Order
 
 Rendering order follows source order.
@@ -5163,25 +5264,28 @@ Continuous (gradient) legends are not merged in version 0.2.0.
 
 ### 20.1 Theme Object
 
-Recommended theme structure:
+The render theme structure (colors are stored as SVG color strings):
 
 ```rust
 pub struct Theme {
+    pub name: &'static str,
     pub font_family: String,
     pub font_size: f64,
-    pub background: Color,
-    pub plot_background: Color,
-    pub axis_color: Color,
-    pub grid_major_color: Color,
-    pub grid_minor_color: Option<Color>,
-    pub text_color: Color,
+    pub background: String,
+    pub plot_background: String,
+    pub axis_color: String,
+    pub grid_major_color: String,
+    pub grid_major_width: f64,
+    pub text_color: String,
     pub title_size: f64,
-    pub subtitle_size: f64,
-    pub caption_size: f64,
     pub point_size: f64,
     pub line_width: f64,
+    pub grid: bool,
+    pub axes: bool,
 }
 ```
+
+These fields are the override targets for custom themes (spec §20.8).
 
 ### 20.2 Minimal Theme
 
@@ -5275,19 +5379,45 @@ Chart(data: "penguins.csv") {
 
 ### 20.8 Custom Theme
 
-Custom theme syntax is deferred.
+`Theme(...)` MAY carry override properties in addition to (or instead of) the
+named base `name`. Overrides are layered on top of the named base theme (or, when
+no `name` is given, on top of the inherited base) to produce the resolved theme
+(spec §20.1). A space-local `Theme(...)` resolves the same way, inheriting the
+chart base when it omits `name` (spec §7.3).
 
-Future syntax MAY be:
+Example:
 
 ```ag
 Theme(
     name: "minimal",
     axisText: Text(size: 12, fill: "#333333"),
-    gridMajor: Line(stroke: "#dddddd", strokeWidth: 1)
+    gridMajor: Line(stroke: "#dddddd", strokeWidth: 1),
+    plotBackground: "#fafafa"
 )
 ```
 
-This is not version 0.1.
+Two grouped, geometry-style overrides reuse existing property value forms:
+
+- `axisText: Text(size?, fill?)` — `size` sets `font_size`; `fill` sets
+  `text_color`.
+- `gridMajor: Line(stroke?, strokeWidth?)` — `stroke` sets `grid_major_color`;
+  `strokeWidth` sets `grid_major_width`.
+
+The remaining overrides are direct scalar values mapping to the theme fields
+(spec §20.1):
+
+- color strings: `background`, `plotBackground`, `axisColor`, `gridColor`,
+  `textColor`
+- numbers: `fontSize`, `titleSize`, `pointSize`, `lineWidth`
+- string: `fontFamily`
+- booleans: `grid`, `axes`
+
+Override values reuse the standard property value forms and MAY reference `let`
+variables (spec §9.6).
+
+An unknown override key MUST produce diagnostic `E1704`. An override value of the
+wrong type or shape (for example a non-`Line(...)` value for `gridMajor`, or a
+string for `fontSize`) MUST produce diagnostic `E1705`.
 
 ## 21. LSP Architecture
 
@@ -6459,6 +6589,8 @@ Chart(data: "examples/heatmap_data.csv") {
 
 `E0020 unterminated block comment`
 
+`E0021 expected '=' in let binding`
+
 ### 26.2 Semantic Diagnostics
 
 `E1001 Chart requires data argument`
@@ -6518,6 +6650,14 @@ Chart(data: "examples/heatmap_data.csv") {
 `E1405 temporal binning is not supported in this version`
 
 `E1501 cycle between derived table declarations`
+
+`E1701 let binding value must be a constant`
+
+`E1702 duplicate let binding`
+
+`E1704 unknown Theme property`
+
+`E1705 invalid Theme property value`
 
 `E1601 invalid gradient declaration`
 
@@ -7137,13 +7277,14 @@ Future optional Polars support must implement the same internal table abstractio
 ## 33. Appendix A: Complete EBNF Draft
 
 ```ebnf
-Program        ::= Trivia* ChartBlock Trivia* EOF
+Program        ::= Trivia* ChartBlock (Trivia* ChartBlock)* Trivia* EOF
 
 ChartBlock     ::= "Chart" "(" ChartArgs? ")" "{" ChartBody "}"
 ChartArgs      ::= Arg ("," Arg)* ","?
 ChartBody      ::= ChartItem*
 ChartItem      ::= SpaceBlock
                  | DeriveDecl
+                 | LetDecl
                  | ScaleDecl
                  | GuideDecl
                  | ThemeDecl
@@ -7154,6 +7295,7 @@ SpaceBlock     ::= "Space" "(" Algebra SpaceArgs? ")" "{" SpaceBody "}"
 SpaceArgs      ::= "," Arg ("," Arg)* ","?
 SpaceBody      ::= SpaceItem*
 SpaceItem      ::= GeometryCall
+                 | LetDecl
                  | ScaleDecl
                  | GuideDecl
                  | ThemeDecl
@@ -7163,6 +7305,8 @@ DeriveDecl     ::= "Derive" Ident "=" StatCall
 StatCall       ::= Ident "(" StatInput? StatArgs? ")"
 StatInput      ::= Algebra
 StatArgs       ::= "," Arg ("," Arg)* ","?
+
+LetDecl        ::= "let" Ident "=" Value
 
 GeometryCall   ::= Ident "(" ArgList? ")"
 ScaleDecl      ::= "Scale" "(" ArgList? ")"
@@ -7177,6 +7321,8 @@ Value          ::= Algebra
                  | Literal
                  | StdinSentinel
                  | Array
+                 | CallValue
+CallValue      ::= Ident "(" ArgList? ")"
 
 Array          ::= "[" ValueList? "]"
 ValueList      ::= Value ("," Value)* ","?

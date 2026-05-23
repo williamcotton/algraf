@@ -1,6 +1,7 @@
 # Algraf v0.5.0 Plan
 
-Status: Planned (not started)
+Status: Implemented (Must items + Multi-Chart Documents shipped; Reusable Style
+Fragments deferred)
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_4_PLAN.md`](V0_4_PLAN.md)
@@ -43,8 +44,12 @@ unchanged.
 
 ### 1. User Variables (Let Bindings)
 
-Status: Not started. Listed as "user variables / user-defined shadowing" under
-the standing deferred list.
+Status: Done. `let name = <constant>` is accepted at chart and space scope, with
+a `LET_KW`/`LET_DECL` syntax kind, formatter, semantic tokens, completion, and
+go-to-def/references/rename in the LSP. Variables resolve in property value
+positions (spec §9.6); diagnostics E1701 (non-constant value), E1702 (duplicate
+binding), E0021 (missing `=`), and E1204 (type mismatch at use site) are
+implemented. Example: `examples/variables.ag`.
 
 Introduce chart-scoped named values that can be referenced in property positions.
 
@@ -81,7 +86,12 @@ Acceptance criteria:
 
 ### 2. Custom Theme Objects
 
-Status: Not started. Spec §20.8 currently marks custom theme syntax as deferred.
+Status: Done. `Theme(...)` accepts override properties layered on a named base:
+grouped `axisText: Text(...)` and `gridMajor: Line(...)`, plus direct scalar
+keys. Overrides reuse the standard value forms (a new `CALL_VALUE` value node
+parses the grouped forms) and compose with `let`. Diagnostics E1704 (unknown
+theme property) and E1705 (invalid value) are implemented; spec §20.1/§20.8
+rewritten. Example: `examples/custom_theme.ag`.
 
 Promote source-level theme customization beyond named presets.
 
@@ -108,7 +118,18 @@ Acceptance criteria:
 
 ### 3. Spec, Version, and Example Hygiene
 
-Status: Not started; mirrors prior releases.
+Status: Done. Workspace and VS Code versions bumped to `0.5.0`; spec §6.5, §7.1,
+§7.8, §7.10, §9.6, §13.9, §17.5, §20.1, §20.8 and diagnostic codes E0021, E1701,
+E1702, E1704, E1705 made normative; README gained Variables, Custom themes, and
+Multiple charts sections; examples regenerated.
+
+Decision on the optional language version declaration `Algraf(version: "0.5")`
+(spec §30.1): **deferred.** v0.5.0 already introduces real new syntax (`let`,
+custom theme overrides, multiple charts), and the `Program` grammar now admits
+one-or-more chart blocks. Adding a distinct top-level `Algraf(...)` form is a
+further grammar change with its own scoping and tooling cost, and the spec
+already frames the version declaration as optional/future. It stays deferred to
+a later release rather than being bundled into this one.
 
 Acceptance criteria:
 
@@ -126,7 +147,13 @@ Acceptance criteria:
 
 ### Multi-Chart Documents
 
-Status: Not started. Listed under the standing deferred list.
+Status: Done. The `Program` grammar now admits one-or-more chart blocks (spec
+§7.1); `Root::charts()` exposes them and `analyze_chart` analyzes each against
+its own data source. CLI `render` writes one output per chart, using the
+`--output` path verbatim for a single chart and inserting a 1-based `-{n}`
+suffix before the extension for multiple charts; rendering multiple charts to
+stdout is a usage error. `check` validates every chart. Spec §17.5 now
+distinguishes multiple spaces from multiple charts.
 
 Allow more than one top-level `Chart` block in a single document, each rendered
 independently (no shared layout). This is a large layout/CLI-output change (one
@@ -141,7 +168,15 @@ Acceptance criteria (if implemented):
 
 ### Reusable Style Fragments
 
-Status: Not started.
+Status: Deferred. The v0.5 variable model binds *constant scalar/array values*
+substituted into a single property value position. A reusable property *set*
+applied across multiple keys does not generalize cleanly from that: it needs a
+new property-bag value kind plus a spread/apply syntax inside geometry calls
+(e.g. a positional fragment argument), which is a separate language-design step
+beyond the constant-value first cut this release committed to. Per the Should
+framing ("only pursue if the variable model generalizes cleanly"), it is
+deferred rather than half-specified. The new `CALL_VALUE` node added for custom
+themes is a plausible foundation for a future `Style(...)` fragment.
 
 Consider letting a `let` binding hold a reusable property set applied to multiple
 geometries. Strictly additive on top of Must item 1; only pursue if the variable
@@ -215,8 +250,9 @@ Carried forward and unchanged unless a later planning decision moves them:
 
 ### Consider If Capacity Allows (Should)
 
-- Multi-chart documents.
-- Reusable style fragments built on `let`.
+- Multi-chart documents. **Shipped.**
+- Reusable style fragments built on `let`. **Deferred** (does not generalize
+  cleanly from the constant-value model; see the Should section above).
 
 ### Keep Deferred
 

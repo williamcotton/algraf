@@ -11,7 +11,7 @@ use algraf_core::{Diagnostic, Severity, Span};
 use algraf_data::{ColumnDef, DataType};
 use algraf_syntax::ast::{
     AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, Arg, ChartBlock, ChartItem, Decl,
-    DeriveDecl, GeometryCall, LiteralKind, Root, SpaceBlock, SpaceItem, ValueExpr,
+    DeriveDecl, GeometryCall, LetDecl, LiteralKind, Root, SpaceBlock, SpaceItem, ValueExpr,
 };
 use algraf_syntax::{parse, SyntaxKind, SyntaxNode};
 
@@ -27,11 +27,26 @@ pub struct Analysis {
 }
 
 /// Analyze a parsed tree against a primary data schema (spec §13.17).
+///
+/// This analyzes the document's first chart block. Multi-chart documents
+/// (spec §7.1) resolve each chart against its own data source, so the caller
+/// (the CLI) drives per-chart analysis with [`analyze_chart`].
 pub fn analyze(root: &SyntaxNode, primary_schema: &[ColumnDef]) -> Analysis {
     let mut analyzer = Analyzer::new(primary_schema);
     let ir = Root::cast(root.clone())
         .and_then(|r| r.chart())
         .and_then(|chart| analyzer.chart(&chart));
+    Analysis {
+        ir,
+        diagnostics: analyzer.diagnostics,
+    }
+}
+
+/// Analyze a single chart block against its primary data schema (spec §7.1).
+/// Used to analyze each chart of a multi-chart document independently.
+pub fn analyze_chart(chart: &ChartBlock, primary_schema: &[ColumnDef]) -> Analysis {
+    let mut analyzer = Analyzer::new(primary_schema);
+    let ir = analyzer.chart(chart);
     Analysis {
         ir,
         diagnostics: analyzer.diagnostics,
@@ -65,6 +80,24 @@ const CHART_ARGS: &[&str] = &[
     "marginLeft",
 ];
 const THEME_NAMES: &[&str] = &["minimal", "classic", "light", "dark", "void"];
+/// Recognized `Theme(...)` override keys (spec §20.8); used for diagnostics and
+/// did-you-mean suggestions.
+const THEME_OVERRIDE_KEYS: &[&str] = &[
+    "axisText",
+    "gridMajor",
+    "fontFamily",
+    "fontSize",
+    "titleSize",
+    "pointSize",
+    "lineWidth",
+    "background",
+    "plotBackground",
+    "axisColor",
+    "gridColor",
+    "textColor",
+    "grid",
+    "axes",
+];
 const PALETTE_NAMES: &[&str] = &["default", "accent"];
 
 /// Parsed `Chart(...)` header arguments (spec §13.17 phase 2).
@@ -124,10 +157,47 @@ impl ActiveTable {
     }
 }
 
+/// A resolved constant value bound by a `let` declaration (spec §9.6).
+#[derive(Clone)]
+struct LetVar {
+    value: ConstValue,
+}
+
+/// The constant value forms a `let` binding may hold (spec §7.10).
+#[derive(Clone)]
+enum ConstValue {
+    Number(f64),
+    Str(String),
+    Bool(bool),
+    Null,
+    NumberArray(Vec<f64>),
+    StringArray(Vec<String>),
+}
+
+impl ConstValue {
+    /// Re-express the bound constant as a property [`ValueForm`] for type
+    /// checking at the use site (spec §13.9).
+    fn to_form(&self) -> ValueForm {
+        match self {
+            ConstValue::Number(n) => ValueForm::Number(*n),
+            ConstValue::Str(s) => ValueForm::Str(s.clone()),
+            ConstValue::Bool(b) => ValueForm::Bool(*b),
+            ConstValue::Null => ValueForm::Null,
+            ConstValue::NumberArray(v) => ValueForm::Array(Some(v.clone())),
+            ConstValue::StringArray(v) => ValueForm::StringArray(Some(v.clone())),
+        }
+    }
+}
+
 struct Analyzer<'a> {
     primary: &'a [ColumnDef],
     derived: HashMap<String, Vec<ColumnDefIr>>,
     reserved_derived_names: HashSet<String>,
+    /// Chart-scope `let` bindings, visible in every space (spec §9.6).
+    chart_vars: HashMap<String, LetVar>,
+    /// Space-scope `let` bindings for the space under analysis; these shadow
+    /// chart-scope bindings of the same name (spec §9.6).
+    space_vars: HashMap<String, LetVar>,
     synthetic_counter: usize,
     diagnostics: Vec<Diagnostic>,
 }
@@ -138,6 +208,8 @@ impl<'a> Analyzer<'a> {
             primary,
             derived: HashMap::new(),
             reserved_derived_names: HashSet::new(),
+            chart_vars: HashMap::new(),
+            space_vars: HashMap::new(),
             synthetic_counter: 0,
             diagnostics: Vec::new(),
         }
@@ -164,6 +236,18 @@ impl<'a> Analyzer<'a> {
         } = self.chart_args(chart);
         self.reserved_derived_names = chart_derived_names(chart);
 
+        // Collect chart-scope `let` bindings up front so they resolve regardless
+        // of declaration order within the chart body (spec §9.6).
+        let chart_lets: Vec<LetDecl> = chart
+            .items()
+            .into_iter()
+            .filter_map(|item| match item {
+                ChartItem::Let(decl) => Some(decl),
+                _ => None,
+            })
+            .collect();
+        self.chart_vars = self.collect_let_decls(&chart_lets);
+
         let mut derived_tables = self.resolve_chart_derives(chart);
         for ir in &derived_tables {
             self.derived
@@ -172,12 +256,13 @@ impl<'a> Analyzer<'a> {
         let mut layout = LayoutIr::default();
         let mut guides = GuideIr::default();
         let mut scales = Vec::new();
-        let mut theme: Option<String> = None;
+        let mut theme: Option<ThemeIr> = None;
         let mut spaces = Vec::new();
         let primary_table = ActiveTable::from_schema(self.primary);
         for item in chart.items() {
             match item {
                 ChartItem::Derive(_) => {}
+                ChartItem::Let(_) => {}
                 ChartItem::Space(s) => {
                     let analysis = self.space(&s);
                     for ir in analysis.derived {
@@ -194,8 +279,8 @@ impl<'a> Analyzer<'a> {
                     guides = guides.with_overrides(&overrides);
                 }
                 ChartItem::Theme(decl) => {
-                    if let Some(name) = self.theme_decl(&decl) {
-                        theme = Some(name);
+                    if let Some(t) = self.theme_decl(&decl) {
+                        theme = Some(t);
                     }
                 }
                 ChartItem::Scale(decl) => {
@@ -795,9 +880,10 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    fn theme_decl(&mut self, decl: &Decl) -> Option<String> {
+    fn theme_decl(&mut self, decl: &Decl) -> Option<ThemeIr> {
         let mut seen: HashMap<String, Span> = HashMap::new();
-        let mut name_out = None;
+        let mut theme = ThemeIr::default();
+        let mut saw_any = false;
         for arg in decl.args() {
             let Some(key) = arg.key() else { continue };
             let key_span = node_span(arg.syntax());
@@ -813,9 +899,10 @@ impl<'a> Analyzer<'a> {
                 continue;
             }
             seen.insert(key.clone(), key_span);
+            saw_any = true;
 
-            match key.as_str() {
-                "name" => match arg.value() {
+            if key == "name" {
+                match arg.value() {
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
                         let name = string_value(&lit.text().unwrap_or_default());
                         if !THEME_NAMES.contains(&name.as_str()) {
@@ -825,7 +912,7 @@ impl<'a> Analyzer<'a> {
                                 node_span(lit.syntax()),
                             ));
                         } else {
-                            name_out = Some(name);
+                            theme.base = Some(name);
                         }
                     }
                     Some(value) => self.diag(Diagnostic::error(
@@ -834,15 +921,220 @@ impl<'a> Analyzer<'a> {
                         node_span(value.syntax()),
                     )),
                     None => {}
-                },
-                _ => self.diag(Diagnostic::warning(
-                    "W2006",
-                    format!("unsupported Theme argument `{key}` ignored"),
-                    key_span,
-                )),
+                }
+            } else {
+                self.theme_override(&key, &arg, key_span, &mut theme.overrides);
             }
         }
-        name_out
+        saw_any.then_some(theme)
+    }
+
+    /// Apply one `Theme(...)` override argument to the override set (spec §20.8).
+    /// Unknown keys emit `E1704`; type/shape mismatches emit `E1705`.
+    fn theme_override(
+        &mut self,
+        key: &str,
+        arg: &Arg,
+        key_span: Span,
+        overrides: &mut ThemeOverrides,
+    ) {
+        let Some(value) = arg.value() else { return };
+        match key {
+            // Grouped, geometry-style overrides (spec §20.8).
+            "axisText" => {
+                if let Some(props) = self.theme_subcall(key, &value, "Text") {
+                    if let Some(v) = self.theme_number(&props, "size") {
+                        overrides.font_size = Some(v);
+                    }
+                    if let Some(v) = self.theme_color(&props, "fill") {
+                        overrides.text_color = Some(v);
+                    }
+                }
+            }
+            "gridMajor" => {
+                if let Some(props) = self.theme_subcall(key, &value, "Line") {
+                    if let Some(v) = self.theme_color(&props, "stroke") {
+                        overrides.grid_major_color = Some(v);
+                    }
+                    if let Some(v) = self.theme_number(&props, "strokeWidth") {
+                        overrides.grid_major_width = Some(v);
+                    }
+                }
+            }
+            // Direct scalar overrides.
+            "fontFamily" => overrides.font_family = self.theme_scalar_string(key, &value),
+            "fontSize" => overrides.font_size = self.theme_scalar_number(key, &value),
+            "titleSize" => overrides.title_size = self.theme_scalar_number(key, &value),
+            "pointSize" => overrides.point_size = self.theme_scalar_number(key, &value),
+            "lineWidth" => overrides.line_width = self.theme_scalar_number(key, &value),
+            "background" => overrides.background = self.theme_scalar_color(key, &value),
+            "plotBackground" => overrides.plot_background = self.theme_scalar_color(key, &value),
+            "axisColor" => overrides.axis_color = self.theme_scalar_color(key, &value),
+            "gridColor" => overrides.grid_major_color = self.theme_scalar_color(key, &value),
+            "textColor" => overrides.text_color = self.theme_scalar_color(key, &value),
+            "grid" => overrides.grid = self.theme_scalar_bool(key, &value),
+            "axes" => overrides.axes = self.theme_scalar_bool(key, &value),
+            _ => {
+                let mut diag =
+                    Diagnostic::error("E1704", format!("unknown Theme property `{key}`"), key_span);
+                if let Some(suggestion) = closest(key, THEME_OVERRIDE_KEYS.iter().copied()) {
+                    diag = diag.with_help(format!("did you mean `{suggestion}`?"));
+                }
+                self.diag(diag);
+            }
+        }
+    }
+
+    /// Resolve a grouped override value such as `Text(size: 12, fill: "#333")`
+    /// into its argument list, checking the expected call name.
+    fn theme_subcall(&mut self, key: &str, value: &ValueExpr, expected: &str) -> Option<Vec<Arg>> {
+        match value {
+            ValueExpr::Call(call) if call.name().as_deref() == Some(expected) => Some(call.args()),
+            other => {
+                self.diag(Diagnostic::error(
+                    "E1705",
+                    format!("`{key}` expects a `{expected}(...)` value"),
+                    node_span(other.syntax()),
+                ));
+                None
+            }
+        }
+    }
+
+    fn theme_number(&mut self, args: &[Arg], name: &str) -> Option<f64> {
+        let arg = args.iter().find(|a| a.key().as_deref() == Some(name))?;
+        self.theme_scalar_number(name, &arg.value()?)
+    }
+
+    fn theme_color(&mut self, args: &[Arg], name: &str) -> Option<String> {
+        let arg = args.iter().find(|a| a.key().as_deref() == Some(name))?;
+        self.theme_scalar_color(name, &arg.value()?)
+    }
+
+    fn theme_scalar_number(&mut self, key: &str, value: &ValueExpr) -> Option<f64> {
+        match self.substitute_var(ValueForm::of(value)) {
+            ValueForm::Number(n) => Some(n),
+            _ => {
+                self.theme_value_error(key, "a number", value);
+                None
+            }
+        }
+    }
+
+    fn theme_scalar_string(&mut self, key: &str, value: &ValueExpr) -> Option<String> {
+        match self.substitute_var(ValueForm::of(value)) {
+            ValueForm::Str(s) => Some(s),
+            _ => {
+                self.theme_value_error(key, "a string", value);
+                None
+            }
+        }
+    }
+
+    fn theme_scalar_color(&mut self, key: &str, value: &ValueExpr) -> Option<String> {
+        match self.substitute_var(ValueForm::of(value)) {
+            ValueForm::Str(s) => Some(s),
+            _ => {
+                self.theme_value_error(key, "a color string", value);
+                None
+            }
+        }
+    }
+
+    fn theme_scalar_bool(&mut self, key: &str, value: &ValueExpr) -> Option<bool> {
+        match self.substitute_var(ValueForm::of(value)) {
+            ValueForm::Bool(b) => Some(b),
+            _ => {
+                self.theme_value_error(key, "a boolean", value);
+                None
+            }
+        }
+    }
+
+    fn theme_value_error(&mut self, key: &str, expected: &str, value: &ValueExpr) {
+        self.diag(Diagnostic::error(
+            "E1705",
+            format!("`{key}` expects {expected}"),
+            node_span(value.syntax()),
+        ));
+    }
+
+    // --- Let bindings (spec §7.10, §9.6) ---
+
+    /// Evaluate a list of `let` declarations in one scope into a name→value map,
+    /// reporting duplicate bindings (E1702) and non-constant values (E1701).
+    fn collect_let_decls(&mut self, decls: &[LetDecl]) -> HashMap<String, LetVar> {
+        let mut vars: HashMap<String, LetVar> = HashMap::new();
+        let mut spans: HashMap<String, Span> = HashMap::new();
+        for decl in decls {
+            let Some(name) = decl.name() else { continue };
+            let name_span = decl.name_span().unwrap_or_else(|| node_span(decl.syntax()));
+            if let Some(&first) = spans.get(&name) {
+                self.diag(
+                    Diagnostic::error(
+                        "E1702",
+                        format!("duplicate `let` binding `{name}`"),
+                        name_span,
+                    )
+                    .with_related(first, "first bound here"),
+                );
+                continue;
+            }
+            spans.insert(name.clone(), name_span);
+            if let Some(value) = self.eval_let_value(decl) {
+                vars.insert(name, LetVar { value });
+            }
+        }
+        vars
+    }
+
+    /// Resolve a `let` binding's value to a constant, or emit E1701. Variables
+    /// hold constant values only in this version (spec §7.10): column mappings,
+    /// algebra, and references to other variables are rejected.
+    fn eval_let_value(&mut self, decl: &LetDecl) -> Option<ConstValue> {
+        let value = decl.value()?;
+        let span = node_span(value.syntax());
+        match ValueForm::of(&value) {
+            ValueForm::Number(n) => Some(ConstValue::Number(n)),
+            ValueForm::Str(s) => Some(ConstValue::Str(s)),
+            ValueForm::Bool(b) => Some(ConstValue::Bool(b)),
+            ValueForm::Null => Some(ConstValue::Null),
+            ValueForm::Array(Some(v)) => Some(ConstValue::NumberArray(v)),
+            ValueForm::StringArray(Some(v)) => Some(ConstValue::StringArray(v)),
+            _ => {
+                self.diag(
+                    Diagnostic::error(
+                        "E1701",
+                        "`let` binding value must be a constant literal or array",
+                        span,
+                    )
+                    .with_help(
+                        "variables hold constants such as \"#3366cc\", 0.4, true, or [1, 2]",
+                    ),
+                );
+                None
+            }
+        }
+    }
+
+    /// Substitute an in-scope `let` binding for a bare-identifier property
+    /// value. Space-scope bindings shadow chart-scope ones; quoted identifiers
+    /// are always column references and are never substituted (spec §9.6).
+    fn substitute_var(&self, form: ValueForm) -> ValueForm {
+        if let ValueForm::Column(name) = &form {
+            if !name.is_quoted() {
+                if let Some(var_name) = name.name() {
+                    if let Some(var) = self
+                        .space_vars
+                        .get(&var_name)
+                        .or_else(|| self.chart_vars.get(&var_name))
+                    {
+                        return var.value.to_form();
+                    }
+                }
+            }
+        }
+        form
     }
 
     // --- Derive (spec §13.4) ---
@@ -1352,6 +1644,18 @@ impl<'a> Analyzer<'a> {
         let span = node_span(space.syntax());
         let (data_ref, table) = self.space_data(space);
 
+        // Collect space-scope `let` bindings; these shadow chart-scope bindings
+        // of the same name for the duration of this space (spec §9.6).
+        let space_lets: Vec<LetDecl> = space
+            .items()
+            .into_iter()
+            .filter_map(|item| match item {
+                SpaceItem::Let(decl) => Some(decl),
+                _ => None,
+            })
+            .collect();
+        self.space_vars = self.collect_let_decls(&space_lets);
+
         let frame = match space.frame() {
             Some(expr) => {
                 let frame = self.build_frame(&expr, &table);
@@ -1369,7 +1673,7 @@ impl<'a> Analyzer<'a> {
         let mut bin2ds = Vec::new();
         let mut densities = Vec::new();
         let mut count_bars = Vec::new();
-        let mut theme: Option<String> = None;
+        let mut theme: Option<ThemeIr> = None;
         let mut guides = GuideOverridesIr::default();
         let mut scales = Vec::new();
         let mut saw_geometry = false;
@@ -1394,8 +1698,8 @@ impl<'a> Analyzer<'a> {
                     }
                 }
                 SpaceItem::Theme(decl) => {
-                    if let Some(name) = self.theme_decl(&decl) {
-                        theme = Some(name);
+                    if let Some(t) = self.theme_decl(&decl) {
+                        theme = Some(t);
                     }
                 }
                 SpaceItem::Scale(decl) => {
@@ -1404,6 +1708,7 @@ impl<'a> Analyzer<'a> {
                     }
                 }
                 SpaceItem::Guide(decl) => self.guide_decl(&decl, &mut guides),
+                SpaceItem::Let(_) => {}
                 SpaceItem::Error(_) => {}
             }
         }
@@ -1484,6 +1789,8 @@ impl<'a> Analyzer<'a> {
                 span,
             });
         }
+        // Space-scope bindings do not leak into sibling spaces (spec §9.6).
+        self.space_vars = HashMap::new();
         analysis
     }
 
@@ -1491,7 +1798,7 @@ impl<'a> Analyzer<'a> {
         &mut self,
         histogram: &GeometryIr,
         frame: &FrameIr,
-        theme: Option<String>,
+        theme: Option<ThemeIr>,
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
@@ -1574,7 +1881,7 @@ impl<'a> Analyzer<'a> {
         &mut self,
         freq_poly: &GeometryIr,
         frame: &FrameIr,
-        theme: Option<String>,
+        theme: Option<ThemeIr>,
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
@@ -1642,7 +1949,7 @@ impl<'a> Analyzer<'a> {
         &mut self,
         bin2d: &GeometryIr,
         frame: &FrameIr,
-        theme: Option<String>,
+        theme: Option<ThemeIr>,
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
@@ -1752,7 +2059,7 @@ impl<'a> Analyzer<'a> {
         &mut self,
         density: &GeometryIr,
         frame: &FrameIr,
-        theme: Option<String>,
+        theme: Option<ThemeIr>,
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
@@ -1873,7 +2180,7 @@ impl<'a> Analyzer<'a> {
         bar: &GeometryIr,
         frame: &FrameIr,
         data_ref: &SpaceDataRef,
-        theme: Option<String>,
+        theme: Option<ThemeIr>,
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
@@ -2374,7 +2681,9 @@ impl<'a> Analyzer<'a> {
         let Some(value) = arg.value() else {
             return PropOutcome::Invalid;
         };
-        let form = ValueForm::of(&value);
+        // Resolve `let` variables in property value positions before type
+        // checking, so a bound constant is checked as its value (spec §9.6).
+        let form = self.substitute_var(ValueForm::of(&value));
 
         // Color literals written as bare identifiers (e.g. `fill: red`) are a
         // common mistake. If this property accepts a color and the value is a
@@ -2508,6 +2817,9 @@ enum ValueForm {
     Array(Option<Vec<f64>>),
     StringArray(Option<Vec<String>>),
     Stdin,
+    /// A nested call value such as `Text(size: 12)` (spec §20.8); only valid in
+    /// theme override positions, handled directly there.
+    Call,
     Error,
 }
 
@@ -2551,6 +2863,7 @@ impl ValueForm {
                     ValueForm::Array(all_numeric.then_some(nums))
                 }
             }
+            ValueExpr::Call(_) => ValueForm::Call,
             ValueExpr::Error(_) => ValueForm::Error,
         }
     }
@@ -2565,6 +2878,7 @@ impl ValueForm {
             ValueForm::Null => "null",
             ValueForm::Array(_) | ValueForm::StringArray(_) => "an array",
             ValueForm::Stdin => "the stdin sentinel",
+            ValueForm::Call => "a nested call",
             ValueForm::Error => "an invalid value",
         }
     }

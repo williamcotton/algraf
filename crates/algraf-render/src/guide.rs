@@ -13,41 +13,32 @@ pub fn render_grid(w: &mut SvgWriter, space: &ScaledSpace, plot: Rect, theme: &T
         return;
     }
     w.open_group("class=\"algraf-grid\"");
+    let color = &theme.grid_major_color;
+    let width = theme.grid_major_width;
     if !space.x.is_band() {
         for (x, _) in space.x.ticks() {
-            w.line(&grid_line(
-                x,
-                plot.y,
-                x,
-                plot.bottom(),
-                &theme.grid_major_color,
-            ));
+            w.line(&grid_line(x, plot.y, x, plot.bottom(), color, width));
         }
     }
     if let Some(y) = &space.y {
         if !y.is_band() {
             for (yp, _) in y.ticks() {
-                w.line(&grid_line(
-                    plot.x,
-                    yp,
-                    plot.right(),
-                    yp,
-                    &theme.grid_major_color,
-                ));
+                w.line(&grid_line(plot.x, yp, plot.right(), yp, color, width));
             }
         }
     }
     w.close_group();
 }
 
-fn grid_line(x1: f64, y1: f64, x2: f64, y2: f64, color: &str) -> String {
+fn grid_line(x1: f64, y1: f64, x2: f64, y2: f64, color: &str, width: f64) -> String {
     format!(
-        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"1\" />",
+        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\" />",
         num(x1),
         num(y1),
         num(x2),
         num(y2),
         escape_attr(color),
+        num(width),
     )
 }
 
@@ -110,6 +101,7 @@ pub fn render_axes(
         plot.right(),
         plot.bottom(),
         &theme.axis_color,
+        1.0,
     ));
     for (x, label) in space.x.ticks() {
         w.line(&grid_line(
@@ -118,6 +110,7 @@ pub fn render_axes(
             x,
             plot.bottom() + 5.0,
             &theme.axis_color,
+            1.0,
         ));
         w.line(&text(
             x,
@@ -146,9 +139,17 @@ pub fn render_axes(
             plot.x,
             plot.bottom(),
             &theme.axis_color,
+            1.0,
         ));
         for (yp, label) in y.ticks() {
-            w.line(&grid_line(plot.x - 5.0, yp, plot.x, yp, &theme.axis_color));
+            w.line(&grid_line(
+                plot.x - 5.0,
+                yp,
+                plot.x,
+                yp,
+                &theme.axis_color,
+                1.0,
+            ));
             w.line(&text(plot.x - 8.0, yp + 4.0, "end", &label, theme));
         }
         let cy = plot.y + plot.height / 2.0;

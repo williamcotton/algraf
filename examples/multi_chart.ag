@@ -1,0 +1,15 @@
+// A single document with two independent charts. Each renders to its own file:
+// `render --output multi_chart.svg` writes multi_chart-1.svg and multi_chart-2.svg.
+
+Chart(data: "penguins.csv", width: 640, height: 400, title: "Observations") {
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.8)
+    }
+}
+
+Chart(data: "penguins.csv", width: 640, height: 400, title: "Linear fit") {
+    Space(flipper_length * body_mass) {
+        Point(alpha: 0.25)
+        Smooth(method: "lm")
+    }
+}

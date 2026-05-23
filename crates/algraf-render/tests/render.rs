@@ -870,3 +870,20 @@ fn test_histogram_bin_has_density_column() {
     // No direct API for derived tables on the result; the existence of the
     // density column is asserted in the analyzer test and stats unit test.
 }
+
+#[test]
+fn test_custom_theme_overrides_apply_to_svg() {
+    let source = "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\", gridMajor: Line(stroke: \"#dddddd\", strokeWidth: 2), plotBackground: \"#fafafa\")\n  Space(x * y) { Point() }\n}";
+    let csv = "x,y\n1,2\n2,3\n3,1\n";
+    let frame = read_csv_str(csv).expect("csv").frame;
+    let parsed = parse(source);
+    let analysis = analyze(&parsed.syntax(), frame.schema());
+    let ir = analysis.ir.expect("ir");
+    let theme = Theme::from_ir(ir.theme.as_ref().expect("theme"));
+    let svg = render(&ir, &frame, &theme, None).expect("render").svg;
+    assert!(svg.contains("#fafafa"), "custom plot background applied");
+    assert!(
+        svg.contains("stroke=\"#dddddd\" stroke-width=\"2\""),
+        "custom grid stroke and width applied"
+    );
+}

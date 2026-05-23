@@ -4,7 +4,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use algraf_data::{read_csv, read_csv_path, read_csv_schema, ColumnDef, LoadResult, Table};
-use algraf_syntax::ast::{LiteralKind, Root, ValueExpr};
+use algraf_syntax::ast::{ChartBlock, LiteralKind, Root, ValueExpr};
 use algraf_syntax::SyntaxNode;
 
 use crate::error::CliError;
@@ -59,11 +59,17 @@ pub fn read_source(arg: Option<&str>) -> Result<(String, SourceInput), CliError>
     }
 }
 
-/// Extract the chart's declared data source from the parsed tree (spec §10.1).
+/// Extract the first chart's declared data source from the parsed tree
+/// (spec §10.1).
 pub fn extract_data_source(root: &SyntaxNode) -> AstData {
     let Some(chart) = Root::cast(root.clone()).and_then(|r| r.chart()) else {
         return AstData::Missing;
     };
+    extract_chart_data_source(&chart)
+}
+
+/// Extract one chart block's declared data source (spec §10.1, §7.1).
+pub fn extract_chart_data_source(chart: &ChartBlock) -> AstData {
     for arg in chart.args() {
         if arg.key().as_deref() == Some("data") {
             return match arg.value() {

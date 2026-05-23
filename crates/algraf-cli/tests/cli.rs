@@ -298,3 +298,56 @@ fn read_png_info(bytes: &[u8]) -> (u32, u32, Option<png::PixelDimensions>) {
 fn pixels_per_meter(dpi: u32) -> u32 {
     (f64::from(dpi) / 0.0254).round() as u32
 }
+
+#[test]
+fn render_multi_chart_writes_one_file_per_chart() {
+    let dir = temp_dir("render-multi");
+    let data = dir.join("data.csv");
+    let chart = dir.join("chart.ag");
+    fs::write(&data, "x,y,group\n1,2,a\n3,4,b\n").unwrap();
+    fs::write(
+        &chart,
+        "Chart(data: \"data.csv\") {\n  Space(x * y) { Point() }\n}\nChart(data: \"data.csv\") {\n  Space(x * y) { Line() }\n}\n",
+    )
+    .unwrap();
+    let out = dir.join("out.svg");
+
+    let output = Command::new(bin())
+        .arg("render")
+        .arg(&chart)
+        .arg("--output")
+        .arg(&out)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(dir.join("out-1.svg").exists(), "first chart output");
+    assert!(dir.join("out-2.svg").exists(), "second chart output");
+    assert!(!out.exists(), "no verbatim file when multiple charts");
+}
+
+#[test]
+fn render_multi_chart_to_stdout_is_a_usage_error() {
+    let dir = temp_dir("render-multi-stdout");
+    let data = dir.join("data.csv");
+    let chart = dir.join("chart.ag");
+    fs::write(&data, "x,y\n1,2\n3,4\n").unwrap();
+    fs::write(
+        &chart,
+        "Chart(data: \"data.csv\") {\n  Space(x * y) { Point() }\n}\nChart(data: \"data.csv\") {\n  Space(x * y) { Line() }\n}\n",
+    )
+    .unwrap();
+
+    let output = Command::new(bin())
+        .arg("render")
+        .arg(&chart)
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains("2 charts"),
+        "stderr: {}",
+        stderr(&output)
+    );
+}

@@ -307,3 +307,47 @@ fn test_invalid_geometry_body() {
         .iter()
         .any(|i| matches!(i, SpaceItem::Geometry(_))));
 }
+
+#[test]
+fn test_let_binding_parses_at_chart_and_space_scope() {
+    let source = r##"Chart(data: "p.csv") {
+    let primary = "#3366cc"
+    Space(flipper_length * body_mass) {
+        let dim = 0.4
+        Point(fill: primary, alpha: dim)
+    }
+}"##;
+    no_errors(source);
+    use algraf_syntax::ast::LetDecl;
+    let chart = root(source).chart().unwrap();
+    let items = chart.items();
+    let ChartItem::Let(binding) = &items[0] else {
+        panic!("expected a let binding, got {items:?}");
+    };
+    assert_eq!(binding.name().as_deref(), Some("primary"));
+    let _: &LetDecl = binding;
+    let ChartItem::Space(space) = &items[1] else {
+        panic!("expected a space block");
+    };
+    let SpaceItem::Let(space_let) = &space.items()[0] else {
+        panic!("expected a space-scope let binding");
+    };
+    assert_eq!(space_let.name().as_deref(), Some("dim"));
+    assert!(
+        matches!(space_let.value(), Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Number))
+    );
+}
+
+#[test]
+fn test_let_missing_equals_recovers() {
+    let parsed = parse("Chart(data: \"p.csv\") {\n  let x 5\n  Space(a) { Point() }\n}");
+    assert!(parsed.diagnostics().iter().any(|d| d.code == "E0021"));
+}
+
+#[test]
+fn test_multiple_chart_blocks_parse() {
+    let source = "Chart(data: \"a.csv\") {\n    Space(x * y) { Point() }\n}\nChart(data: \"b.csv\") {\n    Space(x * y) { Line() }\n}";
+    no_errors(source);
+    let charts = Root::cast(parse(source).syntax()).unwrap().charts();
+    assert_eq!(charts.len(), 2);
+}

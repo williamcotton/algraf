@@ -54,6 +54,8 @@ charts=(
     faceted_violin_boxplot
     annotated_intervals
     binned_regression_chain
+    variables
+    custom_theme
 )
 
 cd "$repo_root"
@@ -63,3 +65,8 @@ for chart in "${charts[@]}"; do
     "$algraf" render "examples/$chart.ag" --output "examples/$chart.svg"
     "$algraf" render "examples/$chart.ag" --output "examples/$chart.png"
 done
+
+# Multi-chart documents render one file per chart, with a 1-based suffix
+# inserted before the extension (multi_chart-1.svg, multi_chart-2.svg, ...).
+"$algraf" render "examples/multi_chart.ag" --output "examples/multi_chart.svg"
+"$algraf" render "examples/multi_chart.ag" --output "examples/multi_chart.png"

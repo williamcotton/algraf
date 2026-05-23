@@ -158,7 +158,7 @@ impl Parser {
     fn at_chart_keyword(&self) -> bool {
         matches!(
             self.current_ident_text(),
-            Some("Chart" | "Space" | "Derive" | "Scale" | "Guide" | "Theme" | "Layout")
+            Some("Chart" | "Space" | "Derive" | "Scale" | "Guide" | "Theme" | "Layout" | "let")
         )
     }
 
@@ -235,28 +235,46 @@ impl Parser {
 
     // --- Program / chart (spec §7.1, §12.7) ---
 
+    /// Whether the cursor begins a chart block, including a misspelled `Chart`
+    /// keyword followed by `(`.
+    fn at_chart_start(&self) -> bool {
+        self.at_kw("Chart")
+            || (self.at_misspelled_kw("Chart") && self.nth_kind(1) == SyntaxKind::L_PAREN)
+    }
+
     fn program(&mut self) {
-        if self.at_kw("Chart") {
-            self.chart_block();
-        } else if self.at_misspelled_kw("Chart") && self.nth_kind(1) == SyntaxKind::L_PAREN {
+        // A document holds one or more chart blocks (spec §7.1). The first
+        // block is required; later blocks render independently.
+        if !self.at_chart_start() {
             let span = self.current_span();
             self.error("E0001", "expected Chart block", span);
-            self.chart_block();
-        } else if self.at_eof() {
-            let span = self.current_span();
-            self.error("E0001", "expected Chart block", span);
-        } else {
+            if self.at_eof() {
+                return;
+            }
             // Search for the first `Chart`, reporting the skipped tokens.
-            let span = self.current_span();
-            self.error("E0001", "expected Chart block", span);
             self.builder.start_node(SyntaxKind::ERROR.into());
             while !self.at_eof() && !self.at_kw("Chart") {
                 let kind = SyntaxKind::from_token(&self.tokens[self.pos].kind);
                 self.push_raw(kind);
             }
             self.builder.finish_node();
-            if self.at_kw("Chart") {
-                self.chart_block();
+        }
+
+        // Parse every chart block in sequence.
+        loop {
+            self.eat_trivia();
+            if !self.at_chart_start() {
+                break;
+            }
+            // A misspelled keyword still parses as a chart but is flagged.
+            if !self.at_kw("Chart") {
+                let span = self.current_span();
+                self.error("E0001", "expected Chart block", span);
+            }
+            let before = self.pos;
+            self.chart_block();
+            if self.pos == before {
+                break;
             }
         }
 
@@ -290,6 +308,7 @@ impl Parser {
             match current.as_deref() {
                 Some("Space") => self.space_block(),
                 Some("Derive") => self.derive_decl(),
+                Some("let") => self.let_decl(),
                 Some("Scale") => self.decl(SyntaxKind::SCALE_DECL, SyntaxKind::SCALE_KW),
                 Some("Guide") => self.decl(SyntaxKind::GUIDE_DECL, SyntaxKind::GUIDE_KW),
                 Some("Theme") => self.decl(SyntaxKind::THEME_DECL, SyntaxKind::THEME_KW),
@@ -387,6 +406,7 @@ impl Parser {
             }
             let before = self.pos;
             match self.current_ident_text() {
+                Some("let") => self.let_decl(),
                 Some("Scale") => self.decl(SyntaxKind::SCALE_DECL, SyntaxKind::SCALE_KW),
                 Some("Guide") => self.decl(SyntaxKind::GUIDE_DECL, SyntaxKind::GUIDE_KW),
                 Some("Theme") => self.decl(SyntaxKind::THEME_DECL, SyntaxKind::THEME_KW),
@@ -467,6 +487,21 @@ impl Parser {
             }
         }
         self.expect(SyntaxKind::R_PAREN, "E0006", "expected ')'");
+        self.builder.finish_node();
+    }
+
+    // --- Let bindings (spec §7.10, §12.9) ---
+
+    fn let_decl(&mut self) {
+        self.builder.start_node(SyntaxKind::LET_DECL.into());
+        self.bump_as(SyntaxKind::LET_KW);
+        self.expect(
+            SyntaxKind::IDENT,
+            "E0010",
+            "expected variable name after `let`",
+        );
+        self.expect(SyntaxKind::EQ, "E0021", "expected '=' in let binding");
+        self.value();
         self.builder.finish_node();
     }
 
@@ -578,6 +613,9 @@ impl Parser {
                 self.bump_as(SyntaxKind::STDIN_KW);
                 self.builder.finish_node();
             }
+            // A bare identifier immediately followed by `(` is a nested call
+            // value, e.g. `axisText: Text(size: 12)` (spec §7.8, §20.8).
+            SyntaxKind::IDENT if self.nth_kind(1) == SyntaxKind::L_PAREN => self.call_value(),
             SyntaxKind::IDENT | SyntaxKind::QUOTED_IDENT | SyntaxKind::L_PAREN => {
                 self.algebra_expr(0);
             }
@@ -611,6 +649,16 @@ impl Parser {
                 | SyntaxKind::COMMA
                 | SyntaxKind::COLON
         )
+    }
+
+    /// Parse a nested call value `Name(args)` (spec §7.8, §20.8).
+    fn call_value(&mut self) {
+        self.builder.start_node(SyntaxKind::CALL_VALUE.into());
+        self.bump(); // call name
+        self.expect(SyntaxKind::L_PAREN, "E0002", "expected '(' after call name");
+        self.arg_list();
+        self.expect(SyntaxKind::R_PAREN, "E0006", "expected ')'");
+        self.builder.finish_node();
     }
 
     fn array_value(&mut self) {

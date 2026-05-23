@@ -16,6 +16,9 @@
       "include": "#numbers"
     },
     {
+      "include": "#let-bindings"
+    },
+    {
       "include": "#declarations"
     },
     {
@@ -91,11 +94,30 @@
         }
       ]
     },
+    "let-bindings": {
+      "patterns": [
+        {
+          "match": "\\b(let)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.let.algraf"
+            },
+            "2": {
+              "name": "variable.other.declaration.algraf"
+            }
+          }
+        }
+      ]
+    },
     "declarations": {
       "patterns": [
         {
           "name": "keyword.declaration.algraf",
           "match": "\\b(?:Chart|Space|Derive|Scale|Guide|Theme|Layout)\\b"
+        },
+        {
+          "name": "keyword.declaration.let.algraf",
+          "match": "\\blet\\b"
         }
       ]
     },

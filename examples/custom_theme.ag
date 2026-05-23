@@ -1,0 +1,15 @@
+Chart(data: "penguins.csv") {
+    let ink = "#333333"
+    let faint = "#dddddd"
+
+    Theme(
+        name: "minimal",
+        axisText: Text(size: 12, fill: ink),
+        gridMajor: Line(stroke: faint, strokeWidth: 1),
+        plotBackground: "#fafafa"
+    )
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.8)
+    }
+}

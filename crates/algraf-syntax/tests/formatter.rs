@@ -129,3 +129,20 @@ fn test_idempotent_on_spec_examples() {
         assert_eq!(once, twice, "not idempotent for: {source}");
     }
 }
+
+#[test]
+fn test_let_binding_is_formatted() {
+    let source = "Chart(data:\"p.csv\"){let primary=\"#3366cc\"\nlet dim=0.4\nSpace(a*b){let local=true\nPoint(fill:primary)}}";
+    let expected = "Chart(data: \"p.csv\") {\n    let primary = \"#3366cc\"\n    let dim = 0.4\n    Space(a * b) {\n        let local = true\n        Point(fill: primary)\n    }\n}\n";
+    assert_eq!(format(source), expected);
+}
+
+#[test]
+fn test_theme_nested_call_value_formats() {
+    let source = "Chart(data:\"p.csv\"){Theme(name:\"minimal\",axisText:Text(size:12,fill:\"#333\"))\nSpace(a*b){Point()}}";
+    let formatted = format(source);
+    assert!(
+        formatted.contains("axisText: Text(size: 12, fill: \"#333\")"),
+        "{formatted}"
+    );
+}

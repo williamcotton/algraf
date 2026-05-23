@@ -12,8 +12,8 @@
 use std::collections::HashMap;
 
 use crate::ast::{
-    AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, DeriveDecl, Root, SpaceBlock, SpaceItem,
-    StatCall, ValueExpr,
+    AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, DeriveDecl, LetDecl, Root, SpaceBlock,
+    SpaceItem, StatCall, ValueExpr,
 };
 use crate::parser::parse;
 use crate::syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken};
@@ -177,6 +177,7 @@ impl Printer {
         match item {
             ChartItem::Space(space) => self.space(space),
             ChartItem::Derive(derive) => self.derive(derive),
+            ChartItem::Let(decl) => self.let_binding(decl),
             ChartItem::Scale(decl)
             | ChartItem::Guide(decl)
             | ChartItem::Theme(decl)
@@ -210,6 +211,7 @@ impl Printer {
                 let name = call.name().unwrap_or_default();
                 self.call_item(call.syntax(), &name, &call.args());
             }
+            SpaceItem::Let(decl) => self.let_binding(decl),
             SpaceItem::Scale(decl) | SpaceItem::Guide(decl) | SpaceItem::Theme(decl) => {
                 self.decl(decl)
             }
@@ -231,6 +233,15 @@ impl Printer {
     fn decl(&mut self, decl: &Decl) {
         let keyword = decl.keyword().to_string();
         self.call_item(decl.syntax(), &keyword, &decl.args());
+    }
+
+    fn let_binding(&mut self, decl: &LetDecl) {
+        let node = decl.syntax();
+        self.emit_standalone(first_code(node));
+        let name = decl.name().unwrap_or_default();
+        let value = decl.value().map(|v| render_value(&v)).unwrap_or_default();
+        self.line(&format!("let {name} = {value}"));
+        self.append_trailing(last_code(node));
     }
 
     // --- Call rendering ---
@@ -322,6 +333,10 @@ fn render_value(value: &ValueExpr) -> String {
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("[{items}]")
+        }
+        ValueExpr::Call(call) => {
+            let name = call.name().unwrap_or_default();
+            format!("{name}({})", inline_args(&call.args()))
         }
         ValueExpr::Error(err) => err.syntax().text().to_string().trim().to_string(),
     }

@@ -1,0 +1,8 @@
+Chart(data: "penguins.csv") {
+    let primary = "#3366cc"
+    let dim_alpha = 0.4
+
+    Space(flipper_length * body_mass) {
+        Point(fill: primary, alpha: dim_alpha)
+    }
+}

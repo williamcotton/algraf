@@ -54,6 +54,7 @@ pub enum SyntaxKind {
     GUIDE_KW,
     THEME_KW,
     LAYOUT_KW,
+    LET_KW,
     STDIN_KW,
 
     // --- Synthetic tokens ---
@@ -89,6 +90,8 @@ pub enum SyntaxKind {
     THEME_DECL,
     /// A `Layout` declaration.
     LAYOUT_DECL,
+    /// A `let name = value` variable binding.
+    LET_DECL,
     /// A `key: value` argument.
     ARG,
     /// A literal value (string, number, boolean, or null).
@@ -97,6 +100,8 @@ pub enum SyntaxKind {
     STDIN_VALUE,
     /// An array value.
     ARRAY_VALUE,
+    /// A nested call value such as `Text(size: 12)` in a property position.
+    CALL_VALUE,
     /// A recovered error node.
     ERROR,
 

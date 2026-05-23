@@ -946,6 +946,94 @@ Chart(data: "timeseries.csv", width: 760, height: 420) {
 
 ---
 
+## Variables with `let`
+
+A `let` binding names a constant value so it can be reused across a chart
+instead of repeating the literal. Bindings are valid at chart scope (visible
+everywhere) and space scope (visible in that space, shadowing a chart binding of
+the same name). They resolve in property value positions; a bare identifier
+matching a binding wins over a column of the same name, while a backtick-quoted
+identifier is always a column.
+
+```algraf
+Chart(data: "penguins.csv") {
+    let primary = "#3366cc"
+    let dim_alpha = 0.4
+
+    Space(flipper_length * body_mass) {
+        Point(fill: primary, alpha: dim_alpha)
+    }
+}
+```
+
+![variables](examples/variables.svg)
+
+---
+
+## Custom themes
+
+`Theme` accepts override properties layered on top of a named base. Two grouped,
+geometry-style overrides — `axisText: Text(...)` and `gridMajor: Line(...)` —
+sit alongside direct scalar keys such as `plotBackground`, `axisColor`,
+`textColor`, `fontSize`, `lineWidth`, `grid`, and `axes`. Override values reuse
+the usual value forms and may reference `let` variables for shared colors.
+
+```algraf
+Chart(data: "penguins.csv") {
+    let ink = "#333333"
+    let faint = "#dddddd"
+
+    Theme(
+        name: "minimal",
+        axisText: Text(size: 12, fill: ink),
+        gridMajor: Line(stroke: faint, strokeWidth: 1),
+        plotBackground: "#fafafa"
+    )
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.8)
+    }
+}
+```
+
+![custom_theme](examples/custom_theme.svg)
+
+---
+
+## Multiple charts in one document
+
+A document may hold more than one top-level `Chart`. Each chart is fully
+independent — its own data source, scales, guides, theme, and layout — and
+renders to its own file. With multiple charts, `render` requires `--output` and
+writes one file per chart, inserting a 1-based suffix before the extension
+(`out.svg` → `out-1.svg`, `out-2.svg`):
+
+```algraf
+Chart(data: "penguins.csv", width: 640, height: 400, title: "Observations") {
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.8)
+    }
+}
+
+Chart(data: "penguins.csv", width: 640, height: 400, title: "Linear fit") {
+    Space(flipper_length * body_mass) {
+        Point(alpha: 0.25)
+        Smooth(method: "lm")
+    }
+}
+```
+
+```bash
+cargo run -p algraf-cli -- render examples/multi_chart.ag --output multi_chart.svg
+# writes multi_chart-1.svg and multi_chart-2.svg
+```
+
+![multi_chart-1](examples/multi_chart-1.svg)
+
+![multi_chart-2](examples/multi_chart-2.svg)
+
+---
+
 ## Running the examples yourself
 
 From the repository root:

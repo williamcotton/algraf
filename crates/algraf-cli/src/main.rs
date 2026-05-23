@@ -6,23 +6,25 @@ mod error;
 mod input;
 mod png;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use algraf_data::{ColumnDef, DataType, Table};
 use algraf_render::{render, Layout, Rect, Theme};
 use algraf_semantics::{
-    analyze, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
-    GeometryKind, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
+    analyze, analyze_chart, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr,
+    GeometryIr, GeometryKind, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
     SpaceDataRef, SpaceIr, StatKind,
 };
+use algraf_syntax::ast::{ChartBlock, Root};
 use algraf_syntax::{format, parse};
 use clap::{Args, Parser, Subcommand};
 use serde_json::{json, Value};
 
 use crate::error::CliError;
 use crate::input::{
-    extract_data_source, load_data, load_schema, read_source, AstData, SourceInput,
+    extract_chart_data_source, extract_data_source, load_data, load_schema, read_source, AstData,
+    SourceInput,
 };
 
 #[derive(Parser)]
@@ -181,14 +183,76 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
         );
         return Err(CliError::Diagnostics);
     }
+    // Document-level parse diagnostics (warnings, hints) print once.
+    if !parsed.diagnostics().is_empty() {
+        eprint!(
+            "{}",
+            diagnostics::render_human(&source, &label, parsed.diagnostics())
+        );
+    }
 
-    let ast_data = extract_data_source(&root);
+    // A document may contain more than one chart (spec §7.1); each renders
+    // independently against its own data source.
+    let charts = Root::cast(root).map(|r| r.charts()).unwrap_or_default();
+    if charts.is_empty() {
+        return Err(CliError::Usage(
+            "no Chart block to render; add Chart(data: \"file.csv\") { ... }".to_string(),
+        ));
+    }
+    let multi = charts.len() > 1;
+    if multi && args.output.is_none() {
+        return Err(CliError::Usage(format!(
+            "document has {} charts; pass --output to write one file per chart",
+            charts.len()
+        )));
+    }
+
+    // Render every chart before writing, so a failure leaves no partial output.
+    let mut svgs = Vec::with_capacity(charts.len());
+    for chart in &charts {
+        svgs.push(render_chart_svg(
+            chart, &args, &input, &source, &label, multi,
+        )?);
+    }
+
+    for (idx, svg) in svgs.into_iter().enumerate() {
+        match chart_output_path(args.output.as_deref(), idx, multi) {
+            Some(path) if is_png_path(&path) => {
+                let png_options =
+                    png::PngOptions::new(args.png_scale, args.png_dpi).map_err(CliError::Usage)?;
+                png::write_png(svg.as_bytes(), &path, png_options).map_err(|e| {
+                    CliError::Io(format!("failed to write PNG {}: {e}", path.display()))
+                })?;
+            }
+            Some(path) => std::fs::write(&path, svg)
+                .map_err(|e| CliError::Io(format!("failed to write {}: {e}", path.display())))?,
+            None => print!("{svg}"),
+        }
+    }
+    Ok(())
+}
+
+/// Resolve, analyze, and render one chart block to an SVG string (spec §7.1).
+fn render_chart_svg(
+    chart: &ChartBlock,
+    args: &RenderArgs,
+    input: &SourceInput,
+    source: &str,
+    label: &str,
+    multi: bool,
+) -> Result<String, CliError> {
+    let ast_data = extract_chart_data_source(chart);
+    if multi && matches!(ast_data, AstData::Stdin) {
+        return Err(CliError::Usage(
+            "stdin data cannot be shared across charts; give each chart a file path".to_string(),
+        ));
+    }
     let loaded = if matches!(ast_data, AstData::Missing) {
         None
     } else {
         Some(load_data(
             &ast_data,
-            &input,
+            input,
             args.base_dir.as_deref(),
             args.data.as_deref(),
         )?)
@@ -198,17 +262,14 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
         .map(|l| l.frame.schema())
         .unwrap_or(&[] as &[ColumnDef]);
 
-    let analysis = analyze(&root, schema);
-    let mut diags = parsed.diagnostics().to_vec();
-    diags.extend(analysis.diagnostics);
-
+    let analysis = analyze_chart(chart, schema);
+    let diags = analysis.diagnostics;
     if diagnostics::has_blocking(&diags, args.strict) {
-        eprint!("{}", diagnostics::render_human(&source, &label, &diags));
+        eprint!("{}", diagnostics::render_human(source, label, &diags));
         return Err(CliError::Diagnostics);
     }
-    // Non-blocking diagnostics (warnings, hints) still print to stderr.
     if !diags.is_empty() {
-        eprint!("{}", diagnostics::render_human(&source, &label, &diags));
+        eprint!("{}", diagnostics::render_human(source, label, &diags));
     }
 
     let loaded = loaded.ok_or_else(|| {
@@ -220,7 +281,6 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
     if args.strict && !loaded.warnings.is_empty() {
         return Err(CliError::Diagnostics);
     }
-
     let frame = loaded.frame;
 
     let mut ir = analysis
@@ -234,13 +294,13 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
     }
 
     // CLI --theme replaces the base theme (spec §22.3). The renderer still
-    // applies space-local theme overrides from the IR on top of this base.
-    let theme = args
-        .theme
-        .clone()
-        .or_else(|| ir.theme.clone())
-        .map(|name| Theme::by_name(&name))
-        .unwrap_or_default();
+    // applies space-local theme overrides from the IR on top of this base. A
+    // source-level `Theme(...)` may carry override values, resolved here.
+    let theme = match (&args.theme, &ir.theme) {
+        (Some(name), _) => Theme::by_name(name),
+        (None, Some(theme_ir)) => Theme::from_ir(theme_ir),
+        (None, None) => Theme::default(),
+    };
     let cli_theme_override = args.theme.clone();
 
     let mut result = render(&ir, &frame, &theme, cli_theme_override.as_deref())
@@ -248,7 +308,7 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
     if !result.diagnostics.is_empty() {
         eprint!(
             "{}",
-            diagnostics::render_human(&source, &label, &result.diagnostics)
+            diagnostics::render_human(source, label, &result.diagnostics)
         );
     }
     if diagnostics::has_blocking(&result.diagnostics, args.strict) {
@@ -267,19 +327,21 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
             args.emit_metadata,
         );
     }
+    Ok(result.svg)
+}
 
-    match args.output {
-        Some(path) if is_png_path(&path) => {
-            let png_options =
-                png::PngOptions::new(args.png_scale, args.png_dpi).map_err(CliError::Usage)?;
-            png::write_png(result.svg.as_bytes(), &path, png_options)
-                .map_err(|e| CliError::Io(format!("failed to write PNG {}: {e}", path.display())))?
-        }
-        Some(path) => std::fs::write(&path, result.svg)
-            .map_err(|e| CliError::Io(format!("failed to write {}: {e}", path.display())))?,
-        None => print!("{}", result.svg),
+/// Output path for chart `idx` (0-based). With a single chart the `--output`
+/// path is used verbatim; with multiple charts a 1-based `-{n}` suffix is
+/// inserted before the extension (`out.svg` -> `out-1.svg`, `out-2.svg`).
+fn chart_output_path(base: Option<&Path>, idx: usize, multi: bool) -> Option<PathBuf> {
+    let base = base?;
+    if !multi {
+        return Some(base.to_path_buf());
     }
-    Ok(())
+    let n = idx + 1;
+    let stem = base.file_stem().and_then(|s| s.to_str()).unwrap_or("chart");
+    let ext = base.extension().and_then(|s| s.to_str()).unwrap_or("svg");
+    Some(base.with_file_name(format!("{stem}-{n}.{ext}")))
 }
 
 fn is_png_path(path: &std::path::Path) -> bool {
@@ -309,25 +371,39 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
         return Err(CliError::Diagnostics);
     }
 
-    let ast_data = extract_data_source(&root);
-    let loaded = if matches!(ast_data, AstData::Missing) {
-        None
-    } else {
-        Some(load_data(
-            &ast_data,
-            &input,
-            args.base_dir.as_deref(),
-            args.data.as_deref(),
-        )?)
-    };
-    let schema = loaded
-        .as_ref()
-        .map(|l| l.frame.schema())
-        .unwrap_or(&[] as &[ColumnDef]);
-
-    let analysis = analyze(&root, schema);
+    // Validate every chart in the document independently (spec §7.1).
+    let charts = Root::cast(root).map(|r| r.charts()).unwrap_or_default();
     let mut diags = parsed.diagnostics().to_vec();
-    diags.extend(analysis.diagnostics);
+    let mut data_warning = false;
+    for chart in &charts {
+        let ast_data = extract_chart_data_source(chart);
+        let loaded = if matches!(ast_data, AstData::Missing) {
+            None
+        } else {
+            Some(load_data(
+                &ast_data,
+                &input,
+                args.base_dir.as_deref(),
+                args.data.as_deref(),
+            )?)
+        };
+        let schema = loaded
+            .as_ref()
+            .map(|l| l.frame.schema())
+            .unwrap_or(&[] as &[ColumnDef]);
+        let analysis = analyze_chart(chart, schema);
+        diags.extend(analysis.diagnostics);
+        if let Some(loaded) = &loaded {
+            if !loaded.warnings.is_empty() {
+                data_warning = true;
+                if !args.json {
+                    for warning in &loaded.warnings {
+                        eprintln!("warning: {}", warning.message);
+                    }
+                }
+            }
+        }
+    }
 
     if args.json {
         println!("{}", diagnostics::render_json(&source, &label, &diags));
@@ -336,19 +412,8 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
     } else {
         eprint!("{}", diagnostics::render_human(&source, &label, &diags));
     }
-    if !args.json {
-        if let Some(loaded) = &loaded {
-            for warning in &loaded.warnings {
-                eprintln!("warning: {}", warning.message);
-            }
-        }
-    }
 
-    let data_warnings_block = args.strict
-        && loaded
-            .as_ref()
-            .is_some_and(|loaded| !loaded.warnings.is_empty());
-    if diagnostics::has_blocking(&diags, args.strict) || data_warnings_block {
+    if diagnostics::has_blocking(&diags, args.strict) || (args.strict && data_warning) {
         Err(CliError::Diagnostics)
     } else {
         Ok(())

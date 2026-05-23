@@ -1,5 +1,7 @@
 //! Themes and color palettes (spec §16.8–16.9, §20).
 
+use algraf_semantics::{ThemeIr, ThemeOverrides};
+
 /// A visual theme (spec §20.1). Colors are stored as SVG color strings.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Theme {
@@ -10,6 +12,8 @@ pub struct Theme {
     pub plot_background: String,
     pub axis_color: String,
     pub grid_major_color: String,
+    /// Stroke width of major grid lines in pixels (spec §20.1).
+    pub grid_major_width: f64,
     pub text_color: String,
     pub title_size: f64,
     pub point_size: f64,
@@ -47,6 +51,7 @@ impl Theme {
             plot_background: "#ffffff".to_string(),
             axis_color: "#333333".to_string(),
             grid_major_color: "#e6e6e6".to_string(),
+            grid_major_width: 1.0,
             text_color: "#222222".to_string(),
             title_size: 18.0,
             point_size: 3.0,
@@ -93,6 +98,60 @@ impl Theme {
             grid: false,
             axes: false,
             ..Theme::base()
+        }
+    }
+
+    /// Resolve a [`ThemeIr`]: select the named base (defaulting to `minimal`)
+    /// and layer its overrides on top (spec §20.1, §20.8).
+    pub fn from_ir(ir: &ThemeIr) -> Theme {
+        let mut theme = match &ir.base {
+            Some(name) => Theme::by_name(name),
+            None => Theme::default(),
+        };
+        theme.apply_overrides(&ir.overrides);
+        theme
+    }
+
+    /// Apply per-field overrides on top of this theme (spec §20.8).
+    pub fn apply_overrides(&mut self, ov: &ThemeOverrides) {
+        if let Some(v) = &ov.font_family {
+            self.font_family = v.clone();
+        }
+        if let Some(v) = ov.font_size {
+            self.font_size = v;
+        }
+        if let Some(v) = &ov.background {
+            self.background = v.clone();
+        }
+        if let Some(v) = &ov.plot_background {
+            self.plot_background = v.clone();
+        }
+        if let Some(v) = &ov.axis_color {
+            self.axis_color = v.clone();
+        }
+        if let Some(v) = &ov.grid_major_color {
+            self.grid_major_color = v.clone();
+        }
+        if let Some(v) = ov.grid_major_width {
+            self.grid_major_width = v;
+        }
+        if let Some(v) = &ov.text_color {
+            self.text_color = v.clone();
+        }
+        if let Some(v) = ov.title_size {
+            self.title_size = v;
+        }
+        if let Some(v) = ov.point_size {
+            self.point_size = v;
+        }
+        if let Some(v) = ov.line_width {
+            self.line_width = v;
+        }
+        if let Some(v) = ov.grid {
+            self.grid = v;
+        }
+        if let Some(v) = ov.axes {
+            self.axes = v;
         }
     }
 }

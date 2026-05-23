@@ -794,8 +794,11 @@ fn test_space_local_theme_is_recorded() {
         analysis.diagnostics
     );
     let ir = analysis.ir.expect("ir");
-    assert_eq!(ir.theme.as_deref(), Some("minimal"));
-    assert_eq!(ir.spaces[0].theme.as_deref(), Some("void"));
+    assert_eq!(ir.theme.as_ref().unwrap().base.as_deref(), Some("minimal"));
+    assert_eq!(
+        ir.spaces[0].theme.as_ref().unwrap().base.as_deref(),
+        Some("void")
+    );
 }
 
 // --- Guide axis label override ---
@@ -901,4 +904,160 @@ fn test_bare_color_name_emits_h3002_hint() {
         .find(|d| d.code == "H3002")
         .expect("H3002");
     assert!(diag.help.as_deref().unwrap().contains("\"red\""));
+}
+
+// --- Let bindings (spec §7.10, §9.6) ---
+
+#[test]
+fn test_let_constant_resolves_in_property_value() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  let primary = \"#3366cc\"\n  let dim = 0.4\n  Space(flipper_length * body_mass) {\n    Point(fill: primary, alpha: dim)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let geo = &analysis.ir.expect("ir").spaces[0].geometries[0];
+    assert!(
+        geo.settings
+            .iter()
+            .any(|s| s.name == "fill"
+                && matches!(&s.value, SettingValue::String(v) if v == "#3366cc"))
+    );
+    assert!(geo
+        .settings
+        .iter()
+        .any(|s| s.name == "alpha" && matches!(s.value, SettingValue::Number(n) if n == 0.4)));
+}
+
+#[test]
+fn test_let_non_constant_value_is_rejected() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  let bad = flipper_length\n  Space(value) { Point() }\n}",
+        "E1701",
+    ));
+}
+
+#[test]
+fn test_duplicate_let_binding_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  let c = \"#111\"\n  let c = \"#222\"\n  Space(value) { Point() }\n}",
+        "E1702",
+    ));
+}
+
+#[test]
+fn test_let_type_mismatch_at_use_site() {
+    // A string variable used where a number is expected is an E1204 type error.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  let label = \"x\"\n  Space(flipper_length * body_mass) {\n    Point(alpha: label)\n  }\n}",
+        "E1204",
+    ));
+}
+
+#[test]
+fn test_space_let_shadows_chart_let() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  let c = \"#111111\"\n  Space(flipper_length * body_mass) {\n    let c = \"#222222\"\n    Point(fill: c)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let geo = &analysis.ir.expect("ir").spaces[0].geometries[0];
+    assert!(
+        geo.settings
+            .iter()
+            .any(|s| s.name == "fill"
+                && matches!(&s.value, SettingValue::String(v) if v == "#222222"))
+    );
+}
+
+#[test]
+fn test_space_let_does_not_leak_to_sibling_space() {
+    // `local` is bound in the first space only; the second space sees it as an
+    // unknown column, not a variable.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    let local = \"#333\"\n    Point(fill: local)\n  }\n  Space(flipper_length * body_mass) {\n    Point(fill: local)\n  }\n}",
+        "E1101",
+    ));
+}
+
+#[test]
+fn test_quoted_identifier_is_not_a_variable() {
+    // A backtick identifier always resolves as a column, never a variable.
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  let species = \"#333\"\n  Space(flipper_length * body_mass) {\n    Point(fill: `species`)\n  }\n}",
+        &schema(),
+    );
+    let geo = &analysis.ir.expect("ir").spaces[0].geometries[0];
+    assert!(geo
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == "fill" && m.column.name == "species"));
+}
+
+// --- Custom theme objects (spec §20.8) ---
+
+#[test]
+fn test_theme_overrides_are_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\", axisText: Text(size: 12, fill: \"#333333\"), gridMajor: Line(stroke: \"#dddddd\", strokeWidth: 1), plotBackground: \"#fafafa\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let theme = analysis.ir.expect("ir").theme.expect("theme");
+    assert_eq!(theme.base.as_deref(), Some("minimal"));
+    assert_eq!(theme.overrides.font_size, Some(12.0));
+    assert_eq!(theme.overrides.text_color.as_deref(), Some("#333333"));
+    assert_eq!(theme.overrides.grid_major_color.as_deref(), Some("#dddddd"));
+    assert_eq!(theme.overrides.grid_major_width, Some(1.0));
+    assert_eq!(theme.overrides.plot_background.as_deref(), Some("#fafafa"));
+}
+
+#[test]
+fn test_theme_unknown_property_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(axisColour: \"#333\")\n  Space(value) { Point() }\n}",
+        "E1704",
+    ));
+}
+
+#[test]
+fn test_theme_property_type_mismatch_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(fontSize: \"big\")\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+#[test]
+fn test_theme_grouped_override_wrong_shape_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(gridMajor: 5)\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+#[test]
+fn test_theme_override_composes_with_let() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  let ink = \"#101010\"\n  Theme(textColor: ink)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let theme = analysis.ir.expect("ir").theme.expect("theme");
+    assert_eq!(theme.overrides.text_color.as_deref(), Some("#101010"));
 }

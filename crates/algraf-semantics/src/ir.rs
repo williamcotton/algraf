@@ -15,7 +15,7 @@ pub struct ChartIr {
     pub layout: LayoutIr,
     pub guides: GuideIr,
     pub scales: Vec<ScaleIr>,
-    pub theme: Option<String>,
+    pub theme: Option<ThemeIr>,
     pub title: Option<String>,
     pub subtitle: Option<String>,
     pub caption: Option<String>,
@@ -39,6 +39,45 @@ pub enum DataSourceIr {
     Stdin,
     /// No valid data source was declared.
     Missing,
+}
+
+/// A resolved theme: an optional named base plus override values layered on top
+/// (spec §20.1, §20.8).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ThemeIr {
+    /// The named base theme (e.g. `"minimal"`), or `None` to inherit.
+    pub base: Option<String>,
+    /// Per-field overrides applied on top of the base.
+    pub overrides: ThemeOverrides,
+}
+
+impl ThemeIr {
+    /// A theme that only selects a named base, with no overrides.
+    pub fn named(name: String) -> ThemeIr {
+        ThemeIr {
+            base: Some(name),
+            overrides: ThemeOverrides::default(),
+        }
+    }
+}
+
+/// Source-level overrides for individual theme fields (spec §20.8). `None`
+/// leaves the base theme's value unchanged.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ThemeOverrides {
+    pub font_family: Option<String>,
+    pub font_size: Option<f64>,
+    pub background: Option<String>,
+    pub plot_background: Option<String>,
+    pub axis_color: Option<String>,
+    pub grid_major_color: Option<String>,
+    pub grid_major_width: Option<f64>,
+    pub text_color: Option<String>,
+    pub title_size: Option<f64>,
+    pub point_size: Option<f64>,
+    pub line_width: Option<f64>,
+    pub grid: Option<bool>,
+    pub axes: Option<bool>,
 }
 
 /// Chart-level layout settings that affect viewport allocation (spec §17.4).
@@ -184,8 +223,8 @@ pub struct SpaceIr {
     pub guides: GuideOverridesIr,
     pub scales: Vec<ScaleIr>,
     /// Space-local theme override (spec §7.3, §22.3). When set, this theme
-    /// replaces the chart-level theme for this space only.
-    pub theme: Option<String>,
+    /// overrides the chart-level theme for this space only.
+    pub theme: Option<ThemeIr>,
     pub span: Span,
 }
 

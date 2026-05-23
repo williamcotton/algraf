@@ -864,6 +864,41 @@ async fn rename_updates_derived_table_declaration_and_use() {
 }
 
 #[tokio::test]
+async fn rename_updates_let_binding_declaration_and_uses() {
+    let dir = temp_project("rename-let");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "x,y\n1,2\n3,4\n").unwrap();
+    let source = "Chart(data: \"data.csv\") {\n    let primary = \"#3366cc\"\n    Space(x * y) {\n        Point(fill: primary)\n        Line(stroke: primary)\n    }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    // Rename from the declaration site.
+    let offset = source.find("primary").unwrap();
+    let params = RenameParams {
+        text_document_position: position_params(uri.clone(), source, offset),
+        new_name: "brand".to_string(),
+        work_done_progress_params: WorkDoneProgressParams::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/rename")
+            .params(serde_json::to_value(params).unwrap())
+            .id(40)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<WorkspaceEdit> = response_result(response);
+    let edit = result.expect("rename edit");
+    let edits = edit.changes.unwrap().remove(&uri).unwrap();
+    assert_eq!(edits.len(), 3, "declaration plus two property-value uses");
+    assert!(edits.iter().all(|e| e.new_text == "brand"));
+}
+
+#[tokio::test]
 async fn inlay_hints_show_derive_output_columns() {
     let (mut service, _socket) = initialized_service().await;
     let (uri, source) = open_binned(&mut service, "inlay-derive").await;

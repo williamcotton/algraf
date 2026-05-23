@@ -16,7 +16,8 @@ use algraf_data::{
 use algraf_render::{render, Theme};
 use algraf_semantics::{analyze, registry, ChartIr};
 use algraf_syntax::ast::{
-    AlgebraName, Arg, ChartItem, DeriveDecl, GeometryCall, LiteralKind, Root, SpaceItem, ValueExpr,
+    AlgebraName, Arg, ChartItem, DeriveDecl, GeometryCall, LetDecl, LiteralKind, Root, SpaceItem,
+    ValueExpr,
 };
 use algraf_syntax::{format, parse, tokenize, SyntaxKind, SyntaxNode};
 use dashmap::DashMap;
@@ -378,11 +379,7 @@ fn render_preview(source: &str, data_path: &Path) -> Result<String, String> {
         .ir
         .ok_or_else(|| "analysis produced no chart".to_string())?;
 
-    let theme = ir
-        .theme
-        .clone()
-        .map(|name| Theme::by_name(&name))
-        .unwrap_or_default();
+    let theme = ir.theme.as_ref().map(Theme::from_ir).unwrap_or_default();
 
     let result = render(&ir, &frame, &theme, None).map_err(|e| e.to_string())?;
     Ok(result.svg)
@@ -970,6 +967,11 @@ fn semantic_token_type(tokens: &[algraf_syntax::TokenWithSpan], idx: usize) -> O
     use algraf_syntax::TokenKind;
     let token = &tokens[idx];
     match &token.kind {
+        // The `let` keyword is a lowercase contextual keyword (spec §6.5); tag it
+        // as a keyword when it begins a binding (followed by an identifier).
+        TokenKind::Ident(name) if name == "let" && next_significant_is_ident(tokens, idx) => {
+            Some(token_type_index(SemanticTokenType::KEYWORD))
+        }
         TokenKind::Ident(_) if next_significant_is_colon_all(tokens, idx) => {
             Some(token_type_index(SemanticTokenType::PROPERTY))
         }
@@ -1013,6 +1015,15 @@ fn next_significant_is_colon_all(tokens: &[algraf_syntax::TokenWithSpan], idx: u
         .skip(idx + 1)
         .find(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::Comment(_)))
         .is_some_and(|token| matches!(token.kind, TokenKind::Colon))
+}
+
+fn next_significant_is_ident(tokens: &[algraf_syntax::TokenWithSpan], idx: usize) -> bool {
+    use algraf_syntax::TokenKind;
+    tokens
+        .iter()
+        .skip(idx + 1)
+        .find(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::Comment(_)))
+        .is_some_and(|token| matches!(token.kind, TokenKind::Ident(_)))
 }
 
 fn code_actions_for(state: &DocumentState, params: CodeActionParams) -> CodeActionResponse {
@@ -1595,7 +1606,7 @@ fn completion_items(state: &DocumentState, context: CompletionContext) -> Vec<Co
                 .map(|name| function(name, geometry_doc(name)))
                 .collect::<Vec<_>>();
             items.extend(
-                ["Scale", "Guide", "Theme"]
+                ["let", "Scale", "Guide", "Theme"]
                     .iter()
                     .map(|name| keyword(name, "Space-scoped declaration")),
             );
@@ -1695,6 +1706,9 @@ fn property_value_items(
         items.extend(column_items_matching(state, |_| true));
     }
 
+    // `let` variables resolve in property value positions (spec §9.6).
+    items.extend(variable_items(state));
+
     if let Some(spec) = spec {
         for accept in spec.accepts {
             match accept {
@@ -1770,6 +1784,25 @@ fn declaration_value_items(
                 "Color gradient stops",
             )]
         }
+        ("Theme", "axisText") => vec![value_item(
+            "Text(size: 12, fill: \"#333333\")",
+            "Axis text style",
+        )],
+        ("Theme", "gridMajor") => vec![value_item(
+            "Line(stroke: \"#dddddd\", strokeWidth: 1)",
+            "Major grid line style",
+        )],
+        ("Theme", "background" | "plotBackground" | "axisColor" | "gridColor" | "textColor") => {
+            vec![color("\"#333333\"", "Theme color")]
+        }
+        ("Theme", "fontSize" | "titleSize" | "pointSize" | "lineWidth") => {
+            vec![value_item("12", "Number literal")]
+        }
+        ("Theme", "fontFamily") => vec![value_item("\"system-ui, sans-serif\"", "Font family")],
+        ("Theme", "grid" | "axes") => vec![
+            value_item("true", "Boolean literal"),
+            value_item("false", "Boolean literal"),
+        ],
         _ => Vec::new(),
     }
 }
@@ -1818,7 +1851,22 @@ const CHART_ARGS: &[&str] = &[
     "marginBottom",
     "marginLeft",
 ];
-const CHART_BODY_ITEMS: &[&str] = &["Derive", "Space", "Scale", "Guide", "Theme", "Layout"];
+const CHART_BODY_ITEMS: &[&str] = &[
+    "let", "Derive", "Space", "Scale", "Guide", "Theme", "Layout",
+];
+
+/// Variable-name completions for every in-document `let` binding (spec §9.6).
+fn variable_items(state: &DocumentState) -> Vec<CompletionItem> {
+    let root = parse(&state.text).syntax();
+    let index = build_name_index(&root);
+    let mut names: Vec<String> = index.lets.iter().map(|site| site.name.clone()).collect();
+    names.sort();
+    names.dedup();
+    names
+        .into_iter()
+        .map(|name| field(&name, "let binding"))
+        .collect()
+}
 
 fn keyword(label: &str, doc: &str) -> CompletionItem {
     CompletionItem {
@@ -2129,6 +2177,16 @@ fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol> {
                     Vec::new(),
                 ));
             }
+            ChartItem::Let(decl) => {
+                let name = decl.name().unwrap_or_else(|| "let".to_string());
+                children.push(symbol(
+                    source,
+                    &format!("let {name}"),
+                    SymbolKind::VARIABLE,
+                    decl.syntax(),
+                    Vec::new(),
+                ));
+            }
             ChartItem::Space(space) => {
                 let mut space_children = Vec::new();
                 for child in space.items() {
@@ -2150,6 +2208,16 @@ fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol> {
                                 source,
                                 decl.keyword(),
                                 SymbolKind::PROPERTY,
+                                decl.syntax(),
+                                Vec::new(),
+                            ));
+                        }
+                        SpaceItem::Let(decl) => {
+                            let name = decl.name().unwrap_or_else(|| "let".to_string());
+                            space_children.push(symbol(
+                                source,
+                                &format!("let {name}"),
+                                SymbolKind::VARIABLE,
                                 decl.syntax(),
                                 Vec::new(),
                             ));
@@ -2247,20 +2315,45 @@ struct NameRef {
     span: Span,
 }
 
+/// A `let` declaration site, tagged with its lexical scope (spec §9.6).
+struct LetSite {
+    name: String,
+    /// Span of the variable-name identifier token (the navigation target).
+    name_span: Span,
+    /// The start offset of the enclosing `Space` block, or `None` for a
+    /// chart-scope binding.
+    scope: Option<usize>,
+}
+
+/// A variable reference in a property value position, tagged with the scope it
+/// appears in so it can be resolved against the right `let` binding.
+struct VarRefSite {
+    name: String,
+    span: Span,
+    scope: Option<usize>,
+}
+
 /// An index of all in-document name occurrences, partitioned by namespace
 /// (spec §9.4). Built by walking the CST so spans are byte-accurate.
 #[derive(Default)]
 struct NameIndex {
     /// `Derive` declarations (derived-table definitions).
     derives: Vec<DeriveSite>,
+    /// `let` declarations (variable definitions).
+    lets: Vec<LetSite>,
     /// `data:` references to a derived table (e.g. `Space(..., data: binned)`).
     table_refs: Vec<NameRef>,
     /// Column references in frames, aesthetic mappings, and stat inputs.
     column_refs: Vec<NameRef>,
+    /// Variable references in property value positions.
+    var_refs: Vec<VarRefSite>,
 }
 
 fn build_name_index(root: &SyntaxNode) -> NameIndex {
     let mut index = NameIndex::default();
+
+    // First pass: collect `Derive` and `let` declarations so variable
+    // references can be resolved against in-scope bindings in the second pass.
     for node in root.descendants() {
         match node.kind() {
             SyntaxKind::DERIVE_DECL => {
@@ -2273,21 +2366,104 @@ fn build_name_index(root: &SyntaxNode) -> NameIndex {
                     }
                 }
             }
-            SyntaxKind::ALGEBRA_NAME => {
-                if let Some(algebra) = AlgebraName::cast(node.clone()) {
-                    if let (Some(name), Some(span)) = (algebra.name(), algebra.ident_span()) {
-                        if is_data_arg_value(&node) {
-                            index.table_refs.push(NameRef { name, span });
-                        } else {
-                            index.column_refs.push(NameRef { name, span });
-                        }
+            SyntaxKind::LET_DECL => {
+                if let Some(decl) = LetDecl::cast(node.clone()) {
+                    if let (Some(name), Some(span)) = (decl.name(), decl.name_span()) {
+                        index.lets.push(LetSite {
+                            name,
+                            name_span: span,
+                            scope: enclosing_space_start(&node),
+                        });
                     }
                 }
             }
             _ => {}
         }
     }
+
+    // Second pass: classify identifier occurrences. A bare identifier in a
+    // property value position that names an in-scope `let` is a variable
+    // reference; otherwise it is a column reference (spec §9.6).
+    for node in root.descendants() {
+        if node.kind() != SyntaxKind::ALGEBRA_NAME {
+            continue;
+        }
+        let Some(algebra) = AlgebraName::cast(node.clone()) else {
+            continue;
+        };
+        let (Some(name), Some(span)) = (algebra.name(), algebra.ident_span()) else {
+            continue;
+        };
+        if is_data_arg_value(&node) {
+            index.table_refs.push(NameRef { name, span });
+            continue;
+        }
+        let scope = enclosing_space_start(&node);
+        if !algebra.is_quoted()
+            && is_property_value(&node)
+            && resolve_binding_scope(&index.lets, &name, scope).is_some()
+        {
+            index.var_refs.push(VarRefSite { name, span, scope });
+        } else {
+            index.column_refs.push(NameRef { name, span });
+        }
+    }
     index
+}
+
+/// The start offset of the nearest enclosing `Space` block, or `None` when the
+/// node sits directly in chart scope.
+fn enclosing_space_start(node: &SyntaxNode) -> Option<usize> {
+    let mut current = node.parent();
+    while let Some(parent) = current {
+        if parent.kind() == SyntaxKind::SPACE_BLOCK {
+            return Some(u32::from(parent.text_range().start()) as usize);
+        }
+        current = parent.parent();
+    }
+    None
+}
+
+/// Whether an `ALGEBRA_NAME` sits in a property value position (the value of an
+/// argument other than `data:`), as opposed to a `Space` frame or stat input.
+fn is_property_value(node: &SyntaxNode) -> bool {
+    let mut current = node.parent();
+    while let Some(parent) = current {
+        match parent.kind() {
+            SyntaxKind::ARG => {
+                return Arg::cast(parent).and_then(|arg| arg.key()).as_deref() != Some("data");
+            }
+            SyntaxKind::SPACE_BLOCK | SyntaxKind::STAT_CALL => return false,
+            _ => {}
+        }
+        current = parent.parent();
+    }
+    false
+}
+
+/// Resolve which `let` binding a reference named `name` in scope `ref_scope`
+/// binds to: a space-scope binding in the same space shadows a chart-scope one
+/// (spec §9.6). Returns the binding's scope, or `None` if undefined.
+fn resolve_binding_scope(
+    lets: &[LetSite],
+    name: &str,
+    ref_scope: Option<usize>,
+) -> Option<Option<usize>> {
+    if let Some(space) = ref_scope {
+        if lets
+            .iter()
+            .any(|site| site.name == name && site.scope == Some(space))
+        {
+            return Some(Some(space));
+        }
+    }
+    if lets
+        .iter()
+        .any(|site| site.name == name && site.scope.is_none())
+    {
+        return Some(None);
+    }
+    None
 }
 
 /// The span of the table-name identifier inside a `DERIVE_DECL` node. The
@@ -2321,6 +2497,11 @@ fn is_data_arg_value(node: &SyntaxNode) -> bool {
 /// What the identifier under the cursor refers to.
 enum Target {
     DerivedTable(String),
+    /// A `let` variable, identified by name and the binding's scope.
+    Variable {
+        name: String,
+        scope: Option<usize>,
+    },
     Column(String),
     /// The chart's `data:` string literal.
     DataPath,
@@ -2330,6 +2511,24 @@ fn target_at(index: &NameIndex, root: &SyntaxNode, offset: usize) -> Option<Targ
     for derive in &index.derives {
         if derive.name_span.contains(offset) {
             return Some(Target::DerivedTable(derive.name.clone()));
+        }
+    }
+    for site in &index.lets {
+        if site.name_span.contains(offset) {
+            return Some(Target::Variable {
+                name: site.name.clone(),
+                scope: site.scope,
+            });
+        }
+    }
+    for reference in &index.var_refs {
+        if reference.span.contains(offset) {
+            let scope = resolve_binding_scope(&index.lets, &reference.name, reference.scope)
+                .unwrap_or(reference.scope);
+            return Some(Target::Variable {
+                name: reference.name.clone(),
+                scope,
+            });
         }
     }
     for reference in &index.table_refs {
@@ -2377,6 +2576,16 @@ fn definition_at(
             Some(GotoDefinitionResponse::Scalar(Location {
                 uri: target_uri,
                 range: Range::default(),
+            }))
+        }
+        Target::Variable { name, scope } => {
+            let site = index
+                .lets
+                .iter()
+                .find(|site| site.name == name && site.scope == scope)?;
+            Some(GotoDefinitionResponse::Scalar(Location {
+                uri: uri.clone(),
+                range: span_to_range(&state.text, site.name_span),
             }))
         }
         Target::DerivedTable(name) => {
@@ -2491,6 +2700,29 @@ fn reference_sites(state: &DocumentState, offset: usize) -> Option<Vec<RefSite>>
     let index = build_name_index(&root);
     match target_at(&index, &root, offset)? {
         Target::DataPath => None,
+        Target::Variable { name, scope } => {
+            let mut sites = Vec::new();
+            for site in &index.lets {
+                if site.name == name && site.scope == scope {
+                    sites.push(RefSite {
+                        span: site.name_span,
+                        is_decl: true,
+                    });
+                }
+            }
+            for reference in &index.var_refs {
+                if reference.name == name
+                    && resolve_binding_scope(&index.lets, &reference.name, reference.scope)
+                        == Some(scope)
+                {
+                    sites.push(RefSite {
+                        span: reference.span,
+                        is_decl: false,
+                    });
+                }
+            }
+            Some(sites)
+        }
         Target::DerivedTable(name) => {
             let mut sites = Vec::new();
             for derive in &index.derives {
@@ -2536,6 +2768,16 @@ fn renameable_at(state: &DocumentState, offset: usize) -> Option<Span> {
         }
     }
     for reference in &index.table_refs {
+        if reference.span.contains(offset) {
+            return Some(reference.span);
+        }
+    }
+    for site in &index.lets {
+        if site.name_span.contains(offset) {
+            return Some(site.name_span);
+        }
+    }
+    for reference in &index.var_refs {
         if reference.span.contains(offset) {
             return Some(reference.span);
         }
@@ -2685,7 +2927,23 @@ fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
     match decl {
         "Layout" => &["facetColumns"],
         "Guide" => &["axis", "label", "legend", "fill", "stroke", "grid"],
-        "Theme" => &["name"],
+        "Theme" => &[
+            "name",
+            "axisText",
+            "gridMajor",
+            "fontFamily",
+            "fontSize",
+            "titleSize",
+            "pointSize",
+            "lineWidth",
+            "background",
+            "plotBackground",
+            "axisColor",
+            "gridColor",
+            "textColor",
+            "grid",
+            "axes",
+        ],
         "Scale" => &[
             "axis", "type", "domain", "reverse", "integer", "fill", "stroke", "palette",
             "gradient", "label",

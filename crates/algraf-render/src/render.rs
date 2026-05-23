@@ -7,7 +7,7 @@ use algraf_core::Diagnostic;
 use algraf_data::{DataFrame, Table};
 use algraf_semantics::{
     ir::Setting, AxisSelectorIr, ChartIr, ColumnRef, FrameIr, GeometryIr, GeometryKind, GuideIr,
-    ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, StatKind,
+    ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, StatKind, ThemeIr,
 };
 
 use crate::aes::{color_spec, ColorSpec, Legend, LegendKind};
@@ -118,7 +118,7 @@ pub fn render(
     let mut panels = Vec::new();
     for space in &ir.spaces {
         let table = active_table(&space.data, primary, &derived);
-        let panel_theme = resolve_space_theme(theme, space.theme.as_deref(), cli_theme_override);
+        let panel_theme = resolve_space_theme(theme, space.theme.as_ref(), cli_theme_override);
         let space_guides = ir.guides.with_overrides(&space.guides);
         let space_scales = merged_scales(&ir.scales, &space.scales);
         validate_scale_configs(&space.frame, &space_scales, space.span, &mut diagnostics);
@@ -332,12 +332,19 @@ pub fn render(
 /// applied last (spec §22.3).
 fn resolve_space_theme(
     base: &Theme,
-    space_theme: Option<&str>,
+    space_theme: Option<&ThemeIr>,
     cli_override: Option<&str>,
 ) -> Theme {
     let mut theme = base.clone();
-    if let Some(name) = space_theme {
-        theme = Theme::by_name(name);
+    if let Some(ir) = space_theme {
+        // A space theme starts from its own named base if it gives one, or else
+        // inherits the chart base, then layers its overrides (spec §7.3, §20.8).
+        let mut t = match &ir.base {
+            Some(name) => Theme::by_name(name),
+            None => base.clone(),
+        };
+        t.apply_overrides(&ir.overrides);
+        theme = t;
     }
     if let Some(name) = cli_override {
         theme = Theme::by_name(name);
