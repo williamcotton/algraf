@@ -10,6 +10,7 @@ mod error;
 mod geom;
 mod guide;
 mod layout;
+mod projection;
 mod render;
 mod scale;
 mod space;

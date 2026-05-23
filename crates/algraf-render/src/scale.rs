@@ -215,6 +215,8 @@ pub fn cell_category(table: &dyn Table, column: &str, row: usize) -> Option<Stri
         DataValueRef::Float(f) => Some(crate::svg::num(f)),
         DataValueRef::Temporal(t) => Some(t.instant.and_utc().to_rfc3339()),
         DataValueRef::String(s) => Some(s.to_string()),
+        // Geometry is not a categorical domain (spec §10.11).
+        DataValueRef::Geometry(_) => None,
     }
 }
 

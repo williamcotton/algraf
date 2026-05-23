@@ -12,6 +12,8 @@ algraf-semantics = { workspace = true }
 algraf-data = { workspace = true }
 chrono = { workspace = true }
 thiserror = { workspace = true }
+geo-types = { workspace = true }
+proj4rs = { workspace = true }
 
 [dev-dependencies]
 algraf-syntax = { workspace = true }

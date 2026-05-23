@@ -9,6 +9,7 @@ use algraf_semantics::{AxisSelectorIr, ColumnRef, FrameIr, ScaleIr, ScaleTargetI
 use chrono::{DateTime, Datelike, NaiveDate};
 
 use crate::domains::{AxisDomainHints, SpaceDomainHints};
+use crate::projection::SpatialScale;
 use crate::scale::{
     categorical_domain, cell_category, cell_f64, cell_micros, numeric_domain, temporal_domain,
     BandScale, ContinuousScale, NestedBandScale, TemporalScale,
@@ -260,10 +261,16 @@ fn month_start_micros(year: i32, month: u32) -> Option<i64> {
     )
 }
 
-/// A trained 2D (or 1D) spatial context for one space.
+/// A trained 2D (or 1D) position context for one space. A spatial (map) space
+/// carries a [`SpatialScale`] instead of independent x/y axes (spec §16.15);
+/// the placeholder `x` axis is never drawn because spatial panels skip axes and
+/// grids.
 pub struct ScaledSpace {
     pub x: AxisScale,
     pub y: Option<AxisScale>,
+    /// Present for a spatial space: position comes from projecting geographic
+    /// coordinates rather than mapping the x/y axes.
+    pub spatial: Option<SpatialScale>,
 }
 
 impl ScaledSpace {
@@ -284,26 +291,75 @@ impl ScaledSpace {
             FrameIr::Cartesian(axes) if axes.len() >= 2 => {
                 let x = build_axis(&axes[0], table, x_range, Some(&hints.x), &x_config)?;
                 let y = build_axis(&axes[1], table, y_range, Some(&hints.y), &y_config)?;
-                Some(ScaledSpace { x, y: Some(y) })
+                Some(ScaledSpace {
+                    x,
+                    y: Some(y),
+                    spatial: None,
+                })
             }
             FrameIr::Cartesian(axes) if axes.len() == 1 => {
                 let x = build_axis(&axes[0], table, x_range, Some(&hints.x), &x_config)?;
-                Some(ScaledSpace { x, y: None })
+                Some(ScaledSpace {
+                    x,
+                    y: None,
+                    spatial: None,
+                })
             }
             FrameIr::Vector(_) | FrameIr::Nested { .. } | FrameIr::Union(_) => {
                 let x = build_axis(frame, table, x_range, Some(&hints.x), &x_config)?;
-                Some(ScaledSpace { x, y: None })
+                Some(ScaledSpace {
+                    x,
+                    y: None,
+                    spatial: None,
+                })
             }
             _ => None,
         }
     }
 
+    /// Build a spatial (map) space backed by a [`SpatialScale`]. The x/y axes
+    /// are placeholders; spatial panels skip axis and grid rendering.
+    pub fn spatial(spatial: SpatialScale) -> ScaledSpace {
+        ScaledSpace {
+            x: AxisScale::Continuous {
+                col: String::new(),
+                scale: ContinuousScale::new(0.0, 1.0, (0.0, 1.0)),
+            },
+            y: None,
+            spatial: Some(spatial),
+        }
+    }
+
+    /// Whether this is a spatial (projected map) space.
+    pub fn is_spatial(&self) -> bool {
+        self.spatial.is_some()
+    }
+
     pub fn resolve_x(&self, table: &dyn Table, row: usize) -> Option<f64> {
+        if let Some(spatial) = &self.spatial {
+            return self.project_row(spatial, table, row).map(|(x, _)| x);
+        }
         self.x.resolve(table, row)
     }
 
     pub fn resolve_y(&self, table: &dyn Table, row: usize) -> Option<f64> {
+        if let Some(spatial) = &self.spatial {
+            return self.project_row(spatial, table, row).map(|(_, y)| y);
+        }
         self.y.as_ref()?.resolve(table, row)
+    }
+
+    /// Project a row's `long * lat` coordinate through a projected overlay
+    /// space, for point/line marks sharing a basemap's spatial scale.
+    fn project_row(
+        &self,
+        spatial: &SpatialScale,
+        table: &dyn Table,
+        row: usize,
+    ) -> Option<(f64, f64)> {
+        let lon = cell_f64(table, spatial.lon_col.as_deref()?, row)?;
+        let lat = cell_f64(table, spatial.lat_col.as_deref()?, row)?;
+        spatial.project_ll(lon, lat)
     }
 
     pub fn x_bandwidth(&self, table: &dyn Table, row: usize) -> Option<f64> {

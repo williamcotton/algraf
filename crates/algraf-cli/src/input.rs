@@ -3,11 +3,35 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use algraf_data::{read_csv, read_path, read_schema_path, ColumnDef, LoadResult, Table};
+use algraf_data::{
+    read_csv, read_path, read_path_as, read_schema_path, read_schema_path_as, ColumnDef, Format,
+    LoadResult, Table,
+};
 use algraf_syntax::ast::{ChartBlock, ChartItem, LiteralKind, Root, ValueExpr};
 use algraf_syntax::SyntaxNode;
 
 use crate::error::CliError;
+
+/// Recognize a `GeoJson`/`Shapefile` source constructor and return its explicit
+/// format plus the first positional string-literal path (spec §10.11). A plain
+/// string path returns `None` so the format is chosen by extension.
+fn source_constructor(value: &ValueExpr) -> Option<(Format, String)> {
+    let ValueExpr::Call(call) = value else {
+        return None;
+    };
+    let format = match call.name().as_deref() {
+        Some("GeoJson") => Format::GeoJson,
+        Some("Shapefile") => Format::Shapefile,
+        _ => return None,
+    };
+    let arg = call.args().into_iter().find(|a| a.key().is_none())?;
+    match arg.value() {
+        Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+            Some((format, strip_string(&lit.text().unwrap_or_default())))
+        }
+        _ => None,
+    }
+}
 
 /// Where the Algraf source came from.
 pub enum SourceInput {
@@ -31,13 +55,22 @@ impl SourceInput {
 
 /// The data source declared in the chart's `data` argument.
 pub enum AstData {
-    Path(String),
+    /// A path plus an optional explicit format. `None` selects the format by
+    /// file extension; a geospatial source constructor sets it explicitly
+    /// (spec §10.11).
+    Path {
+        path: String,
+        format: Option<Format>,
+    },
     Stdin,
     Missing,
 }
 
 enum DataLocation {
-    Path(PathBuf),
+    Path {
+        path: PathBuf,
+        format: Option<Format>,
+    },
     Stdin,
 }
 
@@ -74,10 +107,20 @@ pub fn extract_chart_data_source(chart: &ChartBlock) -> AstData {
         if arg.key().as_deref() == Some("data") {
             return match arg.value() {
                 Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
-                    AstData::Path(strip_string(&lit.text().unwrap_or_default()))
+                    AstData::Path {
+                        path: strip_string(&lit.text().unwrap_or_default()),
+                        format: None,
+                    }
                 }
                 Some(ValueExpr::Stdin(_)) => AstData::Stdin,
-                _ => AstData::Missing,
+                Some(value) => match source_constructor(&value) {
+                    Some((format, path)) => AstData::Path {
+                        path,
+                        format: Some(format),
+                    },
+                    None => AstData::Missing,
+                },
+                None => AstData::Missing,
             };
         }
     }
@@ -91,19 +134,25 @@ pub struct NamedTable {
     pub warnings: Vec<algraf_data::DataWarning>,
 }
 
-/// Extract `Table name = "path.csv"` declarations from a chart block (spec
-/// §10.x).
-pub fn extract_chart_tables(chart: &ChartBlock) -> Vec<(String, String)> {
+/// Extract `Table name = <source>` declarations from a chart block, carrying
+/// each source's optional explicit format (spec §10.x, §10.11).
+pub fn extract_chart_tables(chart: &ChartBlock) -> Vec<(String, String, Option<Format>)> {
     let mut out = Vec::new();
     for item in chart.items() {
         let ChartItem::Table(decl) = item else {
             continue;
         };
         let Some(name) = decl.name() else { continue };
-        if let Some(ValueExpr::Literal(lit)) = decl.source() {
-            if lit.kind() == Some(LiteralKind::String) {
-                out.push((name, strip_string(&lit.text().unwrap_or_default())));
+        match decl.source() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                out.push((name, strip_string(&lit.text().unwrap_or_default()), None));
             }
+            Some(value) => {
+                if let Some((format, path)) = source_constructor(&value) {
+                    out.push((name, path, Some(format)));
+                }
+            }
+            None => {}
         }
     }
     out
@@ -126,9 +175,9 @@ pub fn load_named_tables(
         .unwrap_or_else(|| PathBuf::from("."));
 
     let mut out = Vec::new();
-    for (name, rel) in extract_chart_tables(chart) {
+    for (name, rel, format) in extract_chart_tables(chart) {
         let path = base.join(&rel);
-        let loaded = read_path(&path).map_err(|e| {
+        let loaded = load_path(&path, format).map_err(|e| {
             CliError::Io(format!(
                 "failed to load Table `{name}` data {}: {e}",
                 path.display()
@@ -152,9 +201,18 @@ pub fn load_data(
     data_opt: Option<&str>,
 ) -> Result<LoadResult, CliError> {
     match data_location(ast_data, source, base_dir, data_opt)? {
-        DataLocation::Path(path) => read_path(&path)
+        DataLocation::Path { path, format } => load_path(&path, format)
             .map_err(|e| CliError::Io(format!("failed to load data {}: {e}", path.display()))),
         DataLocation::Stdin => read_stdin_csv(),
+    }
+}
+
+/// Load a data file, honoring an explicit format when the source named one
+/// (a geospatial constructor), else selecting the format by extension.
+fn load_path(path: &Path, format: Option<Format>) -> Result<LoadResult, algraf_data::DataError> {
+    match format {
+        Some(format) => read_path_as(path, format),
+        None => read_path(path),
     }
 }
 
@@ -175,8 +233,13 @@ pub fn load_schema(
     };
 
     match data_location(ast_data, source, base_dir, data_opt)? {
-        DataLocation::Path(path) => read_schema_path(&path, sample_size)
-            .map_err(|e| CliError::Io(format!("failed to load data {}: {e}", path.display()))),
+        DataLocation::Path { path, format } => {
+            let result = match format {
+                Some(format) => read_schema_path_as(&path, format, sample_size),
+                None => read_schema_path(&path, sample_size),
+            };
+            result.map_err(|e| CliError::Io(format!("failed to load data {}: {e}", path.display())))
+        }
         DataLocation::Stdin => {
             let mut bytes = Vec::new();
             std::io::stdin()
@@ -203,7 +266,11 @@ fn data_location(
             }
             return Ok(DataLocation::Stdin);
         }
-        return Ok(DataLocation::Path(PathBuf::from(data)));
+        // A `--data` override selects its format by extension.
+        return Ok(DataLocation::Path {
+            path: PathBuf::from(data),
+            format: None,
+        });
     }
 
     match ast_data {
@@ -216,7 +283,7 @@ fn data_location(
             }
             Ok(DataLocation::Stdin)
         }
-        AstData::Path(rel) => {
+        AstData::Path { path: rel, format } => {
             let base = base_dir
                 .map(PathBuf::from)
                 .or_else(|| match source {
@@ -224,7 +291,10 @@ fn data_location(
                     SourceInput::Stdin => Some(PathBuf::from(".")),
                 })
                 .unwrap_or_else(|| PathBuf::from("."));
-            Ok(DataLocation::Path(base.join(rel)))
+            Ok(DataLocation::Path {
+                path: base.join(rel),
+                format: *format,
+            })
         }
         AstData::Missing => Err(CliError::Usage(
             "chart has no data source; add Chart(data: \"file.csv\")".to_string(),

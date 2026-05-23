@@ -1,0 +1,10 @@
+Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
+      title: "US Population by County",
+      subtitle: "Lower 48 + DC — 2018 Census estimates") {
+    Theme(name: "void")
+    Scale(fill: population, gradient: ["#f7fbff", "#08306b"], label: "Population")
+
+    Space(geom, projection: "albers_usa") {
+        Geo(fill: population, stroke: "#ffffff", strokeWidth: 0.25)
+    }
+}

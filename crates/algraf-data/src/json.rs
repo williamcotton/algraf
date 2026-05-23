@@ -92,8 +92,9 @@ fn build_from_objects(objects: Vec<Map<String, Value>>) -> LoadResult {
 
 /// Render a JSON value to the canonical text the inference pipeline expects.
 /// `null` becomes the empty (missing) string; nested arrays/objects serialize
-/// to compact JSON and infer as strings.
-fn json_cell(value: &Value) -> String {
+/// to compact JSON and infer as strings. Shared with the GeoJSON loader so
+/// feature properties type-infer identically to JSON rows (spec §10.11).
+pub(crate) fn json_cell(value: &Value) -> String {
     match value {
         Value::Null => String::new(),
         Value::Bool(b) => b.to_string(),

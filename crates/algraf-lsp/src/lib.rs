@@ -242,13 +242,19 @@ impl Backend {
                 continue;
             };
             let Some(name) = decl.name() else { continue };
-            let Some(ValueExpr::Literal(lit)) = decl.source() else {
-                continue;
+            let rel = match decl.source() {
+                Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                    strip_string(&lit.text().unwrap_or_default())
+                }
+                // A named table may also be backed by a geospatial source
+                // constructor (spec §10.11).
+                Some(ValueExpr::Call(ref call)) => match source_constructor_path(call) {
+                    Some(path) => path,
+                    None => continue,
+                },
+                _ => continue,
             };
-            if lit.kind() != Some(LiteralKind::String) {
-                continue;
-            }
-            let path = resolve_data_path(uri, &strip_string(&lit.text().unwrap_or_default()));
+            let path = resolve_data_path(uri, &rel);
             let key = DataSourceKey(path.clone());
             if let Some(cached) = self.schema_cache.get(&key) {
                 if let SchemaState::Ready { schema, .. } = cached.value() {
@@ -783,7 +789,7 @@ pub struct AnalysisState {
     pub diagnostics: Vec<CoreDiagnostic>,
 }
 
-/// Schema cache key, currently one filesystem path (spec §10.9, §21.3).
+/// Schema cache key, currently one filesystem path (spec §10.11, §21.3).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DataSourceKey(PathBuf);
 
@@ -835,11 +841,37 @@ fn extract_data_source(root: &SyntaxNode) -> AstDataSource {
                     }
                 }
                 Some(ValueExpr::Stdin(_)) => AstDataSource::Stdin,
+                // A `GeoJson`/`Shapefile` source constructor resolves to its
+                // path; the loader is chosen by extension (spec §10.11), so
+                // completion and hover see the feature schema like any source.
+                Some(ValueExpr::Call(ref call)) => match source_constructor_path(call) {
+                    Some(value) => AstDataSource::Path {
+                        value,
+                        span: node_span(call.syntax()),
+                    },
+                    None => AstDataSource::Missing,
+                },
                 _ => AstDataSource::Missing,
             };
         }
     }
     AstDataSource::Missing
+}
+
+/// The path string from a recognized `GeoJson`/`Shapefile` source constructor's
+/// first positional string-literal argument (spec §10.11).
+fn source_constructor_path(call: &algraf_syntax::ast::CallValue) -> Option<String> {
+    match call.name().as_deref() {
+        Some("GeoJson") | Some("Shapefile") => {}
+        _ => return None,
+    }
+    let arg = call.args().into_iter().find(|a| a.key().is_none())?;
+    match arg.value() {
+        Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+            Some(strip_string(&lit.text().unwrap_or_default()))
+        }
+        _ => None,
+    }
 }
 
 fn resolve_data_path(uri: &Url, value: &str) -> PathBuf {
@@ -897,6 +929,10 @@ fn schema_error(path: &std::path::Path, err: &DataError) -> (&'static str, Strin
         DataError::NdJsonRowNotObject { line } => (
             "E1010",
             format!("NDJSON line {line} is not an object in {}", path.display()),
+        ),
+        DataError::Geo(message) => (
+            "E1805",
+            format!("geospatial parse error in {}: {message}", path.display()),
         ),
     }
 }
@@ -2193,6 +2229,7 @@ fn dtype_name(dtype: DataType) -> &'static str {
         DataType::Float => "float",
         DataType::Temporal => "temporal",
         DataType::String => "string",
+        DataType::Geometry => "geometry",
         DataType::Mixed => "mixed",
         DataType::Unknown => "unknown",
     }

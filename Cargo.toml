@@ -11,7 +11,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/williamcotton/algraf"
@@ -38,6 +38,10 @@ png = "0.17"
 csv = "1"
 chrono = "0.4"
 indexmap = "2"
+geo-types = "0.7"
+geojson = { version = "0.24", features = ["geo-types"] }
+shapefile = { version = "0.6", features = ["geo-types"] }
+proj4rs = "0.1"
 thiserror = "2"
 tower-lsp = "0.20"
 tokio = { version = "1", features = ["full"] }

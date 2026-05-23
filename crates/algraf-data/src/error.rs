@@ -39,6 +39,11 @@ pub enum DataError {
     /// An NDJSON line was valid JSON but not an object (spec §10.2).
     #[error("NDJSON line {line} is not an object")]
     NdJsonRowNotObject { line: usize },
+
+    /// A GeoJSON or shapefile document failed to parse, or contained a geometry
+    /// type the loader does not support (spec §10.11; diagnostic `E1805`).
+    #[error("geospatial parse error: {0}")]
+    Geo(String),
 }
 
 /// A non-fatal data inference warning (spec §10.3).

@@ -62,6 +62,9 @@ charts=(
     sales_tsv
     temperatures_json
     events_ndjson
+    choropleth
+    choropleth_shapefile
+    spatial_overlay
 )
 
 cd "$repo_root"

@@ -1,0 +1,14 @@
+Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
+      title: "Major US Cities",
+      subtitle: "A projected point layer over a county basemap") {
+    Theme(name: "void")
+    Table cities = "us_cities.csv"
+
+    Space(geom, projection: "albers_usa") {
+        Geo(fill: "#eeeeee", stroke: "#ffffff", strokeWidth: 0.25)
+    }
+
+    Space(long * lat, projection: "albers_usa", data: cities) {
+        Point(size: 5, fill: "#cc3333", alpha: 0.85)
+    }
+}

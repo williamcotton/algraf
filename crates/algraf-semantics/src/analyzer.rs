@@ -10,8 +10,8 @@ use std::collections::{HashMap, HashSet};
 use algraf_core::{Diagnostic, Severity, Span};
 use algraf_data::{ColumnDef, DataType};
 use algraf_syntax::ast::{
-    AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, Arg, ChartBlock, ChartItem, Decl,
-    DeriveDecl, GeometryCall, LetDecl, LiteralKind, MapValue, Root, SpaceBlock, SpaceItem,
+    AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, Arg, CallValue, ChartBlock, ChartItem,
+    Decl, DeriveDecl, GeometryCall, LetDecl, LiteralKind, MapValue, Root, SpaceBlock, SpaceItem,
     TableDecl, ValueExpr,
 };
 use algraf_syntax::{parse, SyntaxKind, SyntaxNode};
@@ -440,14 +440,42 @@ impl<'a> Analyzer<'a> {
                 DataSourceIr::Path(string_value(&lit.text().unwrap_or_default()))
             }
             Some(ValueExpr::Stdin(_)) => DataSourceIr::Stdin,
+            // Geospatial source constructors (spec §10.11). They sit on the same
+            // source seam as a string path; only the loader differs.
+            Some(ValueExpr::Call(call)) if is_source_constructor(&call) => {
+                self.source_constructor(&call)
+            }
             other => {
                 let span = other
                     .map(|v| node_span(v.syntax()))
                     .unwrap_or_else(|| node_span(arg.syntax()));
                 self.diag(Diagnostic::error(
                     "E1004",
-                    "data source must be a string literal or the `stdin` sentinel",
+                    "data source must be a string literal, a `GeoJson`/`Shapefile` \
+                     source constructor, or the `stdin` sentinel",
                     span,
+                ));
+                DataSourceIr::Missing
+            }
+        }
+    }
+
+    /// Resolve a recognized `GeoJson`/`Shapefile` source constructor to its IR,
+    /// extracting the path from the first positional string argument (spec
+    /// §10.11). A constructor without a string path is `E1004`.
+    fn source_constructor(&mut self, call: &CallValue) -> DataSourceIr {
+        let name = call.name().unwrap_or_default();
+        match source_constructor_path(call) {
+            Some(path) => match name.as_str() {
+                "GeoJson" => DataSourceIr::GeoJson(path),
+                "Shapefile" => DataSourceIr::Shapefile(path),
+                _ => DataSourceIr::Missing,
+            },
+            None => {
+                self.diag(Diagnostic::error(
+                    "E1004",
+                    format!("`{name}` source expects a string-literal path"),
+                    node_span(call.syntax()),
                 ));
                 DataSourceIr::Missing
             }
@@ -1445,10 +1473,29 @@ impl<'a> Analyzer<'a> {
             Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
                 Some(string_value(&lit.text().unwrap_or_default()))
             }
+            // A named table may also be backed by a geospatial source
+            // constructor (spec §10.11); the loader is chosen by the CLI.
+            Some(ValueExpr::Call(call)) if is_source_constructor(&call) => {
+                match source_constructor_path(&call) {
+                    Some(path) => Some(path),
+                    None => {
+                        self.diag(Diagnostic::error(
+                            "E1004",
+                            format!(
+                                "`{}` source expects a string-literal path",
+                                call.name().unwrap_or_default()
+                            ),
+                            node_span(call.syntax()),
+                        ));
+                        None
+                    }
+                }
+            }
             Some(value) => {
                 self.diag(Diagnostic::error(
                     "E1004",
-                    "`Table` source must be a string-literal CSV path",
+                    "`Table` source must be a string-literal path or a \
+                     `GeoJson`/`Shapefile` source constructor",
                     node_span(value.syntax()),
                 ));
                 None
@@ -1995,6 +2042,7 @@ impl<'a> Analyzer<'a> {
             }
             None => FrameIr::Invalid,
         };
+        let projection = self.space_projection(space);
 
         let mut geometries = Vec::new();
         let mut histograms = Vec::new();
@@ -2044,6 +2092,7 @@ impl<'a> Analyzer<'a> {
         if !saw_geometry {
             self.diag(Diagnostic::warning("W2001", "empty Space block", span));
         }
+        self.check_spatial_geometries(&geometries, &frame);
 
         let mut analysis = SpaceAnalysis::default();
         for histogram in histograms {
@@ -2115,6 +2164,7 @@ impl<'a> Analyzer<'a> {
                 guides,
                 scales,
                 theme,
+                projection,
                 span,
             });
         }
@@ -2201,6 +2251,7 @@ impl<'a> Analyzer<'a> {
             guides,
             scales,
             theme,
+            projection: None,
             span: histogram.span,
         };
         Some((derive, space))
@@ -2269,6 +2320,7 @@ impl<'a> Analyzer<'a> {
             guides,
             scales,
             theme,
+            projection: None,
             span: freq_poly.span,
         };
         Some((derive, space))
@@ -2375,6 +2427,7 @@ impl<'a> Analyzer<'a> {
             guides,
             scales,
             theme,
+            projection: None,
             span: bin2d.span,
         };
         Some((derive, space))
@@ -2453,6 +2506,7 @@ impl<'a> Analyzer<'a> {
             guides,
             scales,
             theme,
+            projection: None,
             span: density.span,
         };
         Some((derive, space))
@@ -2636,6 +2690,7 @@ impl<'a> Analyzer<'a> {
             guides,
             scales,
             theme,
+            projection: None,
             span: bar.span,
         };
         Some((derive, space))
@@ -2731,6 +2786,58 @@ impl<'a> Analyzer<'a> {
                 value: setting.value.clone(),
             })
             .collect()
+    }
+
+    /// Read the optional `projection:` argument of a space as a string literal
+    /// (spec §16.14). The string's validity (alias or PROJ form) is checked at
+    /// render time, where the projection registry lives (`E1802`).
+    fn space_projection(&mut self, space: &SpaceBlock) -> Option<String> {
+        let arg = space
+            .args()
+            .into_iter()
+            .find(|a| a.key().as_deref() == Some("projection"))?;
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                Some(string_value(&lit.text().unwrap_or_default()))
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    "E1802",
+                    "`projection` expects a string literal (an alias or a `+proj=…` string)",
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
+        }
+    }
+
+    /// Validate `Geo` marks against their space frame (spec §16.14, §14.x). A
+    /// `Geo` mark requires a spatial space: its frame must be a single geometry
+    /// column. A single non-geometry column is `E1801`; a planar (multi-axis)
+    /// frame is `E1804`.
+    fn check_spatial_geometries(&mut self, geometries: &[GeometryIr], frame: &FrameIr) {
+        for geo in geometries.iter().filter(|g| g.kind == GeometryKind::Geo) {
+            match frame {
+                FrameIr::Vector(col) if col.dtype == DataType::Geometry => {}
+                // The column was already reported as unknown (E1101); avoid a
+                // confusing second diagnostic.
+                FrameIr::Vector(col) if col.dtype == DataType::Unknown => {}
+                FrameIr::Vector(_) => self.diag(Diagnostic::error(
+                    "E1801",
+                    "a spatial space requires a geometry column; \
+                     `Geo` must be used in a `Space(geom)` over a geometry column",
+                    geo.span,
+                )),
+                FrameIr::Invalid => {}
+                _ => self.diag(Diagnostic::error(
+                    "E1804",
+                    "`Geo` mark requires a spatial space (a `Space` over a geometry column), \
+                     not a planar Cartesian space",
+                    geo.span,
+                )),
+            }
+        }
     }
 
     fn space_data(&mut self, space: &SpaceBlock) -> (SpaceDataRef, ActiveTable) {
@@ -3245,6 +3352,28 @@ fn describe_accepts(accepts: &[Accept]) -> String {
 }
 
 /// Strip surrounding quotes and resolve escapes in a string literal lexeme.
+/// The names of the geospatial source constructors recognized on the data
+/// seam (spec §10.11).
+const SOURCE_CONSTRUCTORS: &[&str] = &["GeoJson", "Shapefile"];
+
+/// Whether a call value is a recognized source constructor by name.
+fn is_source_constructor(call: &CallValue) -> bool {
+    call.name()
+        .is_some_and(|name| SOURCE_CONSTRUCTORS.contains(&name.as_str()))
+}
+
+/// The path string from a source constructor's first positional string-literal
+/// argument (e.g. `GeoJson("us.geojson")`), if present.
+fn source_constructor_path(call: &CallValue) -> Option<String> {
+    let arg = call.args().into_iter().find(|a| a.key().is_none())?;
+    match arg.value() {
+        Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+            Some(string_value(&lit.text().unwrap_or_default()))
+        }
+        _ => None,
+    }
+}
+
 fn string_value(raw: &str) -> String {
     let inner = raw
         .strip_prefix('"')

@@ -193,6 +193,9 @@ fn build_column(dtype: DataType, cells: &[Cell], raw: &[String]) -> Column {
                 })
                 .collect::<Vec<Option<DateTimeValue>>>(),
         ),
+        // Geometry is never inferred from text cells: it is produced directly
+        // by the GeoJson/Shapefile loaders (spec §10.11), not this pipeline.
+        DataType::Geometry => unreachable!("geometry columns are not inferred from text"),
         // String, Mixed, and Unknown preserve the original strings.
         DataType::String | DataType::Mixed | DataType::Unknown => Column::String(
             cells

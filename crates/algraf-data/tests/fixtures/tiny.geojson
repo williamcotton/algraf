@@ -1,0 +1,37 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "alpha", "category": "city", "population": 100, "density": 12.5 },
+      "geometry": { "type": "Point", "coordinates": [5, 5] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "beta", "category": "river", "population": 200, "density": 3.0 },
+      "geometry": { "type": "LineString", "coordinates": [[0, 12], [5, 14], [10, 12]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "gamma", "category": "region", "population": 300, "density": 47.25 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]],
+          [[3, 3], [3, 7], [7, 7], [7, 3], [3, 3]]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "delta", "category": "region", "population": 400, "density": 88.0 },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [[[12, 0], [16, 0], [16, 4], [12, 4], [12, 0]]],
+          [[[12, 6], [16, 6], [16, 10], [12, 10], [12, 6]]]
+        ]
+      }
+    }
+  ]
+}

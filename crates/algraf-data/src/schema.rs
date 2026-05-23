@@ -8,6 +8,11 @@ pub enum DataType {
     Float,
     Temporal,
     String,
+    /// A spatial geometry value (Simple Features), the backing type of a `geom`
+    /// column from a `GeoJson`/`Shapefile` source (spec §10.11). Spatial is its
+    /// own kind: neither continuous nor categorical, so it trains no ordinary
+    /// position/aesthetic scale — only the spatial scale (spec §16.14).
+    Geometry,
     /// A mix of incompatible types; treated as categorical (spec §10.3).
     Mixed,
     /// No non-missing values were observed.
@@ -23,6 +28,12 @@ impl DataType {
     /// Whether this type is naturally categorical.
     pub fn is_categorical(self) -> bool {
         matches!(self, DataType::Boolean | DataType::String | DataType::Mixed)
+    }
+
+    /// Whether this type holds spatial geometry (spec §10.11). Geometry columns
+    /// are not orderable as continuous or categorical domains.
+    pub fn is_geometry(self) -> bool {
+        matches!(self, DataType::Geometry)
     }
 }
 

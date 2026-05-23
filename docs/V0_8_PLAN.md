@@ -1,6 +1,6 @@
 # Algraf v0.8.0 Plan
 
-Status: Planned (not started)
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_7_PLAN.md`](V0_7_PLAN.md)
@@ -106,22 +106,22 @@ Only the data source changes to read the same map from a shapefile — the
 geometry column:
 
 ```ag
-Chart(data: Shapefile("cb_2018_us_county_500k.shp"), …) { … }
+Chart(data: Shapefile("cb_2018_us_county_20m.shp"), …) { … }
 ```
 
 Plus a layering example proving the grammar composes — a projected CSV point
 layer over a projected GeoJSON basemap, both sharing one spatial scale:
 
 ```ag
-Chart(width: 800, height: 600) {
+Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600) {
     Theme(name: "void")
-    Table cities = "cities.csv"
+    Table cities = "us_cities.csv"
 
     Space(geom, projection: "albers_usa") {                       // basemap (GeoJson)
-        Geo(fill: "#eeeeee", stroke: "#ffffff", strokeWidth: 0.5)
+        Geo(fill: "#eeeeee", stroke: "#ffffff", strokeWidth: 0.25)
     }
     Space(long * lat, projection: "albers_usa", data: cities) {   // points
-        Point(size: 4, fill: "#cc3333", alpha: 0.8)
+        Point(size: 5, fill: "#cc3333", alpha: 0.85)
     }
 }
 ```
@@ -145,7 +145,7 @@ Chart(width: 800, height: 600) {
 
 ### 1. Geometry data type + columnar storage
 
-Status: Not started.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -162,7 +162,7 @@ Acceptance criteria:
 
 ### 2. GeoJSON source constructor
 
-Status: Not started.
+Status: Implemented.
 
 `GeoJson("path.geojson")` in `Chart(data:)` and `Table name = …`.
 
@@ -184,7 +184,7 @@ Acceptance criteria:
 
 ### 3. Shapefile source constructor
 
-Status: Not started.
+Status: Implemented.
 
 `Shapefile("path.shp")` in `Chart(data:)` and `Table name = …`.
 
@@ -206,7 +206,7 @@ Acceptance criteria:
 
 ### 4. `Space(geom)` spatial frame + spatial scale
 
-Status: Not started.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -225,7 +225,13 @@ Acceptance criteria:
 
 ### 5. Projection via proj4rs
 
-Status: Not started.
+Status: Implemented, with a scoped deviation. The `albers_usa` **composite** with
+Alaska/Hawaii insets is deferred: the checked-in county fixture is lower-48 + DC
+(by decision during fixture prep), so `albers_usa` resolves to the continental
+Albers equal-area projection. The alias and the conflict/diagnostic machinery are
+in place; AK/HI compositing is a follow-up that swaps in the multi-region routing
+without touching callers. `equirectangular`, `mercator`, `robinson`, `albers`,
+and raw `+proj=…` strings all resolve.
 
 Acceptance criteria:
 
@@ -252,7 +258,7 @@ Acceptance criteria:
 
 ### 6. Polymorphic `Geo` mark + choropleth fill
 
-Status: Not started.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -276,7 +282,7 @@ Acceptance criteria:
 
 ### 7. Spec, version, and example hygiene
 
-Status: Not started; mirrors prior releases.
+Status: Implemented; mirrors prior releases.
 
 Acceptance criteria:
 
@@ -299,7 +305,7 @@ Acceptance criteria:
 
 ### Projected CSV Overlays
 
-Status: Not started.
+Status: Implemented.
 
 `Space(long * lat, projection: …)` point/line layers projected into the same
 pixel space as a GeoJSON basemap (the overlay capstone above). Lands with the

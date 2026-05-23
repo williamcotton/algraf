@@ -3,6 +3,7 @@
 use std::cmp::Ordering;
 
 use chrono::NaiveDateTime;
+use geo_types::Geometry;
 
 /// Whether a temporal value carries a time component (spec §10.3, §4143).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -45,6 +46,10 @@ pub enum DataValue {
     Float(f64),
     Temporal(DateTimeValue),
     String(String),
+    /// A spatial geometry value (spec §10.7, §10.11). Geometry is not orderable:
+    /// all geometry values compare equal so they never participate in a
+    /// continuous or categorical domain.
+    Geometry(Geometry<f64>),
 }
 
 impl DataValue {
@@ -61,6 +66,7 @@ impl DataValue {
             DataValue::Float(_) => 3,
             DataValue::Temporal(_) => 4,
             DataValue::String(_) => 5,
+            DataValue::Geometry(_) => 6,
         }
     }
 }
@@ -104,6 +110,9 @@ pub enum DataValueRef<'a> {
     Float(f64),
     Temporal(DateTimeValue),
     String(&'a str),
+    /// A borrowed geometry value, backed by a [`Column::Geometry`] cell
+    /// (spec §10.5, §10.11).
+    Geometry(&'a Geometry<f64>),
 }
 
 impl DataValueRef<'_> {
@@ -120,6 +129,7 @@ impl DataValueRef<'_> {
             DataValueRef::Float(f) => DataValue::Float(f),
             DataValueRef::Temporal(t) => DataValue::Temporal(t),
             DataValueRef::String(s) => DataValue::String(s.to_string()),
+            DataValueRef::Geometry(g) => DataValue::Geometry(g.clone()),
         }
     }
 }

@@ -42,11 +42,16 @@ pub struct TableDeclIr {
     pub span: Span,
 }
 
-/// The chart's primary data source (spec §10.1).
+/// The chart's primary data source (spec §10.1, §10.11).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DataSourceIr {
-    /// A CSV path relative to the source file.
+    /// A tabular path relative to the source file (CSV/TSV/JSON/NDJSON, chosen
+    /// by extension).
     Path(String),
+    /// A `GeoJson("path")` source constructor (spec §10.11).
+    GeoJson(String),
+    /// A `Shapefile("path.shp")` source constructor (spec §10.11).
+    Shapefile(String),
     /// The `stdin` sentinel.
     Stdin,
     /// No valid data source was declared.
@@ -249,6 +254,11 @@ pub struct SpaceIr {
     /// Space-local theme override (spec §7.3, §22.3). When set, this theme
     /// overrides the chart-level theme for this space only.
     pub theme: Option<ThemeIr>,
+    /// The cartographic projection for a spatial space (spec §16.14): a friendly
+    /// alias (e.g. `"albers_usa"`) or a raw `+proj=…` PROJ string. `None` leaves
+    /// the space non-spatial unless its frame is a geometry column, in which
+    /// case the default equirectangular projection applies.
+    pub projection: Option<String>,
     pub span: Span,
 }
 
@@ -313,6 +323,10 @@ pub enum GeometryKind {
     Area,
     Text,
     Segment,
+    /// Polymorphic spatial mark: dispatches on each row's geometry value
+    /// (Point→circle, LineString→polyline, Polygon/MultiPolygon→path),
+    /// projecting coordinates through the spatial scale (spec §14.x).
+    Geo,
 }
 
 /// A binding from an aesthetic to a data column (spec §13.6).

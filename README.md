@@ -1148,6 +1148,70 @@ Chart(
 
 ---
 
+## Maps: a county population choropleth
+
+Version 0.8 makes geometry a first-class column type. The `GeoJson(...)` source
+constructor loads a `FeatureCollection` — one row per feature, each property a
+column, and the geometry in a `geom` column. `Space(geom, projection: ...)`
+projects those features into the plot, and the polymorphic `Geo` mark fills each
+region by a data value: a choropleth. Here `projection: "albers_usa"` puts the
+lower-48 counties into the conventional Albers equal-area layout, and `fill`
+maps `population` through the gradient declared on the chart.
+
+```algraf
+Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
+      title: "US Population by County",
+      subtitle: "Lower 48 + DC — 2018 Census estimates") {
+    Theme(name: "void")
+    Scale(fill: population, gradient: ["#f7fbff", "#08306b"], label: "Population")
+
+    Space(geom, projection: "albers_usa") {
+        Geo(fill: population, stroke: "#ffffff", strokeWidth: 0.25)
+    }
+}
+```
+
+![choropleth](examples/choropleth.svg)
+
+The same map reads from a shapefile by changing only the source — both formats
+decode to the identical `geom` column plus attributes, so the `Space`/`Geo`/`Scale`
+body is unchanged:
+
+```algraf
+Chart(data: Shapefile("cb_2018_us_county_20m.shp"), ...) { ... }
+```
+
+(The `examples/fixtures/build_counties.sh` script rebuilds both fixtures from
+public-domain US Census sources.)
+
+## Maps: projecting a point layer onto a basemap
+
+Because the projection is shared across overlaid spaces, a `long * lat` point
+layer drops onto the same basemap. The county geometry is the primary source; a
+chart-scoped `Table` supplies the cities, and both spaces declare the same
+`albers_usa` projection so the layers align.
+
+```algraf
+Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
+      title: "Major US Cities",
+      subtitle: "A projected point layer over a county basemap") {
+    Theme(name: "void")
+    Table cities = "us_cities.csv"
+
+    Space(geom, projection: "albers_usa") {
+        Geo(fill: "#eeeeee", stroke: "#ffffff", strokeWidth: 0.25)
+    }
+
+    Space(long * lat, projection: "albers_usa", data: cities) {
+        Point(size: 5, fill: "#cc3333", alpha: 0.85)
+    }
+}
+```
+
+![spatial_overlay](examples/spatial_overlay.svg)
+
+---
+
 ## Multiple charts in one document
 
 A document may hold more than one top-level `Chart`. Each chart is fully

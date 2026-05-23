@@ -4,6 +4,7 @@
 //! other crates depend on, so a future Polars backend can implement it without
 //! changing language or renderer interfaces (spec §10.5).
 
+use geo_types::Geometry;
 use indexmap::IndexMap;
 
 use crate::schema::ColumnDef;
@@ -19,6 +20,10 @@ pub enum Column {
     /// Backing store for `String`, `Mixed`, and `Unknown` columns: raw values
     /// are preserved where typed inference does not apply (spec §10.2, §10.3).
     String(Vec<Option<String>>),
+    /// Spatial geometry values, one per feature row (spec §10.11). Columnar
+    /// behind the [`Table`] boundary like every other type, so parser,
+    /// semantics, LSP, and render see geometry only through [`DataValueRef`].
+    Geometry(Vec<Option<Geometry<f64>>>),
 }
 
 impl Column {
@@ -29,6 +34,7 @@ impl Column {
             Column::Float(v) => v.len(),
             Column::Temporal(v) => v.len(),
             Column::String(v) => v.len(),
+            Column::Geometry(v) => v.len(),
         }
     }
 
@@ -46,6 +52,10 @@ impl Column {
             Column::Temporal(v) => v.get(row).map(|c| opt(*c, DataValueRef::Temporal)),
             Column::String(v) => v.get(row).map(|c| match c {
                 Some(s) => DataValueRef::String(s),
+                None => DataValueRef::Null,
+            }),
+            Column::Geometry(v) => v.get(row).map(|c| match c {
+                Some(g) => DataValueRef::Geometry(g),
                 None => DataValueRef::Null,
             }),
         }

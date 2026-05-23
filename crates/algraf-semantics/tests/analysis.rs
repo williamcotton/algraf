@@ -29,6 +29,7 @@ fn schema() -> Vec<ColumnDef> {
         col("lower", DataType::Float),
         col("upper", DataType::Float),
         col("group", DataType::String),
+        col("geom", DataType::Geometry),
     ]
 }
 
@@ -1224,4 +1225,54 @@ fn test_path_geometry_is_known() {
     );
     let ir = analysis.ir.expect("ir");
     assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Path);
+}
+
+// --- Geospatial: source constructors, spatial frame, Geo mark (spec §10.11, §16.14) ---
+
+#[test]
+fn test_geojson_source_constructor_is_accepted() {
+    // A `GeoJson(...)` source must not be rejected as an invalid data source.
+    clean("Chart(data: GeoJson(\"us.geojson\")) {\n  Space(geom) { Geo(fill: value) }\n}");
+}
+
+#[test]
+fn test_shapefile_source_constructor_is_accepted() {
+    clean("Chart(data: Shapefile(\"us.shp\")) {\n  Space(geom) { Geo(stroke: \"#fff\") }\n}");
+}
+
+#[test]
+fn test_named_table_geojson_source_is_accepted() {
+    clean(
+        "Chart(data: \"p.csv\") {\n  Table counties = GeoJson(\"us.geojson\")\n  \
+         Space(flipper_length * body_mass) { Point() }\n}",
+    );
+}
+
+#[test]
+fn test_geo_in_spatial_space_is_clean() {
+    clean("Chart(data: GeoJson(\"us.geojson\")) {\n  Space(geom, projection: \"albers_usa\") { Geo(fill: value) }\n}");
+}
+
+#[test]
+fn test_geo_on_non_geometry_column_reports_e1801() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(value) { Geo(fill: amount) }\n}",
+        "E1801"
+    ));
+}
+
+#[test]
+fn test_geo_in_planar_space_reports_e1804() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(value * amount) { Geo(fill: amount) }\n}",
+        "E1804"
+    ));
+}
+
+#[test]
+fn test_non_string_projection_reports_e1802() {
+    assert!(has(
+        "Chart(data: GeoJson(\"us.geojson\")) {\n  Space(geom, projection: 42) { Geo(fill: value) }\n}",
+        "E1802"
+    ));
 }

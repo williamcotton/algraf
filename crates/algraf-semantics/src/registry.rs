@@ -244,6 +244,13 @@ const TEXT: &[PropSpec] = &[
     opt("declutter", &[Accept::Bool]),
 ];
 
+const GEO: &[PropSpec] = &[
+    opt("fill", FILL),
+    opt("stroke", STROKE),
+    opt("strokeWidth", STROKE_WIDTH),
+    opt("alpha", ALPHA),
+];
+
 const SEGMENT: &[PropSpec] = &[
     req("x", &[Accept::Number]),
     req("y", &[Accept::Number]),
@@ -359,6 +366,11 @@ const GEOMETRIES: &[GeometryDef] = &[
         name: "Segment",
         kind: GeometryKind::Segment,
         props: SEGMENT,
+    },
+    GeometryDef {
+        name: "Geo",
+        kind: GeometryKind::Geo,
+        props: GEO,
     },
 ];
 

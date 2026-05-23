@@ -1563,6 +1563,11 @@ Suggested domain kinds:
 
 `Mixed`
 
+`Spatial` — since 0.8: a 1-D frame (`Vector1`) over a geometry column
+(spec §10.11). A spatial frame trains the spatial scale (§16.15) rather than an
+ordinary position axis; it is the algebra kind of `Space(geom)`. A geometry
+column used in any other position (e.g. as a Cartesian axis) is `E1801`.
+
 The analyzer MUST propagate `Invalid` without cascading excessive errors.
 
 The analyzer SHOULD report one primary diagnostic for a malformed expression.
@@ -1782,6 +1787,13 @@ The data source format is selected by the path's file extension (spec §10.2).
 `Chart(data: "sales.json")` loads JSON; `Chart(data: "sales.tsv")` loads TSV.
 The same rule applies to the `--data` override and to `Table name = "..."`
 declarations (spec §10.10).
+
+Version 0.8 adds two geospatial **source constructors** on the same seam,
+selected explicitly rather than by extension (spec §10.11): `GeoJson("path")`
+loads a GeoJSON `FeatureCollection`, and `Shapefile("path.shp")` loads an ESRI
+shapefile bundle. Both MAY appear wherever a data source is accepted —
+`Chart(data: GeoJson("us.geojson"))` and `Table counties = Shapefile("us.shp")`.
+A source constructor's path is its first positional string argument.
 
 `Chart(data: stdin)` reads CSV data from standard input.
 
@@ -2125,6 +2137,7 @@ pub enum DataValue {
     Float(f64),
     Temporal(DateTimeValue),
     String(String),
+    Geometry(geo_types::Geometry<f64>), // since 0.8 (spec §10.11)
 }
 ```
 
@@ -2133,6 +2146,11 @@ pub enum DataValue {
 Continuous comparisons MUST handle NaN carefully.
 
 NaN SHOULD be treated as missing.
+
+`DataValue::Geometry` (and the borrowed `DataValueRef::Geometry`) carry a spatial
+geometry value (spec §10.11). Geometry is not orderable: all geometry values
+compare equal, so a geometry column never forms a continuous or categorical
+domain.
 
 ### 10.8 Source Security
 
@@ -2194,6 +2212,41 @@ Diagnostics: a duplicate `Table` name is `E1105`; a name that conflicts with the
 primary or a derived table is `E1108`; a `Table` source file that cannot be
 found is `E1106`, and one that cannot be read is `E1107`. (`E1103` still covers
 an unknown identifier passed to a space's `data:`.)
+
+### 10.11 Geometry Values (Simple Features)
+
+Since version 0.8, a column MAY hold spatial **geometry** (the Simple Features
+model). Geometry is its own data type, distinct from continuous and categorical:
+
+- `DataType::Geometry` MUST report `is_continuous() == false` and
+  `is_categorical() == false`. A geometry column trains no position or aesthetic
+  scale — only the spatial scale (spec §16.15).
+- Geometry is stored columnar behind the dataframe boundary
+  (`Column::Geometry(Vec<Option<Geometry<f64>>>)` wrapping
+  `geo_types::Geometry<f64>`), one feature per row. The `Table` trait (§10.5) is
+  unchanged, so parser, semantics, LSP, and render see geometry only through
+  `DataValueRef::Geometry`.
+
+Two geometry **source constructors** decode to this representation; both are
+pure-Rust and offline, preserving the single-binary (spec §2) and
+no-network-by-default (§10.8) guarantees. They differ only in ingestion — both
+produce a `geom` geometry column plus scalar attribute columns — so they share
+the spatial scale, projection, and `Geo` render path identically:
+
+- **`GeoJson("path.geojson")`** parses a `FeatureCollection` (a lone `Feature` is
+  also accepted): one row per feature in file order, each `properties` key
+  becomes a scalar column via the shared type-inference pipeline (§10.3), and
+  each feature's `geometry` becomes the `geom` column.
+- **`Shapefile("path.shp")`** reads the `.shp` for geometry and the sidecar
+  `.dbf` for attributes (the `.dbf`/`.shx`/`.prj` sidecars resolve next to the
+  named `.shp`), one row per record in file order. A shapefile's polygon type
+  normalizes to `MultiPolygon`. Attributes run through the same inference
+  pipeline, so a shapefile and an equivalent GeoJSON produce the same dataframe
+  shape.
+
+Path resolution, `--base-dir`, and source security (§10.8) apply unchanged. A
+missing source file is `E1106`; an unreadable one is `E1107`. A malformed
+document or unsupported geometry type is `E1805`.
 
 ## 11. AST Model
 
@@ -3138,6 +3191,10 @@ addition to a numeric literal; a mapped `strokeWidth` trains a continuous scale
 and is drawn per segment (spec §16.8). For all other geometries `strokeWidth`
 remains a numeric literal. A `strokeWidth` (or `size`) scale mapped to a
 non-numeric column is `E1607`.
+
+Since version 0.8 the registry MUST include a `Geo` geometry (spec §14.23),
+supported only in a spatial space. Its properties are `fill` (column or color),
+`stroke` (color), `strokeWidth` (number), and `alpha` (number).
 
 ### 13.9 Property Registry
 
@@ -4162,6 +4219,37 @@ Future plugin geometry support MUST be carefully sandboxed.
 
 Version 0.1 SHOULD keep built-in geometries compiled into the binary.
 
+### 14.23 Geo
+
+Syntax:
+
+```ag
+Geo(fill: population, stroke: "#ffffff", strokeWidth: 0.25)
+```
+
+Supported spaces:
+
+Spatial (a `Space` over a geometry column, spec §16.15)
+
+`Geo` is a **polymorphic** mark: it dispatches on each row's geometry value and
+projects every coordinate through the spatial scale before emitting SVG. Since
+version 0.8 it MUST render:
+
+- `Point` / `MultiPoint` → `<circle>` markers,
+- `LineString` / `MultiLineString` → an unfilled `<path>` (stroked polyline),
+- `Polygon` / `MultiPolygon` → a filled `<path>`, one `M…Z` subpath per ring
+  (exterior then interiors), using `fill-rule="evenodd"` so holes are cut out.
+
+`fill` MAY map to a column, producing a **choropleth**: the fill resolves per
+feature through the gradient or categorical scale (spec §16.8, §16.13), and the
+fill legend reuses the existing legend machinery. `stroke`, `strokeWidth`, and
+`alpha` are constants.
+
+Rendering MUST be deterministic: features are drawn in row order and rings in
+source order. A `Geo` mark outside a spatial space is a semantic error — `E1801`
+when the space frames a single non-geometry column, `E1804` when the space is a
+planar Cartesian space.
+
 ## 15. Statistics
 
 ### 15.1 Stat Model
@@ -4929,6 +5017,58 @@ literals (`E1604` otherwise). A map `range:`/`labels:` on a non-categorical or
 non-color scale MUST emit `E1606`; a numeric `range:` on a categorical color
 scale MUST emit `E1603`.
 
+### 16.14 Projection
+
+> Since version 0.8.
+
+A spatial space MAY declare a cartographic **projection** as a `Space` argument:
+
+```ag
+Space(geom, projection: "albers_usa") { Geo(fill: population) }
+```
+
+`projection:` MUST be a string literal — a friendly alias or a raw PROJ string
+(`+proj=…`). The source CRS is WGS84 (`EPSG:4326`) lon/lat. The alias registry
+maps over [`proj4rs`]:
+
+| alias | meaning |
+| --- | --- |
+| `equirectangular` | plate carrée (planar lon/lat); the default when `projection:` is omitted |
+| `mercator` | Web-style Mercator |
+| `robinson` | Robinson |
+| `albers` | continental-US Albers equal-area (lower-48) |
+| `albers_usa` | `albersUsa`-style composite; the conventional Alaska/Hawaii insets are deferred, so it currently resolves to the continental Albers (lower-48) |
+
+A raw `+proj=…` string passes through to `proj4rs` unchanged. A non-string
+`projection:` is `E1802` (the analyzer); an unknown alias or malformed PROJ
+string is `E1802` (the renderer, where the registry lives). When `projection:`
+is omitted but the frame is a geometry column, the default equirectangular
+projection applies so raw lon/lat maps degrade gracefully.
+
+Overlaid spatial spaces MUST declare the same projection; a conflict is `E1803`
+(mirroring shared position scales, §17.5).
+
+### 16.15 Spatial Scale
+
+> Since version 0.8.
+
+A spatial frame (§8.8) trains a **spatial scale** in place of independent x/y
+position scales. The renderer MUST:
+
+1. iterate the geometry (or `long * lat`) coordinates and compute the geographic
+   bounding box,
+2. project the box through the declared projection (sampling vertices for
+   non-affine projections),
+3. fit the projected box into the plot rectangle **preserving aspect ratio**
+   (letterbox), so equal-area maps are never stretched,
+4. map geographic → projected → pixel for every rendered coordinate.
+
+A spatial space MUST draw no latitude/longitude axes or grid lines (a graticule
+is deferred). Output MUST stay deterministic (§18.12): `proj4rs` floating-point
+trig is absorbed by the 3-decimal SVG coordinate formatter.
+
+A spatial frame whose column is not a geometry column is `E1801`.
+
 ## 17. Layout
 
 ### 17.1 Viewport Model
@@ -5065,6 +5205,12 @@ their continuous and temporal position-scale domains MUST be unioned across all
 contributing tables, so the secondary layer aligns with the primary in the
 shared plot area. A bound that a space has locked (a `fill`-layout bar, a `Rect`)
 is not widened by this union.
+
+Version 0.8: overlaid **spatial** spaces share one spatial scale (§16.15). The
+renderer MUST union the projected bounding boxes of all spatial spaces and fit
+them once, so a projected `long * lat` point overlay aligns with a `Space(geom)`
+basemap under the same projection. All overlaid spatial spaces MUST declare the
+same projection (`E1803` on conflict).
 
 Multiple `Space` blocks are distinct from multiple `Chart` blocks (spec §7.1).
 Spaces within one chart may overlay in a shared plot area and share position
@@ -6896,6 +7042,16 @@ missing `=>`/stray separator in a map literal)
 
 `E1607 strokeWidth/size scale requires a numeric column`
 
+`E1801 spatial space requires a geometry column`
+
+`E1802 invalid or unknown projection`
+
+`E1803 overlaid spaces declare conflicting projections`
+
+`E1804 Geo mark requires a spatial space`
+
+`E1805 GeoJSON / shapefile parse error or unsupported geometry type`
+
 ### 26.3 Warning Diagnostics
 
 `W2001 empty Space block`
@@ -7311,6 +7467,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.5.0 | [`V0_5_PLAN.md`](V0_5_PLAN.md) | Composition & reuse | Planned |
 | 0.6.0 | [`V0_6_PLAN.md`](V0_6_PLAN.md) | External data sources & manual scales | Planned |
 | 0.7.0 | [`V0_7_PLAN.md`](V0_7_PLAN.md) | Data backends | Planned |
+| 0.8.0 | [`V0_8_PLAN.md`](V0_8_PLAN.md) | Geospatial — geometry, projection, choropleth | Implemented |
 
 The newest unreleased plan is the active one; released plans are a historical
 record and their scope is not reopened.

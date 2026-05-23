@@ -28,6 +28,9 @@
       "include": "#stats"
     },
     {
+      "include": "#sources"
+    },
+    {
       "include": "#constants"
     },
     {
@@ -125,7 +128,7 @@
       "patterns": [
         {
           "name": "entity.name.function.geometry.algraf",
-          "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment)\\b(?=\\s*\\()"
+          "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment|Geo)\\b(?=\\s*\\()"
         }
       ]
     },
@@ -134,6 +137,14 @@
         {
           "name": "entity.name.function.stat.algraf",
           "match": "\\b(?:Bin|Bin2D|HexBin|Count|Smooth|Boxplot|Density)\\b(?=\\s*\\()"
+        }
+      ]
+    },
+    "sources": {
+      "patterns": [
+        {
+          "name": "entity.name.function.source.algraf",
+          "match": "\\b(?:GeoJson|Shapefile)\\b(?=\\s*\\()"
         }
       ]
     },
@@ -149,7 +160,7 @@
       "patterns": [
         {
           "name": "variable.parameter.property.algraf",
-          "match": "\\b(?:data|width|height|title|subtitle|caption|facetColumns|legend|fill|stroke|strokeWidth|alpha|size|shape|group|sort|layout|baseline|stat|xmin|xmax|ymin|ymax|bins|binWidth|boundary|closed|bandwidth|n|quantiles|gradient|method|label|anchor|dx|dy|x|y|xend|yend|sides)\\b(?=\\s*:)"
+          "match": "\\b(?:data|width|height|title|subtitle|caption|facetColumns|legend|fill|stroke|strokeWidth|alpha|size|shape|group|sort|layout|baseline|stat|xmin|xmax|ymin|ymax|bins|binWidth|boundary|closed|bandwidth|n|quantiles|gradient|method|label|anchor|dx|dy|x|y|xend|yend|sides|projection)\\b(?=\\s*:)"
         },
         {
           "name": "variable.parameter.property.unknown.algraf",

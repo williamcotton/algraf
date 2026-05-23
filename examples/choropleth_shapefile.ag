@@ -1,0 +1,10 @@
+Chart(data: Shapefile("cb_2018_us_county_20m.shp"), width: 900, height: 600,
+      title: "US Population by County",
+      subtitle: "Same map, read from a shapefile instead of GeoJSON") {
+    Theme(name: "void")
+    Scale(fill: population, gradient: ["#f7fbff", "#08306b"], label: "Population")
+
+    Space(geom, projection: "albers_usa") {
+        Geo(fill: population, stroke: "#ffffff", strokeWidth: 0.25)
+    }
+}

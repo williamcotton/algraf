@@ -608,13 +608,16 @@ impl Parser {
 
     fn arg(&mut self) {
         self.builder.start_node(SyntaxKind::ARG.into());
-        self.expect(SyntaxKind::IDENT, "E0010", "expected argument name");
-        self.expect(
-            SyntaxKind::COLON,
-            "E0004",
-            "expected ':' after argument name",
-        );
-        self.value();
+        // An argument is either keyed (`name: value`) or positional (a bare
+        // value, e.g. the path in `GeoJson("file.geojson")`, spec §10.11). A
+        // leading `IDENT :` is the key; anything else is parsed as a value.
+        if self.at(SyntaxKind::IDENT) && self.nth_kind(1) == SyntaxKind::COLON {
+            self.bump(); // argument name
+            self.bump(); // ':'
+            self.value();
+        } else {
+            self.value();
+        }
         self.builder.finish_node();
     }
 

@@ -741,6 +741,8 @@ fn ir_to_json(ir: &ChartIr) -> Value {
 fn data_source_json(data_source: &DataSourceIr) -> Value {
     match data_source {
         DataSourceIr::Path(path) => json!({ "kind": "path", "path": path }),
+        DataSourceIr::GeoJson(path) => json!({ "kind": "geojson", "path": path }),
+        DataSourceIr::Shapefile(path) => json!({ "kind": "shapefile", "path": path }),
         DataSourceIr::Stdin => json!({ "kind": "stdin" }),
         DataSourceIr::Missing => json!({ "kind": "missing" }),
     }
@@ -920,6 +922,7 @@ fn geometry_kind_str(kind: GeometryKind) -> &'static str {
         GeometryKind::Area => "Area",
         GeometryKind::Text => "Text",
         GeometryKind::Segment => "Segment",
+        GeometryKind::Geo => "Geo",
     }
 }
 
@@ -930,6 +933,7 @@ fn dtype_str(dtype: DataType) -> &'static str {
         DataType::Float => "float",
         DataType::Temporal => "temporal",
         DataType::String => "string",
+        DataType::Geometry => "geometry",
         DataType::Mixed => "mixed",
         DataType::Unknown => "unknown",
     }
