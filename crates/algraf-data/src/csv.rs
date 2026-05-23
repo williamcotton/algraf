@@ -22,10 +22,11 @@ pub struct LoadResult {
     pub warnings: Vec<DataWarning>,
 }
 
-fn reader_from<R: Read>(reader: R) -> csv::Reader<R> {
+fn reader_from<R: Read>(reader: R, delimiter: u8) -> csv::Reader<R> {
     csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(false)
+        .delimiter(delimiter)
         .from_reader(reader)
 }
 
@@ -65,7 +66,11 @@ fn read_columns<R: Read>(
     Ok(columns)
 }
 
-fn build(names: Vec<String>, columns: Vec<Vec<String>>) -> LoadResult {
+/// Build a [`LoadResult`] from header names and per-column raw string cells,
+/// running each column through the shared type-inference pipeline (spec §10.3).
+/// Shared by the CSV/TSV and JSON/NDJSON loaders so inference is identical
+/// across formats for equivalent data.
+pub(crate) fn build(names: Vec<String>, columns: Vec<Vec<String>>) -> LoadResult {
     let mut schema = Vec::with_capacity(names.len());
     let mut data = Vec::with_capacity(names.len());
     let mut warnings = Vec::new();
@@ -81,17 +86,34 @@ fn build(names: Vec<String>, columns: Vec<Vec<String>>) -> LoadResult {
     }
 }
 
-/// Fully load CSV data with authoritative type inference (spec §10.3).
-pub fn read_csv<R: Read>(reader: R) -> Result<LoadResult, DataError> {
-    let mut reader = reader_from(reader);
+/// Fully load delimited data with authoritative type inference (spec §10.3),
+/// using `delimiter` as the field separator (`,` for CSV, `\t` for TSV).
+pub fn read_delimited<R: Read>(reader: R, delimiter: u8) -> Result<LoadResult, DataError> {
+    let mut reader = reader_from(reader, delimiter);
     let names = headers(&mut reader)?;
     let columns = read_columns(&mut reader, names.len(), None)?;
     Ok(build(names, columns))
 }
 
+/// Fully load CSV data with authoritative type inference (spec §10.3).
+pub fn read_csv<R: Read>(reader: R) -> Result<LoadResult, DataError> {
+    read_delimited(reader, b',')
+}
+
+/// Fully load tab-separated data (TSV) with authoritative type inference
+/// (spec §10.2, §10.3). TSV is CSV with a tab field separator.
+pub fn read_tsv<R: Read>(reader: R) -> Result<LoadResult, DataError> {
+    read_delimited(reader, b'\t')
+}
+
 /// Load CSV data from a string.
 pub fn read_csv_str(input: &str) -> Result<LoadResult, DataError> {
     read_csv(input.as_bytes())
+}
+
+/// Load TSV data from a string.
+pub fn read_tsv_str(input: &str) -> Result<LoadResult, DataError> {
+    read_tsv(input.as_bytes())
 }
 
 /// Load CSV data from a filesystem path.
@@ -105,7 +127,17 @@ pub fn read_csv_path(path: &Path) -> Result<LoadResult, DataError> {
 /// Suitable for editor completion and hover, where reading the full file on the
 /// hot path is undesirable. Types are provisional; the caller marks them so.
 pub fn read_csv_schema<R: Read>(reader: R, sample: usize) -> Result<Vec<ColumnDef>, DataError> {
-    let mut reader = reader_from(reader);
+    read_delimited_schema(reader, b',', sample)
+}
+
+/// Infer a provisional schema from delimited data, sampling up to `sample`
+/// data rows (spec §10.3).
+pub fn read_delimited_schema<R: Read>(
+    reader: R,
+    delimiter: u8,
+    sample: usize,
+) -> Result<Vec<ColumnDef>, DataError> {
+    let mut reader = reader_from(reader, delimiter);
     let names = headers(&mut reader)?;
     let columns = read_columns(&mut reader, names.len(), Some(sample))?;
     Ok(build(names, columns).frame.schema().to_vec())

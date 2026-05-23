@@ -59,6 +59,9 @@ charts=(
     path
     manual_colors
     minard
+    sales_tsv
+    temperatures_json
+    events_ndjson
 )
 
 cd "$repo_root"

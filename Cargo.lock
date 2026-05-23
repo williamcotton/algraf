@@ -10,7 +10,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "algraf-cli"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -27,7 +27,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "thiserror",
@@ -35,18 +35,19 @@ dependencies = [
 
 [[package]]
 name = "algraf-data"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "algraf-core",
  "chrono",
  "csv",
  "indexmap",
+ "serde_json",
  "thiserror",
 ]
 
 [[package]]
 name = "algraf-lsp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -64,7 +65,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-render"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -76,7 +77,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-semantics"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -85,7 +86,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-syntax"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "algraf-core",
  "logos",
@@ -1199,6 +1200,7 @@ version = "1.0.149"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83fc039473c5595ace860d8c4fafa220ff474b3fc6bfdb4293327f1a37e94d86"
 dependencies = [
+ "indexmap",
  "itoa",
  "memchr",
  "serde",

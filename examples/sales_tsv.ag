@@ -1,0 +1,10 @@
+Chart(
+    data: "sales.tsv",
+    width: 640,
+    height: 420,
+    title: "Revenue by region (TSV source)",
+) {
+    Space(region * revenue) {
+        Bar(stat: "identity", fill: region, alpha: 0.85)
+    }
+}

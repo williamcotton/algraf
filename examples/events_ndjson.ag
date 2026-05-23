@@ -1,0 +1,10 @@
+Chart(
+    data: "events.ndjson",
+    width: 640,
+    height: 420,
+    title: "Events by category (NDJSON source)",
+) {
+    Space(category * count) {
+        Bar(stat: "identity", fill: category, alpha: 0.85)
+    }
+}

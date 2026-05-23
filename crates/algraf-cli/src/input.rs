@@ -3,7 +3,7 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use algraf_data::{read_csv, read_csv_path, read_csv_schema, ColumnDef, LoadResult, Table};
+use algraf_data::{read_csv, read_path, read_schema_path, ColumnDef, LoadResult, Table};
 use algraf_syntax::ast::{ChartBlock, ChartItem, LiteralKind, Root, ValueExpr};
 use algraf_syntax::SyntaxNode;
 
@@ -128,7 +128,7 @@ pub fn load_named_tables(
     let mut out = Vec::new();
     for (name, rel) in extract_chart_tables(chart) {
         let path = base.join(&rel);
-        let loaded = read_csv_path(&path).map_err(|e| {
+        let loaded = read_path(&path).map_err(|e| {
             CliError::Io(format!(
                 "failed to load Table `{name}` data {}: {e}",
                 path.display()
@@ -152,7 +152,7 @@ pub fn load_data(
     data_opt: Option<&str>,
 ) -> Result<LoadResult, CliError> {
     match data_location(ast_data, source, base_dir, data_opt)? {
-        DataLocation::Path(path) => read_csv_path(&path)
+        DataLocation::Path(path) => read_path(&path)
             .map_err(|e| CliError::Io(format!("failed to load data {}: {e}", path.display()))),
         DataLocation::Stdin => read_stdin_csv(),
     }
@@ -175,19 +175,14 @@ pub fn load_schema(
     };
 
     match data_location(ast_data, source, base_dir, data_opt)? {
-        DataLocation::Path(path) => {
-            let file = std::fs::File::open(&path).map_err(|e| {
-                CliError::Io(format!("failed to load data {}: {e}", path.display()))
-            })?;
-            read_csv_schema(file, sample_size)
-                .map_err(|e| CliError::Io(format!("failed to load data {}: {e}", path.display())))
-        }
+        DataLocation::Path(path) => read_schema_path(&path, sample_size)
+            .map_err(|e| CliError::Io(format!("failed to load data {}: {e}", path.display()))),
         DataLocation::Stdin => {
             let mut bytes = Vec::new();
             std::io::stdin()
                 .read_to_end(&mut bytes)
                 .map_err(|e| CliError::Io(format!("failed to read CSV from stdin: {e}")))?;
-            read_csv_schema(bytes.as_slice(), sample_size)
+            algraf_data::read_csv_schema(bytes.as_slice(), sample_size)
                 .map_err(|e| CliError::Io(format!("failed to parse stdin CSV: {e}")))
         }
     }

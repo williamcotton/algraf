@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use algraf_core::{Diagnostic as CoreDiagnostic, Severity, Span};
 use algraf_data::{
-    read_csv_path, read_csv_schema, ColumnDef, DataError, DataType, Table, DEFAULT_SCHEMA_SAMPLE,
+    read_path, read_schema_path, ColumnDef, DataError, DataType, Table, DEFAULT_SCHEMA_SAMPLE,
 };
 use algraf_render::{render_with_tables, Theme};
 use algraf_semantics::{analyze_with_tables, registry, ChartIr};
@@ -192,9 +192,7 @@ impl Backend {
             };
         }
 
-        let loaded = std::fs::File::open(&path)
-            .map_err(DataError::from)
-            .and_then(|file| read_csv_schema(file, DEFAULT_SCHEMA_SAMPLE));
+        let loaded = read_schema_path(&path, DEFAULT_SCHEMA_SAMPLE);
 
         match loaded {
             Ok(schema) => {
@@ -258,9 +256,7 @@ impl Backend {
                 }
                 continue;
             }
-            let loaded = std::fs::File::open(&path)
-                .map_err(DataError::from)
-                .and_then(|file| read_csv_schema(file, DEFAULT_SCHEMA_SAMPLE));
+            let loaded = read_schema_path(&path, DEFAULT_SCHEMA_SAMPLE);
             match loaded {
                 Ok(schema) => {
                     self.schema_cache.insert(
@@ -422,7 +418,7 @@ fn render_preview(source: &str, data_path: &Path) -> Result<String, String> {
         return Err("source has parse errors; fix them to preview".to_string());
     }
 
-    let loaded = read_csv_path(data_path)
+    let loaded = read_path(data_path)
         .map_err(|e| format!("failed to load data {}: {e}", data_path.display()))?;
     let frame = loaded.frame;
 
@@ -448,7 +444,7 @@ fn render_preview(source: &str, data_path: &Path) -> Result<String, String> {
                 Some(dir) => dir.join(&rel),
                 None => PathBuf::from(&rel),
             };
-            if let Ok(loaded) = read_csv_path(&path) {
+            if let Ok(loaded) = read_path(&path) {
                 table_schemas.insert(name.clone(), loaded.frame.schema().to_vec());
                 named_frames.insert(name, loaded.frame);
             }
@@ -875,6 +871,32 @@ fn schema_error(path: &std::path::Path, err: &DataError) -> (&'static str, Strin
         DataError::DuplicateHeader(name) => (
             "E1008",
             format!("duplicate CSV column `{name}` in {}", path.display()),
+        ),
+        DataError::Json(err) => (
+            "E1009",
+            format!("malformed JSON in {}: {err}", path.display()),
+        ),
+        DataError::NdJson { line, source } => (
+            "E1009",
+            format!(
+                "malformed JSON on line {line} in {}: {source}",
+                path.display()
+            ),
+        ),
+        DataError::JsonNotArray => (
+            "E1010",
+            format!(
+                "JSON data must be an array of row objects in {}",
+                path.display()
+            ),
+        ),
+        DataError::JsonRowNotObject { index } => (
+            "E1010",
+            format!("JSON row {index} is not an object in {}", path.display()),
+        ),
+        DataError::NdJsonRowNotObject { line } => (
+            "E1010",
+            format!("NDJSON line {line} is not an object in {}", path.display()),
         ),
     }
 }

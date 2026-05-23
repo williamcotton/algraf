@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420" role="img" aria-label="Revenue by region (TSV source)">
+<title>Revenue by region (TSV source)</title>
+<rect class="algraf-background" x="0" y="0" width="640" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Revenue by region (TSV source)</text>
+<rect class="algraf-plot-area" x="60" y="66" width="430" height="304" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="60" y1="370" x2="490" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="329.788" x2="490" y2="329.788" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="289.577" x2="490" y2="289.577" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="249.365" x2="490" y2="249.365" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="209.153" x2="490" y2="209.153" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="168.942" x2="490" y2="168.942" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="128.73" x2="490" y2="128.73" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="88.519" x2="490" y2="88.519" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-bar">
+  <rect x="70.75" y="128.73" width="86" height="241.27" fill="#4E79A7" opacity="0.85" />
+  <rect x="178.25" y="178.995" width="86" height="191.005" fill="#F28E2B" opacity="0.85" />
+  <rect x="285.75" y="249.365" width="86" height="120.635" fill="#E15759" opacity="0.85" />
+  <rect x="393.25" y="88.519" width="86" height="281.481" fill="#76B7B2" opacity="0.85" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="370" x2="490" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="113.75" y1="370" x2="113.75" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="113.75" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">West</text>
+  <line x1="221.25" y1="370" x2="221.25" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="221.25" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">East</text>
+  <line x1="328.75" y1="370" x2="328.75" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="328.75" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">North</text>
+  <line x1="436.25" y1="370" x2="436.25" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="436.25" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">South</text>
+  <text x="275" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">region</text>
+  <line x1="60" y1="66" x2="60" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="370" x2="60" y2="370" stroke="#333333" stroke-width="1" />
+  <text x="52" y="374" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="329.788" x2="60" y2="329.788" stroke="#333333" stroke-width="1" />
+  <text x="52" y="333.788" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55" y1="289.577" x2="60" y2="289.577" stroke="#333333" stroke-width="1" />
+  <text x="52" y="293.577" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <line x1="55" y1="249.365" x2="60" y2="249.365" stroke="#333333" stroke-width="1" />
+  <text x="52" y="253.365" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
+  <line x1="55" y1="209.153" x2="60" y2="209.153" stroke="#333333" stroke-width="1" />
+  <text x="52" y="213.153" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
+  <line x1="55" y1="168.942" x2="60" y2="168.942" stroke="#333333" stroke-width="1" />
+  <text x="52" y="172.942" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100</text>
+  <line x1="55" y1="128.73" x2="60" y2="128.73" stroke="#333333" stroke-width="1" />
+  <text x="52" y="132.73" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">120</text>
+  <line x1="55" y1="88.519" x2="60" y2="88.519" stroke="#333333" stroke-width="1" />
+  <text x="52" y="92.519" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">140</text>
+  <text x="24.4" y="218" text-anchor="middle" transform="rotate(-90 24.4 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">revenue</text>
+</g>
+<g class="algraf-legends">
+  <text x="506" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">region</text>
+  <rect x="506" y="78" width="12" height="12" fill="#4E79A7" />
+  <text x="524" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">West</text>
+  <rect x="506" y="96" width="12" height="12" fill="#F28E2B" />
+  <text x="524" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">East</text>
+  <rect x="506" y="114" width="12" height="12" fill="#E15759" />
+  <text x="524" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">North</text>
+  <rect x="506" y="132" width="12" height="12" fill="#76B7B2" />
+  <text x="524" y="142" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">South</text>
+</g>
+</svg>

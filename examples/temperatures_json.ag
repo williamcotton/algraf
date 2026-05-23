@@ -1,0 +1,11 @@
+Chart(
+    data: "temperatures.json",
+    width: 760,
+    height: 460,
+    title: "Monthly temperature (JSON source)",
+) {
+    Space(date * temp) {
+        Line(stroke: city, strokeWidth: 2)
+        Point(fill: city, size: 5)
+    }
+}

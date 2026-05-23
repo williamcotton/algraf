@@ -16,6 +16,29 @@ pub enum DataError {
     /// Two columns shared the same header name.
     #[error("duplicate column header: {0:?}")]
     DuplicateHeader(String),
+
+    /// A JSON document failed to parse (spec §10.2).
+    #[error("JSON parse error: {0}")]
+    Json(#[from] serde_json::Error),
+
+    /// An NDJSON line failed to parse (spec §10.2).
+    #[error("JSON parse error on line {line}: {source}")]
+    NdJson {
+        line: usize,
+        source: serde_json::Error,
+    },
+
+    /// The top-level JSON value was not an array of row objects (spec §10.2).
+    #[error("JSON data must be an array of row objects")]
+    JsonNotArray,
+
+    /// A JSON array element was not an object (spec §10.2).
+    #[error("JSON row {index} is not an object")]
+    JsonRowNotObject { index: usize },
+
+    /// An NDJSON line was valid JSON but not an object (spec §10.2).
+    #[error("NDJSON line {line} is not an object")]
+    NdJsonRowNotObject { line: usize },
 }
 
 /// A non-fatal data inference warning (spec §10.3).

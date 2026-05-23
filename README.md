@@ -1083,6 +1083,69 @@ Chart(
 
 ![minard](examples/minard.svg)
 
+## Data formats: TSV, JSON, and NDJSON
+
+Every example so far reads CSV, but a data source can also be TSV, JSON, or
+NDJSON. The format is chosen by the file extension (`.tsv`/`.tab`, `.json`,
+`.ndjson`/`.jsonl`); an unrecognized extension is read as CSV. Whatever the
+format, the data lands in the same dataframe and runs through the same
+type-inference pipeline, so the chart language is identical.
+
+A `.tsv` source is just CSV with tab separators:
+
+```algraf
+Chart(
+    data: "sales.tsv",
+    width: 640,
+    height: 420,
+    title: "Revenue by region (TSV source)",
+) {
+    Space(region * revenue) {
+        Bar(stat: "identity", fill: region, alpha: 0.85)
+    }
+}
+```
+
+![sales_tsv](examples/sales_tsv.svg)
+
+A `.json` source is an array of row objects. Each object is a row; keys become
+columns (in first-seen order). JSON values are inferred exactly as their CSV
+text would be — `null` is a missing cell, and the number `1` and string `"1"`
+both infer as an integer:
+
+```algraf
+Chart(
+    data: "temperatures.json",
+    width: 760,
+    height: 460,
+    title: "Monthly temperature (JSON source)",
+) {
+    Space(date * temp) {
+        Line(stroke: city, strokeWidth: 2)
+        Point(fill: city, size: 5)
+    }
+}
+```
+
+![temperatures_json](examples/temperatures_json.svg)
+
+A `.ndjson` source is one JSON row object per line (blank lines are skipped):
+
+```algraf
+Chart(
+    data: "events.ndjson",
+    width: 640,
+    height: 420,
+    title: "Events by category (NDJSON source)",
+) {
+    Space(category * count) {
+        Bar(stat: "identity", fill: category, alpha: 0.85)
+    }
+}
+```
+
+![events_ndjson](examples/events_ndjson.svg)
+
 ---
 
 ## Multiple charts in one document

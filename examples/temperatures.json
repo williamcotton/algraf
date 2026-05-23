@@ -1,0 +1,10 @@
+[
+  {"date": "2026-01-01", "temp": -3.2, "city": "Oslo"},
+  {"date": "2026-02-01", "temp": -1.8, "city": "Oslo"},
+  {"date": "2026-03-01", "temp": 2.4, "city": "Oslo"},
+  {"date": "2026-04-01", "temp": 6.1, "city": "Oslo"},
+  {"date": "2026-01-01", "temp": 5.4, "city": "Lisbon"},
+  {"date": "2026-02-01", "temp": 6.9, "city": "Lisbon"},
+  {"date": "2026-03-01", "temp": 9.2, "city": "Lisbon"},
+  {"date": "2026-04-01", "temp": 12.6, "city": "Lisbon"}
+]

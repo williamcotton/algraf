@@ -1772,9 +1772,16 @@ Quoted identifiers MUST be used to reference keyword-like column names.
 
 ### 10.1 Initial Data Source Model
 
-Version 0.1 supports CSV files.
+Version 0.1 supports CSV files. Version 0.7 adds TSV, JSON, and NDJSON files
+(spec §10.2); all formats load into the same dataframe and behave identically
+downstream.
 
 `Chart(data: "path.csv")` resolves `path.csv` relative to the source file directory by default.
+
+The data source format is selected by the path's file extension (spec §10.2).
+`Chart(data: "sales.json")` loads JSON; `Chart(data: "sales.tsv")` loads TSV.
+The same rule applies to the `--data` override and to `Table name = "..."`
+declarations (spec §10.10).
 
 `Chart(data: stdin)` reads CSV data from standard input.
 
@@ -1849,6 +1856,50 @@ CSV parser SHOULD support UTF-8.
 CSV parser SHOULD report row and column numbers for malformed CSV.
 
 CSV parser SHOULD preserve original string values where type inference fails.
+
+#### 10.2.1 Format Selection
+
+The data source format MUST be selected by the path's file extension, matched
+case-insensitively:
+
+| Extension          | Format |
+| ------------------ | ------ |
+| `.csv`             | CSV    |
+| `.tsv`, `.tab`     | TSV    |
+| `.json`            | JSON   |
+| `.ndjson`, `.jsonl`| NDJSON |
+
+An unrecognized or absent extension MUST be treated as CSV. Data read from
+`stdin` (the `stdin` sentinel or `--data -`) is always CSV.
+
+#### 10.2.2 TSV
+
+TSV is delimited data with a tab (`\t`) field separator. All other CSV parsing
+rules (required header row, quoted fields, missing-token handling, type
+inference) apply unchanged. TSV MUST produce the same dataframe shape as the
+equivalent CSV.
+
+#### 10.2.3 JSON and NDJSON
+
+A JSON source MUST be a top-level array of row objects, e.g.
+`[{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]`. A top-level value that is not an
+array is `E1010`; an array element that is not an object is `E1010`; input that
+is not valid JSON is `E1009`.
+
+An NDJSON source is one JSON row object per line. Blank lines MUST be skipped. A
+line that is not valid JSON is `E1009`; a line that is valid JSON but not an
+object is `E1010`.
+
+Columns MUST be discovered in first-seen key order across rows; a key absent
+from a row is a missing cell. This ordering is deterministic (spec §18.12).
+
+Each JSON value MUST be rendered to its canonical text and run through the same
+type-inference pipeline as CSV (spec §10.3): `null` becomes a missing cell;
+booleans become `true`/`false`; numbers and strings become their textual form;
+nested arrays and objects serialize to compact JSON and infer as strings.
+Consequently JSON does NOT preserve a distinction between the number `1` and the
+string `"1"` — both infer as an integer, exactly as in CSV. This keeps schema and
+type inference identical across formats for equivalent data.
 
 ### 10.3 Schema Inference
 
@@ -2124,9 +2175,9 @@ Completion requests SHOULD NOT block for full data loading.
 ### 10.10 Named Tables
 
 A chart MAY declare named, chart-scoped data tables with `Table name = <source>`
-(spec §7.4.1). Each named table is an independent CSV source, loaded the same
-way as `Chart(data:)` (path resolution, `--base-dir`, source security in §10.8
-all apply unchanged).
+(spec §7.4.1). Each named table is an independent file source, loaded the same
+way as `Chart(data:)` — including format selection by extension (spec §10.2),
+path resolution, `--base-dir`, and source security in §10.8, all unchanged.
 
 A `Space` binds to a named table by bare identifier in its `data:` argument,
 exactly as it binds to a derived table; the space's algebra and geometry
@@ -6768,6 +6819,10 @@ missing `=>`/stray separator in a map literal)
 `E1007 CSV header missing`
 
 `E1008 duplicate CSV column`
+
+`E1009 malformed JSON input`
+
+`E1010 JSON data must be an array of row objects`
 
 `E1101 unknown column`
 

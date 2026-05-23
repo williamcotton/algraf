@@ -1,6 +1,7 @@
 # Algraf v0.7.0 Plan
 
-Status: Planned (not started)
+Status: In progress — additional file formats (TSV/JSON/NDJSON) implemented;
+embedded SQLite deferred to a future release.
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_6_PLAN.md`](V0_6_PLAN.md)
@@ -53,8 +54,10 @@ columnar formats, no alternative backend.
 
 ### 1. Embedded SQL Data Sources
 
-Status: Not started. Listed under the standing deferred list and as a future
-feature gate (spec §30.3).
+Status: Deferred to a future release. The additional-file-formats work (item 2)
+shipped first; embedded SQLite was intentionally held back as the highest-risk
+item (new dependency, source-expression syntax, a checked-in `.db` fixture). It
+remains on the standing deferred list and the future feature gate (spec §30.3).
 
 Allow a chart to source rows from an embedded SQL query (SQLite to start), with
 no external server.
@@ -86,7 +89,12 @@ Acceptance criteria:
 
 ### 2. Additional File Formats
 
-Status: Not started.
+Status: Done. TSV, JSON, and NDJSON are supported, selected by file extension
+(spec §10.2.1). All three reuse the existing dataframe and type-inference
+pipeline (spec §10.2.2–10.2.3, §10.3). Diagnostics `E1009`/`E1010` cover
+malformed JSON and bad JSON shape. Tests live in
+`crates/algraf-data/tests/formats.rs`; examples and fixtures are checked into
+`examples/`.
 
 Support at least one columnar/structured format beyond CSV — a tractable first
 target is delimited variants (TSV) and/or JSON/NDJSON — reusing the dataframe and
@@ -103,7 +111,10 @@ Acceptance criteria:
 
 ### 3. Spec, Version, and Example Hygiene
 
-Status: Not started; mirrors prior releases.
+Status: In progress. Workspace version bumped to `0.7.0`; spec §10.1, §10.2
+(format selection, TSV, JSON/NDJSON), §10.10, and diagnostics `E1009`/`E1010`
+made normative; README and `examples/` gained TSV/JSON/NDJSON examples with
+checked-in fixtures. SQL feature gate (spec §30.3) stays deferred with item 1.
 
 Acceptance criteria:
 
