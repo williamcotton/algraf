@@ -39,6 +39,7 @@ pub enum SyntaxKind {
     COLON,
     COMMA,
     EQ,
+    FAT_ARROW,
     STAR,
     SLASH,
     PLUS,
@@ -55,6 +56,7 @@ pub enum SyntaxKind {
     THEME_KW,
     LAYOUT_KW,
     LET_KW,
+    TABLE_KW,
     STDIN_KW,
 
     // --- Synthetic tokens ---
@@ -92,6 +94,8 @@ pub enum SyntaxKind {
     LAYOUT_DECL,
     /// A `let name = value` variable binding.
     LET_DECL,
+    /// A `Table name = <source>` chart-scoped table declaration.
+    TABLE_DECL,
     /// A `key: value` argument.
     ARG,
     /// A literal value (string, number, boolean, or null).
@@ -100,6 +104,10 @@ pub enum SyntaxKind {
     STDIN_VALUE,
     /// An array value.
     ARRAY_VALUE,
+    /// A map value such as `["A" => "burlywood"]` (spec §7.8).
+    MAP_VALUE,
+    /// One `key => value` entry inside a map value.
+    MAP_ENTRY,
     /// A nested call value such as `Text(size: 12)` in a property position.
     CALL_VALUE,
     /// A recovered error node.
@@ -132,6 +140,7 @@ impl SyntaxKind {
             TokenKind::Colon => SyntaxKind::COLON,
             TokenKind::Comma => SyntaxKind::COMMA,
             TokenKind::Equal => SyntaxKind::EQ,
+            TokenKind::FatArrow => SyntaxKind::FAT_ARROW,
             TokenKind::Star => SyntaxKind::STAR,
             TokenKind::Slash => SyntaxKind::SLASH,
             TokenKind::Plus => SyntaxKind::PLUS,

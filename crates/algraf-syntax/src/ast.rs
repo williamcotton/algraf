@@ -89,6 +89,7 @@ impl ChartBlock {
 pub enum ChartItem {
     Space(SpaceBlock),
     Derive(DeriveDecl),
+    Table(TableDecl),
     Let(LetDecl),
     Scale(Decl),
     Guide(Decl),
@@ -102,6 +103,7 @@ impl ChartItem {
         match node.kind() {
             SyntaxKind::SPACE_BLOCK => SpaceBlock::cast(node).map(ChartItem::Space),
             SyntaxKind::DERIVE_DECL => DeriveDecl::cast(node).map(ChartItem::Derive),
+            SyntaxKind::TABLE_DECL => TableDecl::cast(node).map(ChartItem::Table),
             SyntaxKind::LET_DECL => LetDecl::cast(node).map(ChartItem::Let),
             SyntaxKind::SCALE_DECL => Decl::cast(node).map(ChartItem::Scale),
             SyntaxKind::GUIDE_DECL => Decl::cast(node).map(ChartItem::Guide),
@@ -238,6 +240,36 @@ impl LetDecl {
     }
 }
 
+// --- Table declarations ---------------------------------------------------
+
+ast_node!(
+    /// A `Table name = <source>` chart-scoped table declaration (spec §7.4).
+    TableDecl = TABLE_DECL
+);
+
+impl TableDecl {
+    /// The declared table name.
+    pub fn name(&self) -> Option<String> {
+        first_token(&self.syntax, SyntaxKind::IDENT).map(|t| t.text().to_string())
+    }
+
+    /// The span of the table-name identifier token, excluding trivia.
+    pub fn name_span(&self) -> Option<Span> {
+        first_token(&self.syntax, SyntaxKind::IDENT).map(|t| {
+            let range = t.text_range();
+            Span::new(
+                u32::from(range.start()) as usize,
+                u32::from(range.end()) as usize,
+            )
+        })
+    }
+
+    /// The source expression on the right of `=` (currently a string literal).
+    pub fn source(&self) -> Option<ValueExpr> {
+        self.syntax.children().find_map(ValueExpr::cast)
+    }
+}
+
 // --- Calls and declarations ----------------------------------------------
 
 ast_node!(
@@ -322,6 +354,7 @@ pub enum ValueExpr {
     Literal(Literal),
     Stdin(StdinValue),
     Array(ArrayValue),
+    Map(MapValue),
     Call(CallValue),
     Error(Error),
 }
@@ -335,6 +368,7 @@ impl ValueExpr {
             SyntaxKind::LITERAL => Literal::cast(node).map(ValueExpr::Literal),
             SyntaxKind::STDIN_VALUE => StdinValue::cast(node).map(ValueExpr::Stdin),
             SyntaxKind::ARRAY_VALUE => ArrayValue::cast(node).map(ValueExpr::Array),
+            SyntaxKind::MAP_VALUE => MapValue::cast(node).map(ValueExpr::Map),
             SyntaxKind::CALL_VALUE => CallValue::cast(node).map(ValueExpr::Call),
             SyntaxKind::ERROR => Error::cast(node).map(ValueExpr::Error),
             _ => None,
@@ -347,6 +381,7 @@ impl ValueExpr {
             ValueExpr::Literal(it) => it.syntax(),
             ValueExpr::Stdin(it) => it.syntax(),
             ValueExpr::Array(it) => it.syntax(),
+            ValueExpr::Map(it) => it.syntax(),
             ValueExpr::Call(it) => it.syntax(),
             ValueExpr::Error(it) => it.syntax(),
         }
@@ -417,6 +452,35 @@ impl ArrayValue {
     /// The array elements.
     pub fn values(&self) -> Vec<ValueExpr> {
         child_nodes(&self.syntax, ValueExpr::cast)
+    }
+}
+
+ast_node!(
+    /// A map value such as `["A" => "burlywood"]` (spec §7.8).
+    MapValue = MAP_VALUE
+);
+
+impl MapValue {
+    /// The map's entries, in source order.
+    pub fn entries(&self) -> Vec<MapEntry> {
+        child_nodes(&self.syntax, MapEntry::cast)
+    }
+}
+
+ast_node!(
+    /// One `key => value` entry inside a map value (spec §7.8).
+    MapEntry = MAP_ENTRY
+);
+
+impl MapEntry {
+    /// The entry's key value (left of `=>`).
+    pub fn key(&self) -> Option<ValueExpr> {
+        self.syntax.children().find_map(ValueExpr::cast)
+    }
+
+    /// The entry's value (right of `=>`).
+    pub fn value(&self) -> Option<ValueExpr> {
+        self.syntax.children().filter_map(ValueExpr::cast).nth(1)
     }
 }
 

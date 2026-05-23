@@ -31,7 +31,7 @@
   <rect x="674.167" y="396.446" width="55.833" height="13.554" fill="#c7dcef" opacity="1" />
 </g>
 <g class="algraf-layer algraf-geom-line">
-  <path d="M106.207 386.276 L683.793 89.724" fill="none" stroke="#333333" stroke-width="2" opacity="1" />
+  <path d="M106.207 275.006 L683.793 260.305" fill="none" stroke="#333333" stroke-width="2" opacity="1" />
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="730" y2="410" stroke="#333333" stroke-width="1" />

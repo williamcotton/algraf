@@ -17,6 +17,13 @@ pub enum ColorSpec {
         col: String,
         categories: Vec<String>,
         palette: Option<String>,
+        /// Explicit per-category colors aligned with `categories`, from a manual
+        /// `range: ["A" => "..."]` map (spec §16.13). `None` falls back to the
+        /// palette.
+        colors: Option<Vec<String>>,
+        /// Explicit per-category legend labels aligned with `categories`, from a
+        /// `labels: ["A" => "..."]` map (spec §16.13).
+        labels: Option<Vec<String>>,
     },
     Gradient {
         col: String,
@@ -36,9 +43,16 @@ impl ColorSpec {
                 col,
                 categories,
                 palette,
+                colors,
+                ..
             } => {
                 let cat = cell_category(table, col, row)?;
                 let index = categories.iter().position(|c| *c == cat)?;
+                if let Some(colors) = colors {
+                    if let Some(color) = colors.get(index) {
+                        return Some(color.clone());
+                    }
+                }
                 Some(categorical_color_from(palette.as_deref(), index).to_string())
             }
             ColorSpec::Gradient {
@@ -64,6 +78,8 @@ impl ColorSpec {
             ColorSpec::Categorical {
                 categories,
                 palette,
+                colors,
+                labels,
                 ..
             } => Some(Legend {
                 title: title.to_string(),
@@ -72,10 +88,17 @@ impl ColorSpec {
                     .iter()
                     .enumerate()
                     .map(|(i, c)| {
-                        (
-                            c.clone(),
-                            categorical_color_from(palette.as_deref(), i).to_string(),
-                        )
+                        let label = labels
+                            .as_ref()
+                            .and_then(|l| l.get(i).cloned())
+                            .unwrap_or_else(|| c.clone());
+                        let color = colors
+                            .as_ref()
+                            .and_then(|c| c.get(i).cloned())
+                            .unwrap_or_else(|| {
+                                categorical_color_from(palette.as_deref(), i).to_string()
+                            });
+                        (label, color)
                     })
                     .collect(),
                 stroke_entries: Vec::new(),
@@ -159,11 +182,41 @@ pub fn color_spec(
                     stops: gradient_for(scales, aesthetic, col).unwrap_or_else(default_gradient),
                 }
             }
-            _ => ColorSpec::Categorical {
-                col: col.clone(),
-                categories: categorical_domain(table, col),
-                palette: palette_for(scales, aesthetic, col),
-            },
+            _ => {
+                // A manual `range: ["A" => "..."]` map fixes both the category
+                // order and the colors; otherwise categories come from the data
+                // in first-appearance order (spec §16.13).
+                if let Some(map) = color_map_for(scales, aesthetic, col) {
+                    let categories: Vec<String> = map.iter().map(|(k, _)| k.clone()).collect();
+                    let colors: Vec<String> = map.iter().map(|(_, v)| v.clone()).collect();
+                    let labels = label_map_for(scales, aesthetic, col).map(|lm| {
+                        categories
+                            .iter()
+                            .map(|cat| {
+                                lm.iter()
+                                    .find(|(k, _)| k == cat)
+                                    .map(|(_, v)| v.clone())
+                                    .unwrap_or_else(|| cat.clone())
+                            })
+                            .collect()
+                    });
+                    ColorSpec::Categorical {
+                        col: col.clone(),
+                        categories,
+                        palette: None,
+                        colors: Some(colors),
+                        labels,
+                    }
+                } else {
+                    ColorSpec::Categorical {
+                        col: col.clone(),
+                        categories: categorical_domain(table, col),
+                        palette: palette_for(scales, aesthetic, col),
+                        colors: None,
+                        labels: None,
+                    }
+                }
+            }
         };
     }
     if let Some(setting) = geo.settings.iter().find(|s| s.name == aesthetic) {
@@ -200,6 +253,42 @@ fn gradient_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<Vec
     })
 }
 
+fn color_map_for(
+    scales: &[ScaleIr],
+    aesthetic: &str,
+    column: &str,
+) -> Option<Vec<(String, String)>> {
+    scales.iter().rev().find_map(|scale| match &scale.target {
+        ScaleTargetIr::Aesthetic {
+            aesthetic: target,
+            column: Some(scale_column),
+        } if target == aesthetic && scale_column.name == column => scale.color_map.clone(),
+        ScaleTargetIr::Aesthetic {
+            aesthetic: target,
+            column: None,
+        } if target == aesthetic => scale.color_map.clone(),
+        _ => None,
+    })
+}
+
+fn label_map_for(
+    scales: &[ScaleIr],
+    aesthetic: &str,
+    column: &str,
+) -> Option<Vec<(String, String)>> {
+    scales.iter().rev().find_map(|scale| match &scale.target {
+        ScaleTargetIr::Aesthetic {
+            aesthetic: target,
+            column: Some(scale_column),
+        } if target == aesthetic && scale_column.name == column => scale.label_map.clone(),
+        ScaleTargetIr::Aesthetic {
+            aesthetic: target,
+            column: None,
+        } if target == aesthetic => scale.label_map.clone(),
+        _ => None,
+    })
+}
+
 fn palette_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<String> {
     scales.iter().rev().find_map(|scale| match &scale.target {
         ScaleTargetIr::Aesthetic {
@@ -211,6 +300,91 @@ fn palette_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<Stri
             column: None,
         } if target == aesthetic => scale.palette.clone(),
         _ => None,
+    })
+}
+
+/// How a numeric aesthetic (`size`/`strokeWidth`) resolves per row: a constant,
+/// or a continuous scale from a mapped column's domain into an output range
+/// (spec §16.8).
+#[derive(Debug, Clone)]
+pub enum NumberSpec {
+    Constant(f64),
+    Scaled {
+        col: String,
+        domain: (f64, f64),
+        range: (f64, f64),
+    },
+}
+
+impl NumberSpec {
+    /// The resolved value for a row, falling back to `default` for a missing or
+    /// non-numeric mapped cell.
+    pub fn at(&self, table: &dyn Table, row: usize, default: f64) -> f64 {
+        match self {
+            NumberSpec::Constant(value) => *value,
+            NumberSpec::Scaled { col, domain, range } => match cell_f64(table, col, row) {
+                Some(value) => scale_linear(value, *domain, *range),
+                None => default,
+            },
+        }
+    }
+}
+
+fn scale_linear(value: f64, domain: (f64, f64), range: (f64, f64)) -> f64 {
+    let (d0, d1) = domain;
+    let t = if (d1 - d0).abs() < f64::EPSILON {
+        0.5
+    } else {
+        ((value - d0) / (d1 - d0)).clamp(0.0, 1.0)
+    };
+    range.0 + t * (range.1 - range.0)
+}
+
+/// Build a [`NumberSpec`] for a numeric aesthetic (`size`/`strokeWidth`). When
+/// the aesthetic is mapped to a column, a continuous scale trains from the
+/// column's domain (or an explicit `Scale(domain:)`) into `default_range` (or an
+/// explicit `Scale(range:)`); otherwise it is the constant setting or
+/// `constant_default` (spec §16.8).
+pub fn number_spec(
+    geo: &GeometryIr,
+    aesthetic: &str,
+    table: &dyn Table,
+    scales: &[ScaleIr],
+    default_range: (f64, f64),
+    constant_default: f64,
+) -> NumberSpec {
+    if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == aesthetic) {
+        let col = mapping.column.name.clone();
+        let (data_min, data_max) = numeric_domain(table, &col).unwrap_or((0.0, 1.0));
+        let scale = aesthetic_scale(scales, aesthetic, &col);
+        let domain = match scale.and_then(|s| s.domain) {
+            Some([lo, hi]) => (lo.unwrap_or(data_min), hi.unwrap_or(data_max)),
+            None => (data_min, data_max),
+        };
+        let range = match scale.and_then(|s| s.range) {
+            Some([lo, hi]) => (lo.unwrap_or(default_range.0), hi.unwrap_or(default_range.1)),
+            None => default_range,
+        };
+        return NumberSpec::Scaled { col, domain, range };
+    }
+    NumberSpec::Constant(number_setting(geo, aesthetic, constant_default))
+}
+
+fn aesthetic_scale<'a>(
+    scales: &'a [ScaleIr],
+    aesthetic: &str,
+    column: &str,
+) -> Option<&'a ScaleIr> {
+    scales.iter().rev().find(|scale| match &scale.target {
+        ScaleTargetIr::Aesthetic {
+            aesthetic: target,
+            column: Some(scale_column),
+        } => target == aesthetic && scale_column.name == column,
+        ScaleTargetIr::Aesthetic {
+            aesthetic: target,
+            column: None,
+        } => target == aesthetic,
+        _ => false,
     })
 }
 

@@ -13,8 +13,8 @@ use algraf_core::{Diagnostic as CoreDiagnostic, Severity, Span};
 use algraf_data::{
     read_csv_path, read_csv_schema, ColumnDef, DataError, DataType, Table, DEFAULT_SCHEMA_SAMPLE,
 };
-use algraf_render::{render, Theme};
-use algraf_semantics::{analyze, registry, ChartIr};
+use algraf_render::{render_with_tables, Theme};
+use algraf_semantics::{analyze_with_tables, registry, ChartIr};
 use algraf_syntax::ast::{
     AlgebraName, Arg, ChartItem, DeriveDecl, GeometryCall, LetDecl, LiteralKind, Root, SpaceItem,
     ValueExpr,
@@ -111,6 +111,9 @@ impl Backend {
         let parse_diagnostics = parsed.diagnostics().to_vec();
         let data_source = extract_data_source(&syntax);
         let schema = self.resolve_schema(uri, &data_source);
+        // Resolve chart-scoped named-table schemas so column references inside
+        // `Space(..., data: tableName)` resolve in the editor (spec §10.x).
+        let table_schemas = self.resolve_table_schemas(uri, &syntax);
 
         let mut diagnostics = parse_diagnostics.clone();
         let analysis;
@@ -119,7 +122,7 @@ impl Backend {
 
         match schema {
             SchemaResolution::Ready { schema, path } => {
-                let result = analyze(&syntax, &schema);
+                let result = analyze_with_tables(&syntax, &schema, &table_schemas);
                 diagnostics.extend(result.diagnostics.clone());
                 analysis = Some(AnalysisState {
                     ir: result.ir,
@@ -129,7 +132,7 @@ impl Backend {
                 data_path = path;
             }
             SchemaResolution::MissingOrInvalid => {
-                let result = analyze(&syntax, &[]);
+                let result = analyze_with_tables(&syntax, &[], &table_schemas);
                 diagnostics.extend(result.diagnostics.clone());
                 analysis = Some(AnalysisState {
                     ir: result.ir,
@@ -142,7 +145,7 @@ impl Backend {
                     .document(uri)
                     .and_then(|state| state.primary_schema)
                     .unwrap_or_default();
-                let result = analyze(&syntax, &fallback_schema);
+                let result = analyze_with_tables(&syntax, &fallback_schema, &table_schemas);
                 diagnostics.extend(result.diagnostics.clone());
                 analysis = Some(AnalysisState {
                     ir: result.ir,
@@ -221,6 +224,62 @@ impl Backend {
                 }
             }
         }
+    }
+
+    /// Resolve schemas for chart-scoped `Table name = "..."` declarations in the
+    /// first chart, reusing the schema cache (spec §10.x). Tables whose file is
+    /// missing or unreadable are simply omitted; their column references then
+    /// resolve as unknown, mirroring a missing primary source.
+    fn resolve_table_schemas(
+        &self,
+        uri: &Url,
+        syntax: &SyntaxNode,
+    ) -> HashMap<String, Vec<ColumnDef>> {
+        let mut out = HashMap::new();
+        let Some(chart) = Root::cast(syntax.clone()).and_then(|r| r.chart()) else {
+            return out;
+        };
+        for item in chart.items() {
+            let ChartItem::Table(decl) = item else {
+                continue;
+            };
+            let Some(name) = decl.name() else { continue };
+            let Some(ValueExpr::Literal(lit)) = decl.source() else {
+                continue;
+            };
+            if lit.kind() != Some(LiteralKind::String) {
+                continue;
+            }
+            let path = resolve_data_path(uri, &strip_string(&lit.text().unwrap_or_default()));
+            let key = DataSourceKey(path.clone());
+            if let Some(cached) = self.schema_cache.get(&key) {
+                if let SchemaState::Ready { schema, .. } = cached.value() {
+                    out.insert(name, schema.clone());
+                }
+                continue;
+            }
+            let loaded = std::fs::File::open(&path)
+                .map_err(DataError::from)
+                .and_then(|file| read_csv_schema(file, DEFAULT_SCHEMA_SAMPLE));
+            match loaded {
+                Ok(schema) => {
+                    self.schema_cache.insert(
+                        key,
+                        SchemaState::Ready {
+                            schema: schema.clone(),
+                            provisional: true,
+                        },
+                    );
+                    out.insert(name, schema);
+                }
+                Err(err) => {
+                    let (code, message) = schema_error(&path, &err);
+                    self.schema_cache
+                        .insert(key, SchemaState::Error { code, message });
+                }
+            }
+        }
+        out
     }
 
     fn document(&self, uri: &Url) -> Option<DocumentState> {
@@ -367,7 +426,36 @@ fn render_preview(source: &str, data_path: &Path) -> Result<String, String> {
         .map_err(|e| format!("failed to load data {}: {e}", data_path.display()))?;
     let frame = loaded.frame;
 
-    let analysis = analyze(&root, frame.schema());
+    // Load chart-scoped named tables relative to the primary data directory
+    // (spec §10.x). A table that fails to load is omitted from the preview.
+    let base = data_path.parent().map(Path::to_path_buf);
+    let mut table_schemas: HashMap<String, Vec<ColumnDef>> = HashMap::new();
+    let mut named_frames: HashMap<String, algraf_data::DataFrame> = HashMap::new();
+    if let Some(chart) = Root::cast(root.clone()).and_then(|r| r.chart()) {
+        for item in chart.items() {
+            let ChartItem::Table(decl) = item else {
+                continue;
+            };
+            let Some(name) = decl.name() else { continue };
+            let Some(ValueExpr::Literal(lit)) = decl.source() else {
+                continue;
+            };
+            if lit.kind() != Some(LiteralKind::String) {
+                continue;
+            }
+            let rel = strip_string(&lit.text().unwrap_or_default());
+            let path = match &base {
+                Some(dir) => dir.join(&rel),
+                None => PathBuf::from(&rel),
+            };
+            if let Ok(loaded) = read_csv_path(&path) {
+                table_schemas.insert(name.clone(), loaded.frame.schema().to_vec());
+                named_frames.insert(name, loaded.frame);
+            }
+        }
+    }
+
+    let analysis = analyze_with_tables(&root, frame.schema(), &table_schemas);
     if analysis
         .diagnostics
         .iter()
@@ -381,7 +469,8 @@ fn render_preview(source: &str, data_path: &Path) -> Result<String, String> {
 
     let theme = ir.theme.as_ref().map(Theme::from_ir).unwrap_or_default();
 
-    let result = render(&ir, &frame, &theme, None).map_err(|e| e.to_string())?;
+    let result =
+        render_with_tables(&ir, &frame, &named_frames, &theme, None).map_err(|e| e.to_string())?;
     Ok(result.svg)
 }
 
@@ -1004,7 +1093,7 @@ fn token_type_index(token_type: SemanticTokenType) -> u32 {
 fn declaration_name(name: &str) -> bool {
     matches!(
         name,
-        "Chart" | "Space" | "Derive" | "Scale" | "Guide" | "Theme" | "Layout" | "Bin"
+        "Chart" | "Space" | "Derive" | "Table" | "Scale" | "Guide" | "Theme" | "Layout" | "Bin"
     )
 }
 
@@ -1645,10 +1734,17 @@ fn derived_table_items(state: &DocumentState) -> Vec<CompletionItem> {
         .as_ref()
         .and_then(|analysis| analysis.ir.as_ref())
         .map(|ir| {
-            ir.derived_tables
+            let mut items: Vec<CompletionItem> = ir
+                .derived_tables
                 .iter()
                 .map(|table| field(&table.name, "Derived table"))
-                .collect()
+                .collect();
+            items.extend(
+                ir.tables
+                    .iter()
+                    .map(|table| field(&table.name, "Named CSV table")),
+            );
+            items
         })
         .unwrap_or_default()
 }
@@ -1852,7 +1948,7 @@ const CHART_ARGS: &[&str] = &[
     "marginLeft",
 ];
 const CHART_BODY_ITEMS: &[&str] = &[
-    "let", "Derive", "Space", "Scale", "Guide", "Theme", "Layout",
+    "let", "Derive", "Table", "Space", "Scale", "Guide", "Theme", "Layout",
 ];
 
 /// Variable-name completions for every in-document `let` binding (spec §9.6).
@@ -2182,6 +2278,16 @@ fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol> {
                 children.push(symbol(
                     source,
                     &format!("let {name}"),
+                    SymbolKind::VARIABLE,
+                    decl.syntax(),
+                    Vec::new(),
+                ));
+            }
+            ChartItem::Table(decl) => {
+                let name = decl.name().unwrap_or_else(|| "Table".to_string());
+                children.push(symbol(
+                    source,
+                    &format!("Table {name}"),
                     SymbolKind::VARIABLE,
                     decl.syntax(),
                     Vec::new(),

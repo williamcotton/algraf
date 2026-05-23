@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use crate::ast::{
     AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, DeriveDecl, LetDecl, Root, SpaceBlock,
-    SpaceItem, StatCall, ValueExpr,
+    SpaceItem, StatCall, TableDecl, ValueExpr,
 };
 use crate::parser::parse;
 use crate::syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken};
@@ -177,6 +177,7 @@ impl Printer {
         match item {
             ChartItem::Space(space) => self.space(space),
             ChartItem::Derive(derive) => self.derive(derive),
+            ChartItem::Table(decl) => self.table_binding(decl),
             ChartItem::Let(decl) => self.let_binding(decl),
             ChartItem::Scale(decl)
             | ChartItem::Guide(decl)
@@ -233,6 +234,15 @@ impl Printer {
     fn decl(&mut self, decl: &Decl) {
         let keyword = decl.keyword().to_string();
         self.call_item(decl.syntax(), &keyword, &decl.args());
+    }
+
+    fn table_binding(&mut self, decl: &TableDecl) {
+        let node = decl.syntax();
+        self.emit_standalone(first_code(node));
+        let name = decl.name().unwrap_or_default();
+        let source = decl.source().map(|v| render_value(&v)).unwrap_or_default();
+        self.line(&format!("Table {name} = {source}"));
+        self.append_trailing(last_code(node));
     }
 
     fn let_binding(&mut self, decl: &LetDecl) {
@@ -330,6 +340,19 @@ fn render_value(value: &ValueExpr) -> String {
                 .values()
                 .iter()
                 .map(render_value)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("[{items}]")
+        }
+        ValueExpr::Map(map) => {
+            let items = map
+                .entries()
+                .iter()
+                .map(|entry| {
+                    let key = entry.key().map(|v| render_value(&v)).unwrap_or_default();
+                    let value = entry.value().map(|v| render_value(&v)).unwrap_or_default();
+                    format!("{key} => {value}")
+                })
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("[{items}]")

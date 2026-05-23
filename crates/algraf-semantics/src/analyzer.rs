@@ -11,7 +11,8 @@ use algraf_core::{Diagnostic, Severity, Span};
 use algraf_data::{ColumnDef, DataType};
 use algraf_syntax::ast::{
     AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, Arg, ChartBlock, ChartItem, Decl,
-    DeriveDecl, GeometryCall, LetDecl, LiteralKind, Root, SpaceBlock, SpaceItem, ValueExpr,
+    DeriveDecl, GeometryCall, LetDecl, LiteralKind, MapValue, Root, SpaceBlock, SpaceItem,
+    TableDecl, ValueExpr,
 };
 use algraf_syntax::{parse, SyntaxKind, SyntaxNode};
 
@@ -32,7 +33,18 @@ pub struct Analysis {
 /// (spec §7.1) resolve each chart against its own data source, so the caller
 /// (the CLI) drives per-chart analysis with [`analyze_chart`].
 pub fn analyze(root: &SyntaxNode, primary_schema: &[ColumnDef]) -> Analysis {
-    let mut analyzer = Analyzer::new(primary_schema);
+    analyze_with_tables(root, primary_schema, &HashMap::new())
+}
+
+/// Analyze a parsed tree against a primary schema plus named-table schemas
+/// (spec §10.x). `table_schemas` maps each `Table name = "..."` declaration's
+/// name to its loaded CSV schema; the caller loads them at the I/O boundary.
+pub fn analyze_with_tables(
+    root: &SyntaxNode,
+    primary_schema: &[ColumnDef],
+    table_schemas: &HashMap<String, Vec<ColumnDef>>,
+) -> Analysis {
+    let mut analyzer = Analyzer::new(primary_schema, table_schemas);
     let ir = Root::cast(root.clone())
         .and_then(|r| r.chart())
         .and_then(|chart| analyzer.chart(&chart));
@@ -45,7 +57,17 @@ pub fn analyze(root: &SyntaxNode, primary_schema: &[ColumnDef]) -> Analysis {
 /// Analyze a single chart block against its primary data schema (spec §7.1).
 /// Used to analyze each chart of a multi-chart document independently.
 pub fn analyze_chart(chart: &ChartBlock, primary_schema: &[ColumnDef]) -> Analysis {
-    let mut analyzer = Analyzer::new(primary_schema);
+    analyze_chart_with_tables(chart, primary_schema, &HashMap::new())
+}
+
+/// Analyze a single chart block against a primary schema plus named-table
+/// schemas (spec §10.x).
+pub fn analyze_chart_with_tables(
+    chart: &ChartBlock,
+    primary_schema: &[ColumnDef],
+    table_schemas: &HashMap<String, Vec<ColumnDef>>,
+) -> Analysis {
+    let mut analyzer = Analyzer::new(primary_schema, table_schemas);
     let ir = analyzer.chart(chart);
     Analysis {
         ir,
@@ -191,6 +213,10 @@ impl ConstValue {
 
 struct Analyzer<'a> {
     primary: &'a [ColumnDef],
+    /// Schemas of chart-scoped named tables, keyed by declaration name.
+    table_schemas: &'a HashMap<String, Vec<ColumnDef>>,
+    /// Names of declared `Table`s that resolved (used by `space_data`).
+    table_names: HashSet<String>,
     derived: HashMap<String, Vec<ColumnDefIr>>,
     reserved_derived_names: HashSet<String>,
     /// Chart-scope `let` bindings, visible in every space (spec §9.6).
@@ -203,9 +229,11 @@ struct Analyzer<'a> {
 }
 
 impl<'a> Analyzer<'a> {
-    fn new(primary: &'a [ColumnDef]) -> Self {
+    fn new(primary: &'a [ColumnDef], table_schemas: &'a HashMap<String, Vec<ColumnDef>>) -> Self {
         Analyzer {
             primary,
+            table_schemas,
+            table_names: HashSet::new(),
             derived: HashMap::new(),
             reserved_derived_names: HashSet::new(),
             chart_vars: HashMap::new(),
@@ -236,6 +264,11 @@ impl<'a> Analyzer<'a> {
         } = self.chart_args(chart);
         self.reserved_derived_names = chart_derived_names(chart);
 
+        // Resolve named `Table` declarations up front so spaces and column
+        // references can bind to them regardless of declaration order (spec
+        // §10.x).
+        let tables = self.resolve_tables(chart);
+
         // Collect chart-scope `let` bindings up front so they resolve regardless
         // of declaration order within the chart body (spec §9.6).
         let chart_lets: Vec<LetDecl> = chart
@@ -262,6 +295,7 @@ impl<'a> Analyzer<'a> {
         for item in chart.items() {
             match item {
                 ChartItem::Derive(_) => {}
+                ChartItem::Table(_) => {}
                 ChartItem::Let(_) => {}
                 ChartItem::Space(s) => {
                     let analysis = self.space(&s);
@@ -294,6 +328,7 @@ impl<'a> Analyzer<'a> {
 
         Some(ChartIr {
             data_source,
+            tables,
             derived_tables,
             layout,
             guides,
@@ -538,9 +573,14 @@ impl<'a> Analyzer<'a> {
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
                         label = Some(string_value(&lit.text().unwrap_or_default()));
                     }
+                    // `label: null` suppresses the axis title (spec §19.x). An
+                    // empty string carries the suppression to the renderer.
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Null) => {
+                        label = Some(String::new());
+                    }
                     Some(value) => self.diag(Diagnostic::error(
                         "E1204",
-                        "`label` expects a string literal",
+                        "`label` expects a string literal or `null`",
                         node_span(value.syntax()),
                     )),
                     None => {}
@@ -607,12 +647,16 @@ impl<'a> Analyzer<'a> {
         let mut seen: HashMap<String, Span> = HashMap::new();
         let mut target: Option<ScaleTargetIr> = None;
         let mut scale_type = None;
-        let mut domain = None;
+        let mut domain: Option<[Option<f64>; 2]> = None;
+        let mut domain_span: Option<Span> = None;
+        let mut range: Option<RangeSpec> = None;
         let mut reverse = None;
         let mut integer = None;
         let mut palette = None;
         let mut gradient: Option<Vec<String>> = None;
         let mut gradient_span: Option<Span> = None;
+        let mut label_map: Option<Vec<(String, String)>> = None;
+        let mut labels_span: Option<Span> = None;
         let mut label = None;
 
         for arg in decl.args() {
@@ -637,7 +681,7 @@ impl<'a> Analyzer<'a> {
                         self.set_scale_target(&mut target, ScaleTargetIr::Axis(axis), key_span);
                     }
                 }
-                "fill" | "stroke" => match arg.value() {
+                "fill" | "stroke" | "size" | "strokeWidth" => match arg.value() {
                     Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
                         let column = self.resolve_column(&name, table);
                         self.set_scale_target(
@@ -678,18 +722,49 @@ impl<'a> Analyzer<'a> {
                 },
                 "domain" => {
                     if let Some(value) = arg.value() {
-                        match ValueForm::of(&value) {
-                            ValueForm::Array(Some(values))
-                                if values.len() == 2
-                                    && values[0].is_finite()
-                                    && values[1].is_finite()
-                                    && (values[0] - values[1]).abs() > f64::EPSILON =>
-                            {
-                                domain = Some([values[0], values[1]]);
+                        domain_span = Some(node_span(value.syntax()));
+                        match self.numeric_bounds(&value) {
+                            Some(bounds) => domain = Some(bounds),
+                            None => self.diag(Diagnostic::error(
+                                "E1204",
+                                "`domain` expects two numeric values (each may be `null`)",
+                                node_span(value.syntax()),
+                            )),
+                        }
+                    }
+                }
+                "range" => {
+                    if let Some(value) = arg.value() {
+                        let value_span = node_span(value.syntax());
+                        match &value {
+                            ValueExpr::Map(map) => {
+                                if let Some(entries) = self.color_map_entries(map) {
+                                    range = Some(RangeSpec::ColorMap(entries, value_span));
+                                }
+                            }
+                            _ => match self.numeric_bounds(&value) {
+                                Some(bounds) => {
+                                    range = Some(RangeSpec::Numeric(bounds, value_span))
+                                }
+                                None => self.diag(Diagnostic::error(
+                                    "E1603",
+                                    "`range` expects two numeric values or a category map",
+                                    value_span,
+                                )),
+                            },
+                        }
+                    }
+                }
+                "labels" => {
+                    if let Some(value) = arg.value() {
+                        labels_span = Some(node_span(value.syntax()));
+                        match &value {
+                            ValueExpr::Map(map) => {
+                                label_map = self.color_map_entries(map);
                             }
                             _ => self.diag(Diagnostic::error(
-                                "E1204",
-                                "`domain` expects two finite numeric values",
+                                "E1606",
+                                "`labels` expects a category map (e.g. [\"A\" => \"Advance\"])",
                                 node_span(value.syntax()),
                             )),
                         }
@@ -776,11 +851,16 @@ impl<'a> Analyzer<'a> {
         let Some(target) = target else {
             self.diag(Diagnostic::error(
                 "E1204",
-                "`Scale` requires `axis`, `fill`, or `stroke`",
+                "`Scale` requires `axis`, `fill`, `stroke`, `size`, or `strokeWidth`",
                 span,
             ));
             return None;
         };
+
+        // Split a `range:` declaration into its numeric and color-map forms once
+        // the target is known, validating the form against the scale kind.
+        let mut range_numeric: Option<[Option<f64>; 2]> = None;
+        let mut color_map: Option<Vec<(String, String)>> = None;
 
         match &target {
             ScaleTargetIr::Axis(_) => {
@@ -791,32 +871,127 @@ impl<'a> Analyzer<'a> {
                         span,
                     ));
                 }
+                if let Some(map) = labels_span {
+                    self.diag(Diagnostic::error(
+                        "E1606",
+                        "`labels` maps apply only to categorical fill or stroke scales",
+                        map,
+                    ));
+                    label_map = None;
+                }
+                match &range {
+                    Some(RangeSpec::Numeric(_, s)) => self.diag(Diagnostic::error(
+                        "E1603",
+                        "`range` applies only to `size` and `strokeWidth` scales",
+                        *s,
+                    )),
+                    Some(RangeSpec::ColorMap(_, s)) => self.diag(Diagnostic::error(
+                        "E1606",
+                        "a category map `range` applies only to categorical scales",
+                        *s,
+                    )),
+                    None => {}
+                }
             }
-            ScaleTargetIr::Aesthetic { column, .. } => {
-                if scale_type.is_some()
-                    || domain.is_some()
-                    || reverse.is_some()
-                    || integer.is_some()
-                {
+            ScaleTargetIr::Aesthetic { aesthetic, column } => {
+                let is_color = aesthetic == "fill" || aesthetic == "stroke";
+                let numeric_col = column.as_ref().is_some_and(|c| {
+                    matches!(
+                        c.dtype,
+                        DataType::Integer | DataType::Float | DataType::Unknown
+                    )
+                });
+
+                if scale_type.is_some() || reverse.is_some() || integer.is_some() {
                     self.diag(Diagnostic::error(
                         "E1204",
-                        "`type`, `domain`, `reverse`, and `integer` apply only to axis scales",
+                        "`type`, `reverse`, and `integer` apply only to axis scales",
                         span,
                     ));
                 }
-                if gradient.is_some()
-                    && !column.as_ref().is_some_and(|column| {
-                        matches!(
-                            column.dtype,
-                            DataType::Integer | DataType::Float | DataType::Unknown
-                        )
-                    })
-                {
-                    self.diag(Diagnostic::error(
-                        "E1602",
-                        "`gradient` is valid only for continuous fill or stroke mappings",
-                        gradient_span.unwrap_or(span),
-                    ));
+
+                if is_color {
+                    let continuous = numeric_col;
+                    if gradient.is_some() && !continuous {
+                        self.diag(Diagnostic::error(
+                            "E1602",
+                            "`gradient` is valid only for continuous fill or stroke mappings",
+                            gradient_span.unwrap_or(span),
+                        ));
+                    }
+                    if let Some(s) = domain_span {
+                        self.diag(Diagnostic::error(
+                            "E1204",
+                            "`domain` applies only to axis, `size`, or `strokeWidth` scales",
+                            s,
+                        ));
+                        domain = None;
+                    }
+                    match &range {
+                        Some(RangeSpec::ColorMap(entries, s)) => {
+                            if continuous {
+                                self.diag(Diagnostic::error(
+                                    "E1606",
+                                    "a category map `range` applies only to categorical scales",
+                                    *s,
+                                ));
+                            } else {
+                                color_map = Some(entries.clone());
+                            }
+                        }
+                        Some(RangeSpec::Numeric(_, s)) => self.diag(Diagnostic::error(
+                            "E1603",
+                            "a numeric `range` applies only to `size` and `strokeWidth` scales",
+                            *s,
+                        )),
+                        None => {}
+                    }
+                    // `range` and `labels` key sets must agree (spec §16.13).
+                    if let (Some(cm), Some(lm), Some(s)) = (&color_map, &label_map, labels_span) {
+                        let ck: HashSet<&str> = cm.iter().map(|(k, _)| k.as_str()).collect();
+                        let lk: HashSet<&str> = lm.iter().map(|(k, _)| k.as_str()).collect();
+                        if ck != lk {
+                            self.diag(Diagnostic::error(
+                                "E1604",
+                                "`range` and `labels` map keys do not match",
+                                s,
+                            ));
+                        }
+                    }
+                } else {
+                    // size / strokeWidth: a continuous scale over a numeric column.
+                    if !numeric_col {
+                        let s = column.as_ref().map(|c| c.span).unwrap_or(span);
+                        self.diag(Diagnostic::error(
+                            "E1607",
+                            format!("`{aesthetic}` scale requires a numeric column"),
+                            s,
+                        ));
+                    }
+                    if palette.is_some() || gradient.is_some() {
+                        self.diag(Diagnostic::error(
+                            "E1204",
+                            "`palette` and `gradient` apply only to fill or stroke scales",
+                            span,
+                        ));
+                    }
+                    if let Some(s) = labels_span {
+                        self.diag(Diagnostic::error(
+                            "E1606",
+                            "`labels` maps apply only to categorical scales",
+                            s,
+                        ));
+                        label_map = None;
+                    }
+                    match &range {
+                        Some(RangeSpec::Numeric(bounds, _)) => range_numeric = Some(*bounds),
+                        Some(RangeSpec::ColorMap(_, s)) => self.diag(Diagnostic::error(
+                            "E1606",
+                            "a category map `range` applies only to categorical scales",
+                            *s,
+                        )),
+                        None => {}
+                    }
                 }
             }
         }
@@ -825,13 +1000,90 @@ impl<'a> Analyzer<'a> {
             target,
             scale_type,
             domain,
+            range: range_numeric,
             reverse,
             integer,
             palette,
             gradient,
+            color_map,
+            label_map,
             label,
             span,
         })
+    }
+
+    /// Parse a two-element numeric bounds array where each element may be a
+    /// number or `null` (`[0, null]`, spec §16.11). Returns `None` for any other
+    /// shape so the caller can emit a targeted diagnostic.
+    fn numeric_bounds(&mut self, value: &ValueExpr) -> Option<[Option<f64>; 2]> {
+        let ValueExpr::Array(array) = value else {
+            return None;
+        };
+        let elems = array.values();
+        if elems.len() != 2 {
+            return None;
+        }
+        let mut out = [None, None];
+        for (i, elem) in elems.iter().enumerate() {
+            match elem {
+                ValueExpr::Literal(lit) => match lit.kind() {
+                    Some(LiteralKind::Number) => {
+                        let n = lit.text().and_then(|t| t.parse::<f64>().ok())?;
+                        if !n.is_finite() {
+                            return None;
+                        }
+                        out[i] = Some(n);
+                    }
+                    Some(LiteralKind::Null) => out[i] = None,
+                    _ => return None,
+                },
+                _ => return None,
+            }
+        }
+        Some(out)
+    }
+
+    /// Read a map literal of string keys to string values (used by a categorical
+    /// scale's `range:` and `labels:`, spec §16.13). Emits `E1604` for malformed
+    /// entries and returns the entries in source order.
+    fn color_map_entries(&mut self, map: &MapValue) -> Option<Vec<(String, String)>> {
+        let mut out = Vec::new();
+        for entry in map.entries() {
+            let key = match entry.key() {
+                Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                    string_value(&lit.text().unwrap_or_default())
+                }
+                other => {
+                    let s = other
+                        .map(|v| node_span(v.syntax()))
+                        .unwrap_or_else(|| node_span(map.syntax()));
+                    self.diag(Diagnostic::error(
+                        "E1604",
+                        "map keys must be string literals",
+                        s,
+                    ));
+                    return None;
+                }
+            };
+            let val = match entry.value() {
+                Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                    string_value(&lit.text().unwrap_or_default())
+                }
+                other => {
+                    let s = other
+                        .map(|v| node_span(v.syntax()))
+                        .unwrap_or_else(|| node_span(map.syntax()));
+                    self.diag(Diagnostic::error(
+                        "E1604",
+                        "map values must be string literals",
+                        s,
+                    ));
+                    return None;
+                }
+            };
+            out.push((key, val));
+        }
+        Some(out)
     }
 
     fn axis_selector(&mut self, arg: &Arg, message: &'static str) -> Option<AxisSelectorIr> {
@@ -1135,6 +1387,83 @@ impl<'a> Analyzer<'a> {
             }
         }
         form
+    }
+
+    // --- Named tables (spec §10.x) ---
+
+    /// Resolve `Table name = "path.csv"` declarations into IR, registering each
+    /// resolved name for later `data:` binding. Reports duplicate names (E1105)
+    /// and names that conflict with a derived table (E1108). A missing/unreadable
+    /// file is the caller's concern (E1106/E1107).
+    fn resolve_tables(&mut self, chart: &ChartBlock) -> Vec<TableDeclIr> {
+        let mut out = Vec::new();
+        let mut seen: HashMap<String, Span> = HashMap::new();
+        for item in chart.items() {
+            let ChartItem::Table(decl) = item else {
+                continue;
+            };
+            let Some(name) = decl.name() else { continue };
+            let name_span = decl.name_span().unwrap_or_else(|| node_span(decl.syntax()));
+            if let Some(&first) = seen.get(&name) {
+                self.diag(
+                    Diagnostic::error(
+                        "E1105",
+                        format!("duplicate `Table` name `{name}`"),
+                        name_span,
+                    )
+                    .with_related(first, "first declared here"),
+                );
+                continue;
+            }
+            if self.reserved_derived_names.contains(&name) {
+                self.diag(Diagnostic::error(
+                    "E1108",
+                    format!("`Table` name `{name}` conflicts with a derived table"),
+                    name_span,
+                ));
+                continue;
+            }
+            seen.insert(name.clone(), name_span);
+
+            let Some(path) = self.table_source_path(&decl) else {
+                continue;
+            };
+            self.table_names.insert(name.clone());
+            out.push(TableDeclIr {
+                name,
+                path,
+                span: node_span(decl.syntax()),
+            });
+        }
+        out
+    }
+
+    /// The CSV path from a `Table` declaration's source expression. Currently a
+    /// string literal; the position is reserved for v0.7 source constructors.
+    fn table_source_path(&mut self, decl: &TableDecl) -> Option<String> {
+        match decl.source() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                Some(string_value(&lit.text().unwrap_or_default()))
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    "E1004",
+                    "`Table` source must be a string-literal CSV path",
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn table_active(&self, name: &str) -> ActiveTable {
+        match self.table_schemas.get(name) {
+            Some(schema) => ActiveTable::from_schema(schema),
+            None => ActiveTable {
+                columns: Vec::new(),
+            },
+        }
     }
 
     // --- Derive (spec §13.4) ---
@@ -2419,15 +2748,19 @@ impl<'a> Analyzer<'a> {
                         ActiveTable::from_ir(schema),
                     );
                 }
+                if self.table_names.contains(&table_name) {
+                    let table = self.table_active(&table_name);
+                    return (SpaceDataRef::Table(table_name), table);
+                }
                 self.diag(Diagnostic::error(
                     "E1103",
-                    format!("unknown derived table `{table_name}`"),
+                    format!("unknown table `{table_name}`"),
                     node_span(name.syntax()),
                 ));
             } else if let Some(value) = arg.value() {
                 self.diag(Diagnostic::error(
                     "E1103",
-                    "space `data` must name a derived table",
+                    "space `data` must name a derived or declared table",
                     node_span(value.syntax()),
                 ));
             }
@@ -2800,6 +3133,14 @@ enum PropOutcome {
     Invalid,
 }
 
+/// A parsed `Scale(range: ...)` declaration before the target is known.
+enum RangeSpec {
+    /// Two numeric output bounds, each possibly inferred (`[0, 30]`).
+    Numeric([Option<f64>; 2], Span),
+    /// A manual category → color map (`["A" => "burlywood"]`).
+    ColorMap(Vec<(String, String)>, Span),
+}
+
 #[derive(Default)]
 struct SpaceAnalysis {
     derived: Vec<DeriveIr>,
@@ -2863,6 +3204,9 @@ impl ValueForm {
                     ValueForm::Array(all_numeric.then_some(nums))
                 }
             }
+            // Map literals are valid only in `Scale(range:/labels:)` positions,
+            // handled directly there; elsewhere they are an invalid value.
+            ValueExpr::Map(_) => ValueForm::Error,
             ValueExpr::Call(_) => ValueForm::Call,
             ValueExpr::Error(_) => ValueForm::Error,
         }

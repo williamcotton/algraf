@@ -887,3 +887,117 @@ fn test_custom_theme_overrides_apply_to_svg() {
         "custom grid stroke and width applied"
     );
 }
+
+// --- v0.6.0: Path, per-segment width, manual color maps, axis suppression ---
+
+use algraf_render::render_with_tables;
+use std::collections::HashMap;
+
+fn first_path_d(svg: &str, after: &str) -> String {
+    let start = svg.find(after).expect("layer");
+    let tail = &svg[start..];
+    let d_start = tail.find("d=\"").expect("d") + 3;
+    let d_end = tail[d_start..].find('"').expect("d end");
+    tail[d_start..d_start + d_end].to_string()
+}
+
+#[test]
+fn test_path_preserves_row_order_unlike_line() {
+    // Rows are not x-sorted; Line sorts by x, Path keeps source order.
+    let csv = "x,y\n3,1\n1,2\n2,3\n";
+    let line = render_svg("Chart(data: \"t.csv\") { Space(x * y) { Line() } }", csv);
+    let path = render_svg("Chart(data: \"t.csv\") { Space(x * y) { Path() } }", csv);
+    let line_d = first_path_d(&line, "algraf-geom-line");
+    let path_d = first_path_d(&path, "algraf-geom-path");
+    assert_ne!(line_d, path_d);
+    // Line's first plotted x is the smallest; Path's first is the first row's.
+    let line_first_x: f64 = line_d[1..].split(' ').next().unwrap().parse().unwrap();
+    let path_first_x: f64 = path_d[1..].split(' ').next().unwrap().parse().unwrap();
+    assert!(path_first_x > line_first_x);
+}
+
+#[test]
+fn test_mapped_strokewidth_emits_per_segment_lines() {
+    let csv = "x,y,w\n1,1,1\n2,2,50\n3,1,100\n";
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Scale(strokeWidth: w, domain: [0, null], range: [0, 20]) Space(x * y) { Path(strokeWidth: w) } }",
+        csv,
+    );
+    assert!(svg.contains("algraf-geom-path"));
+    // Two segments for three points, drawn as individual round-capped lines.
+    assert_eq!(svg.matches("stroke-linecap=\"round\"").count(), 2);
+    // Widths differ across segments.
+    let widths: Vec<&str> = svg
+        .match_indices("stroke-width=\"")
+        .map(|(i, _)| {
+            let s = &svg[i + 14..];
+            &s[..s.find('"').unwrap()]
+        })
+        .collect();
+    assert!(
+        widths
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+            > 1
+    );
+}
+
+#[test]
+fn test_manual_color_map_and_legend_renaming() {
+    let csv = "x,y,dir\n1,1,A\n2,2,R\n";
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Scale(stroke: dir, range: [\"A\" => \"burlywood\", \"R\" => \"black\"], labels: [\"A\" => \"Advance\", \"R\" => \"Retreat\"], label: \"Direction\") Space(x * y) { Path(stroke: dir) } }",
+        csv,
+    );
+    assert!(svg.contains("burlywood"));
+    assert!(svg.contains("black"));
+    // Legend uses the renamed labels and title.
+    assert!(svg.contains(">Advance</text>"));
+    assert!(svg.contains(">Retreat</text>"));
+    assert!(svg.contains(">Direction</text>"));
+    assert!(!svg.contains(">A</text>"));
+}
+
+#[test]
+fn test_guide_axis_label_null_suppresses_title() {
+    let csv = "long,lat\n1,1\n2,2\n";
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Guide(axis: x, label: null) Guide(axis: y, label: null) Space(long * lat) { Point() } }",
+        csv,
+    );
+    // Axis ticks still render, but neither axis title is drawn.
+    assert!(!svg.contains(">long</text>"));
+    assert!(!svg.contains(">lat</text>"));
+}
+
+#[test]
+fn test_named_table_overlay_shares_position_scale() {
+    // Primary x in [1,3]; secondary table x extends to 10. The shared scale
+    // means the secondary point lands inside the unioned domain (spec §17.5).
+    let primary = read_csv_str("x,y\n1,1\n3,3\n").unwrap().frame;
+    let cities = read_csv_str("x,y,name\n10,2,Far\n").unwrap().frame;
+    let source = "Chart(data: \"p.csv\") { Table cities = \"c.csv\" Space(x * y) { Point() } Space(x * y, data: cities) { Text(label: name) } }";
+    let parsed = parse(source);
+    let mut tables = HashMap::new();
+    tables.insert("cities".to_string(), cities.schema().to_vec());
+    let analysis =
+        algraf_semantics::analyze_with_tables(&parsed.syntax(), primary.schema(), &tables);
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let mut frames = HashMap::new();
+    frames.insert(
+        "cities".to_string(),
+        read_csv_str("x,y,name\n10,2,Far\n").unwrap().frame,
+    );
+    let svg = render_with_tables(&ir, &primary, &frames, &Theme::minimal(), None)
+        .unwrap()
+        .svg;
+    // The unioned x domain reaches 10, so a tick label at/near 10 appears.
+    assert!(svg.contains(">10</text>") || svg.contains(">9</text>"));
+    assert!(svg.contains(">Far</text>"));
+}

@@ -158,7 +158,17 @@ impl Parser {
     fn at_chart_keyword(&self) -> bool {
         matches!(
             self.current_ident_text(),
-            Some("Chart" | "Space" | "Derive" | "Scale" | "Guide" | "Theme" | "Layout" | "let")
+            Some(
+                "Chart"
+                    | "Space"
+                    | "Derive"
+                    | "Scale"
+                    | "Guide"
+                    | "Theme"
+                    | "Layout"
+                    | "Table"
+                    | "let"
+            )
         )
     }
 
@@ -308,6 +318,7 @@ impl Parser {
             match current.as_deref() {
                 Some("Space") => self.space_block(),
                 Some("Derive") => self.derive_decl(),
+                Some("Table") => self.table_decl(),
                 Some("let") => self.let_decl(),
                 Some("Scale") => self.decl(SyntaxKind::SCALE_DECL, SyntaxKind::SCALE_KW),
                 Some("Guide") => self.decl(SyntaxKind::GUIDE_DECL, SyntaxKind::GUIDE_KW),
@@ -399,6 +410,7 @@ impl Parser {
             // stop so the chart body can parse it as a sibling (spec §12.17).
             if self.at_kw("Space")
                 || self.at_kw("Derive")
+                || self.at_kw("Table")
                 || self.at_kw("Layout")
                 || self.at_kw("Chart")
             {
@@ -505,6 +517,20 @@ impl Parser {
         self.builder.finish_node();
     }
 
+    // --- Table declarations (spec §7.4, §10.x) ---
+
+    /// Parse a `Table name = <source>` chart-scoped declaration. The source is
+    /// currently a string-literal CSV path; the value position is left open for
+    /// v0.7 source constructors (spec §10.x).
+    fn table_decl(&mut self) {
+        self.builder.start_node(SyntaxKind::TABLE_DECL.into());
+        self.bump_as(SyntaxKind::TABLE_KW);
+        self.expect(SyntaxKind::IDENT, "E0010", "expected table name");
+        self.expect(SyntaxKind::EQ, "E0016", "expected '=' after table name");
+        self.value();
+        self.builder.finish_node();
+    }
+
     // --- Calls and declarations (spec §7.5, §7.6, §12.10) ---
 
     fn geometry_call(&mut self) {
@@ -605,7 +631,7 @@ impl Parser {
                 self.bump();
                 self.builder.finish_node();
             }
-            SyntaxKind::L_BRACKET => self.array_value(),
+            SyntaxKind::L_BRACKET => self.bracket_value(),
             // Bare `stdin` is the stdin sentinel only when it is the whole value
             // (spec §10.1, §12.13); otherwise it is an ordinary column.
             SyntaxKind::IDENT if self.at_kw("stdin") && self.value_ends_after(1) => {
@@ -661,6 +687,40 @@ impl Parser {
         self.builder.finish_node();
     }
 
+    /// Parse a bracketed value, dispatching to an array or a map literal. The
+    /// two are distinguished by the presence of a top-level `=>` between the
+    /// brackets (spec §7.8).
+    fn bracket_value(&mut self) {
+        if self.bracket_is_map() {
+            self.map_value();
+        } else {
+            self.array_value();
+        }
+    }
+
+    /// Whether the bracket beginning at the cursor contains a top-level `=>`,
+    /// marking it as a map literal rather than an array.
+    fn bracket_is_map(&self) -> bool {
+        let mut depth = 0i32;
+        let mut i = self.pos;
+        while i < self.tokens.len() {
+            match &self.tokens[i].kind {
+                TokenKind::LBracket | TokenKind::LParen | TokenKind::LBrace => depth += 1,
+                TokenKind::RBracket | TokenKind::RParen | TokenKind::RBrace => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return false;
+                    }
+                }
+                TokenKind::FatArrow if depth == 1 => return true,
+                TokenKind::Eof => break,
+                _ => {}
+            }
+            i += 1;
+        }
+        false
+    }
+
     fn array_value(&mut self) {
         self.builder.start_node(SyntaxKind::ARRAY_VALUE.into());
         self.bump(); // '['
@@ -689,6 +749,50 @@ impl Parser {
             }
         }
         self.expect(SyntaxKind::R_BRACKET, "E0015", "expected ',' or ']'");
+        self.builder.finish_node();
+    }
+
+    /// Parse a map literal `[ key => value, ... ]` (spec §7.8). Each entry is a
+    /// `MAP_ENTRY` node holding a key value, a `=>`, and a value.
+    fn map_value(&mut self) {
+        self.builder.start_node(SyntaxKind::MAP_VALUE.into());
+        self.bump(); // '['
+        loop {
+            if self.at(SyntaxKind::R_BRACKET) || self.at_eof() {
+                break;
+            }
+            if self.at(SyntaxKind::COMMA) {
+                let span = self.current_span();
+                self.error("E0021", "unexpected ',' in map literal", span);
+                self.bump();
+                continue;
+            }
+            let before = self.pos;
+            self.map_entry();
+            if self.at(SyntaxKind::COMMA) {
+                self.bump();
+                continue;
+            }
+            if self.at(SyntaxKind::R_BRACKET) || self.at_eof() {
+                break;
+            }
+            if self.pos == before {
+                break;
+            }
+        }
+        self.expect(SyntaxKind::R_BRACKET, "E0021", "expected ',' or ']'");
+        self.builder.finish_node();
+    }
+
+    fn map_entry(&mut self) {
+        self.builder.start_node(SyntaxKind::MAP_ENTRY.into());
+        self.value(); // key
+        self.expect(
+            SyntaxKind::FAT_ARROW,
+            "E0021",
+            "expected '=>' in map literal entry",
+        );
+        self.value(); // value
         self.builder.finish_node();
     }
 

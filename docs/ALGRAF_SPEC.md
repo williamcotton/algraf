@@ -754,6 +754,8 @@ The following identifiers are reserved in version 0.1:
 
 `Layout`
 
+`Table`
+
 `let`
 
 `true`
@@ -767,6 +769,11 @@ The following identifiers are reserved in version 0.1:
 emits it as an identifier and the parser retags it as a keyword in that position.
 `let` MUST NOT be used as a plain column identifier; a column literally named
 `let` MUST be referenced with backticks.
+
+`Table` introduces a chart-scoped named data table (spec §7.4, §10.10). It is
+reserved at the start of a chart-body item; like the other block keywords it is
+lexed as an identifier and retagged by the parser. A column literally named
+`Table` MUST be referenced with backticks.
 
 `stdin` is a contextual keyword only in `Chart(data: stdin)`.
 
@@ -899,6 +906,9 @@ The lexer recognizes:
 `,`
 
 `=`
+
+`=>` (fat arrow) — separates a key from its value in a map literal (spec §7.8).
+The lexer matches `=>` in preference to `=` (longest match).
 
 `*`
 
@@ -1090,6 +1100,28 @@ Example:
 Derive bins = Bin(value, bins: 25)
 ```
 
+#### 7.4.1 Table Declaration
+
+```ebnf
+TableDecl      ::= "Table" Ident "=" SourceExpr
+SourceExpr     ::= String
+```
+
+`Table` creates a chart-scoped named data table from an independent source
+(spec §10.10). The `SourceExpr` position is a *source expression*; version 0.6
+accepts only a string-literal CSV path, and reserves the position for later
+source constructors (e.g. `Sqlite(...)`).
+
+A `Table` name MUST be unique among `Table` declarations (`E1105`) and MUST NOT
+conflict with the primary or a derived table (`E1108`). A `Table` is bound to a
+`Space` by bare identifier in `data:`, exactly as a derived table is (spec §7.3).
+
+Example:
+
+```ag
+Table cities = "minard_cities.csv"
+```
+
 ### 7.5 Geometry Call
 
 ```ebnf
@@ -1100,6 +1132,7 @@ Value          ::= Algebra
                  | Literal
                  | StdinSentinel
                  | Array
+                 | Map
                  | CallValue
 CallValue      ::= Ident "(" ArgList? ")"
 ```
@@ -1200,6 +1233,8 @@ Literal        ::= String
                  | Null
 Array          ::= "[" ValueList? "]"
 ValueList      ::= Value ("," Value)* ","?
+Map            ::= "[" Entry ("," Entry)* ","? "]"
+Entry          ::= Value "=>" Value
 ```
 
 Arrays MAY be nested.
@@ -1207,6 +1242,13 @@ Arrays MAY be nested.
 Array element types SHOULD be homogeneous where the receiving property requires homogeneity.
 
 Heterogeneous arrays MAY produce semantic diagnostics.
+
+A bracketed value is a **map** when it contains a top-level `=>`, and an
+**array** otherwise. A map associates ordered key/value pairs; its keys define
+iteration (and legend-entry) order. A malformed map entry — a missing `=>` or a
+stray separator — MUST produce diagnostic `E0021`. Maps are accepted only where
+a property documents map support (currently a categorical color `Scale`'s
+`range:` and `labels:`, spec §16.13); used elsewhere they produce `E1606`.
 
 ### 7.9 Error Items
 
@@ -2078,6 +2120,29 @@ The cache MUST distinguish parse errors from missing files.
 Completion requests SHOULD return cached schemas if available.
 
 Completion requests SHOULD NOT block for full data loading.
+
+### 10.10 Named Tables
+
+A chart MAY declare named, chart-scoped data tables with `Table name = <source>`
+(spec §7.4.1). Each named table is an independent CSV source, loaded the same
+way as `Chart(data:)` (path resolution, `--base-dir`, source security in §10.8
+all apply unchanged).
+
+A `Space` binds to a named table by bare identifier in its `data:` argument,
+exactly as it binds to a derived table; the space's algebra and geometry
+properties resolve their columns against that table's schema. Named tables stay
+behind the dataframe boundary (§10.5): the parser, semantics, LSP, and renderer
+gain no source-specific knowledge beyond the table's name and resolved schema.
+
+Named tables are independent overlays: version 0.6 defines no join or relational
+operation between tables. When two compatible spaces overlay but back onto
+different tables, their shared position scales MUST be unioned across all
+contributing tables so the layers align (spec §17.5).
+
+Diagnostics: a duplicate `Table` name is `E1105`; a name that conflicts with the
+primary or a derived table is `E1108`; a `Table` source file that cannot be
+found is `E1106`, and one that cannot be read is `E1107`. (`E1103` still covers
+an unknown identifier passed to a space's `data:`.)
 
 ## 11. AST Model
 
@@ -3013,6 +3078,16 @@ documentation string
 
 completion metadata
 
+The registry MUST include a `Path` geometry alongside `Line` (spec §14.3.1).
+`Path` reuses `Line`'s group-splitting and stroke logic but preserves row order
+rather than sorting by x.
+
+For `Line` and `Path`, the `strokeWidth` property MUST accept a column mapping in
+addition to a numeric literal; a mapped `strokeWidth` trains a continuous scale
+and is drawn per segment (spec §16.8). For all other geometries `strokeWidth`
+remains a numeric literal. A `strokeWidth` (or `size`) scale mapped to a
+non-numeric column is `E1607`.
+
 ### 13.9 Property Registry
 
 Each geometry property definition includes:
@@ -3371,6 +3446,29 @@ Line MUST sort rows by x within each group unless `sort: false`.
 Line MUST skip missing coordinates.
 
 Line SHOULD break paths on missing coordinates rather than connecting across gaps.
+
+`Line` MUST accept a column-mapped `strokeWidth` (spec §13.8, §16.8); when
+mapped, the width is drawn per segment as in `Path`.
+
+#### 14.3.1 Path
+
+Syntax:
+
+```ag
+Path(stroke: direction, strokeWidth: survivors, group: group)
+```
+
+`Path` is identical to `Line` except it connects rows in **source order** and
+never sorts by x. It honors `group:` (separate sub-paths), `stroke:`
+(categorical or continuous color mapping), and `strokeWidth:` (a numeric literal
+or a column mapping). `Path` reuses `Line`'s registry shape and group-splitting;
+the only difference is row ordering. `Line`'s automatic x-sort remains a
+deliberate feature, so a path that must preserve a non-monotone trajectory (such
+as a geographic route) uses `Path`.
+
+When `strokeWidth` is a column mapping, `Path` (and `Line`) MUST emit a separate
+segment per adjacent pair of points, each with a width derived from its
+endpoints' scaled values (spec §16.8). Tapered-polygon ribbons are deferred.
 
 ### 14.4 Step
 
@@ -4582,7 +4680,17 @@ numeric range default `[0.1, 1.0]` or categorical mapping.
 
 Size:
 
-numeric range default `[2, 8]`.
+numeric range default `[2, 8]` (radius px). A mapped `size` trains a continuous
+scale from the column's domain into this range; `Scale(size:, domain:, range:)`
+overrides either end (spec §16.11).
+
+strokeWidth:
+
+numeric range default `[0.5, 4]` (line-width px). A column-mapped `strokeWidth`
+on `Line`/`Path` trains a continuous scale into this range and is drawn per
+segment from its endpoints' scaled values (spec §13.8, §14.3.1).
+`Scale(strokeWidth:, domain:, range:)` overrides either end. A `size` or
+`strokeWidth` scale mapped to a non-numeric column is `E1607`.
 
 Shape:
 
@@ -4653,6 +4761,8 @@ Scale(axis: y, reverse: true)
 Scale(axis: y, integer: true)
 Scale(fill: species, palette: "accent")
 Scale(fill: value, gradient: ["#3366cc", "#cc3333"])
+Scale(strokeWidth: survivors, domain: [0, null], range: [0, 30])
+Scale(stroke: direction, range: ["A" => "burlywood", "R" => "black"])
 ```
 
 Version 0.2.0 MUST implement source-level `Scale` declarations.
@@ -4661,11 +4771,27 @@ Version 0.2.0 MUST implement source-level `Scale` declarations.
 
 Space-local scale declarations override chart-level declarations for the same target.
 
+Scale targets are `axis`, `fill`, `stroke`, `size`, and `strokeWidth`. A `Scale`
+with no target MUST emit `E1204`.
+
 Axis scale targets use `Scale(axis: x, ...)` or `Scale(axis: y, ...)`; axis selectors MUST be bare `x` and `y`, not string literals.
 
 Version 0.2.0 MUST support continuous position scale types `"linear"` and `"log10"`.
 
 Version 0.2.0 MUST support numeric position domains with `domain: [min, max]`.
+
+Version 0.6.0 MUST allow either element of a numeric `domain` (and `range`)
+array to be `null`, meaning "infer this bound from the data" (e.g.
+`domain: [0, null]`). A `domain`/`range` array that is not two elements, or whose
+non-null elements are not finite numbers, MUST emit a diagnostic (`E1204` for
+`domain`, `E1603` for `range`). `domain` applies to axis, `size`, and
+`strokeWidth` scales; `range` (numeric) applies to `size` and `strokeWidth`
+scales. A numeric `range` on an axis or color scale MUST emit `E1603`. (`E1605`
+is reserved for a `null` bound used where data inference is not meaningful.)
+
+Version 0.6.0 MUST support a numeric output `range: [lo, hi]` on `size` and
+`strokeWidth` scales, mapping the trained domain into that pixel range
+(spec §16.8). Either bound MAY be `null` to use the default range end.
 
 Version 0.2.0 MUST support `reverse: true` for position axes.
 
@@ -4730,6 +4856,27 @@ non-string value MUST emit `E1204`.
 
 The named categorical palette registry recognizes `"default"` and `"accent"`.
 Unknown palette names MUST emit `E1204`.
+
+#### 16.13.1 Manual Categorical Colors and Renamed Entries
+
+A categorical `fill`/`stroke` scale MAY take a **map** `range:` assigning each
+category an explicit color, and a map `labels:` renaming legend entries:
+
+```ag
+Scale(stroke: direction,
+      range:  ["A" => "burlywood", "R" => "black"],
+      labels: ["A" => "Advance",   "R" => "Retreat"],
+      label:  "Direction")
+```
+
+Map keys define category and legend-entry order, so a manual `range:` map needs
+no separate `domain`. Explicit colors override the palette; renamed labels flow
+into the scale-driven legend (each entry's swatch keeps its mapped color, its
+text uses the renamed label). When both `range:` and `labels:` maps are present
+their key sets MUST match, otherwise `E1604`. Map keys and values MUST be string
+literals (`E1604` otherwise). A map `range:`/`labels:` on a non-categorical or
+non-color scale MUST emit `E1606`; a numeric `range:` on a categorical color
+scale MUST emit `E1603`.
 
 ## 17. Layout
 
@@ -4860,6 +5007,13 @@ Compatible spaces MAY share position scales.
 Incompatible spaces MAY require separate panels or produce diagnostics.
 
 Version 0.1 SHOULD allow overlays when x and y domains are compatible.
+
+Version 0.6.0: when compatible spaces overlay but back onto different tables
+(e.g. one bound to `Chart(data:)` and another to a named `Table`, spec §10.10),
+their continuous and temporal position-scale domains MUST be unioned across all
+contributing tables, so the secondary layer aligns with the primary in the
+shared plot area. A bound that a space has locked (a `fill`-layout bar, a `Rect`)
+is not widened by this union.
 
 Multiple `Space` blocks are distinct from multiple `Chart` blocks (spec §7.1).
 Spaces within one chart may overlay in a shared plot area and share position
@@ -5194,6 +5348,11 @@ Axis references MUST use bare `x` and `y` selector values.
 Axis references MUST NOT use string literals such as `"x"` in version 0.1.
 
 Axis references MUST NOT use string literals such as `"x"` in version 0.2.0.
+
+Version 0.6.0 MUST support `Guide(axis: x, label: null)` (and `axis: y`) to
+suppress that axis's title, reusing the `null` = "suppress" convention. Axis
+ticks and grid lines are unaffected. `label` accepts a string literal or `null`;
+any other value MUST emit `E1204`.
 
 ### 19.5 Legend Generation
 
@@ -6589,7 +6748,8 @@ Chart(data: "examples/heatmap_data.csv") {
 
 `E0020 unterminated block comment`
 
-`E0021 expected '=' in let binding`
+`E0021 malformed binding or map-literal entry` (a missing `=` in a `let`, or a
+missing `=>`/stray separator in a map literal)
 
 ### 26.2 Semantic Diagnostics
 
@@ -6613,9 +6773,17 @@ Chart(data: "examples/heatmap_data.csv") {
 
 `E1102 ambiguous column`
 
-`E1103 unknown derived table`
+`E1103 unknown derived or named table`
 
 `E1104 duplicate derived table`
+
+`E1105 duplicate Table declaration`
+
+`E1106 Table data file not found`
+
+`E1107 Table data file could not be read`
+
+`E1108 Table name conflicts with primary or derived table`
 
 `E1201 unknown geometry`
 
@@ -6662,6 +6830,16 @@ Chart(data: "examples/heatmap_data.csv") {
 `E1601 invalid gradient declaration`
 
 `E1602 gradient requires continuous color mapping`
+
+`E1603 invalid range declaration`
+
+`E1604 map key / category mismatch (or disagreeing range/labels key sets)`
+
+`E1605 null bound not permitted here` (reserved)
+
+`E1606 map/array form wrong for this scale kind`
+
+`E1607 strokeWidth/size scale requires a numeric column`
 
 ### 26.3 Warning Diagnostics
 

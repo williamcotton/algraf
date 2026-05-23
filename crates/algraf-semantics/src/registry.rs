@@ -64,6 +64,9 @@ const ALPHA: &[Accept] = &[Accept::Number, Accept::Column];
 const SIZE: &[Accept] = &[Accept::Number, Accept::Column];
 const SHAPE: &[Accept] = &[Accept::Column, Accept::Str];
 const STROKE_WIDTH: &[Accept] = &[Accept::Number];
+/// `strokeWidth` for `Line`/`Path`, which support a data-driven (per-segment)
+/// width in addition to a constant line width (spec §13.8).
+const LINE_STROKE_WIDTH: &[Accept] = &[Accept::Number, Accept::Column];
 const POS: &[Accept] = &[Accept::Column, Accept::Number];
 const GROUP: &[Accept] = &[Accept::Column];
 
@@ -77,7 +80,14 @@ const POINT: &[PropSpec] = &[
 
 const LINE: &[PropSpec] = &[
     opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
+    opt("strokeWidth", LINE_STROKE_WIDTH),
+    opt("alpha", ALPHA),
+    opt("group", GROUP),
+];
+
+const PATH: &[PropSpec] = &[
+    opt("stroke", STROKE),
+    opt("strokeWidth", LINE_STROKE_WIDTH),
     opt("alpha", ALPHA),
     opt("group", GROUP),
 ];
@@ -254,6 +264,11 @@ const GEOMETRIES: &[GeometryDef] = &[
         name: "Line",
         kind: GeometryKind::Line,
         props: LINE,
+    },
+    GeometryDef {
+        name: "Path",
+        kind: GeometryKind::Path,
+        props: PATH,
     },
     GeometryDef {
         name: "Bar",

@@ -329,7 +329,7 @@ fn test_scale_declaration_is_recorded() {
         ScaleTargetIr::Axis(AxisSelectorIr::X)
     ));
     assert_eq!(ir.scales[0].scale_type, Some(ScaleTypeIr::Log10));
-    assert_eq!(ir.scales[0].domain, Some([1.0, 100.0]));
+    assert_eq!(ir.scales[0].domain, Some([Some(1.0), Some(100.0)]));
     assert_eq!(ir.scales[0].reverse, Some(true));
     assert!(matches!(
         &ir.scales[1].target,
@@ -1060,4 +1060,168 @@ fn test_theme_override_composes_with_let() {
     );
     let theme = analysis.ir.expect("ir").theme.expect("theme");
     assert_eq!(theme.overrides.text_color.as_deref(), Some("#101010"));
+}
+
+// --- v0.6.0: named tables, map scales, range/null bounds (spec §10.x, §16) ---
+
+use algraf_semantics::{analyze_with_tables, ScaleIr};
+use algraf_syntax::parse as parse_src;
+use std::collections::HashMap;
+
+fn analyze_tables(
+    source: &str,
+    primary: &[ColumnDef],
+    tables: &[(&str, Vec<ColumnDef>)],
+) -> algraf_semantics::Analysis {
+    let parsed = parse_src(source);
+    let map: HashMap<String, Vec<ColumnDef>> = tables
+        .iter()
+        .map(|(n, s)| (n.to_string(), s.clone()))
+        .collect();
+    let mut analysis = analyze_with_tables(&parsed.syntax(), primary, &map);
+    let mut diags = parsed.into_diagnostics();
+    diags.append(&mut analysis.diagnostics);
+    algraf_semantics::Analysis {
+        ir: analysis.ir,
+        diagnostics: diags,
+    }
+}
+
+fn first_scale(ir: &algraf_semantics::ChartIr) -> &ScaleIr {
+    ir.scales.first().expect("scale")
+}
+
+#[test]
+fn test_named_table_resolves_and_binds() {
+    let primary = vec![col("long", DataType::Float), col("lat", DataType::Float)];
+    let cities = vec![
+        col("long", DataType::Float),
+        col("lat", DataType::Float),
+        col("city", DataType::String),
+    ];
+    let analysis = analyze_tables(
+        "Chart(data: \"t.csv\") {\n  Table cities = \"c.csv\"\n  Space(long * lat, data: cities) { Text(label: city, size: 6) }\n}",
+        &primary,
+        &[("cities", cities)],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.tables.len(), 1);
+    assert_eq!(ir.tables[0].name, "cities");
+    assert_eq!(ir.tables[0].path, "c.csv");
+    assert!(ir
+        .spaces
+        .iter()
+        .any(|s| s.data == SpaceDataRef::Table("cities".into())));
+}
+
+#[test]
+fn test_duplicate_table_name_e1105() {
+    let primary = vec![col("x", DataType::Float)];
+    let analysis = analyze_tables(
+        "Chart(data: \"t.csv\") {\n  Table a = \"1.csv\"\n  Table a = \"2.csv\"\n  Space(x) { Point() }\n}",
+        &primary,
+        &[("a", vec![col("x", DataType::Float)])],
+    );
+    assert!(analysis.diagnostics.iter().any(|d| d.code == "E1105"));
+}
+
+#[test]
+fn test_table_conflicts_with_derived_e1108() {
+    let primary = vec![col("value", DataType::Float)];
+    let analysis = analyze_tables(
+        "Chart(data: \"t.csv\") {\n  Derive a = Bin(value)\n  Table a = \"a.csv\"\n  Space(value) { Point() }\n}",
+        &primary,
+        &[("a", vec![col("value", DataType::Float)])],
+    );
+    assert!(analysis.diagnostics.iter().any(|d| d.code == "E1108"));
+}
+
+#[test]
+fn test_strokewidth_scale_requires_numeric_e1607() {
+    let primary = vec![col("x", DataType::Float), col("name", DataType::String)];
+    let analysis = analyze_tables(
+        "Chart(data: \"t.csv\") {\n  Scale(strokeWidth: name, range: [0, 10])\n  Space(x) { Point() }\n}",
+        &primary,
+        &[],
+    );
+    assert!(analysis.diagnostics.iter().any(|d| d.code == "E1607"));
+}
+
+#[test]
+fn test_manual_color_map_and_labels() {
+    let primary = vec![col("long", DataType::Float), col("dir", DataType::String)];
+    let analysis = analyze_tables(
+        "Chart(data: \"t.csv\") {\n  Scale(stroke: dir, range: [\"A\" => \"burlywood\", \"R\" => \"black\"], labels: [\"A\" => \"Advance\", \"R\" => \"Retreat\"], label: \"Direction\")\n  Space(long) { Point(stroke: dir) }\n}",
+        &primary,
+        &[],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let scale = first_scale(&ir);
+    let cm = scale.color_map.as_ref().expect("color map");
+    assert_eq!(cm[0], ("A".into(), "burlywood".into()));
+    let lm = scale.label_map.as_ref().expect("label map");
+    assert_eq!(lm[1], ("R".into(), "Retreat".into()));
+}
+
+#[test]
+fn test_scale_range_and_null_domain_bounds() {
+    let primary = vec![col("x", DataType::Float), col("n", DataType::Float)];
+    let analysis = analyze_tables(
+        "Chart(data: \"t.csv\") {\n  Scale(strokeWidth: n, domain: [0, null], range: [0, 30])\n  Space(x) { Point() }\n}",
+        &primary,
+        &[],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let scale = first_scale(&ir);
+    assert_eq!(scale.domain, Some([Some(0.0), None]));
+    assert_eq!(scale.range, Some([Some(0.0), Some(30.0)]));
+}
+
+#[test]
+fn test_guide_axis_label_null_suppresses() {
+    let primary = vec![col("x", DataType::Float), col("y", DataType::Float)];
+    let analysis = analyze_tables(
+        "Chart(data: \"t.csv\") {\n  Guide(axis: x, label: null)\n  Space(x * y) { Point() }\n}",
+        &primary,
+        &[],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.guides.x_label.as_deref(), Some(""));
+}
+
+#[test]
+fn test_path_geometry_is_known() {
+    let primary = vec![col("x", DataType::Float), col("y", DataType::Float)];
+    let analysis = analyze_tables(
+        "Chart(data: \"t.csv\") { Space(x * y) { Path() } }",
+        &primary,
+        &[],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Path);
 }

@@ -146,3 +146,19 @@ fn test_theme_nested_call_value_formats() {
         "{formatted}"
     );
 }
+
+#[test]
+fn test_table_and_map_round_trip() {
+    let source = "Chart(data:\"t.csv\"){Table cities=\"c.csv\"\nScale(stroke:dir,range:[\"A\"=>\"burlywood\",\"R\"=>\"black\"])\nSpace(x*y,data:cities){Point(stroke:dir)}}";
+    let formatted = format(source);
+    assert!(
+        formatted.contains("Table cities = \"c.csv\""),
+        "{formatted}"
+    );
+    assert!(
+        formatted.contains("[\"A\" => \"burlywood\", \"R\" => \"black\"]"),
+        "{formatted}"
+    );
+    // Idempotent.
+    assert_eq!(format(&formatted), formatted);
+}

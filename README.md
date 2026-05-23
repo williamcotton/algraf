@@ -1000,6 +1000,91 @@ Chart(data: "penguins.csv") {
 
 ---
 
+## Paths and data-driven line width
+
+`Path` connects rows in source order — unlike `Line`, which sorts by x — so it
+can trace a route that doubles back on itself. Mapping `strokeWidth` to a column
+turns the line into a variable-width ribbon: a continuous `Scale(strokeWidth:)`
+trains the column's domain into a pixel `range`, and each segment is drawn at the
+width of its endpoints. A `domain` (or `range`) bound may be `null` to infer it
+from the data.
+
+```algraf
+Chart(data: "route.csv", title: "Path with variable width") {
+    Scale(strokeWidth: load, domain: [0, null], range: [1, 18], label: "Load")
+
+    Space(x * y) {
+        Path(stroke: "#4E79A7", strokeWidth: load)
+    }
+}
+```
+
+![path](examples/path.svg)
+
+## Manual colors and renamed legend entries
+
+A categorical `fill`/`stroke` scale can take a `=>` map for `range:`, assigning
+each category an exact color, and a `labels:` map that renames the legend
+entries. The map keys also fix the category order, so no separate `domain` is
+needed.
+
+```algraf
+Chart(data: "penguins.csv", title: "Manual colors and renamed legend") {
+    Scale(fill: species,
+          range:  ["Adelie" => "#4E79A7", "Chinstrap" => "#E15759", "Gentoo" => "#59A14F"],
+          labels: ["Adelie" => "Adélie", "Chinstrap" => "Chinstrap", "Gentoo" => "Gentoo"],
+          label:  "Species")
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.8)
+    }
+}
+```
+
+![manual_colors](examples/manual_colors.svg)
+
+## Minard's march: overlaying a second data source
+
+The capstone pulls the v0.6 primitives together to recreate Minard's map of
+Napoleon's 1812 Russian campaign. A chart-scoped `Table` loads a second CSV of
+city labels onto the same long/lat space as the troop path. The troop layer is a
+`Path` drawn in data order, its width encoding the surviving troop count and its
+color split between advance and retreat with two hand-picked colors and renamed
+legend entries. Axis titles are suppressed with `label: null`, since raw
+longitude and latitude need no heading.
+
+```algraf
+Chart(
+    data: "minard_troops.csv",
+    title: "Napoleon's Russian Campaign",
+    subtitle: "Inspired by the graphic of C.J. Minard",
+    marginRight: 40
+) {
+    Table cities = "minard_cities.csv"
+
+    Scale(stroke: direction,
+          range: ["A" => "burlywood", "R" => "black"],
+          labels: ["A" => "Advance", "R" => "Retreat"],
+          label: "Direction")
+    Scale(strokeWidth: survivors, domain: [0, null], range: [0, 30], label: "Troops")
+
+    Guide(axis: x, label: null)
+    Guide(axis: y, label: null)
+
+    Space(long * lat) {
+        Path(stroke: direction, strokeWidth: survivors, group: group)
+    }
+
+    Space(long * lat, data: cities) {
+        Text(label: city, size: 6)
+    }
+}
+```
+
+![minard](examples/minard.svg)
+
+---
+
 ## Multiple charts in one document
 
 A document may hold more than one top-level `Chart`. Each chart is fully

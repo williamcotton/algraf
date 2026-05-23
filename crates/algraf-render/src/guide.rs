@@ -120,16 +120,20 @@ pub fn render_axes(
             theme,
         ));
     }
+    // An override of "" suppresses the axis title (`Guide(axis: x, label: null)`,
+    // spec §19.x); ticks and grid are unaffected.
     let x_label = x_label_override
         .map(str::to_string)
         .unwrap_or_else(|| space.x.label());
-    w.line(&text(
-        plot.x + plot.width / 2.0,
-        plot.bottom() + 38.0,
-        "middle",
-        &x_label,
-        theme,
-    ));
+    if x_label_override != Some("") {
+        w.line(&text(
+            plot.x + plot.width / 2.0,
+            plot.bottom() + 38.0,
+            "middle",
+            &x_label,
+            theme,
+        ));
+    }
 
     // Y axis along the left.
     if let Some(y) = &space.y {
@@ -158,18 +162,20 @@ pub fn render_axes(
         let y_label = y_label_override
             .map(str::to_string)
             .unwrap_or_else(|| y.label());
-        w.line(&format!(
-            "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" transform=\"rotate(-90 {} {})\" \
-             font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
-            num(label_x),
-            num(cy),
-            num(label_x),
-            num(cy),
-            escape_attr(&theme.font_family),
-            num(theme.font_size),
-            escape_attr(&theme.text_color),
-            escape_text(&y_label),
-        ));
+        if y_label_override != Some("") {
+            w.line(&format!(
+                "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" transform=\"rotate(-90 {} {})\" \
+                 font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
+                num(label_x),
+                num(cy),
+                num(label_x),
+                num(cy),
+                escape_attr(&theme.font_family),
+                num(theme.font_size),
+                escape_attr(&theme.text_color),
+                escape_text(&y_label),
+            ));
+        }
     }
 
     w.close_group();

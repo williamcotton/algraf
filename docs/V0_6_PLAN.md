@@ -1,6 +1,9 @@
 # Algraf v0.6.0 Plan
 
-Status: Planned (not started)
+Status: Shipped. All Must items landed (syntax, semantics, render, CLI, LSP,
+spec, tests, examples); the Minard capstone parses, analyzes, and renders.
+Should items (tapered ribbons, broader source-expression generalization) remain
+deferred.
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_5_PLAN.md`](V0_5_PLAN.md)
@@ -108,7 +111,7 @@ Chart(
 
 ### 1. Named `Table` declarations + multi-source overlay
 
-Status: Not started.
+Status: Done.
 
 Add a chart-scoped declaration that loads an independent CSV and binds to a
 `Space` by identifier.
@@ -149,7 +152,7 @@ Acceptance criteria:
 
 ### 2. `Path` geometry
 
-Status: Not started.
+Status: Done.
 
 A registered geometry identical to `Line` minus the x-sort: connects rows in
 source order, honoring `group:` (separate sub-paths), `stroke:` (categorical
@@ -166,7 +169,7 @@ Acceptance criteria:
 
 ### 3. Mappable, scaled `strokeWidth` (and `size`) with per-segment width
 
-Status: Not started. `strokeWidth` currently accepts only a literal number.
+Status: Done.
 
 Acceptance criteria:
 
@@ -184,7 +187,7 @@ Acceptance criteria:
 
 ### 4. Output `range:` and open-ended `domain`/`range` on `Scale`
 
-Status: Not started. `domain` currently requires two finite numbers; there is no
+Status: Done.
 `range:` argument; scale targets are limited to `axis`/`fill`/`stroke`.
 
 Minimum target:
@@ -208,7 +211,7 @@ Acceptance criteria:
 
 ### 5. `=>` map literals → manual categorical colors and legend renaming
 
-Status: Not started. Algraf has no map/dict literal today.
+Status: Done.
 
 Minimum target:
 
@@ -238,7 +241,7 @@ Acceptance criteria:
 
 ### 6. Suppress axis titles with `label: null`
 
-Status: Not started. `Guide(axis:x, label:)` currently requires a string.
+Status: Done.
 
 Acceptance criteria:
 
@@ -249,7 +252,7 @@ Acceptance criteria:
 
 ### 7. Spec, version, and example hygiene
 
-Status: Not started; mirrors prior releases.
+Status: Done.
 
 Acceptance criteria:
 

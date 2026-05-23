@@ -11,6 +11,9 @@ use algraf_data::DataType;
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChartIr {
     pub data_source: DataSourceIr,
+    /// Chart-scoped named CSV tables declared with `Table name = "..."`
+    /// (spec §10.x). The CLI loads each path and supplies the frames to render.
+    pub tables: Vec<TableDeclIr>,
     pub derived_tables: Vec<DeriveIr>,
     pub layout: LayoutIr,
     pub guides: GuideIr,
@@ -28,6 +31,15 @@ pub struct ChartIr {
     pub margin_bottom: Option<u32>,
     pub margin_left: Option<u32>,
     pub spaces: Vec<SpaceIr>,
+}
+
+/// A chart-scoped named CSV table declaration (`Table name = "path.csv"`,
+/// spec §10.x).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TableDeclIr {
+    pub name: String,
+    pub path: String,
+    pub span: Span,
 }
 
 /// The chart's primary data source (spec §10.1).
@@ -144,13 +156,25 @@ pub struct GuideOverridesIr {
 pub struct ScaleIr {
     pub target: ScaleTargetIr,
     pub scale_type: Option<ScaleTypeIr>,
-    pub domain: Option<[f64; 2]>,
+    /// Numeric domain bounds. Each element may be `None`, meaning "infer this
+    /// bound from the data" (e.g. `domain: [0, null]`, spec §16.11).
+    pub domain: Option<[Option<f64>; 2]>,
+    /// Numeric output range for a `size`/`strokeWidth` scale (spec §16.8,
+    /// §16.11). Each element may be `None` to infer from the data.
+    pub range: Option<[Option<f64>; 2]>,
     pub reverse: Option<bool>,
     /// Constrain axis ticks to whole integers (spec §16.10). Applies only to
     /// continuous axis scales.
     pub integer: Option<bool>,
     pub palette: Option<String>,
     pub gradient: Option<Vec<String>>,
+    /// A manual category → color map for a categorical `fill`/`stroke` scale
+    /// (`range: ["A" => "burlywood"]`, spec §16.13). Order defines category and
+    /// legend-entry order.
+    pub color_map: Option<Vec<(String, String)>>,
+    /// A manual category → display-label map (`labels: ["A" => "Advance"]`,
+    /// spec §16.13). Aligned with `color_map` order when both are present.
+    pub label_map: Option<Vec<(String, String)>>,
     /// An explicit legend title that overrides the column-derived default for a
     /// `fill`/`stroke` aesthetic scale (spec §16.13).
     pub label: Option<String>,
@@ -232,6 +256,8 @@ pub struct SpaceIr {
 pub enum SpaceDataRef {
     Primary,
     Derived(String),
+    /// A chart-scoped named CSV table (`Table cities = "..."`, spec §10.x).
+    Table(String),
 }
 
 /// The algebraic frame in canonical form (spec §13.5, §8.9).
@@ -268,6 +294,7 @@ pub struct GeometryIr {
 pub enum GeometryKind {
     Point,
     Line,
+    Path,
     Bar,
     Rect,
     Histogram,

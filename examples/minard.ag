@@ -1,0 +1,25 @@
+Chart(
+    data: "minard_troops.csv",
+    title: "Napoleon's Russian Campaign",
+    subtitle: "Inspired by the graphic of C.J. Minard",
+    marginRight: 40
+) {
+    Table cities = "minard_cities.csv"
+
+    Scale(stroke: direction,
+          range: ["A" => "burlywood", "R" => "black"],
+          labels: ["A" => "Advance", "R" => "Retreat"],
+          label: "Direction")
+    Scale(strokeWidth: survivors, domain: [0, null], range: [0, 30], label: "Troops")
+
+    Guide(axis: x, label: null)
+    Guide(axis: y, label: null)
+
+    Space(long * lat) {
+        Path(stroke: direction, strokeWidth: survivors, group: group)
+    }
+
+    Space(long * lat, data: cities) {
+        Text(label: city, size: 6)
+    }
+}

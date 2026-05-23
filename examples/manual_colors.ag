@@ -1,0 +1,10 @@
+Chart(data: "penguins.csv", title: "Manual colors and renamed legend") {
+    Scale(fill: species,
+          range:  ["Adelie" => "#4E79A7", "Chinstrap" => "#E15759", "Gentoo" => "#59A14F"],
+          labels: ["Adelie" => "Adélie", "Chinstrap" => "Chinstrap", "Gentoo" => "Gentoo"],
+          label:  "Species")
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.8)
+    }
+}

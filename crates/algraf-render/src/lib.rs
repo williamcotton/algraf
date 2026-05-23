@@ -19,7 +19,7 @@ mod theme;
 
 pub use error::RenderError;
 pub use layout::{FacetPanel, Layout, Rect};
-pub use render::{render, RenderResult};
+pub use render::{render, render_with_tables, RenderResult};
 pub use theme::Theme;
 
 // Re-exported for callers that build a table to render against.

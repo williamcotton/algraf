@@ -351,3 +351,51 @@ fn test_multiple_chart_blocks_parse() {
     let charts = Root::cast(parse(source).syntax()).unwrap().charts();
     assert_eq!(charts.len(), 2);
 }
+
+// --- v0.6.0: Table declarations and map literals (spec §7.4, §7.8) ---
+
+use algraf_syntax::ast::{MapValue, TableDecl};
+
+#[test]
+fn test_table_declaration_parses() {
+    let source =
+        "Chart(data: \"t.csv\") {\n  Table cities = \"c.csv\"\n  Space(x * y, data: cities) { Point() }\n}";
+    no_errors(source);
+    let chart = root(source).chart().expect("chart");
+    let ChartItem::Table(decl) = chart
+        .items()
+        .into_iter()
+        .find(|i| matches!(i, ChartItem::Table(_)))
+        .expect("table decl")
+    else {
+        unreachable!()
+    };
+    let decl: TableDecl = decl;
+    assert_eq!(decl.name().as_deref(), Some("cities"));
+    assert!(matches!(decl.source(), Some(ValueExpr::Literal(_))));
+}
+
+#[test]
+fn test_map_literal_parses_distinct_from_array() {
+    let source = "Chart(data: \"t.csv\") {\n  Scale(stroke: dir, range: [\"A\" => \"burlywood\", \"R\" => \"black\"])\n  Space(x * y) { Point(stroke: dir) }\n}";
+    no_errors(source);
+    // The map value node has two entries with key/value pairs.
+    let syntax = parse(source).syntax();
+    let map = syntax
+        .descendants()
+        .find_map(MapValue::cast)
+        .expect("map value");
+    let entries = map.entries();
+    assert_eq!(entries.len(), 2);
+    assert!(entries[0].key().is_some());
+    assert!(entries[0].value().is_some());
+}
+
+#[test]
+fn test_map_entry_missing_arrow_recovers() {
+    // A bracket containing a `=>` is a map; a later entry without `=>` is E0021.
+    let parsed = parse(
+        "Chart(data: \"t.csv\") {\n  Scale(stroke: d, range: [\"A\" => \"x\", \"B\"])\n  Space(a) { Point() }\n}",
+    );
+    assert!(parsed.diagnostics().iter().any(|d| d.code == "E0021"));
+}

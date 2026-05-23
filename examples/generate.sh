@@ -56,6 +56,9 @@ charts=(
     binned_regression_chain
     variables
     custom_theme
+    path
+    manual_colors
+    minard
 )
 
 cd "$repo_root"

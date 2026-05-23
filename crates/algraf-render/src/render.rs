@@ -15,7 +15,7 @@ use crate::domains::train_space_domains;
 use crate::error::RenderError;
 use crate::guide;
 use crate::layout::{Layout, Margins, Rect, MARGIN_LEFT};
-use crate::scale::{categorical_domain, cell_category};
+use crate::scale::{categorical_domain, cell_category, numeric_domain, temporal_domain};
 use crate::space::ScaledSpace;
 use crate::stats;
 use crate::svg::{escape_attr, escape_text, num, SvgWriter};
@@ -53,10 +53,24 @@ pub fn render(
     theme: &Theme,
     cli_theme_override: Option<&str>,
 ) -> Result<RenderResult, RenderError> {
+    render_with_tables(ir, primary, &HashMap::new(), theme, cli_theme_override)
+}
+
+/// Render a chart IR against its primary table plus chart-scoped named tables
+/// (spec §10.x). `named_tables` maps each `Table name = "..."` declaration's
+/// name to its loaded frame; the caller loads them at the I/O boundary.
+pub fn render_with_tables(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+) -> Result<RenderResult, RenderError> {
     let mut diagnostics = Vec::new();
 
-    // Compute derived tables (spec §24.1 step 12).
-    let derived = compute_derived(ir, primary);
+    // Compute derived tables (spec §24.1 step 12), seeding the table map with
+    // the named CSV tables so derived stats may read from them too.
+    let derived = compute_derived(ir, primary, named_tables);
 
     let width = ir.width as f64;
     let height = ir.height as f64;
@@ -115,6 +129,12 @@ pub fn render(
     let x_range = (layout.plot.x, layout.plot.right());
     let y_range = (layout.plot.bottom(), layout.plot.y); // inverted for SVG
 
+    // Position scales are shared across overlaid (non-faceted) spaces, even when
+    // they back onto different tables (spec §17.5). Compute the unioned x/y
+    // extent across those spaces and inject it as a soft bound below.
+    let shared_x = shared_axis_extent(ir, primary, &derived, AxisSelectorIr::X);
+    let shared_y = shared_axis_extent(ir, primary, &derived, AxisSelectorIr::Y);
+
     let mut panels = Vec::new();
     for space in &ir.spaces {
         let table = active_table(&space.data, primary, &derived);
@@ -158,7 +178,9 @@ pub fn render(
                 }
             }
         } else {
-            let domain_hints = train_space_domains(&space.frame, table, &space.geometries);
+            let mut domain_hints = train_space_domains(&space.frame, table, &space.geometries);
+            shared_x.apply(&mut domain_hints.x);
+            shared_y.apply(&mut domain_hints.y);
             match ScaledSpace::build(
                 &space.frame,
                 table,
@@ -394,14 +416,18 @@ fn validate_scale_configs(
             }
         }
         if let Some([a, b]) = scale.domain {
-            if (a - b).abs() <= f64::EPSILON {
-                diagnostics.push(Diagnostic::warning(
-                    "R0004",
-                    "scale domain endpoints must be distinct",
-                    scale.span,
-                ));
+            if let (Some(a), Some(b)) = (a, b) {
+                if (a - b).abs() <= f64::EPSILON {
+                    diagnostics.push(Diagnostic::warning(
+                        "R0004",
+                        "scale domain endpoints must be distinct",
+                        scale.span,
+                    ));
+                }
             }
-            if scale.scale_type == Some(ScaleTypeIr::Log10) && (a <= 0.0 || b <= 0.0) {
+            if scale.scale_type == Some(ScaleTypeIr::Log10)
+                && [a, b].into_iter().flatten().any(|bound| bound <= 0.0)
+            {
                 diagnostics.push(Diagnostic::warning(
                     "R0004",
                     "log10 scale domain must be positive",
@@ -429,15 +455,23 @@ fn active_table<'t>(
 ) -> &'t dyn Table {
     match data {
         SpaceDataRef::Primary => primary,
-        SpaceDataRef::Derived(name) => derived
+        // Named tables are seeded into the same map as derived tables, so both
+        // resolve the same way (spec §10.x).
+        SpaceDataRef::Derived(name) | SpaceDataRef::Table(name) => derived
             .get(name)
             .map(|d| d as &dyn Table)
             .unwrap_or(primary),
     }
 }
 
-fn compute_derived(ir: &ChartIr, primary: &dyn Table) -> HashMap<String, DataFrame> {
-    let mut derived = HashMap::new();
+fn compute_derived(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+) -> HashMap<String, DataFrame> {
+    // Seed with the chart's named CSV tables; derived stats may read from them
+    // and `SpaceDataRef::Table` resolves through this same map.
+    let mut derived: HashMap<String, DataFrame> = named_tables.clone();
     for d in &ir.derived_tables {
         let frame = {
             let source = active_table(&d.data, primary, &derived);
@@ -877,6 +911,86 @@ fn facet_frame(frame: &FrameIr) -> Option<(&FrameIr, &ColumnRef)> {
     match inner.as_ref() {
         FrameIr::Vector(column) => Some((outer.as_ref(), column)),
         _ => None,
+    }
+}
+
+/// The unioned numeric/temporal extent of one axis across all non-faceted
+/// spaces, used to share position scales across overlaid spaces (spec §17.5).
+#[derive(Default)]
+struct AxisExtent {
+    numeric: Option<(f64, f64)>,
+    temporal: Option<(i64, i64)>,
+}
+
+impl AxisExtent {
+    fn add_numeric(&mut self, min: f64, max: f64) {
+        self.numeric = Some(match self.numeric {
+            Some((lo, hi)) => (lo.min(min), hi.max(max)),
+            None => (min, max),
+        });
+    }
+
+    fn add_temporal(&mut self, min: i64, max: i64) {
+        self.temporal = Some(match self.temporal {
+            Some((lo, hi)) => (lo.min(min), hi.max(max)),
+            None => (min, max),
+        });
+    }
+
+    fn apply(&self, hints: &mut crate::domains::AxisDomainHints) {
+        if let Some((min, max)) = self.numeric {
+            hints.merge_numeric_extent(min, max);
+        }
+        if let Some((min, max)) = self.temporal {
+            hints.merge_temporal_extent(min, max);
+        }
+    }
+}
+
+fn shared_axis_extent(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    derived: &HashMap<String, DataFrame>,
+    axis: AxisSelectorIr,
+) -> AxisExtent {
+    let mut extent = AxisExtent::default();
+    for space in &ir.spaces {
+        // Faceted spaces lay out in their own panels, so they do not share an
+        // axis with the main overlaid spaces.
+        if facet_frame(&space.frame).is_some() {
+            continue;
+        }
+        let Some(axis_frame) = frame_axis(&space.frame, axis) else {
+            continue;
+        };
+        let table = active_table(&space.data, primary, derived);
+        accumulate_axis_extent(axis_frame, table, &mut extent);
+    }
+    extent
+}
+
+/// Accumulate the numeric/temporal extent of an axis frame's backing columns.
+fn accumulate_axis_extent(frame: &FrameIr, table: &dyn Table, extent: &mut AxisExtent) {
+    match frame {
+        FrameIr::Vector(col) => match col.dtype {
+            algraf_data::DataType::Integer | algraf_data::DataType::Float => {
+                if let Some((min, max)) = numeric_domain(table, &col.name) {
+                    extent.add_numeric(min, max);
+                }
+            }
+            algraf_data::DataType::Temporal => {
+                if let Some((min, max, _)) = temporal_domain(table, &col.name) {
+                    extent.add_temporal(min, max);
+                }
+            }
+            _ => {}
+        },
+        FrameIr::Union(members) => {
+            for member in members {
+                accumulate_axis_extent(member, table, extent);
+            }
+        }
+        _ => {}
     }
 }
 

@@ -9,7 +9,7 @@ use algraf_core::Diagnostic;
 use algraf_data::Table;
 use algraf_semantics::{GeometryIr, GeometryKind, ScaleIr, SettingValue};
 
-use crate::aes::{color_spec, number_for_row, number_setting, ColorSpec};
+use crate::aes::{color_spec, number_for_row, number_setting, number_spec, ColorSpec, NumberSpec};
 use crate::layout::Rect;
 use crate::scale::{cell_category, cell_f64, cell_micros};
 use crate::space::{AxisScale, ScaledSpace};
@@ -19,6 +19,10 @@ use crate::theme::Theme;
 
 const DEFAULT_FILL: &str = "#4E79A7";
 const DEFAULT_STROKE: &str = "#333333";
+/// Default output range (px) for a mapped `strokeWidth` scale (spec §16.8).
+const DEFAULT_STROKE_WIDTH_RANGE: (f64, f64) = (0.5, 4.0);
+/// Default output range (radius px) for a mapped `size` scale (spec §16.8).
+const DEFAULT_SIZE_RANGE: (f64, f64) = (2.0, 8.0);
 
 #[derive(Clone, Copy)]
 pub(crate) struct GeometryRenderContext<'a> {
@@ -51,8 +55,11 @@ pub(crate) fn render(
             ctx.scales,
             diagnostics,
         ),
-        GeometryKind::Line => line(
-            w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme, ctx.scales,
+        GeometryKind::Line => polyline(
+            w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme, ctx.scales, true,
+        ),
+        GeometryKind::Path => polyline(
+            w, geo, ctx.space, ctx.table, ctx.rows, ctx.theme, ctx.scales, false,
         ),
         GeometryKind::Bar => bar(
             w,
@@ -140,6 +147,7 @@ fn geo_class(kind: GeometryKind) -> &'static str {
     match kind {
         GeometryKind::Point => "point",
         GeometryKind::Line => "line",
+        GeometryKind::Path => "path",
         GeometryKind::Bar => "bar",
         GeometryKind::FreqPoly => "freqpoly",
         GeometryKind::Bin2D => "bin2d",
@@ -173,7 +181,14 @@ fn point(
 ) {
     let fill = color_spec(geo, "fill", table, scales);
     let alpha = number_setting(geo, "alpha", 1.0);
-    let size = number_setting(geo, "size", theme.point_size);
+    let size = number_spec(
+        geo,
+        "size",
+        table,
+        scales,
+        DEFAULT_SIZE_RANGE,
+        theme.point_size,
+    );
     let shape = shape_spec(geo, table, diagnostics);
     for row in render_rows(table, rows) {
         let (Some(cx), Some(cy)) = (space.resolve_x(table, row), space.resolve_y(table, row))
@@ -183,7 +198,8 @@ fn point(
         let color = fill
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
-        emit_point_shape(w, shape.resolve(table, row), cx, cy, size, &color, alpha);
+        let s = size.at(table, row, theme.point_size);
+        emit_point_shape(w, shape.resolve(table, row), cx, cy, s, &color, alpha);
     }
 }
 
@@ -332,7 +348,12 @@ fn emit_point_shape(
     }
 }
 
-fn line(
+/// Render a `Line` (`sort = true`, x-sorted) or `Path` (`sort = false`, source
+/// order) polyline (spec §14.x). `strokeWidth` may be a constant or a column
+/// mapping; a mapped width is drawn per segment from its endpoints' scaled
+/// values (spec §13.8).
+#[allow(clippy::too_many_arguments)]
+fn polyline(
     w: &mut SvgWriter,
     geo: &GeometryIr,
     space: &ScaledSpace,
@@ -340,9 +361,17 @@ fn line(
     rows: Option<&[usize]>,
     theme: &Theme,
     scales: &[ScaleIr],
+    sort: bool,
 ) {
     let stroke = color_spec(geo, "stroke", table, scales);
-    let width = number_setting(geo, "strokeWidth", theme.line_width);
+    let width = number_spec(
+        geo,
+        "strokeWidth",
+        table,
+        scales,
+        DEFAULT_STROKE_WIDTH_RANGE,
+        theme.line_width,
+    );
     let alpha = number_setting(geo, "alpha", 1.0);
     let row_list = render_rows(table, rows);
 
@@ -351,33 +380,65 @@ fn line(
     let groups: Vec<(String, Vec<usize>)> = grouped_rows(geo, &stroke, table, row_list);
 
     for (cat, rows) in groups {
-        let mut points: Vec<(f64, f64)> = rows
+        let mut points: Vec<(f64, f64, usize)> = rows
             .iter()
-            .filter_map(|&r| Some((space.resolve_x(table, r)?, space.resolve_y(table, r)?)))
+            .filter_map(|&r| Some((space.resolve_x(table, r)?, space.resolve_y(table, r)?, r)))
             .collect();
-        points.sort_by(|a, b| a.0.total_cmp(&b.0));
+        if sort {
+            points.sort_by(|a, b| a.0.total_cmp(&b.0));
+        }
         if points.is_empty() {
             continue;
         }
-        let color = if cat.is_empty() {
+        let group_color = if cat.is_empty() {
             constant_or(&stroke, DEFAULT_STROKE)
         } else {
             stroke
-                .resolve(table, *rows.first().unwrap())
+                .resolve(table, points[0].2)
                 .unwrap_or_else(|| DEFAULT_STROKE.to_string())
         };
-        let mut d = String::new();
-        for (i, (x, y)) in points.iter().enumerate() {
-            let cmd = if i == 0 { 'M' } else { 'L' };
-            let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
+
+        match &width {
+            // Constant width: a single polyline path (compact output).
+            NumberSpec::Constant(width) => {
+                let mut d = String::new();
+                for (i, (x, y, _)) in points.iter().enumerate() {
+                    let cmd = if i == 0 { 'M' } else { 'L' };
+                    let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
+                }
+                w.line(&format!(
+                    "<path d=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\" />",
+                    d.trim_end(),
+                    escape_attr(&group_color),
+                    num(*width),
+                    num(alpha),
+                ));
+            }
+            // Mapped width: one segment per adjacent pair, each with a width
+            // averaged from its endpoints' scaled values (spec §13.8).
+            NumberSpec::Scaled { .. } => {
+                for pair in points.windows(2) {
+                    let (x0, y0, r0) = pair[0];
+                    let (x1, y1, r1) = pair[1];
+                    let seg_width = (width.at(table, r0, theme.line_width)
+                        + width.at(table, r1, theme.line_width))
+                        / 2.0;
+                    let color = stroke
+                        .resolve(table, r0)
+                        .unwrap_or_else(|| group_color.clone());
+                    w.line(&format!(
+                        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\" stroke-linecap=\"round\" opacity=\"{}\" />",
+                        num(x0),
+                        num(y0),
+                        num(x1),
+                        num(y1),
+                        escape_attr(&color),
+                        num(seg_width.max(0.0)),
+                        num(alpha),
+                    ));
+                }
+            }
         }
-        w.line(&format!(
-            "<path d=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\" />",
-            d.trim_end(),
-            escape_attr(&color),
-            num(width),
-            num(alpha),
-        ));
     }
 }
 

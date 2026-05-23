@@ -4,7 +4,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use algraf_data::{read_csv, read_csv_path, read_csv_schema, ColumnDef, LoadResult, Table};
-use algraf_syntax::ast::{ChartBlock, LiteralKind, Root, ValueExpr};
+use algraf_syntax::ast::{ChartBlock, ChartItem, LiteralKind, Root, ValueExpr};
 use algraf_syntax::SyntaxNode;
 
 use crate::error::CliError;
@@ -82,6 +82,65 @@ pub fn extract_chart_data_source(chart: &ChartBlock) -> AstData {
         }
     }
     AstData::Missing
+}
+
+/// One chart-scoped named CSV table declaration (`Table name = "path.csv"`).
+pub struct NamedTable {
+    pub name: String,
+    pub frame: algraf_data::DataFrame,
+    pub warnings: Vec<algraf_data::DataWarning>,
+}
+
+/// Extract `Table name = "path.csv"` declarations from a chart block (spec
+/// §10.x).
+pub fn extract_chart_tables(chart: &ChartBlock) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for item in chart.items() {
+        let ChartItem::Table(decl) = item else {
+            continue;
+        };
+        let Some(name) = decl.name() else { continue };
+        if let Some(ValueExpr::Literal(lit)) = decl.source() {
+            if lit.kind() == Some(LiteralKind::String) {
+                out.push((name, strip_string(&lit.text().unwrap_or_default())));
+            }
+        }
+    }
+    out
+}
+
+/// Load every named `Table` declared in a chart, resolving each path with the
+/// same base-dir rules as `Chart(data:)` (spec §10.x). A missing file is
+/// `E1106`; an unreadable one is `E1107`.
+pub fn load_named_tables(
+    chart: &ChartBlock,
+    source: &SourceInput,
+    base_dir: Option<&Path>,
+) -> Result<Vec<NamedTable>, CliError> {
+    let base = base_dir
+        .map(PathBuf::from)
+        .or_else(|| match source {
+            SourceInput::Path(p) => p.parent().map(PathBuf::from),
+            SourceInput::Stdin => Some(PathBuf::from(".")),
+        })
+        .unwrap_or_else(|| PathBuf::from("."));
+
+    let mut out = Vec::new();
+    for (name, rel) in extract_chart_tables(chart) {
+        let path = base.join(&rel);
+        let loaded = read_csv_path(&path).map_err(|e| {
+            CliError::Io(format!(
+                "failed to load Table `{name}` data {}: {e}",
+                path.display()
+            ))
+        })?;
+        out.push(NamedTable {
+            name,
+            frame: loaded.frame,
+            warnings: loaded.warnings,
+        });
+    }
+    Ok(out)
 }
 
 /// Load the data table, applying the `--data` override and base-dir resolution

@@ -6,15 +6,16 @@ mod error;
 mod input;
 mod png;
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use algraf_data::{ColumnDef, DataType, Table};
-use algraf_render::{render, Layout, Rect, Theme};
+use algraf_data::{ColumnDef, DataFrame, DataType, Table};
+use algraf_render::{render_with_tables, Layout, Rect, Theme};
 use algraf_semantics::{
-    analyze, analyze_chart, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr,
-    GeometryIr, GeometryKind, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
-    SpaceDataRef, SpaceIr, StatKind,
+    analyze, analyze_chart_with_tables, analyze_with_tables, AestheticMapping, ChartIr, ColumnRef,
+    DataSourceIr, DeriveIr, FrameIr, GeometryIr, GeometryKind, GuideOverridesIr, ScaleIr,
+    ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, SpaceIr, StatKind,
 };
 use algraf_syntax::ast::{ChartBlock, Root};
 use algraf_syntax::{format, parse};
@@ -23,8 +24,8 @@ use serde_json::{json, Value};
 
 use crate::error::CliError;
 use crate::input::{
-    extract_chart_data_source, extract_data_source, load_data, load_schema, read_source, AstData,
-    SourceInput,
+    extract_chart_data_source, extract_data_source, load_data, load_named_tables, load_schema,
+    read_source, AstData, SourceInput,
 };
 
 #[derive(Parser)]
@@ -262,7 +263,14 @@ fn render_chart_svg(
         .map(|l| l.frame.schema())
         .unwrap_or(&[] as &[ColumnDef]);
 
-    let analysis = analyze_chart(chart, schema);
+    // Load chart-scoped named tables (spec §10.x), keyed by name.
+    let named = load_named_tables(chart, input, args.base_dir.as_deref())?;
+    let table_schemas: HashMap<String, Vec<ColumnDef>> = named
+        .iter()
+        .map(|t| (t.name.clone(), t.frame.schema().to_vec()))
+        .collect();
+
+    let analysis = analyze_chart_with_tables(chart, schema, &table_schemas);
     let diags = analysis.diagnostics;
     if diagnostics::has_blocking(&diags, args.strict) {
         eprint!("{}", diagnostics::render_human(source, label, &diags));
@@ -278,10 +286,19 @@ fn render_chart_svg(
     for warning in &loaded.warnings {
         eprintln!("warning: {}", warning.message);
     }
-    if args.strict && !loaded.warnings.is_empty() {
+    let mut table_warnings = false;
+    for table in &named {
+        for warning in &table.warnings {
+            eprintln!("warning: {}", warning.message);
+            table_warnings = true;
+        }
+    }
+    if args.strict && (!loaded.warnings.is_empty() || table_warnings) {
         return Err(CliError::Diagnostics);
     }
     let frame = loaded.frame;
+    let named_frames: HashMap<String, DataFrame> =
+        named.into_iter().map(|t| (t.name, t.frame)).collect();
 
     let mut ir = analysis
         .ir
@@ -303,8 +320,14 @@ fn render_chart_svg(
     };
     let cli_theme_override = args.theme.clone();
 
-    let mut result = render(&ir, &frame, &theme, cli_theme_override.as_deref())
-        .map_err(|e| CliError::Internal(e.to_string()))?;
+    let mut result = render_with_tables(
+        &ir,
+        &frame,
+        &named_frames,
+        &theme,
+        cli_theme_override.as_deref(),
+    )
+    .map_err(|e| CliError::Internal(e.to_string()))?;
     if !result.diagnostics.is_empty() {
         eprint!(
             "{}",
@@ -391,13 +414,28 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
             .as_ref()
             .map(|l| l.frame.schema())
             .unwrap_or(&[] as &[ColumnDef]);
-        let analysis = analyze_chart(chart, schema);
+        let named = load_named_tables(chart, &input, args.base_dir.as_deref())?;
+        let table_schemas: HashMap<String, Vec<ColumnDef>> = named
+            .iter()
+            .map(|t| (t.name.clone(), t.frame.schema().to_vec()))
+            .collect();
+        let analysis = analyze_chart_with_tables(chart, schema, &table_schemas);
         diags.extend(analysis.diagnostics);
         if let Some(loaded) = &loaded {
             if !loaded.warnings.is_empty() {
                 data_warning = true;
                 if !args.json {
                     for warning in &loaded.warnings {
+                        eprintln!("warning: {}", warning.message);
+                    }
+                }
+            }
+        }
+        for table in &named {
+            if !table.warnings.is_empty() {
+                data_warning = true;
+                if !args.json {
+                    for warning in &table.warnings {
                         eprintln!("warning: {}", warning.message);
                     }
                 }
@@ -544,7 +582,20 @@ fn ir_cmd(args: IrArgs) -> Result<(), CliError> {
         .as_ref()
         .map(|l| l.frame.schema())
         .unwrap_or(&[] as &[ColumnDef]);
-    let analysis = analyze(&root, schema);
+    // Resolve named-table schemas from the first chart so column references in
+    // overlaid spaces resolve (spec §10.10).
+    let table_schemas: HashMap<String, Vec<ColumnDef>> = Root::cast(root.clone())
+        .and_then(|r| r.chart())
+        .map(|chart| load_named_tables(&chart, &input, args.base_dir.as_deref()))
+        .transpose()?
+        .map(|named| {
+            named
+                .into_iter()
+                .map(|t| (t.name, t.frame.schema().to_vec()))
+                .collect()
+        })
+        .unwrap_or_default();
+    let analysis = analyze_with_tables(&root, schema, &table_schemas);
     let mut diags = parsed.diagnostics().to_vec();
     diags.extend(analysis.diagnostics);
 
@@ -677,6 +728,11 @@ fn ir_to_json(ir: &ChartIr) -> Value {
         "title": ir.title.as_deref(),
         "subtitle": ir.subtitle.as_deref(),
         "caption": ir.caption.as_deref(),
+        "tables": ir.tables.iter().map(|t| json!({
+            "name": t.name,
+            "path": t.path,
+            "span": span_json(t.span),
+        })).collect::<Vec<_>>(),
         "derivedTables": ir.derived_tables.iter().map(derive_json).collect::<Vec<_>>(),
         "spaces": ir.spaces.iter().map(space_json).collect::<Vec<_>>(),
     })
@@ -769,6 +825,7 @@ fn space_data_json(data: &SpaceDataRef) -> Value {
     match data {
         SpaceDataRef::Primary => json!({ "kind": "primary" }),
         SpaceDataRef::Derived(name) => json!({ "kind": "derived", "name": name }),
+        SpaceDataRef::Table(name) => json!({ "kind": "table", "name": name }),
     }
 }
 
@@ -844,6 +901,7 @@ fn geometry_kind_str(kind: GeometryKind) -> &'static str {
     match kind {
         GeometryKind::Point => "Point",
         GeometryKind::Line => "Line",
+        GeometryKind::Path => "Path",
         GeometryKind::Bar => "Bar",
         GeometryKind::Rect => "Rect",
         GeometryKind::Histogram => "Histogram",

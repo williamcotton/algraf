@@ -1,0 +1,7 @@
+Chart(data: "route.csv", title: "Path with variable width") {
+    Scale(strokeWidth: load, domain: [0, null], range: [1, 18], label: "Load")
+
+    Space(x * y) {
+        Path(stroke: "#4E79A7", strokeWidth: load)
+    }
+}

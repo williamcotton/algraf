@@ -417,9 +417,8 @@ fn build_axis(
                 hints.apply_numeric(&mut min, &mut max);
                 hints.apply_padding(&mut min, &mut max);
             }
-            if let Some([a, b]) = config.domain {
-                min = a.min(b);
-                max = a.max(b);
+            if let Some(bounds) = config.domain {
+                apply_domain_bounds(bounds, &mut min, &mut max);
             }
             Some(AxisScale::Union {
                 label,
@@ -444,9 +443,8 @@ fn build_vector_axis(
                 hints.apply_numeric(&mut min, &mut max);
                 hints.apply_padding(&mut min, &mut max);
             }
-            if let Some([a, b]) = config.domain {
-                min = a.min(b);
-                max = a.max(b);
+            if let Some(bounds) = config.domain {
+                apply_domain_bounds(bounds, &mut min, &mut max);
             }
             AxisScale::Continuous {
                 col: col.name.clone(),
@@ -486,9 +484,24 @@ fn build_vector_axis(
 #[derive(Debug, Clone, Copy, Default)]
 struct AxisScaleConfig {
     scale_type: Option<ScaleTypeIr>,
-    domain: Option<[f64; 2]>,
+    domain: Option<[Option<f64>; 2]>,
     reverse: bool,
     integer: bool,
+}
+
+/// Override `(min, max)` with explicit domain bounds, leaving a bound untouched
+/// where it is `null` ("infer from data", spec §16.11). When both bounds are
+/// given out of order, they are normalized so `min <= max`.
+fn apply_domain_bounds(bounds: [Option<f64>; 2], min: &mut f64, max: &mut f64) {
+    match bounds {
+        [Some(a), Some(b)] => {
+            *min = a.min(b);
+            *max = a.max(b);
+        }
+        [Some(a), None] => *min = a,
+        [None, Some(b)] => *max = b,
+        [None, None] => {}
+    }
 }
 
 impl AxisScaleConfig {

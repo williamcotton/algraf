@@ -10,9 +10,12 @@ pub mod ir;
 pub mod registry;
 mod util;
 
-pub use analyzer::{analyze, analyze_chart, analyze_source, Analysis};
+pub use analyzer::{
+    analyze, analyze_chart, analyze_chart_with_tables, analyze_source, analyze_with_tables,
+    Analysis,
+};
 pub use ir::{
     AestheticMapping, AxisSelectorIr, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr,
     GeometryIr, GeometryKind, GuideIr, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr,
-    SettingValue, SpaceDataRef, SpaceIr, StatKind, ThemeIr, ThemeOverrides,
+    SettingValue, SpaceDataRef, SpaceIr, StatKind, TableDeclIr, ThemeIr, ThemeOverrides,
 };

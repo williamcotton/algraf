@@ -43,6 +43,7 @@ pub enum TokenKind {
     Colon,
     Comma,
     Equal,
+    FatArrow,
     Star,
     Slash,
     Plus,
@@ -185,6 +186,10 @@ enum RawToken {
     Colon,
     #[token(",")]
     Comma,
+    // `=>` (fat arrow) for map literal entries (spec §6.11). It takes priority
+    // over `=` because logos prefers the longer match.
+    #[token("=>")]
+    FatArrow,
     #[token("=")]
     Equal,
     #[token("*")]
@@ -216,6 +221,7 @@ impl RawToken {
             RawToken::RBracket => TokenKind::RBracket,
             RawToken::Colon => TokenKind::Colon,
             RawToken::Comma => TokenKind::Comma,
+            RawToken::FatArrow => TokenKind::FatArrow,
             RawToken::Equal => TokenKind::Equal,
             RawToken::Star => TokenKind::Star,
             RawToken::Slash => TokenKind::Slash,

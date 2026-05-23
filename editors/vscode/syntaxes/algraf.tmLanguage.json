@@ -113,7 +113,7 @@
       "patterns": [
         {
           "name": "keyword.declaration.algraf",
-          "match": "\\b(?:Chart|Space|Derive|Scale|Guide|Theme|Layout)\\b"
+          "match": "\\b(?:Chart|Space|Derive|Table|Scale|Guide|Theme|Layout)\\b"
         },
         {
           "name": "keyword.declaration.let.algraf",
@@ -125,7 +125,7 @@
       "patterns": [
         {
           "name": "entity.name.function.geometry.algraf",
-          "match": "\\b(?:Point|Line|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment)\\b(?=\\s*\\()"
+          "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment)\\b(?=\\s*\\()"
         }
       ]
     },
@@ -170,6 +170,10 @@
         {
           "name": "keyword.operator.algebra.algraf",
           "match": "[*/+]"
+        },
+        {
+          "name": "keyword.operator.map.algraf",
+          "match": "=>"
         },
         {
           "name": "keyword.operator.assignment.algraf",

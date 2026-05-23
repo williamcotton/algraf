@@ -85,6 +85,28 @@ impl AxisDomainHints {
         }
     }
 
+    /// Union an externally computed numeric extent into this axis as a soft
+    /// bound, so position scales align across overlaid spaces backed by
+    /// different tables (spec §17.5). A bound that this axis has already locked
+    /// (e.g. a `fill`-layout bar or a `Rect`) is left untouched.
+    pub fn merge_numeric_extent(&mut self, min: f64, max: f64) {
+        if !min.is_finite() || !max.is_finite() {
+            return;
+        }
+        if !self.numeric.hard_min {
+            self.numeric.min = Some(self.numeric.min.map_or(min, |m| m.min(min)));
+        }
+        if !self.numeric.hard_max {
+            self.numeric.max = Some(self.numeric.max.map_or(max, |m| m.max(max)));
+        }
+    }
+
+    /// Union an externally computed temporal extent into this axis (spec §17.5).
+    pub fn merge_temporal_extent(&mut self, min: i64, max: i64) {
+        self.add_temporal(min);
+        self.add_temporal(max);
+    }
+
     fn add_numeric(&mut self, value: f64) {
         if !value.is_finite() {
             return;
