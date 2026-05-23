@@ -7031,7 +7031,7 @@ Render command SHOULD offer user-visible errors for files that are too large if 
 
 Released version 0.1 files have no source-level version declaration.
 
-Releases through the current roadmap (0.2.0–0.6.0) continue to treat source files as unversioned unless this section is amended. Promotion of the optional version declaration is flagged for consideration in the v0.5.0 plan, when new source syntax lands; see §30.4.
+Releases through the current roadmap (0.2.0–0.7.0) continue to treat source files as unversioned unless this section is amended. Promotion of the optional version declaration is flagged for consideration in the v0.5.0 plan, when new source syntax lands; see §30.4.
 
 Future files MAY include:
 
@@ -7076,7 +7076,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.3.0 | [`V0_3_PLAN.md`](V0_3_PLAN.md) | Expressiveness — more charts users can draw | Implemented |
 | 0.4.0 | [`V0_4_PLAN.md`](V0_4_PLAN.md) | Editor & authoring experience | Planned |
 | 0.5.0 | [`V0_5_PLAN.md`](V0_5_PLAN.md) | Composition & reuse | Planned |
-| 0.6.0 | [`V0_6_PLAN.md`](V0_6_PLAN.md) | Data backends | Planned |
+| 0.6.0 | [`V0_6_PLAN.md`](V0_6_PLAN.md) | External data sources & manual scales | Planned |
+| 0.7.0 | [`V0_7_PLAN.md`](V0_7_PLAN.md) | Data backends | Planned |
 
 The newest unreleased plan is the active one; released plans are a historical
 record and their scope is not reopened.

@@ -28,7 +28,7 @@ user-introduced bindings and reusable styling. Because it adds real source
 syntax and new scoping rules, it leans on the v0.4.0 editor work (go-to-def,
 references, rename, signature help) to keep the larger language navigable.
 
-It deliberately stops short of data backends (v0.6) and keeps the rendering model
+It deliberately stops short of data backends (v0.7) and keeps the rendering model
 unchanged.
 
 ## Scope Rules
@@ -237,7 +237,7 @@ Carried forward and unchanged unless a later planning decision moves them:
 - Nested `Space` blocks (still deferred; large semantic change).
 - User-defined functions, macros, or column shadowing via `let`.
 - Plugins and custom stats.
-- All v0.6 data-backend features (SQL, Polars, large data).
+- All v0.7 data-backend features (SQL, Polars, large data).
 - Everything under the standing deferred list in [`V0_3_PLAN.md`](V0_3_PLAN.md)
   not promoted here.
 
@@ -258,7 +258,7 @@ Carried forward and unchanged unless a later planning decision moves them:
 
 - Nested spaces.
 - User-defined functions / macros.
-- Everything assigned to v0.6.
+- Everything assigned to v0.6 and v0.7.
 
 ## Promotion Workflow
 
