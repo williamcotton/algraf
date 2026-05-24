@@ -47,19 +47,19 @@
     "commands": [
       {
         "command": "algraf.showPreview",
-        "title": "Algraf: Open Preview",
+        "title": "Open Preview",
         "category": "Algraf",
         "icon": "$(open-preview)"
       },
       {
         "command": "algraf.refreshPreview",
-        "title": "Algraf: Refresh Preview",
+        "title": "Refresh Preview",
         "category": "Algraf",
         "icon": "$(refresh)"
       },
       {
         "command": "algraf.restartServer",
-        "title": "Algraf: Restart Language Server",
+        "title": "Restart Language Server",
         "category": "Algraf"
       }
     ],

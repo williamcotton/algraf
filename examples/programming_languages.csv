@@ -1,0 +1,11 @@
+language,popularity,paradigm
+Python,28.2,Multi-paradigm
+Java,16.5,Object-oriented
+JavaScript,10.1,Multi-paradigm
+C++,6.8,Multi-paradigm
+C#,5.9,Object-oriented
+PHP,5.2,Multi-paradigm
+TypeScript,3.8,Multi-paradigm
+Go,2.1,Concurrent
+Rust,1.8,Systems
+Kotlin,1.5,Object-oriented

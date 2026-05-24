@@ -1,0 +1,15 @@
+Chart(data: "weather_forecast.csv", width: 760, height: 420, title: "7-Day Weather Forecast & Observations") {
+    Theme(name: "minimal")
+    Scale(axis: y, domain: [8, 28])
+    Guide(axis: x, label: "Date")
+    Guide(axis: y, label: "Temperature (°C)")
+
+    Space(date * temp_forecast) {
+        Ribbon(ymin: temp_min, ymax: temp_max, fill: "#add8e6", alpha: 0.4)
+        Line(stroke: "#4a90e2", strokeWidth: 3)
+    }
+
+    Space(date * temp_actual) {
+        Point(fill: "#ff6b6b", size: 6)
+    }
+}

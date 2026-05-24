@@ -1,0 +1,16 @@
+Chart(data: "stock_prices.csv", width: 720, height: 450, title: "Stock Price Candlestick Chart") {
+    Theme(name: "minimal")
+    Scale(fill: status, range: ["Gain" => "#2ca02c", "Loss" => "#d62728"])
+    Scale(stroke: status, range: ["Gain" => "#2ca02c", "Loss" => "#d62728"])
+    Scale(axis: x, domain: [0.5, 10.5])
+    Scale(axis: y, domain: [90, 115])
+    Guide(axis: x, label: "Trading Day")
+    Guide(axis: y, label: "Price ($)")
+
+    Space(day * close) {
+        // Wick: drawn from low to high
+        Rect(xmin: w_left, xmax: w_right, ymin: low, ymax: high, fill: status, alpha: 0.7)
+        // Body: drawn from open to close
+        Rect(xmin: b_left, xmax: b_right, ymin: open, ymax: close, fill: status)
+    }
+}

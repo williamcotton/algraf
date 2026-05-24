@@ -65,6 +65,11 @@ charts=(
     choropleth
     choropleth_shapefile
     spatial_overlay
+    weather_forecast
+    candlestick
+    lollipop
+    bubble
+    diverging_bar
 )
 
 cd "$repo_root"

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420" viewBox="0 0 760 420" role="img" aria-label="7-Day Weather Forecast &amp; Observations">
+<title>7-Day Weather Forecast &amp; Observations</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">7-Day Weather Forecast &amp; Observations</text>
+<rect class="algraf-plot-area" x="60" y="66" width="670" height="304" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="60" y1="66" x2="60" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="171.667" y1="66" x2="171.667" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="283.333" y1="66" x2="283.333" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="395" y1="66" x2="395" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="506.667" y1="66" x2="506.667" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="618.333" y1="66" x2="618.333" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="730" y1="66" x2="730" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="339.6" x2="730" y2="339.6" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="263.6" x2="730" y2="263.6" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="187.6" x2="730" y2="187.6" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="111.6" x2="730" y2="111.6" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-ribbon">
+  <path d="M60 218 L171.667 233.2 L283.333 202.8 L395 157.2 L506.667 126.8 L618.333 111.6 L730 172.4 L730 294 L618.333 263.6 L506.667 278.8 L395 294 L283.333 339.6 L171.667 324.4 L60 309.2 Z" fill="#add8e6" opacity="0.4" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M60 263.6 L171.667 278.8 L283.333 271.2 L395 225.6 L506.667 202.8 L618.333 187.6 L730 233.2" fill="none" stroke="#4a90e2" stroke-width="3" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="60" cy="271.2" r="6" fill="#ff6b6b" opacity="1" />
+  <circle cx="171.667" cy="260.56" r="6" fill="#ff6b6b" opacity="1" />
+  <circle cx="283.333" cy="281.84" r="6" fill="#ff6b6b" opacity="1" />
+  <circle cx="395" cy="218" r="6" fill="#ff6b6b" opacity="1" />
+  <circle cx="506.667" cy="195.2" r="6" fill="#ff6b6b" opacity="1" />
+  <circle cx="618.333" cy="169.36" r="6" fill="#ff6b6b" opacity="1" />
+  <circle cx="730" cy="240.8" r="6" fill="#ff6b6b" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="370" x2="730" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="60" y1="370" x2="60" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="60" y="388" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-25</text>
+  <line x1="171.667" y1="370" x2="171.667" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="171.667" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-26</text>
+  <line x1="283.333" y1="370" x2="283.333" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="283.333" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-27</text>
+  <line x1="395" y1="370" x2="395" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="395" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28</text>
+  <line x1="506.667" y1="370" x2="506.667" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="506.667" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-29</text>
+  <line x1="618.333" y1="370" x2="618.333" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="618.333" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-30</text>
+  <line x1="730" y1="370" x2="730" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="730" y="388" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-31</text>
+  <text x="395" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Date</text>
+  <line x1="60" y1="66" x2="60" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="339.6" x2="60" y2="339.6" stroke="#333333" stroke-width="1" />
+  <text x="52" y="343.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="55" y1="263.6" x2="60" y2="263.6" stroke="#333333" stroke-width="1" />
+  <text x="52" y="267.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15</text>
+  <line x1="55" y1="187.6" x2="60" y2="187.6" stroke="#333333" stroke-width="1" />
+  <text x="52" y="191.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55" y1="111.6" x2="60" y2="111.6" stroke="#333333" stroke-width="1" />
+  <text x="52" y="115.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <text x="31.6" y="218" text-anchor="middle" transform="rotate(-90 31.6 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Temperature (°C)</text>
+</g>
+</svg>

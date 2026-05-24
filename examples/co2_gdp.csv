@@ -1,0 +1,13 @@
+country,gdp_per_capita,co2_per_capita,population,continent
+United States,65000,14.5,331,North America
+China,10500,7.3,1402,Asia
+India,2100,1.8,1380,Asia
+Germany,46000,7.9,83,Europe
+Japan,40000,8.5,126,Asia
+United Kingdom,42000,5.2,67,Europe
+Brazil,8700,2.1,212,South America
+Canada,46000,15.4,38,North America
+Australia,54000,15.2,25,Oceania
+South Africa,6000,7.5,59,Africa
+France,40000,4.6,67,Europe
+South Korea,31000,11.7,51,Asia

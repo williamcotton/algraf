@@ -51,7 +51,32 @@ Chart(data: "series.csv", width: 760, height: 460) {
 }
 ```
 
+
 ![line](examples/line.svg)
+
+## Layering multiple space blocks: weather forecast
+
+You can overlay different geometries mapped to different y-axis columns by defining multiple `Space` blocks inside the same `Chart`. They will share the same trained coordinate system. Here, we layer a forecast range (`Ribbon`), a mean forecast line (`Line`), and actual observed temperatures (`Point`).
+
+```algraf
+Chart(data: "weather_forecast.csv", width: 760, height: 420, title: "7-Day Weather Forecast & Observations") {
+    Theme(name: "minimal")
+    Scale(axis: y, domain: [8, 28])
+    Guide(axis: x, label: "Date")
+    Guide(axis: y, label: "Temperature (°C)")
+
+    Space(date * temp_forecast) {
+        Ribbon(ymin: temp_min, ymax: temp_max, fill: "#add8e6", alpha: 0.4)
+        Line(stroke: "#4a90e2", strokeWidth: 3)
+    }
+
+    Space(date * temp_actual) {
+        Point(fill: "#ff6b6b", size: 6)
+    }
+}
+```
+
+![weather_forecast](examples/weather_forecast.svg)
 
 ## Grouping lines without changing color
 
@@ -99,7 +124,29 @@ Chart(data: "series.csv", width: 760, height: 460, title: "Series shapes") {
 }
 ```
 
+
 ![shapes](examples/shapes.svg)
+
+## Bubble chart with size mapping and labels
+
+Continuous point sizes are mapped using the `size` property. We can customize the output range with a `Scale(size: ...)` and add label overlays to each point using the `Text` geometry.
+
+```algraf
+Chart(data: "co2_gdp.csv", width: 800, height: 500, title: "CO2 Emissions vs. GDP per Capita (2024)") {
+    Theme(name: "minimal")
+    Scale(fill: continent, palette: "default")
+    Scale(size: population, range: [4, 25], label: "Population (M)")
+    Guide(axis: x, label: "GDP per Capita ($)")
+    Guide(axis: y, label: "CO2 Emissions per Capita (Tons)")
+
+    Space(gdp_per_capita * co2_per_capita) {
+        Point(fill: continent, size: population, alpha: 0.6)
+        Text(label: country, dy: -14, size: 8, fill: "#444444", anchor: "middle")
+    }
+}
+```
+
+![bubble](examples/bubble.svg)
 
 ## Statistical overlay: linear smooth
 
@@ -184,7 +231,49 @@ Chart(
 }
 ```
 
+
 ![bar_count](examples/bar_count.svg)
+
+## Diverging bars around a baseline
+
+Bars can extend in both positive and negative directions. Custom color scales let you highlight positive vs negative values, and `HLine` provides a reference line at the zero baseline.
+
+```algraf
+Chart(data: "monthly_profit.csv", width: 720, height: 420, title: "Monthly Profit / Loss Analysis") {
+    Theme(name: "minimal")
+    Scale(fill: status, range: ["Profit" => "#2ca02c", "Loss" => "#d62728"])
+    Guide(axis: x, label: "Month")
+    Guide(axis: y, label: "Profit / Loss ($)")
+
+    Space(month * profit) {
+        Bar(fill: status, layout: "identity", alpha: 0.85)
+        HLine(y: 0, stroke: "#333333", strokeWidth: 1.2)
+    }
+}
+```
+
+![diverging_bar](examples/diverging_bar.svg)
+
+## Layered bar and point chart
+
+You can layer a background `Bar` with a `Point` to build a clean and elegant comparison chart. This keeps the bars light and draws focus to the individual data points.
+
+```algraf
+Chart(data: "programming_languages.csv", width: 700, height: 450, title: "Programming Language Popularity") {
+    Theme(name: "minimal")
+    Scale(fill: paradigm, palette: "accent")
+    Scale(stroke: paradigm, palette: "accent")
+    Guide(axis: y, label: "Share (%)")
+    Guide(axis: x, label: "Programming Language")
+
+    Space(language * popularity) {
+        Bar(fill: "#f3f3f3", stroke: "#dddddd", strokeWidth: 1.5)
+        Point(fill: paradigm, size: 9)
+    }
+}
+```
+
+![lollipop](examples/lollipop.svg)
 
 ## Histograms the explicit way: `Derive` + `Rect`
 
@@ -617,6 +706,31 @@ Chart(data: "gantt.csv", width: 760, height: 420, title: "Project Schedule") {
 ```
 
 ![gantt](examples/gantt.svg)
+
+## Stock market candlestick chart via custom rectangles
+
+You can construct complex custom plots like financial candlestick charts using `Rect` primitives. By calculating coordinate offsets for the wicks and bodies in the input data, you can layer a thin rectangle for the high/low wick and a wider rectangle for the open/close body, utilizing conditional color scales for gains and losses.
+
+```algraf
+Chart(data: "stock_prices.csv", width: 720, height: 450, title: "Stock Price Candlestick Chart") {
+    Theme(name: "minimal")
+    Scale(fill: status, range: ["Gain" => "#2ca02c", "Loss" => "#d62728"])
+    Scale(stroke: status, range: ["Gain" => "#2ca02c", "Loss" => "#d62728"])
+    Scale(axis: x, domain: [0.5, 10.5])
+    Scale(axis: y, domain: [90, 115])
+    Guide(axis: x, label: "Trading Day")
+    Guide(axis: y, label: "Price ($)")
+
+    Space(day * close) {
+        // Wick: drawn from low to high
+        Rect(xmin: w_left, xmax: w_right, ymin: low, ymax: high, fill: status, alpha: 0.7)
+        // Body: drawn from open to close
+        Rect(xmin: b_left, xmax: b_right, ymin: open, ymax: close, fill: status)
+    }
+}
+```
+
+![candlestick](examples/candlestick.svg)
 
 ## Flight price dumbbell plot
 

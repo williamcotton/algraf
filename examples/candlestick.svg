@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="450" viewBox="0 0 720 450" role="img" aria-label="Stock Price Candlestick Chart">
+<title>Stock Price Candlestick Chart</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="450" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Stock Price Candlestick Chart</text>
+<rect class="algraf-plot-area" x="60" y="66" width="510" height="334" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="136.5" y1="66" x2="136.5" y2="400" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="238.5" y1="66" x2="238.5" y2="400" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="340.5" y1="66" x2="340.5" y2="400" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="442.5" y1="66" x2="442.5" y2="400" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="544.5" y1="66" x2="544.5" y2="400" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="400" x2="570" y2="400" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="333.2" x2="570" y2="333.2" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="266.4" x2="570" y2="266.4" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="199.6" x2="570" y2="199.6" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="132.8" x2="570" y2="132.8" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="66" x2="570" y2="66" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-rect">
+  <rect x="82.95" y="199.6" width="5.1" height="93.52" fill="#2ca02c" opacity="0.7" />
+  <rect x="133.95" y="172.88" width="5.1" height="80.16" fill="#2ca02c" opacity="0.7" />
+  <rect x="184.95" y="159.52" width="5.1" height="106.88" fill="#d62728" opacity="0.7" />
+  <rect x="235.95" y="212.96" width="5.1" height="120.24" fill="#d62728" opacity="0.7" />
+  <rect x="286.95" y="186.24" width="5.1" height="133.6" fill="#2ca02c" opacity="0.7" />
+  <rect x="337.95" y="132.8" width="5.1" height="80.16" fill="#2ca02c" opacity="0.7" />
+  <rect x="388.95" y="106.08" width="5.1" height="66.8" fill="#2ca02c" opacity="0.7" />
+  <rect x="439.95" y="119.44" width="5.1" height="80.16" fill="#d62728" opacity="0.7" />
+  <rect x="490.95" y="146.16" width="5.1" height="93.52" fill="#d62728" opacity="0.7" />
+  <rect x="541.95" y="106.08" width="5.1" height="146.96" fill="#2ca02c" opacity="0.7" />
+</g>
+<g class="algraf-layer algraf-geom-rect">
+  <rect x="70.2" y="226.32" width="30.6" height="40.08" fill="#2ca02c" opacity="1" />
+  <rect x="121.2" y="186.24" width="30.6" height="40.08" fill="#2ca02c" opacity="1" />
+  <rect x="172.2" y="186.24" width="30.6" height="53.44" fill="#d62728" opacity="1" />
+  <rect x="223.2" y="239.68" width="30.6" height="66.8" fill="#d62728" opacity="1" />
+  <rect x="274.2" y="199.6" width="30.6" height="106.88" fill="#2ca02c" opacity="1" />
+  <rect x="325.2" y="159.52" width="30.6" height="40.08" fill="#2ca02c" opacity="1" />
+  <rect x="376.2" y="119.44" width="30.6" height="40.08" fill="#2ca02c" opacity="1" />
+  <rect x="427.2" y="119.44" width="30.6" height="66.8" fill="#d62728" opacity="1" />
+  <rect x="478.2" y="186.24" width="30.6" height="40.08" fill="#d62728" opacity="1" />
+  <rect x="529.2" y="132.8" width="30.6" height="93.52" fill="#2ca02c" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="400" x2="570" y2="400" stroke="#333333" stroke-width="1" />
+  <line x1="136.5" y1="400" x2="136.5" y2="405" stroke="#333333" stroke-width="1" />
+  <text x="136.5" y="418" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="238.5" y1="400" x2="238.5" y2="405" stroke="#333333" stroke-width="1" />
+  <text x="238.5" y="418" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="340.5" y1="400" x2="340.5" y2="405" stroke="#333333" stroke-width="1" />
+  <text x="340.5" y="418" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <line x1="442.5" y1="400" x2="442.5" y2="405" stroke="#333333" stroke-width="1" />
+  <text x="442.5" y="418" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
+  <line x1="544.5" y1="400" x2="544.5" y2="405" stroke="#333333" stroke-width="1" />
+  <text x="544.5" y="418" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <text x="315" y="438" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Trading Day</text>
+  <line x1="60" y1="66" x2="60" y2="400" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="400" x2="60" y2="400" stroke="#333333" stroke-width="1" />
+  <text x="52" y="404" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">90</text>
+  <line x1="55" y1="333.2" x2="60" y2="333.2" stroke="#333333" stroke-width="1" />
+  <text x="52" y="337.2" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">95</text>
+  <line x1="55" y1="266.4" x2="60" y2="266.4" stroke="#333333" stroke-width="1" />
+  <text x="52" y="270.4" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100</text>
+  <line x1="55" y1="199.6" x2="60" y2="199.6" stroke="#333333" stroke-width="1" />
+  <text x="52" y="203.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">105</text>
+  <line x1="55" y1="132.8" x2="60" y2="132.8" stroke="#333333" stroke-width="1" />
+  <text x="52" y="136.8" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">110</text>
+  <line x1="55" y1="66" x2="60" y2="66" stroke="#333333" stroke-width="1" />
+  <text x="52" y="70" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">115</text>
+  <text x="24.4" y="233" text-anchor="middle" transform="rotate(-90 24.4 233)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Price ($)</text>
+</g>
+<g class="algraf-legends">
+  <text x="586" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">status</text>
+  <rect x="586" y="78" width="12" height="12" fill="#2ca02c" />
+  <text x="604" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Gain</text>
+  <rect x="586" y="96" width="12" height="12" fill="#d62728" />
+  <text x="604" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Loss</text>
+</g>
+</svg>

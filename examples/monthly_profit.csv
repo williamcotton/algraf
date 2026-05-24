@@ -1,0 +1,13 @@
+month,profit,status
+Jan,12000,Profit
+Feb,8000,Profit
+Mar,-4000,Loss
+Apr,-12000,Loss
+May,15000,Profit
+Jun,22000,Profit
+Jul,-6000,Loss
+Aug,-9000,Loss
+Sep,18000,Profit
+Oct,25000,Profit
+Nov,31000,Profit
+Dec,42000,Profit

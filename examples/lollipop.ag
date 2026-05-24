@@ -1,0 +1,12 @@
+Chart(data: "programming_languages.csv", width: 700, height: 450, title: "Programming Language Popularity") {
+    Theme(name: "minimal")
+    Scale(fill: paradigm, palette: "accent")
+    Scale(stroke: paradigm, palette: "accent")
+    Guide(axis: y, label: "Share (%)")
+    Guide(axis: x, label: "Programming Language")
+
+    Space(language * popularity) {
+        Bar(fill: "#f3f3f3", stroke: "#dddddd", strokeWidth: 1.5)
+        Point(fill: paradigm, size: 9)
+    }
+}

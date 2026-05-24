@@ -67,6 +67,12 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | `faceted_violin_boxplot.ag` | `regional_sales.csv` | `faceted_violin_boxplot.svg`, `faceted_violin_boxplot.png` | Faceted distribution chart overlaying `Violin`, narrow `Boxplot`, and marginal data `Rug` marks |
 | `annotated_intervals.ag` | `intervals.csv` | `annotated_intervals.svg`, `annotated_intervals.png` | Shaded interval rectangles (`Rect`) and trend markers aligned to temporal x and value-constrained y axes |
 | `binned_regression_chain.ag` | `samples.csv` | `binned_regression_chain.svg`, `binned_regression_chain.png` | Multi-stage statistical chaining: 2D binning (`Bin2D`) chained to a regression `Smooth` trend line |
+| `weather_forecast.ag` | `weather_forecast.csv` | `weather_forecast.svg`, `weather_forecast.png` | Layered area range (`Ribbon`), trend (`Line`), and actual observed temperatures (`Point`) |
+| `candlestick.ag` | `stock_prices.csv` | `candlestick.svg`, `candlestick.png` | Candlestick stock chart using two custom `Rect` layers and gain/loss conditional coloring |
+| `lollipop.ag` | `programming_languages.csv` | `lollipop.svg`, `lollipop.png` | Layered bar and point chart using background `Bar` and overlaid `Point` markers |
+| `bubble.ag` | `co2_gdp.csv` | `bubble.svg`, `bubble.png` | Bubble chart showing GDP, emissions, population size mapping, and labels |
+| `diverging_bar.ag` | `monthly_profit.csv` | `diverging_bar.svg`, `diverging_bar.png` | Diverging bar chart showing monthly profits/losses relative to a zero baseline |
+
 
 ## Notes
 
