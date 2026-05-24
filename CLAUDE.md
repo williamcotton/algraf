@@ -55,7 +55,7 @@ fix — reconcile all three rather than picking one.
 
 ## Workspace layout
 
-Cargo workspace with seven crates under `crates/` (see spec §23):
+Cargo workspace with eight crates under `crates/` (see spec §23):
 
 | Crate              | Responsibility                                              |
 | ------------------ | ----------------------------------------------------------- |
@@ -63,13 +63,15 @@ Cargo workspace with seven crates under `crates/` (see spec §23):
 | `algraf-syntax`    | Lexer, parser, AST/CST (rowan), parse diagnostics, formatter|
 | `algraf-data`      | CSV loading, schema inference, dataframe, type inference     |
 | `algraf-semantics` | Name resolution, validation, IR, geometry registry          |
+| `algraf-driver`    | Shared source resolution, data/schema loading, analysis prep|
 | `algraf-render`    | Scale training, layout, stats, geometries, SVG emission     |
 | `algraf-lsp`       | tower-lsp backend, document cache, completion, hover        |
 | `algraf-cli`       | The `algraf` binary: arg parsing, command dispatch, I/O     |
 
 Dependency direction flows downward: `core` depends on nothing internal;
-`cli` depends on everything. Do not introduce cycles. Keep parser, LSP,
-semantics, and render decoupled from concrete dataframe internals (spec §10.5).
+`driver` depends on syntax, data, and semantics; `cli` depends on everything.
+Do not introduce cycles. Keep parser, LSP, semantics, and render decoupled from
+concrete dataframe internals (spec §10.5).
 
 ## Building and running
 

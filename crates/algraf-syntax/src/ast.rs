@@ -7,6 +7,7 @@
 
 use algraf_core::Span;
 
+use crate::source::unescape_quoted_ident;
 use crate::syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken};
 
 /// Define a struct view over a single CST node kind.
@@ -579,7 +580,7 @@ impl AlgebraName {
     /// The resolved column name. Backtick-quoted names are unescaped.
     pub fn name(&self) -> Option<String> {
         self.ident_token().map(|t| match t.kind() {
-            SyntaxKind::QUOTED_IDENT => unescape_quoted(t.text()),
+            SyntaxKind::QUOTED_IDENT => unescape_quoted_ident(t.text()),
             _ => t.text().to_string(),
         })
     }
@@ -651,28 +652,3 @@ ast_node!(
     /// A recovered error node (spec §11.13).
     Error = ERROR
 );
-
-/// Unescape a backtick-quoted column identifier lexeme (spec §6.7).
-///
-/// Strips the surrounding backticks and resolves `` \` `` and `\\`. This mirrors
-/// the lexer's quoted-identifier scanning; the CST stores only raw text, so the
-/// value is re-derived here.
-fn unescape_quoted(raw: &str) -> String {
-    let mut chars = raw.chars().peekable();
-    // Drop the opening backtick.
-    if chars.peek() == Some(&'`') {
-        chars.next();
-    }
-    let mut out = String::new();
-    while let Some(ch) = chars.next() {
-        match ch {
-            '`' if chars.peek().is_none() => break, // closing backtick
-            '\\' => match chars.peek() {
-                Some('`') | Some('\\') => out.push(chars.next().unwrap()),
-                _ => out.push('\\'),
-            },
-            other => out.push(other),
-        }
-    }
-    out
-}

@@ -17,7 +17,7 @@ use crate::schema::ColumnDef;
 use crate::shapefile::read_shapefile_path;
 
 /// A supported data source format (spec §10.2, §10.11).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Format {
     /// Comma-separated values; the default for unrecognized extensions.
     Csv,

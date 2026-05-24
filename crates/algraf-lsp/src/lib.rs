@@ -6,12 +6,14 @@
 
 use std::collections::{HashMap, HashSet};
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use algraf_core::{Diagnostic as CoreDiagnostic, Severity, Span};
-use algraf_data::{
-    read_path, read_schema_path, ColumnDef, DataError, DataType, Table, DEFAULT_SCHEMA_SAMPLE,
+use algraf_data::{ColumnDef, DataError, DataType, Format, DEFAULT_SCHEMA_SAMPLE};
+use algraf_driver::{
+    load_schema_path, prepare_chart, resolve_chart_data_path, resolve_named_table_sources,
+    DriverError, LoadContext, PrepareOptions, SourceInput,
 };
 use algraf_render::{render_with_tables, Theme};
 use algraf_semantics::{analyze_with_tables, registry, ChartIr};
@@ -19,7 +21,9 @@ use algraf_syntax::ast::{
     AlgebraName, Arg, ChartItem, DeriveDecl, GeometryCall, LetDecl, LiteralKind, Root, SpaceItem,
     ValueExpr,
 };
-use algraf_syntax::{format, parse, tokenize, SyntaxKind, SyntaxNode};
+use algraf_syntax::{
+    format, node_span, parse, tokenize, unescape_string_literal, SourceExpr, SyntaxKind, SyntaxNode,
+};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use tokio::runtime::Runtime;
@@ -109,7 +113,7 @@ impl Backend {
         let parsed = parse(&text);
         let syntax = parsed.syntax();
         let parse_diagnostics = parsed.diagnostics().to_vec();
-        let data_source = extract_data_source(&syntax);
+        let data_source = algraf_driver::extract_data_source(&syntax);
         let schema = self.resolve_schema(uri, &data_source);
         // Resolve chart-scoped named-table schemas so column references inside
         // `Space(..., data: tableName)` resolve in the editor (spec §10.x).
@@ -170,12 +174,19 @@ impl Backend {
         )
     }
 
-    fn resolve_schema(&self, uri: &Url, data_source: &AstDataSource) -> SchemaResolution {
-        let AstDataSource::Path { value, span } = data_source else {
+    fn resolve_schema(&self, uri: &Url, data_source: &SourceExpr) -> SchemaResolution {
+        let SourceExpr::Path { span, .. } = data_source else {
             return SchemaResolution::MissingOrInvalid;
         };
-        let path = resolve_data_path(uri, value);
-        let key = DataSourceKey(path.clone());
+        let source_input = source_input_for_uri(uri);
+        let Some(resolved) =
+            algraf_driver::resolve_source_expr_path(data_source, &source_input, None)
+        else {
+            return SchemaResolution::MissingOrInvalid;
+        };
+        let path = resolved.path;
+        let format = resolved.format;
+        let key = DataSourceKey::new(path.clone(), format);
 
         if let Some(cached) = self.schema_cache.get(&key) {
             return match cached.value() {
@@ -192,7 +203,7 @@ impl Backend {
             };
         }
 
-        let loaded = read_schema_path(&path, DEFAULT_SCHEMA_SAMPLE);
+        let loaded = load_schema_path(&path, format, DEFAULT_SCHEMA_SAMPLE, LoadContext::Primary);
 
         match loaded {
             Ok(schema) => {
@@ -209,7 +220,7 @@ impl Backend {
                 }
             }
             Err(err) => {
-                let (code, message) = schema_error(&path, &err);
+                let (code, message) = schema_error_from_driver(&err);
                 self.schema_cache.insert(
                     key,
                     SchemaState::Error {
@@ -237,32 +248,23 @@ impl Backend {
         let Some(chart) = Root::cast(syntax.clone()).and_then(|r| r.chart()) else {
             return out;
         };
-        for item in chart.items() {
-            let ChartItem::Table(decl) = item else {
-                continue;
-            };
-            let Some(name) = decl.name() else { continue };
-            let rel = match decl.source() {
-                Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
-                    strip_string(&lit.text().unwrap_or_default())
-                }
-                // A named table may also be backed by a geospatial source
-                // constructor (spec §10.11).
-                Some(ValueExpr::Call(ref call)) => match source_constructor_path(call) {
-                    Some(path) => path,
-                    None => continue,
-                },
-                _ => continue,
-            };
-            let path = resolve_data_path(uri, &rel);
-            let key = DataSourceKey(path.clone());
+        let source_input = source_input_for_uri(uri);
+        for resolved in resolve_named_table_sources(&chart, &source_input, None) {
+            let key = DataSourceKey::new(resolved.path.clone(), resolved.format);
             if let Some(cached) = self.schema_cache.get(&key) {
                 if let SchemaState::Ready { schema, .. } = cached.value() {
-                    out.insert(name, schema.clone());
+                    out.insert(resolved.name, schema.clone());
                 }
                 continue;
             }
-            let loaded = read_schema_path(&path, DEFAULT_SCHEMA_SAMPLE);
+            let loaded = load_schema_path(
+                &resolved.path,
+                resolved.format,
+                DEFAULT_SCHEMA_SAMPLE,
+                LoadContext::Table {
+                    name: resolved.name.clone(),
+                },
+            );
             match loaded {
                 Ok(schema) => {
                     self.schema_cache.insert(
@@ -272,10 +274,10 @@ impl Backend {
                             provisional: true,
                         },
                     );
-                    out.insert(name, schema);
+                    out.insert(resolved.name, schema);
                 }
                 Err(err) => {
-                    let (code, message) = schema_error(&path, &err);
+                    let (code, message) = schema_error_from_driver(&err);
                     self.schema_cache
                         .insert(key, SchemaState::Error { code, message });
                 }
@@ -304,33 +306,50 @@ impl Backend {
             return Ok(PreviewResult::message(generation, "document is not open"));
         };
 
-        // Resolve the data path in a scope so the `!Send` syntax tree is dropped
+        // Resolve dependency paths in a scope so the `!Send` syntax tree is dropped
         // before the `.await`, keeping the preview future `Send`.
-        let data_path = {
+        let data_paths = {
             let syntax = parse(&state.text).syntax();
-            match extract_data_source(&syntax) {
-                AstDataSource::Path { value, .. } => Ok(resolve_data_path(&uri, &value)),
-                AstDataSource::Stdin => {
+            let source_input = source_input_for_uri(&uri);
+            let Some(chart) = Root::cast(syntax.clone()).and_then(|root| root.chart()) else {
+                return Ok(PreviewResult::message(
+                    generation,
+                    "chart has no data source; add Chart(data: \"file.csv\")",
+                ));
+            };
+            match algraf_syntax::chart_data_source(&chart) {
+                SourceExpr::Path { .. } => {
+                    let Some(primary) = resolve_chart_data_path(&chart, &source_input, None) else {
+                        return Ok(PreviewResult::message(
+                            generation,
+                            "chart has no data source; add Chart(data: \"file.csv\")",
+                        ));
+                    };
+                    let mut paths = vec![primary.path.display().to_string()];
+                    paths.extend(
+                        resolve_named_table_sources(&chart, &source_input, None)
+                            .into_iter()
+                            .map(|table| table.path.display().to_string()),
+                    );
+                    Ok(paths)
+                }
+                SourceExpr::Stdin { .. } => {
                     Err("preview does not support `stdin` data; use a CSV path")
                 }
-                AstDataSource::Missing => {
+                SourceExpr::Missing | SourceExpr::Invalid { .. } => {
                     Err("chart has no data source; add Chart(data: \"file.csv\")")
                 }
             }
         };
-        let data_path = match data_path {
-            Ok(path) => path,
+        let data_paths = match data_paths {
+            Ok(paths) => paths,
             Err(message) => return Ok(PreviewResult::message(generation, message)),
         };
 
-        // The resolved dependency paths let the client watch them and re-request
-        // when the underlying data changes (spec §21.18).
-        let data_paths = vec![data_path.display().to_string()];
-
         let text = state.text.clone();
-        let render_path = data_path.clone();
+        let source_input = source_input_for_uri(&uri);
         let outcome =
-            tokio::task::spawn_blocking(move || render_preview(&text, &render_path)).await;
+            tokio::task::spawn_blocking(move || render_preview(&text, source_input)).await;
 
         // If a newer request bumped the counter while we rendered, this output
         // is stale; report supersession rather than returning it (spec §21.13).
@@ -413,7 +432,7 @@ impl PreviewResult {
 
 /// Render a document to SVG using the full data and the shared render pipeline.
 /// Returns a human-facing message on any condition that blocks rendering.
-fn render_preview(source: &str, data_path: &Path) -> Result<String, String> {
+fn render_preview(source: &str, source_input: SourceInput) -> Result<String, String> {
     let parsed = parse(source);
     let root = parsed.syntax();
     if parsed
@@ -424,40 +443,20 @@ fn render_preview(source: &str, data_path: &Path) -> Result<String, String> {
         return Err("source has parse errors; fix them to preview".to_string());
     }
 
-    let loaded = read_path(data_path)
-        .map_err(|e| format!("failed to load data {}: {e}", data_path.display()))?;
-    let frame = loaded.frame;
-
-    // Load chart-scoped named tables relative to the primary data directory
-    // (spec §10.x). A table that fails to load is omitted from the preview.
-    let base = data_path.parent().map(Path::to_path_buf);
-    let mut table_schemas: HashMap<String, Vec<ColumnDef>> = HashMap::new();
-    let mut named_frames: HashMap<String, algraf_data::DataFrame> = HashMap::new();
-    if let Some(chart) = Root::cast(root.clone()).and_then(|r| r.chart()) {
-        for item in chart.items() {
-            let ChartItem::Table(decl) = item else {
-                continue;
-            };
-            let Some(name) = decl.name() else { continue };
-            let Some(ValueExpr::Literal(lit)) = decl.source() else {
-                continue;
-            };
-            if lit.kind() != Some(LiteralKind::String) {
-                continue;
-            }
-            let rel = strip_string(&lit.text().unwrap_or_default());
-            let path = match &base {
-                Some(dir) => dir.join(&rel),
-                None => PathBuf::from(&rel),
-            };
-            if let Ok(loaded) = read_path(&path) {
-                table_schemas.insert(name.clone(), loaded.frame.schema().to_vec());
-                named_frames.insert(name, loaded.frame);
-            }
-        }
-    }
-
-    let analysis = analyze_with_tables(&root, frame.schema(), &table_schemas);
+    let chart = Root::cast(root)
+        .and_then(|root| root.chart())
+        .ok_or_else(|| "analysis produced no chart".to_string())?;
+    let prepared = prepare_chart(
+        &chart,
+        PrepareOptions {
+            source_input: &source_input,
+            base_dir: None,
+            data_override: None,
+            multi_chart: false,
+        },
+    )
+    .map_err(|err| err.to_string())?;
+    let analysis = prepared.analysis;
     if analysis
         .diagnostics
         .iter()
@@ -470,6 +469,15 @@ fn render_preview(source: &str, data_path: &Path) -> Result<String, String> {
         .ok_or_else(|| "analysis produced no chart".to_string())?;
 
     let theme = ir.theme.as_ref().map(Theme::from_ir).unwrap_or_default();
+    let frame = prepared
+        .primary
+        .ok_or_else(|| "chart has no data source; add Chart(data: \"file.csv\")".to_string())?
+        .frame;
+    let named_frames: HashMap<String, algraf_data::DataFrame> = prepared
+        .named_tables
+        .into_iter()
+        .map(|table| (table.name, table.frame))
+        .collect();
 
     let result =
         render_with_tables(&ir, &frame, &named_frames, &theme, None).map_err(|e| e.to_string())?;
@@ -789,9 +797,18 @@ pub struct AnalysisState {
     pub diagnostics: Vec<CoreDiagnostic>,
 }
 
-/// Schema cache key, currently one filesystem path (spec §10.11, §21.3).
+/// Schema cache key: path plus any explicit source-constructor format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct DataSourceKey(PathBuf);
+pub struct DataSourceKey {
+    path: PathBuf,
+    format: Option<Format>,
+}
+
+impl DataSourceKey {
+    fn new(path: PathBuf, format: Option<Format>) -> DataSourceKey {
+        DataSourceKey { path, format }
+    }
+}
 
 /// Cached schema state.
 #[derive(Debug, Clone)]
@@ -820,70 +837,20 @@ enum SchemaResolution {
     },
 }
 
-#[derive(Debug, Clone)]
-enum AstDataSource {
-    Path { value: String, span: Span },
-    Stdin,
-    Missing,
+fn source_input_for_uri(uri: &Url) -> SourceInput {
+    SourceInput::Path(
+        uri.to_file_path()
+            .unwrap_or_else(|_| PathBuf::from("document.ag")),
+    )
 }
 
-fn extract_data_source(root: &SyntaxNode) -> AstDataSource {
-    let Some(chart) = Root::cast(root.clone()).and_then(|r| r.chart()) else {
-        return AstDataSource::Missing;
-    };
-    for arg in chart.args() {
-        if arg.key().as_deref() == Some("data") {
-            return match arg.value() {
-                Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
-                    AstDataSource::Path {
-                        value: strip_string(&lit.text().unwrap_or_default()),
-                        span: lit.token_span().unwrap_or_else(|| node_span(lit.syntax())),
-                    }
-                }
-                Some(ValueExpr::Stdin(_)) => AstDataSource::Stdin,
-                // A `GeoJson`/`Shapefile` source constructor resolves to its
-                // path; the loader is chosen by extension (spec §10.11), so
-                // completion and hover see the feature schema like any source.
-                Some(ValueExpr::Call(ref call)) => match source_constructor_path(call) {
-                    Some(value) => AstDataSource::Path {
-                        value,
-                        span: node_span(call.syntax()),
-                    },
-                    None => AstDataSource::Missing,
-                },
-                _ => AstDataSource::Missing,
-            };
-        }
+fn schema_error_from_driver(err: &DriverError) -> (&'static str, String) {
+    match err {
+        DriverError::Data { path, source, .. } => schema_error(path, source),
+        DriverError::Usage(message)
+        | DriverError::StdinRead(message)
+        | DriverError::StdinParse(message) => ("E1006", message.clone()),
     }
-    AstDataSource::Missing
-}
-
-/// The path string from a recognized `GeoJson`/`Shapefile` source constructor's
-/// first positional string-literal argument (spec §10.11).
-fn source_constructor_path(call: &algraf_syntax::ast::CallValue) -> Option<String> {
-    match call.name().as_deref() {
-        Some("GeoJson") | Some("Shapefile") => {}
-        _ => return None,
-    }
-    let arg = call.args().into_iter().find(|a| a.key().is_none())?;
-    match arg.value() {
-        Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
-            Some(strip_string(&lit.text().unwrap_or_default()))
-        }
-        _ => None,
-    }
-}
-
-fn resolve_data_path(uri: &Url, value: &str) -> PathBuf {
-    let path = PathBuf::from(value);
-    if path.is_absolute() {
-        return path;
-    }
-
-    uri.to_file_path()
-        .ok()
-        .and_then(|source| source.parent().map(|parent| parent.join(&path)))
-        .unwrap_or(path)
 }
 
 fn schema_error(path: &std::path::Path, err: &DataError) -> (&'static str, String) {
@@ -1511,39 +1478,6 @@ fn range_to_offsets(source: &str, range: Range) -> Option<(usize, usize)> {
     let start = position_to_offset(source, range.start);
     let end = position_to_offset(source, range.end);
     (start <= end && end <= source.len()).then_some((start, end))
-}
-
-fn node_span(node: &SyntaxNode) -> Span {
-    let range = node.text_range();
-    Span::new(
-        u32::from(range.start()) as usize,
-        u32::from(range.end()) as usize,
-    )
-}
-
-fn strip_string(raw: &str) -> String {
-    let inner = raw
-        .strip_prefix('"')
-        .and_then(|s| s.strip_suffix('"'))
-        .unwrap_or(raw);
-    let mut out = String::new();
-    let mut chars = inner.chars();
-    while let Some(ch) = chars.next() {
-        if ch == '\\' {
-            match chars.next() {
-                Some('n') => out.push('\n'),
-                Some('r') => out.push('\r'),
-                Some('t') => out.push('\t'),
-                Some('"') => out.push('"'),
-                Some('\\') => out.push('\\'),
-                Some(other) => out.push(other),
-                None => {}
-            }
-        } else {
-            out.push(ch);
-        }
-    }
-    out
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2191,7 +2125,7 @@ fn hover_for_ident(
 }
 
 fn hover_for_string(state: &DocumentState, raw: &str) -> Option<String> {
-    let value = strip_string(raw);
+    let value = unescape_string_literal(raw);
     if ["identity", "stack", "fill"].contains(&value.as_str()) {
         return Some(format!(
             "**Bar layout `{value}`**\n\nControls how bars resolve collisions in a shared space."

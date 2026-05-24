@@ -6457,6 +6457,7 @@ algraf/
     algraf-cli/
     algraf-syntax/
     algraf-semantics/
+    algraf-driver/
     algraf-data/
     algraf-render/
     algraf-lsp/
@@ -6495,6 +6496,16 @@ IR
 geometry registry
 
 semantic diagnostics
+
+`driver`:
+
+source-expression extraction
+
+source-relative path resolution
+
+data and schema loading orchestration
+
+chart analysis preparation for CLI, LSP, and render callers
 
 `data`:
 
@@ -6563,6 +6574,10 @@ Recommended dependencies:
 `tower-lsp` for LSP
 
 `tokio` for async LSP runtime
+
+The `driver` crate SHOULD depend only on `core`, `syntax`, `data`, and
+`semantics`. CLI and LSP MAY depend on the driver, but the driver MUST NOT depend
+on CLI or LSP crates.
 
 `dashmap` for concurrent LSP caches
 
@@ -7468,7 +7483,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.6.0 | [`V0_6_PLAN.md`](V0_6_PLAN.md) | External data sources & manual scales | Implemented |
 | 0.7.0 | [`V0_7_PLAN.md`](V0_7_PLAN.md) | Data backends | Implemented |
 | 0.8.0 | [`V0_8_PLAN.md`](V0_8_PLAN.md) | Geospatial — geometry, projection, choropleth | Implemented |
-| 0.9.0 | [`V0_9_PLAN.md`](V0_9_PLAN.md) | Pipeline unification and source-loading deduplication | Planned |
+| 0.9.0 | [`V0_9_PLAN.md`](V0_9_PLAN.md) | Pipeline unification and source-loading deduplication | Implemented |
 | 0.10.0 | [`V0_10_PLAN.md`](V0_10_PLAN.md) | Semantic analyzer modularization and typed stat IR | Planned |
 | 0.11.0 | [`V0_11_PLAN.md`](V0_11_PLAN.md) | Renderer modularization and SVG safety | Planned |
 | 0.12.0 | [`V0_12_PLAN.md`](V0_12_PLAN.md) | Tooling, diagnostics, and parser cleanup | Planned |

@@ -1,6 +1,6 @@
 # Algraf v0.9.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_8_PLAN.md`](V0_8_PLAN.md)
@@ -105,7 +105,7 @@ The current checked-in examples are the visual regression baseline:
 
 ### 1. Shared literal and source helpers
 
-Status: Not started.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -123,7 +123,7 @@ Acceptance criteria:
 
 ### 2. Shared source-expression model
 
-Status: Not started.
+Status: Implemented.
 
 Create a typed model for Algraf source expressions.
 
@@ -150,7 +150,7 @@ Acceptance criteria:
 
 ### 3. Driver crate/module
 
-Status: Not started.
+Status: Implemented.
 
 Create the reusable non-UI pipeline used by CLI and LSP.
 
@@ -176,7 +176,7 @@ Acceptance criteria:
 
 ### 4. CLI migration to driver
 
-Status: Not started.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -192,7 +192,7 @@ Acceptance criteria:
 
 ### 5. LSP schema/preview migration to driver
 
-Status: Not started.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -210,7 +210,7 @@ Acceptance criteria:
 
 ### 6. Spec, version, and example hygiene
 
-Status: Not started.
+Status: Implemented.
 
 Acceptance criteria:
 

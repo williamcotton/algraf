@@ -3,30 +3,30 @@
 mod astjson;
 mod diagnostics;
 mod error;
-mod input;
 mod png;
 
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use algraf_data::{ColumnDef, DataFrame, DataType, Table};
+use algraf_data::DataType;
+use algraf_driver::{
+    document_charts, extract_data_source, load_schema, prepare_chart, DriverError, PrepareOptions,
+    SourceInput,
+};
 use algraf_render::{render_with_tables, Layout, Rect, Theme};
 use algraf_semantics::{
-    analyze, analyze_chart_with_tables, analyze_with_tables, AestheticMapping, ChartIr, ColumnRef,
-    DataSourceIr, DeriveIr, FrameIr, GeometryIr, GeometryKind, GuideOverridesIr, ScaleIr,
-    ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, SpaceIr, StatKind,
+    analyze, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
+    GeometryKind, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
+    SpaceDataRef, SpaceIr, StatKind,
 };
-use algraf_syntax::ast::{ChartBlock, Root};
+use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::{format, parse};
 use clap::{Args, Parser, Subcommand};
 use serde_json::{json, Value};
 
 use crate::error::CliError;
-use crate::input::{
-    extract_chart_data_source, extract_data_source, load_data, load_named_tables, load_schema,
-    read_source, AstData, SourceInput,
-};
 
 #[derive(Parser)]
 #[command(
@@ -171,6 +171,33 @@ fn run(cli: Cli) -> Result<(), CliError> {
     }
 }
 
+/// Read Algraf source from a path argument (`-` or absent means stdin).
+fn read_source(arg: Option<&str>) -> Result<(String, SourceInput), CliError> {
+    match arg {
+        None | Some("-") => {
+            let mut text = String::new();
+            std::io::stdin()
+                .read_to_string(&mut text)
+                .map_err(|e| CliError::Io(format!("failed to read source from stdin: {e}")))?;
+            Ok((text, SourceInput::Stdin))
+        }
+        Some(path) => {
+            let text = std::fs::read_to_string(path)
+                .map_err(|e| CliError::Io(format!("failed to read {path}: {e}")))?;
+            Ok((text, SourceInput::Path(PathBuf::from(path))))
+        }
+    }
+}
+
+fn driver_error(err: DriverError) -> CliError {
+    match err {
+        DriverError::Usage(message) => CliError::Usage(message),
+        DriverError::Data { .. } | DriverError::StdinRead(_) | DriverError::StdinParse(_) => {
+            CliError::Io(err.to_string())
+        }
+    }
+}
+
 fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
     let (source, input) = read_source(args.input.as_deref())?;
     let parsed = parse(&source);
@@ -194,7 +221,7 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
 
     // A document may contain more than one chart (spec §7.1); each renders
     // independently against its own data source.
-    let charts = Root::cast(root).map(|r| r.charts()).unwrap_or_default();
+    let charts = document_charts(&root);
     if charts.is_empty() {
         return Err(CliError::Usage(
             "no Chart block to render; add Chart(data: \"file.csv\") { ... }".to_string(),
@@ -242,35 +269,21 @@ fn render_chart_svg(
     label: &str,
     multi: bool,
 ) -> Result<String, CliError> {
-    let ast_data = extract_chart_data_source(chart);
-    if multi && matches!(ast_data, AstData::Stdin) {
-        return Err(CliError::Usage(
-            "stdin data cannot be shared across charts; give each chart a file path".to_string(),
-        ));
-    }
-    let loaded = if matches!(ast_data, AstData::Missing) {
-        None
-    } else {
-        Some(load_data(
-            &ast_data,
-            input,
-            args.base_dir.as_deref(),
-            args.data.as_deref(),
-        )?)
-    };
-    let schema = loaded
-        .as_ref()
-        .map(|l| l.frame.schema())
-        .unwrap_or(&[] as &[ColumnDef]);
-
-    // Load chart-scoped named tables (spec §10.x), keyed by name.
-    let named = load_named_tables(chart, input, args.base_dir.as_deref())?;
-    let table_schemas: HashMap<String, Vec<ColumnDef>> = named
-        .iter()
-        .map(|t| (t.name.clone(), t.frame.schema().to_vec()))
-        .collect();
-
-    let analysis = analyze_chart_with_tables(chart, schema, &table_schemas);
+    let algraf_driver::PreparedChart {
+        mut primary,
+        named_tables,
+        analysis,
+        ..
+    } = prepare_chart(
+        chart,
+        PrepareOptions {
+            source_input: input,
+            base_dir: args.base_dir.as_deref(),
+            data_override: args.data.as_deref(),
+            multi_chart: multi,
+        },
+    )
+    .map_err(driver_error)?;
     let diags = analysis.diagnostics;
     if diagnostics::has_blocking(&diags, args.strict) {
         eprint!("{}", diagnostics::render_human(source, label, &diags));
@@ -280,14 +293,14 @@ fn render_chart_svg(
         eprint!("{}", diagnostics::render_human(source, label, &diags));
     }
 
-    let loaded = loaded.ok_or_else(|| {
+    let loaded = primary.take().ok_or_else(|| {
         CliError::Internal("analysis allowed rendering with a missing data source".to_string())
     })?;
     for warning in &loaded.warnings {
         eprintln!("warning: {}", warning.message);
     }
     let mut table_warnings = false;
-    for table in &named {
+    for table in &named_tables {
         for warning in &table.warnings {
             eprintln!("warning: {}", warning.message);
             table_warnings = true;
@@ -297,8 +310,10 @@ fn render_chart_svg(
         return Err(CliError::Diagnostics);
     }
     let frame = loaded.frame;
-    let named_frames: HashMap<String, DataFrame> =
-        named.into_iter().map(|t| (t.name, t.frame)).collect();
+    let named_frames: HashMap<String, algraf_data::DataFrame> = named_tables
+        .into_iter()
+        .map(|t| (t.name, t.frame))
+        .collect();
 
     let mut ir = analysis
         .ir
@@ -395,33 +410,24 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
     }
 
     // Validate every chart in the document independently (spec §7.1).
-    let charts = Root::cast(root).map(|r| r.charts()).unwrap_or_default();
+    let charts = document_charts(&root);
     let mut diags = parsed.diagnostics().to_vec();
     let mut data_warning = false;
+    let multi = charts.len() > 1;
     for chart in &charts {
-        let ast_data = extract_chart_data_source(chart);
-        let loaded = if matches!(ast_data, AstData::Missing) {
-            None
-        } else {
-            Some(load_data(
-                &ast_data,
-                &input,
-                args.base_dir.as_deref(),
-                args.data.as_deref(),
-            )?)
-        };
-        let schema = loaded
-            .as_ref()
-            .map(|l| l.frame.schema())
-            .unwrap_or(&[] as &[ColumnDef]);
-        let named = load_named_tables(chart, &input, args.base_dir.as_deref())?;
-        let table_schemas: HashMap<String, Vec<ColumnDef>> = named
-            .iter()
-            .map(|t| (t.name.clone(), t.frame.schema().to_vec()))
-            .collect();
-        let analysis = analyze_chart_with_tables(chart, schema, &table_schemas);
+        let prepared = prepare_chart(
+            chart,
+            PrepareOptions {
+                source_input: &input,
+                base_dir: args.base_dir.as_deref(),
+                data_override: args.data.as_deref(),
+                multi_chart: multi,
+            },
+        )
+        .map_err(driver_error)?;
+        let analysis = prepared.analysis;
         diags.extend(analysis.diagnostics);
-        if let Some(loaded) = &loaded {
+        if let Some(loaded) = &prepared.primary {
             if !loaded.warnings.is_empty() {
                 data_warning = true;
                 if !args.json {
@@ -431,7 +437,7 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
                 }
             }
         }
-        for table in &named {
+        for table in &prepared.named_tables {
             if !table.warnings.is_empty() {
                 data_warning = true;
                 if !args.json {
@@ -490,7 +496,7 @@ fn schema_cmd(args: SchemaArgs) -> Result<(), CliError> {
     }
 
     let ast_data = extract_data_source(&root);
-    if matches!(ast_data, AstData::Missing) {
+    if !ast_data.is_path() && !ast_data.is_stdin() {
         let analysis = analyze(&root, &[]);
         let mut diags = parsed.diagnostics().to_vec();
         diags.extend(analysis.diagnostics);
@@ -506,7 +512,8 @@ fn schema_cmd(args: SchemaArgs) -> Result<(), CliError> {
         args.base_dir.as_deref(),
         args.data.as_deref(),
         args.sample_size,
-    )?;
+    )
+    .map_err(driver_error)?;
 
     if args.json {
         let cols: Vec<Value> = schema
@@ -567,35 +574,22 @@ fn ir_cmd(args: IrArgs) -> Result<(), CliError> {
         return Err(CliError::Diagnostics);
     }
 
-    let ast_data = extract_data_source(&root);
-    let loaded = if matches!(ast_data, AstData::Missing) {
-        None
-    } else {
-        Some(load_data(
-            &ast_data,
-            &input,
-            args.base_dir.as_deref(),
-            args.data.as_deref(),
-        )?)
+    let Some(chart) = document_charts(&root).into_iter().next() else {
+        return Err(CliError::Usage(
+            "no Chart block to analyze; add Chart(data: \"file.csv\") { ... }".to_string(),
+        ));
     };
-    let schema = loaded
-        .as_ref()
-        .map(|l| l.frame.schema())
-        .unwrap_or(&[] as &[ColumnDef]);
-    // Resolve named-table schemas from the first chart so column references in
-    // overlaid spaces resolve (spec §10.10).
-    let table_schemas: HashMap<String, Vec<ColumnDef>> = Root::cast(root.clone())
-        .and_then(|r| r.chart())
-        .map(|chart| load_named_tables(&chart, &input, args.base_dir.as_deref()))
-        .transpose()?
-        .map(|named| {
-            named
-                .into_iter()
-                .map(|t| (t.name, t.frame.schema().to_vec()))
-                .collect()
-        })
-        .unwrap_or_default();
-    let analysis = analyze_with_tables(&root, schema, &table_schemas);
+    let prepared = prepare_chart(
+        &chart,
+        PrepareOptions {
+            source_input: &input,
+            base_dir: args.base_dir.as_deref(),
+            data_override: args.data.as_deref(),
+            multi_chart: false,
+        },
+    )
+    .map_err(driver_error)?;
+    let analysis = prepared.analysis;
     let mut diags = parsed.diagnostics().to_vec();
     diags.extend(analysis.diagnostics);
 

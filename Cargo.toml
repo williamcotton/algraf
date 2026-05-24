@@ -5,13 +5,14 @@ members = [
     "crates/algraf-syntax",
     "crates/algraf-data",
     "crates/algraf-semantics",
+    "crates/algraf-driver",
     "crates/algraf-render",
     "crates/algraf-lsp",
     "crates/algraf-cli",
 ]
 
 [workspace.package]
-version = "0.8.0"
+version = "0.9.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/williamcotton/algraf"
@@ -23,6 +24,7 @@ algraf-core = { path = "crates/algraf-core" }
 algraf-syntax = { path = "crates/algraf-syntax" }
 algraf-data = { path = "crates/algraf-data" }
 algraf-semantics = { path = "crates/algraf-semantics" }
+algraf-driver = { path = "crates/algraf-driver" }
 algraf-render = { path = "crates/algraf-render" }
 algraf-lsp = { path = "crates/algraf-lsp" }
 

@@ -10,6 +10,7 @@ rust-version.workspace = true
 algraf-core = { workspace = true }
 algraf-syntax = { workspace = true }
 algraf-semantics = { workspace = true }
+algraf-driver = { workspace = true }
 algraf-data = { workspace = true }
 algraf-render = { workspace = true }
 tower-lsp = { workspace = true }

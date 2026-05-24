@@ -10,15 +10,19 @@ use std::collections::{HashMap, HashSet};
 use algraf_core::{Diagnostic, Severity, Span};
 use algraf_data::{ColumnDef, DataType};
 use algraf_syntax::ast::{
-    AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, Arg, CallValue, ChartBlock, ChartItem,
-    Decl, DeriveDecl, GeometryCall, LetDecl, LiteralKind, MapValue, Root, SpaceBlock, SpaceItem,
+    AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, Arg, ChartBlock, ChartItem, Decl,
+    DeriveDecl, GeometryCall, LetDecl, LiteralKind, MapValue, Root, SpaceBlock, SpaceItem,
     TableDecl, ValueExpr,
 };
-use algraf_syntax::{parse, SyntaxKind, SyntaxNode};
+use algraf_syntax::{
+    is_source_constructor, node_span, parse, source_constructor, source_expr_from_arg,
+    source_expr_from_value, unescape_string_literal as string_value, SourceExpr, SourceFormat,
+    SyntaxKind, SyntaxNode,
+};
 
 use crate::ir::*;
 use crate::registry::{self, Accept, GeometryDef, PropSpec};
-use crate::util::{closest, node_span};
+use crate::util::closest;
 
 /// The result of semantic analysis.
 #[derive(Debug, Clone)]
@@ -435,20 +439,35 @@ impl<'a> Analyzer<'a> {
     }
 
     fn data_source(&mut self, arg: &Arg) -> DataSourceIr {
-        match arg.value() {
-            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
-                DataSourceIr::Path(string_value(&lit.text().unwrap_or_default()))
-            }
-            Some(ValueExpr::Stdin(_)) => DataSourceIr::Stdin,
-            // Geospatial source constructors (spec §10.11). They sit on the same
-            // source seam as a string path; only the loader differs.
-            Some(ValueExpr::Call(call)) if is_source_constructor(&call) => {
-                self.source_constructor(&call)
-            }
-            other => {
-                let span = other
-                    .map(|v| node_span(v.syntax()))
-                    .unwrap_or_else(|| node_span(arg.syntax()));
+        match source_expr_from_arg(arg, true) {
+            SourceExpr::Path {
+                path, format: None, ..
+            } => DataSourceIr::Path(path),
+            SourceExpr::Path {
+                path,
+                format: Some(SourceFormat::GeoJson),
+                ..
+            } => DataSourceIr::GeoJson(path),
+            SourceExpr::Path {
+                path,
+                format: Some(SourceFormat::Shapefile),
+                ..
+            } => DataSourceIr::Shapefile(path),
+            SourceExpr::Stdin { .. } => DataSourceIr::Stdin,
+            SourceExpr::Invalid { span } => {
+                if let Some(ValueExpr::Call(call)) = arg.value() {
+                    if is_source_constructor(&call) {
+                        self.diag(Diagnostic::error(
+                            "E1004",
+                            format!(
+                                "`{}` source expects a string-literal path",
+                                call.name().unwrap_or_default()
+                            ),
+                            span,
+                        ));
+                        return DataSourceIr::Missing;
+                    }
+                }
                 self.diag(Diagnostic::error(
                     "E1004",
                     "data source must be a string literal, a `GeoJson`/`Shapefile` \
@@ -457,25 +476,12 @@ impl<'a> Analyzer<'a> {
                 ));
                 DataSourceIr::Missing
             }
-        }
-    }
-
-    /// Resolve a recognized `GeoJson`/`Shapefile` source constructor to its IR,
-    /// extracting the path from the first positional string argument (spec
-    /// §10.11). A constructor without a string path is `E1004`.
-    fn source_constructor(&mut self, call: &CallValue) -> DataSourceIr {
-        let name = call.name().unwrap_or_default();
-        match source_constructor_path(call) {
-            Some(path) => match name.as_str() {
-                "GeoJson" => DataSourceIr::GeoJson(path),
-                "Shapefile" => DataSourceIr::Shapefile(path),
-                _ => DataSourceIr::Missing,
-            },
-            None => {
+            SourceExpr::Missing => {
                 self.diag(Diagnostic::error(
                     "E1004",
-                    format!("`{name}` source expects a string-literal path"),
-                    node_span(call.syntax()),
+                    "data source must be a string literal, a `GeoJson`/`Shapefile` \
+                     source constructor, or the `stdin` sentinel",
+                    node_span(arg.syntax()),
                 ));
                 DataSourceIr::Missing
             }
@@ -1466,41 +1472,42 @@ impl<'a> Analyzer<'a> {
         out
     }
 
-    /// The CSV path from a `Table` declaration's source expression. Currently a
-    /// string literal; the position is reserved for v0.7 source constructors.
+    /// The path from a `Table` declaration's source expression.
     fn table_source_path(&mut self, decl: &TableDecl) -> Option<String> {
-        match decl.source() {
-            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
-                Some(string_value(&lit.text().unwrap_or_default()))
-            }
-            // A named table may also be backed by a geospatial source
-            // constructor (spec §10.11); the loader is chosen by the CLI.
-            Some(ValueExpr::Call(call)) if is_source_constructor(&call) => {
-                match source_constructor_path(&call) {
-                    Some(path) => Some(path),
-                    None => {
+        match source_expr_from_value(decl.source(), false) {
+            SourceExpr::Path { path, .. } => Some(path),
+            SourceExpr::Invalid { span } => {
+                if let Some(ValueExpr::Call(call)) = decl.source() {
+                    if is_source_constructor(&call) && source_constructor(&call).is_none() {
                         self.diag(Diagnostic::error(
                             "E1004",
                             format!(
                                 "`{}` source expects a string-literal path",
                                 call.name().unwrap_or_default()
                             ),
-                            node_span(call.syntax()),
+                            span,
                         ));
-                        None
+                        return None;
                     }
                 }
-            }
-            Some(value) => {
                 self.diag(Diagnostic::error(
                     "E1004",
                     "`Table` source must be a string-literal path or a \
                      `GeoJson`/`Shapefile` source constructor",
-                    node_span(value.syntax()),
+                    span,
                 ));
                 None
             }
-            None => None,
+            SourceExpr::Stdin { span } => {
+                self.diag(Diagnostic::error(
+                    "E1004",
+                    "`Table` source must be a string-literal path or a \
+                     `GeoJson`/`Shapefile` source constructor",
+                    span,
+                ));
+                None
+            }
+            SourceExpr::Missing => None,
         }
     }
 
@@ -3349,54 +3356,6 @@ fn describe_accepts(accepts: &[Accept]) -> String {
         })
         .collect();
     parts.join(" or ")
-}
-
-/// Strip surrounding quotes and resolve escapes in a string literal lexeme.
-/// The names of the geospatial source constructors recognized on the data
-/// seam (spec §10.11).
-const SOURCE_CONSTRUCTORS: &[&str] = &["GeoJson", "Shapefile"];
-
-/// Whether a call value is a recognized source constructor by name.
-fn is_source_constructor(call: &CallValue) -> bool {
-    call.name()
-        .is_some_and(|name| SOURCE_CONSTRUCTORS.contains(&name.as_str()))
-}
-
-/// The path string from a source constructor's first positional string-literal
-/// argument (e.g. `GeoJson("us.geojson")`), if present.
-fn source_constructor_path(call: &CallValue) -> Option<String> {
-    let arg = call.args().into_iter().find(|a| a.key().is_none())?;
-    match arg.value() {
-        Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
-            Some(string_value(&lit.text().unwrap_or_default()))
-        }
-        _ => None,
-    }
-}
-
-fn string_value(raw: &str) -> String {
-    let inner = raw
-        .strip_prefix('"')
-        .and_then(|s| s.strip_suffix('"'))
-        .unwrap_or(raw);
-    let mut out = String::new();
-    let mut chars = inner.chars();
-    while let Some(ch) = chars.next() {
-        if ch == '\\' {
-            match chars.next() {
-                Some('n') => out.push('\n'),
-                Some('r') => out.push('\r'),
-                Some('t') => out.push('\t'),
-                Some('"') => out.push('"'),
-                Some('\\') => out.push('\\'),
-                Some(other) => out.push(other),
-                None => {}
-            }
-        } else {
-            out.push(ch);
-        }
-    }
-    out
 }
 
 /// Whether a blend `+` node is acceptably parenthesized (spec §8.5).

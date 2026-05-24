@@ -32,6 +32,12 @@ fn write_fixture(dir: &Path) -> (PathBuf, PathBuf) {
     (chart, data)
 }
 
+fn data_fixture(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../algraf-data/tests/fixtures")
+        .join(name)
+}
+
 #[test]
 fn render_writes_svg_to_stdout() {
     let dir = temp_dir("render");
@@ -278,6 +284,31 @@ fn source_and_csv_cannot_both_read_from_stdin() {
 
     assert_eq!(output.status.code(), Some(2), "stderr: {}", stderr(&output));
     assert!(stderr(&output).contains("cannot read both source and CSV data from stdin"));
+}
+
+#[test]
+fn check_loads_named_geojson_table_constructor() {
+    let dir = temp_dir("named-geojson-table");
+    let data = dir.join("data.csv");
+    let chart = dir.join("chart.ag");
+    fs::write(&data, "x,y\n1,2\n").unwrap();
+    let geojson = data_fixture("tiny.geojson");
+    fs::write(
+        &chart,
+        format!(
+            "Chart(data: \"data.csv\") {{\n  Table shapes = GeoJson(\"{}\")\n  Space(geom, data: shapes) {{ Geo() }}\n}}\n",
+            geojson.display()
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(bin())
+        .arg("check")
+        .arg(&chart)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
 }
 
 fn stdout(output: &std::process::Output) -> String {

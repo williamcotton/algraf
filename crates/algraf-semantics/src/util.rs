@@ -1,37 +1,5 @@
 //! Small helpers shared by the analyzer.
 
-use algraf_core::Span;
-use algraf_syntax::{SyntaxNode, SyntaxToken};
-
-/// The byte span of a syntax node's significant tokens (spec §11.2).
-///
-/// The lossless CST preserves leading/trailing trivia inside many nodes. For
-/// diagnostics, underlining that trivia makes editor ranges spill backward
-/// onto previous lines, so semantic diagnostics use the trimmed code span.
-pub fn node_span(node: &SyntaxNode) -> Span {
-    let mut tokens = node
-        .descendants_with_tokens()
-        .filter_map(|element| element.into_token())
-        .filter(|token| !token.kind().is_trivia());
-    let Some(first) = tokens.next() else {
-        let range = node.text_range();
-        return Span::new(
-            u32::from(range.start()) as usize,
-            u32::from(range.end()) as usize,
-        );
-    };
-    let last = tokens.last().unwrap_or_else(|| first.clone());
-    Span::new(token_start(&first), token_end(&last))
-}
-
-fn token_start(token: &SyntaxToken) -> usize {
-    u32::from(token.text_range().start()) as usize
-}
-
-fn token_end(token: &SyntaxToken) -> usize {
-    u32::from(token.text_range().end()) as usize
-}
-
 /// Case-insensitive Levenshtein distance.
 fn distance(a: &str, b: &str) -> usize {
     let a: Vec<char> = a.to_lowercase().chars().collect();

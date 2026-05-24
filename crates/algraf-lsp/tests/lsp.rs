@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use algraf_lsp::Backend;
 use futures_util::StreamExt;
@@ -23,6 +23,12 @@ fn temp_project(name: &str) -> PathBuf {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
+}
+
+fn data_fixture(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../algraf-data/tests/fixtures")
+        .join(name)
 }
 
 async fn initialized_service() -> (tower_lsp::LspService<Backend>, tower_lsp::ClientSocket) {
@@ -215,6 +221,41 @@ async fn geometry_property_completion_uses_column_schema() {
     let result: Option<CompletionResponse> = response_result(response);
     let labels = labels(result);
     assert!(labels.iter().any(|(label, _)| label == "species"));
+}
+
+#[tokio::test]
+async fn schema_resolution_uses_geojson_constructor_format() {
+    let dir = temp_project("geojson-constructor-schema");
+    let source_path = dir.join("chart.ag");
+    std::fs::copy(data_fixture("tiny.geojson"), dir.join("map.data")).unwrap();
+
+    let source = "Chart(data: GeoJson(\"map.data\")) {\n    Space() { Geo() }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let offset = source.find("Space(").unwrap() + "Space(".len();
+    let params = CompletionParams {
+        text_document_position: request_position(uri, source, offset),
+        work_done_progress_params: Default::default(),
+        partial_result_params: Default::default(),
+        context: None,
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/completion")
+            .params(serde_json::to_value(params).unwrap())
+            .id(2)
+            .finish(),
+    )
+    .await
+    .unwrap();
+
+    let result: Option<CompletionResponse> = response_result(response);
+    let labels = labels(result);
+    assert!(labels.iter().any(|(label, _)| label == "geom"));
 }
 
 #[tokio::test]
@@ -956,6 +997,38 @@ async fn preview_renders_svg_through_render_pipeline() {
     let data_paths = value["dataPaths"].as_array().expect("dataPaths");
     assert_eq!(data_paths.len(), 1);
     assert!(data_paths[0].as_str().unwrap().ends_with("data.csv"));
+}
+
+#[tokio::test]
+async fn preview_loads_named_geojson_table_constructor() {
+    let dir = temp_project("preview-named-geojson");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "x,y\n1,2\n").unwrap();
+    std::fs::copy(data_fixture("tiny.geojson"), dir.join("map.data")).unwrap();
+    let source = "Chart(data: \"data.csv\") {\n    Table shapes = GeoJson(\"map.data\")\n    Space(geom, data: shapes) { Geo() }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let response = call(
+        &mut service,
+        Request::build("algraf/preview")
+            .params(json!({ "uri": uri }))
+            .id(22)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = response_result(response);
+    let svg = value["svg"].as_str().expect("svg string");
+    assert!(svg.contains("<svg"), "{svg}");
+    let data_paths = value["dataPaths"].as_array().expect("dataPaths");
+    assert_eq!(data_paths.len(), 2);
+    assert!(data_paths
+        .iter()
+        .any(|path| path.as_str().unwrap().ends_with("map.data")));
 }
 
 #[tokio::test]

@@ -1381,7 +1381,7 @@ cargo run -p algraf-cli -- schema examples/scatter.ag --json
 
 ## Workspace layout
 
-Cargo workspace with seven crates under [`crates/`](crates/):
+Cargo workspace with eight crates under [`crates/`](crates/):
 
 | Crate | Responsibility |
 | --- | --- |
@@ -1389,6 +1389,7 @@ Cargo workspace with seven crates under [`crates/`](crates/):
 | `algraf-syntax` | Lexer, parser, AST/CST (rowan), parse diagnostics, formatter |
 | `algraf-data` | CSV loading, schema inference, dataframe |
 | `algraf-semantics` | Name resolution, validation, IR, geometry registry |
+| `algraf-driver` | Shared source resolution, data/schema loading, and analysis preparation |
 | `algraf-render` | Scale training, layout, stats, geometries, SVG emission |
 | `algraf-lsp` | tower-lsp backend, document cache, completion, hover |
 | `algraf-cli` | The `algraf` binary |
