@@ -221,7 +221,9 @@ pub struct DeriveIr {
 pub struct StatCallIr {
     pub kind: StatKind,
     pub input: FrameIr,
-    pub settings: Vec<Setting>,
+    /// Typed, validated stat options (spec §13.4). Replaces the former
+    /// string-keyed `Vec<Setting>`; the renderer reads these directly.
+    pub options: StatOptionsIr,
     pub span: Span,
 }
 
@@ -234,6 +236,49 @@ pub enum StatKind {
     Smooth,
     Boxplot,
     Density,
+}
+
+/// Typed options for a built-in statistical transform (spec §13.4). Each variant
+/// carries the user-specified values; `None` means "use the renderer default".
+/// Fixed-domain settings (`closed`, smooth `method`) are enums.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StatOptionsIr {
+    Bin {
+        bins: Option<f64>,
+        bin_width: Option<f64>,
+        boundary: Option<f64>,
+        closed: BinClosedIr,
+    },
+    Bin2D {
+        bins: Option<f64>,
+    },
+    HexBin {
+        bins: Option<f64>,
+    },
+    Smooth {
+        method: SmoothMethodIr,
+    },
+    Density {
+        bandwidth: Option<f64>,
+        grid_points: Option<f64>,
+    },
+    Count,
+}
+
+/// Which side of a histogram bin interval is closed (spec §15.x).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BinClosedIr {
+    #[default]
+    Left,
+    Right,
+}
+
+/// The smoothing method for a `Smooth` stat (spec §15.x). Only linear-model
+/// fitting is supported in this version; `loess` remains deferred.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SmoothMethodIr {
+    #[default]
+    Lm,
 }
 
 /// A minimal column definition carried in the IR (name + type + span).

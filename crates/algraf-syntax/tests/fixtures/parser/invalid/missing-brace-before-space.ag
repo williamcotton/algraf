@@ -1,4 +1,4 @@
-Chart(data: "d.csv") {
+Chart(data: "../../../../../../examples/d.csv") {
     Space(a * b) {
         Point()
 

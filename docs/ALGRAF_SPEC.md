@@ -3065,7 +3065,7 @@ pub struct DeriveIr {
 pub struct StatCallIr {
     pub kind: StatKind,
     pub input: FrameIr,
-    pub settings: Vec<StatSetting>,
+    pub options: StatOptionsIr,
     pub span: Span,
 }
 ```
@@ -3073,11 +3073,33 @@ pub struct StatCallIr {
 ```rust
 pub enum StatKind {
     Bin,
+    Bin2D,
+    HexBin,
     Count,
     Smooth,
     Boxplot,
+    Density,
 }
 ```
+
+Built-in stat options MUST be carried as the typed `StatOptionsIr` enum rather than a string-keyed setting list. Each variant carries the user-specified values as `Option`s, where `None` means "use the renderer default"; fixed-domain settings (`closed`, smooth `method`) are enums:
+
+```rust
+pub enum StatOptionsIr {
+    Bin { bins: Option<f64>, bin_width: Option<f64>, boundary: Option<f64>, closed: BinClosedIr },
+    Bin2D { bins: Option<f64> },
+    HexBin { bins: Option<f64> },
+    Smooth { method: SmoothMethodIr },
+    Density { bandwidth: Option<f64>, grid_points: Option<f64> },
+    Count,
+}
+
+pub enum BinClosedIr { Left, Right }
+
+pub enum SmoothMethodIr { Lm }
+```
+
+The explicit `Derive` stat-option parser and high-level geometry lowering MUST produce `StatOptionsIr` through the same defaulting path, so invalid settings keep identical diagnostic codes and spans regardless of which surface produced them. The renderer MUST read `StatOptionsIr` directly rather than looking up string keys.
 
 Version 0.1 MUST support `StatKind::Bin` for explicit `Derive` declarations.
 

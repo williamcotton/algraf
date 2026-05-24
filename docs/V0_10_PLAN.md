@@ -1,6 +1,6 @@
 # Algraf v0.10.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_9_PLAN.md`](V0_9_PLAN.md)
@@ -108,7 +108,9 @@ changes `algraf ir` JSON, tests must document the new shape.
 
 ### 1. Semantic behavior guard tests
 
-Status: Not started.
+Status: Done. Added lowering-shape guard tests for `FreqPoly` and `Bin2D`,
+lowered-node span tests, and typed-option shape tests for explicit `Derive`,
+alongside the existing analyzer coverage.
 
 Acceptance criteria:
 
@@ -127,7 +129,12 @@ Acceptance criteria:
 
 ### 2. Analyzer module decomposition
 
-Status: Not started.
+Status: Done. `analyzer.rs` is now a ~106-line coordinator over
+`context`/`chart`/`tables`/`frames`/`properties`/`scales`/`guides`/`themes`/
+`stats`/`lowering` (plus a shared `args` helper module). `Analyzer` state lives
+in `context.rs`; no single module retains the old broad responsibility set. The
+move was behavior-preserving (full workspace tests and `git diff -- examples`
+clean) before the typed-stat and lowering changes landed.
 
 Acceptance criteria:
 
@@ -151,7 +158,12 @@ Acceptance criteria:
 
 ### 3. Unique argument and value extraction helpers
 
-Status: Not started.
+Status: Done. A `DupGuard` helper in `args.rs` replaces the repeated
+`seen: HashMap<String, Span>` blocks and emits `E1002`/`E1105`/`E1203`/`E1404`
+with the correct noun and related note. Typed extractors (`expect_string`,
+`expect_bool`, `expect_null_flag`, `expect_axis`) cover the common literal
+forms, and the four `theme_scalar_*` functions collapse into one generic
+`theme_scalar` plus small `as_*` classifiers in `themes.rs`.
 
 Acceptance criteria:
 
@@ -170,7 +182,12 @@ Acceptance criteria:
 
 ### 4. Typed stat options in IR
 
-Status: Not started.
+Status: Done. `StatCallIr` now carries a typed `StatOptionsIr` (with
+`BinClosedIr`/`SmoothMethodIr` enums) instead of `Vec<Setting>`. Explicit
+`Derive` and high-level lowering share the defaulting path and
+`check_bin_conflict`; the renderer matches `StatOptionsIr` directly. CLI `ir`
+JSON gained an `options` object in place of `settings`; tests document the new
+shape and `git diff -- examples` stays clean.
 
 Replace string-keyed stat settings at the semantic/render boundary.
 
@@ -203,7 +220,12 @@ Acceptance criteria:
 
 ### 5. High-level geometry lowering module
 
-Status: Not started.
+Status: Done. All five high-level lowerings live in `lowering.rs`, which owns
+synthetic table names (one `next_synthetic(prefix)` helper replaces the five
+`next_*_name` functions) and synthetic output columns. A `passthrough_settings`
+allowlist helper replaces the per-mark setting-copy filters, and a
+`require_numeric_vector` helper holds the repeated 1D frame validation. Lowered
+diagnostics still point at the original geometry call.
 
 Acceptance criteria:
 
@@ -221,7 +243,9 @@ Acceptance criteria:
 
 ### 6. Spec, version, and example hygiene
 
-Status: Not started.
+Status: Done. Workspace and VS Code extension versions are bumped to `0.10.0`.
+Spec §13.4 now documents the typed `StatOptionsIr` shape. Examples regenerate
+with an empty `git diff -- examples`.
 
 Acceptance criteria:
 

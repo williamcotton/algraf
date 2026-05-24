@@ -6,8 +6,9 @@ use std::collections::HashMap;
 use algraf_core::Diagnostic;
 use algraf_data::{DataFrame, DataType, DataValueRef, Table};
 use algraf_semantics::{
-    ir::Setting, AxisSelectorIr, ChartIr, ColumnRef, FrameIr, GeometryIr, GeometryKind, GuideIr,
-    ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, SpaceIr, StatKind, ThemeIr,
+    AxisSelectorIr, BinClosedIr, ChartIr, ColumnRef, FrameIr, GeometryIr, GeometryKind, GuideIr,
+    ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, SpaceIr, StatOptionsIr,
+    ThemeIr,
 };
 
 use crate::aes::{color_spec, ColorSpec, Legend, LegendKind};
@@ -670,39 +671,40 @@ fn compute_derived(
     for d in &ir.derived_tables {
         let frame = {
             let source = active_table(&d.data, primary, &derived);
-            match d.stat.kind {
-                StatKind::Bin => {
+            match &d.stat.options {
+                StatOptionsIr::Bin {
+                    bins,
+                    bin_width,
+                    boundary,
+                    closed,
+                } => {
                     if let FrameIr::Vector(col) = &d.stat.input {
-                        let bins = numeric_setting(&d.stat.settings, "bins")
-                            .filter(|n| *n >= 1.0)
-                            .map(|n| n.round() as usize)
-                            .unwrap_or(30);
                         let options = stats::BinOptions {
-                            bins,
-                            bin_width: numeric_setting(&d.stat.settings, "binWidth")
-                                .filter(|n| *n > 0.0),
-                            boundary: numeric_setting(&d.stat.settings, "boundary"),
-                            closed: closed_setting(&d.stat.settings),
+                            bins: bins_or_default(*bins),
+                            bin_width: bin_width.filter(|n| *n > 0.0),
+                            boundary: *boundary,
+                            closed: match closed {
+                                BinClosedIr::Left => stats::BinClosed::Left,
+                                BinClosedIr::Right => stats::BinClosed::Right,
+                            },
                         };
                         Some(stats::bin_with_options(source, &col.name, options))
                     } else {
                         None
                     }
                 }
-                StatKind::Bin2D => {
+                StatOptionsIr::Bin2D { bins } => {
                     if let FrameIr::Cartesian(cols) = &d.stat.input {
                         if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
                             (cols.first(), cols.get(1))
                         {
-                            let bins = numeric_setting(&d.stat.settings, "bins")
-                                .filter(|n| *n >= 1.0)
-                                .map(|n| n.round() as usize)
-                                .unwrap_or(30);
                             Some(stats::bin2d(
                                 source,
                                 &x.name,
                                 &y.name,
-                                stats::Bin2DOptions { bins },
+                                stats::Bin2DOptions {
+                                    bins: bins_or_default(*bins),
+                                },
                             ))
                         } else {
                             None
@@ -711,20 +713,18 @@ fn compute_derived(
                         None
                     }
                 }
-                StatKind::HexBin => {
+                StatOptionsIr::HexBin { bins } => {
                     if let FrameIr::Cartesian(cols) = &d.stat.input {
                         if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
                             (cols.first(), cols.get(1))
                         {
-                            let bins = numeric_setting(&d.stat.settings, "bins")
-                                .filter(|n| *n >= 1.0)
-                                .map(|n| n.round() as usize)
-                                .unwrap_or(30);
                             Some(stats::hexbin_frame(
                                 source,
                                 &x.name,
                                 &y.name,
-                                stats::Bin2DOptions { bins },
+                                stats::Bin2DOptions {
+                                    bins: bins_or_default(*bins),
+                                },
                             ))
                         } else {
                             None
@@ -733,7 +733,7 @@ fn compute_derived(
                         None
                     }
                 }
-                StatKind::Count => {
+                StatOptionsIr::Count => {
                     let mut group_cols: Vec<&str> = Vec::new();
                     match &d.stat.input {
                         FrameIr::Vector(col) => group_cols.push(&col.name),
@@ -753,12 +753,14 @@ fn compute_derived(
                         Some(stats::count_by(source, &group_cols))
                     }
                 }
-                StatKind::Density => {
+                StatOptionsIr::Density {
+                    bandwidth,
+                    grid_points,
+                } => {
                     if let FrameIr::Vector(col) = &d.stat.input {
                         let options = stats::DensityOptions {
-                            bandwidth: numeric_setting(&d.stat.settings, "bandwidth")
-                                .filter(|n| *n > 0.0),
-                            grid_points: numeric_setting(&d.stat.settings, "n")
+                            bandwidth: bandwidth.filter(|n| *n > 0.0),
+                            grid_points: grid_points
                                 .filter(|n| *n >= 2.0)
                                 .map(|n| n.round() as usize)
                                 .unwrap_or(256),
@@ -768,7 +770,7 @@ fn compute_derived(
                         None
                     }
                 }
-                StatKind::Smooth => {
+                StatOptionsIr::Smooth { .. } => {
                     if let FrameIr::Cartesian(cols) = &d.stat.input {
                         if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
                             (cols.first(), cols.get(1))
@@ -781,7 +783,6 @@ fn compute_derived(
                         None
                     }
                 }
-                _ => None,
             }
         };
         if let Some(frame) = frame {
@@ -791,26 +792,12 @@ fn compute_derived(
     derived
 }
 
-fn numeric_setting(settings: &[Setting], name: &str) -> Option<f64> {
-    settings
-        .iter()
-        .find(|setting| setting.name == name)
-        .and_then(|setting| match setting.value {
-            SettingValue::Number(value) if value.is_finite() => Some(value),
-            _ => None,
-        })
-}
-
-fn closed_setting(settings: &[Setting]) -> stats::BinClosed {
-    settings
-        .iter()
-        .find(|setting| setting.name == "closed")
-        .and_then(|setting| match &setting.value {
-            SettingValue::String(value) if value == "right" => Some(stats::BinClosed::Right),
-            SettingValue::String(value) if value == "left" => Some(stats::BinClosed::Left),
-            _ => None,
-        })
-        .unwrap_or(stats::BinClosed::Left)
+/// Resolve a `bins` option to a positive integer, falling back to the default
+/// of 30 when unset or out of range (spec §15.x).
+fn bins_or_default(bins: Option<f64>) -> usize {
+    bins.filter(|n| *n >= 1.0)
+        .map(|n| n.round() as usize)
+        .unwrap_or(30)
 }
 
 /// Extra left margin needed so the widest y tick label and the rotated y-axis

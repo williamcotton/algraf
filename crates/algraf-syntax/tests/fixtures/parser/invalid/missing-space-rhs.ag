@@ -1,4 +1,4 @@
-Chart(data: "financials.csv") {
+Chart(data: "../../../../../../examples/financials.csv") {
     Space(quarter / ) {
         Bar(fill: type)
     }

@@ -17,9 +17,9 @@ use algraf_driver::{
 };
 use algraf_render::{render_with_tables, Layout, Rect, Theme};
 use algraf_semantics::{
-    analyze, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
-    GeometryKind, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
-    SpaceDataRef, SpaceIr, StatKind,
+    analyze, AestheticMapping, BinClosedIr, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr,
+    GeometryIr, GeometryKind, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
+    SmoothMethodIr, SpaceDataRef, SpaceIr, StatKind, StatOptionsIr,
 };
 use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::{format, parse};
@@ -748,9 +748,7 @@ fn derive_json(derive: &DeriveIr) -> Value {
         "stat": {
             "kind": stat_kind_str(derive.stat.kind),
             "input": frame_json(&derive.stat.input),
-            "settings": derive.stat.settings.iter().map(|s| {
-                json!({ "name": s.name, "value": setting_value_json(&s.value) })
-            }).collect::<Vec<_>>(),
+            "options": stat_options_json(&derive.stat.options),
             "span": span_json(derive.stat.span),
         },
         "outputSchema": derive.output_schema.iter().map(|c| {
@@ -879,6 +877,43 @@ fn setting_value_json(value: &SettingValue) -> Value {
 
 fn span_json(span: algraf_core::Span) -> Value {
     json!({ "start": span.start, "end": span.end })
+}
+
+fn stat_options_json(options: &StatOptionsIr) -> Value {
+    match options {
+        StatOptionsIr::Bin {
+            bins,
+            bin_width,
+            boundary,
+            closed,
+        } => json!({
+            "kind": "bin",
+            "bins": bins,
+            "binWidth": bin_width,
+            "boundary": boundary,
+            "closed": match closed {
+                BinClosedIr::Left => "left",
+                BinClosedIr::Right => "right",
+            },
+        }),
+        StatOptionsIr::Bin2D { bins } => json!({ "kind": "bin2d", "bins": bins }),
+        StatOptionsIr::HexBin { bins } => json!({ "kind": "hexbin", "bins": bins }),
+        StatOptionsIr::Smooth { method } => json!({
+            "kind": "smooth",
+            "method": match method {
+                SmoothMethodIr::Lm => "lm",
+            },
+        }),
+        StatOptionsIr::Density {
+            bandwidth,
+            grid_points,
+        } => json!({
+            "kind": "density",
+            "bandwidth": bandwidth,
+            "gridPoints": grid_points,
+        }),
+        StatOptionsIr::Count => json!({ "kind": "count" }),
+    }
 }
 
 fn stat_kind_str(kind: StatKind) -> &'static str {

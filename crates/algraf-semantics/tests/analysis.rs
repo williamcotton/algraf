@@ -2,8 +2,8 @@
 
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
-    analyze_source, AxisSelectorIr, FrameIr, GeometryKind, ScaleTargetIr, ScaleTypeIr,
-    SettingValue, SpaceDataRef, StatKind,
+    analyze_source, AxisSelectorIr, BinClosedIr, FrameIr, GeometryKind, ScaleTargetIr, ScaleTypeIr,
+    SettingValue, SpaceDataRef, StatKind, StatOptionsIr,
 };
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
@@ -545,8 +545,13 @@ fn test_direct_histogram_desugars_to_bin_and_rect() {
     let derived = &ir.derived_tables[0];
     assert!(derived.name.starts_with("__histogram_"));
     assert_eq!(derived.stat.kind, StatKind::Bin);
-    assert!(derived.stat.settings.iter().any(
-        |setting| setting.name == "bins" && matches!(setting.value, SettingValue::Number(4.0))
+    // The typed stat options carry `bins: 4` directly (spec §13.4).
+    assert!(matches!(
+        derived.stat.options,
+        StatOptionsIr::Bin {
+            bins: Some(b),
+            ..
+        } if b == 4.0
     ));
 
     assert_eq!(ir.spaces.len(), 1);
@@ -685,6 +690,49 @@ fn test_ir_derived_table_schema() {
     assert_eq!(ir.spaces[0].data, SpaceDataRef::Derived("bins".into()));
 }
 
+#[test]
+fn test_explicit_bin_derive_carries_typed_options() {
+    // `Bin` settings are typed at the semantic/render boundary (spec §13.4):
+    // `bins`/`binWidth`/`boundary` are `Option<f64>` and `closed` is an enum.
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Derive b = Bin(value, binWidth: 2.5, boundary: 0, closed: \"right\")\n  Space(bin_start * count, data: b) { Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count) }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    match &ir.derived_tables[0].stat.options {
+        StatOptionsIr::Bin {
+            bins,
+            bin_width,
+            boundary,
+            closed,
+        } => {
+            assert_eq!(*bins, None);
+            assert_eq!(*bin_width, Some(2.5));
+            assert_eq!(*boundary, Some(0.0));
+            assert_eq!(*closed, BinClosedIr::Right);
+        }
+        other => panic!("expected Bin options, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_smooth_derive_defaults_to_lm_method() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Derive fit = Smooth(value, amount)\n  Space(x * y, data: fit) { Line() }\n}",
+        &schema(),
+    );
+    let ir = analysis.ir.expect("ir");
+    assert!(matches!(
+        ir.derived_tables[0].stat.options,
+        StatOptionsIr::Smooth { .. }
+    ));
+}
+
 // --- Count stat ---
 
 #[test]
@@ -771,6 +819,83 @@ fn test_density_rejects_non_vector_space() {
 #[test]
 fn test_freqpoly_and_2d_binning_geometries_are_registered() {
     clean("Chart(data: \"p.csv\") {\n  Space(value) { FreqPoly(bins: 8, stroke: \"steelblue\") }\n  Space(flipper_length * body_mass) { Bin2D(bins: 6) HexBin(bins: 6) }\n}");
+}
+
+#[test]
+fn test_freqpoly_desugars_to_bin_table_and_line() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space(value) {\n    FreqPoly(bins: 8, stroke: \"steelblue\")\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.derived_tables.len(), 1);
+    let derived = &ir.derived_tables[0];
+    assert!(derived.name.starts_with("__freqpoly_"));
+    assert_eq!(derived.stat.kind, StatKind::Bin);
+    let names: Vec<&str> = derived
+        .output_schema
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(
+        names,
+        vec!["bin_start", "bin_end", "bin_center", "count", "density"]
+    );
+    assert_eq!(ir.spaces.len(), 1);
+    assert_eq!(
+        ir.spaces[0].data,
+        SpaceDataRef::Derived(derived.name.clone())
+    );
+    // FreqPoly draws a line over bin_center * count.
+    assert!(matches!(ir.spaces[0].frame, FrameIr::Cartesian(ref axes)
+        if matches!(&axes[0], FrameIr::Vector(c) if c.name == "bin_center")));
+    assert_eq!(ir.spaces[0].geometries.len(), 1);
+    assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Line);
+}
+
+#[test]
+fn test_bin2d_desugars_to_bin2d_table_and_rect_with_fill() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Bin2D(bins: 6)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.derived_tables.len(), 1);
+    let derived = &ir.derived_tables[0];
+    assert!(derived.name.starts_with("__bin2d_"));
+    assert_eq!(derived.stat.kind, StatKind::Bin2D);
+    assert_eq!(ir.spaces.len(), 1);
+    let rect = &ir.spaces[0].geometries[0];
+    assert_eq!(rect.kind, GeometryKind::Rect);
+    // With no explicit fill, count drives the fill mapping.
+    assert!(rect
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == "fill" && m.column.name == "count"));
+}
+
+#[test]
+fn test_lowered_nodes_carry_source_call_span() {
+    // The synthetic derived table and lowered space should point back at the
+    // original geometry call so diagnostics stay precise after lowering.
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space(value) {\n    Histogram(bins: 4)\n  }\n}",
+        &schema(),
+    );
+    let ir = analysis.ir.expect("ir");
+    let call_span = ir.spaces[0].geometries[0].span;
+    assert_eq!(ir.derived_tables[0].span, call_span);
+    assert_eq!(ir.derived_tables[0].stat.span, call_span);
 }
 
 #[test]
