@@ -6,7 +6,8 @@ binary parses the source, validates it against the data, trains scales, and
 emits deterministic SVG.
 
 The normative reference is [`docs/ALGRAF_SPEC.md`](docs/ALGRAF_SPEC.md).
-Active v0.3.0 planning lives in [`docs/V0_3_PLAN.md`](docs/V0_3_PLAN.md).
+Active refactor planning starts in [`docs/V0_9_PLAN.md`](docs/V0_9_PLAN.md)
+and continues through the staged roadmap in [`docs/`](docs/).
 
 ```bash
 cargo run -p algraf-cli -- render examples/scatter.ag --output /tmp/scatter.svg

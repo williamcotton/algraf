@@ -7463,14 +7463,19 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | ------- | ---- | ------ | ------ |
 | 0.2.0 | [`V0_2_PLAN.md`](V0_2_PLAN.md) | Chart control and editing polish | Released |
 | 0.3.0 | [`V0_3_PLAN.md`](V0_3_PLAN.md) | Expressiveness — more charts users can draw | Implemented |
-| 0.4.0 | [`V0_4_PLAN.md`](V0_4_PLAN.md) | Editor & authoring experience | Planned |
-| 0.5.0 | [`V0_5_PLAN.md`](V0_5_PLAN.md) | Composition & reuse | Planned |
-| 0.6.0 | [`V0_6_PLAN.md`](V0_6_PLAN.md) | External data sources & manual scales | Planned |
-| 0.7.0 | [`V0_7_PLAN.md`](V0_7_PLAN.md) | Data backends | Planned |
+| 0.4.0 | [`V0_4_PLAN.md`](V0_4_PLAN.md) | Editor & authoring experience | Implemented |
+| 0.5.0 | [`V0_5_PLAN.md`](V0_5_PLAN.md) | Composition & reuse | Implemented |
+| 0.6.0 | [`V0_6_PLAN.md`](V0_6_PLAN.md) | External data sources & manual scales | Implemented |
+| 0.7.0 | [`V0_7_PLAN.md`](V0_7_PLAN.md) | Data backends | Implemented |
 | 0.8.0 | [`V0_8_PLAN.md`](V0_8_PLAN.md) | Geospatial — geometry, projection, choropleth | Implemented |
+| 0.9.0 | [`V0_9_PLAN.md`](V0_9_PLAN.md) | Pipeline unification and source-loading deduplication | Planned |
+| 0.10.0 | [`V0_10_PLAN.md`](V0_10_PLAN.md) | Semantic analyzer modularization and typed stat IR | Planned |
+| 0.11.0 | [`V0_11_PLAN.md`](V0_11_PLAN.md) | Renderer modularization and SVG safety | Planned |
+| 0.12.0 | [`V0_12_PLAN.md`](V0_12_PLAN.md) | Tooling, diagnostics, and parser cleanup | Planned |
 
-The newest unreleased plan is the active one; released plans are a historical
-record and their scope is not reopened.
+The earliest unreleased plan is the active implementation target; later
+unreleased plans are sequencing guidance and may be revised as earlier refactors
+land. Released plans are a historical record and their scope is not reopened.
 
 Promoted items MUST be copied into the relevant normative sections of this
 specification before or alongside implementation. Deferred optional items remain
