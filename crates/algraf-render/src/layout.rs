@@ -233,7 +233,10 @@ impl Layout {
 
 fn default_facet_columns(panel_count: usize, plot: Rect) -> usize {
     let aspect = (plot.width / plot.height.max(1.0)).clamp(0.25, 4.0);
-    ((panel_count as f64 * aspect).sqrt().round() as usize)
-        .max(1)
+    // Start from a compact near-square grid, then widen only when the viewport
+    // aspect is strong enough to cross the next integer column count.
+    let square_columns = (panel_count as f64).sqrt().ceil() as usize;
+    ((panel_count as f64 * aspect).sqrt().floor() as usize)
+        .max(square_columns.max(1))
         .min(panel_count.max(1))
 }

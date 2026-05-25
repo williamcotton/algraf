@@ -342,6 +342,34 @@ fn test_four_facet_default_layout_is_two_by_two() {
 }
 
 #[test]
+fn test_four_facet_default_layout_with_title_and_legend_is_two_by_two() {
+    let result = render_result(
+        r#"Chart(data: "p.csv", width: 800, height: 480, title: "Regional Sales Performance vs. Target") {
+            Scale(fill: product, palette: "accent")
+            Space((x * y) / region) { Point(fill: product) }
+        }"#,
+        "x,y,region,product\n\
+         1,150,North,Widgets\n2,200,North,Gadgets\n\
+         1,210,South,Widgets\n2,130,South,Gadgets\n\
+         1,120,East,Widgets\n2,80,East,Gadgets\n\
+         1,170,West,Widgets\n2,100,West,Gadgets\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.layout.legend.is_some());
+    assert_eq!(result.layout.facets.len(), 4);
+    assert!(result.layout.facets[1].plot.x > result.layout.facets[0].plot.x);
+    assert_eq!(
+        result.layout.facets[2].plot.x,
+        result.layout.facets[0].plot.x
+    );
+    assert_eq!(
+        result.layout.facets[3].plot.x,
+        result.layout.facets[1].plot.x
+    );
+    assert!(result.layout.facets[2].plot.y > result.layout.facets[0].plot.y);
+}
+
+#[test]
 fn test_tile_heatmap_gradient() {
     // Both axes must be categorical for a tile grid (hour as a label, not a number).
     let svg = render_svg(
