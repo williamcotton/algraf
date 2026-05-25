@@ -65,6 +65,26 @@ pub struct SvgWriter {
     depth: usize,
 }
 
+/// One XML attribute for structured SVG emission.
+#[derive(Debug, Clone)]
+pub struct SvgAttr {
+    name: &'static str,
+    value: String,
+}
+
+impl SvgAttr {
+    pub fn new(name: &'static str, value: impl Into<String>) -> Self {
+        Self {
+            name,
+            value: value.into(),
+        }
+    }
+
+    pub fn number(name: &'static str, value: f64) -> Self {
+        Self::new(name, num(value))
+    }
+}
+
 impl SvgWriter {
     pub fn new() -> Self {
         SvgWriter {
@@ -91,6 +111,25 @@ impl SvgWriter {
         self.buf.push('\n');
     }
 
+    /// Write an empty element with escaped attributes, preserving attribute
+    /// order.
+    pub fn empty_element(&mut self, name: &str, attrs: &[SvgAttr]) {
+        self.indent();
+        write!(self.buf, "<{name}").expect("writing to String cannot fail");
+        self.write_attrs(attrs);
+        self.buf.push_str(" />\n");
+    }
+
+    /// Write a text element with escaped attributes and escaped text content.
+    pub fn text_element(&mut self, name: &str, attrs: &[SvgAttr], text: &str) {
+        self.indent();
+        write!(self.buf, "<{name}").expect("writing to String cannot fail");
+        self.write_attrs(attrs);
+        self.buf.push('>');
+        self.buf.push_str(&escape_text(text));
+        writeln!(self.buf, "</{name}>").expect("writing to String cannot fail");
+    }
+
     /// Open a group `<g ...>` and increase indentation.
     pub fn open_group(&mut self, attrs: &str) {
         self.indent();
@@ -99,6 +138,15 @@ impl SvgWriter {
         } else {
             let _ = writeln!(self.buf, "<g {attrs}>");
         }
+        self.depth += 1;
+    }
+
+    /// Open a group with escaped structured attributes.
+    pub fn open_group_attrs(&mut self, attrs: &[SvgAttr]) {
+        self.indent();
+        self.buf.push_str("<g");
+        self.write_attrs(attrs);
+        self.buf.push_str(">\n");
         self.depth += 1;
     }
 
@@ -111,5 +159,12 @@ impl SvgWriter {
 
     pub fn finish(self) -> String {
         self.buf
+    }
+
+    fn write_attrs(&mut self, attrs: &[SvgAttr]) {
+        for attr in attrs {
+            write!(self.buf, " {}=\"{}\"", attr.name, escape_attr(&attr.value))
+                .expect("writing to String cannot fail");
+        }
     }
 }

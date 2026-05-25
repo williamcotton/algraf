@@ -15,7 +15,7 @@ use algraf_driver::{
     document_charts, extract_data_source, load_schema, prepare_chart, DriverError, PrepareOptions,
     SourceInput,
 };
-use algraf_render::{render_with_tables, Layout, Rect, Theme};
+use algraf_render::{render_with_tables, svg_num, Layout, Rect, Theme};
 use algraf_semantics::{
     analyze, AestheticMapping, BinClosedIr, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr,
     GeometryIr, GeometryKind, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
@@ -687,21 +687,6 @@ fn insert_before_svg_end(svg: &mut String, fragment: &str) {
     }
 }
 
-fn svg_num(value: f64) -> String {
-    let mut out = format!("{value:.3}");
-    while out.contains('.') && out.ends_with('0') {
-        out.pop();
-    }
-    if out.ends_with('.') {
-        out.pop();
-    }
-    if out == "-0" {
-        "0".to_string()
-    } else {
-        out
-    }
-}
-
 fn ir_to_json(ir: &ChartIr) -> Value {
     json!({
         "dataSource": data_source_json(&ir.data_source),
@@ -929,30 +914,7 @@ fn stat_kind_str(kind: StatKind) -> &'static str {
 }
 
 fn geometry_kind_str(kind: GeometryKind) -> &'static str {
-    match kind {
-        GeometryKind::Point => "Point",
-        GeometryKind::Line => "Line",
-        GeometryKind::Path => "Path",
-        GeometryKind::Bar => "Bar",
-        GeometryKind::Rect => "Rect",
-        GeometryKind::Histogram => "Histogram",
-        GeometryKind::FreqPoly => "FreqPoly",
-        GeometryKind::Bin2D => "Bin2D",
-        GeometryKind::HexBin => "HexBin",
-        GeometryKind::Smooth => "Smooth",
-        GeometryKind::Boxplot => "Boxplot",
-        GeometryKind::Violin => "Violin",
-        GeometryKind::Density => "Density",
-        GeometryKind::Ribbon => "Ribbon",
-        GeometryKind::Tile => "Tile",
-        GeometryKind::HLine => "HLine",
-        GeometryKind::VLine => "VLine",
-        GeometryKind::Rug => "Rug",
-        GeometryKind::Area => "Area",
-        GeometryKind::Text => "Text",
-        GeometryKind::Segment => "Segment",
-        GeometryKind::Geo => "Geo",
-    }
+    kind.display_name()
 }
 
 fn dtype_str(dtype: DataType) -> &'static str {

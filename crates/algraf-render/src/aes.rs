@@ -240,17 +240,7 @@ fn default_gradient() -> Vec<String> {
 }
 
 fn gradient_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<Vec<String>> {
-    scales.iter().rev().find_map(|scale| match &scale.target {
-        ScaleTargetIr::Aesthetic {
-            aesthetic: target,
-            column: Some(scale_column),
-        } if target == aesthetic && scale_column.name == column => scale.gradient.clone(),
-        ScaleTargetIr::Aesthetic {
-            aesthetic: target,
-            column: None,
-        } if target == aesthetic => scale.gradient.clone(),
-        _ => None,
-    })
+    aesthetic_scale(scales, aesthetic, column).and_then(|scale| scale.gradient.clone())
 }
 
 fn color_map_for(
@@ -258,17 +248,7 @@ fn color_map_for(
     aesthetic: &str,
     column: &str,
 ) -> Option<Vec<(String, String)>> {
-    scales.iter().rev().find_map(|scale| match &scale.target {
-        ScaleTargetIr::Aesthetic {
-            aesthetic: target,
-            column: Some(scale_column),
-        } if target == aesthetic && scale_column.name == column => scale.color_map.clone(),
-        ScaleTargetIr::Aesthetic {
-            aesthetic: target,
-            column: None,
-        } if target == aesthetic => scale.color_map.clone(),
-        _ => None,
-    })
+    aesthetic_scale(scales, aesthetic, column).and_then(|scale| scale.color_map.clone())
 }
 
 fn label_map_for(
@@ -276,31 +256,11 @@ fn label_map_for(
     aesthetic: &str,
     column: &str,
 ) -> Option<Vec<(String, String)>> {
-    scales.iter().rev().find_map(|scale| match &scale.target {
-        ScaleTargetIr::Aesthetic {
-            aesthetic: target,
-            column: Some(scale_column),
-        } if target == aesthetic && scale_column.name == column => scale.label_map.clone(),
-        ScaleTargetIr::Aesthetic {
-            aesthetic: target,
-            column: None,
-        } if target == aesthetic => scale.label_map.clone(),
-        _ => None,
-    })
+    aesthetic_scale(scales, aesthetic, column).and_then(|scale| scale.label_map.clone())
 }
 
 fn palette_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<String> {
-    scales.iter().rev().find_map(|scale| match &scale.target {
-        ScaleTargetIr::Aesthetic {
-            aesthetic: target,
-            column: Some(scale_column),
-        } if target == aesthetic && scale_column.name == column => scale.palette.clone(),
-        ScaleTargetIr::Aesthetic {
-            aesthetic: target,
-            column: None,
-        } if target == aesthetic => scale.palette.clone(),
-        _ => None,
-    })
+    aesthetic_scale(scales, aesthetic, column).and_then(|scale| scale.palette.clone())
 }
 
 /// How a numeric aesthetic (`size`/`strokeWidth`) resolves per row: a constant,
@@ -370,7 +330,7 @@ pub fn number_spec(
     NumberSpec::Constant(number_setting(geo, aesthetic, constant_default))
 }
 
-fn aesthetic_scale<'a>(
+pub(crate) fn aesthetic_scale<'a>(
     scales: &'a [ScaleIr],
     aesthetic: &str,
     column: &str,

@@ -7,8 +7,11 @@
 use std::collections::HashMap;
 
 use algraf_data::Table;
-use algraf_semantics::{FrameIr, GeometryIr, GeometryKind, SettingValue};
+use algraf_semantics::{FrameIr, GeometryIr, GeometryKind};
 
+use crate::helpers::{
+    bar_layout, frame_axis_index, number_setting_opt, vector_column_name, BarLayout,
+};
 use crate::scale::{cell_category, cell_f64, cell_micros};
 use crate::stats;
 
@@ -175,19 +178,19 @@ pub fn train_space_domains(
             // is zero, also suppress lower padding so the x-axis sits flush
             // against the area's bottom edge.
             GeometryKind::Area => {
-                let baseline = numeric_setting(geometry, "baseline").unwrap_or(0.0);
+                let baseline = number_setting_opt(geometry, "baseline").unwrap_or(0.0);
                 hints.y.add_numeric(baseline);
                 if baseline.abs() < f64::EPSILON {
                     hints.y.include_zero();
                 }
             }
             GeometryKind::HLine => {
-                if let Some(y) = numeric_setting(geometry, "y") {
+                if let Some(y) = number_setting_opt(geometry, "y") {
                     hints.y.add_numeric(y);
                 }
             }
             GeometryKind::VLine => {
-                if let Some(x) = numeric_setting(geometry, "x") {
+                if let Some(x) = number_setting_opt(geometry, "x") {
                     hints.x.add_numeric(x);
                 }
             }
@@ -201,12 +204,12 @@ pub fn train_space_domains(
             // segment stays inside the plot rect (spec §14.19).
             GeometryKind::Segment => {
                 for property in ["x", "xend"] {
-                    if let Some(value) = numeric_setting(geometry, property) {
+                    if let Some(value) = number_setting_opt(geometry, property) {
                         hints.x.add_numeric(value);
                     }
                 }
                 for property in ["y", "yend"] {
-                    if let Some(value) = numeric_setting(geometry, property) {
+                    if let Some(value) = number_setting_opt(geometry, property) {
                         hints.y.add_numeric(value);
                     }
                 }
@@ -223,10 +226,10 @@ fn train_violin(
     geometry: &GeometryIr,
     hints: &mut SpaceDomainHints,
 ) {
-    let Some(y_col) = frame_axis(frame, 1).and_then(vector_column) else {
+    let Some(y_col) = frame_axis_index(frame, 1).and_then(vector_column_name) else {
         return;
     };
-    let Some(x_axis) = frame_axis(frame, 0) else {
+    let Some(x_axis) = frame_axis_index(frame, 0) else {
         return;
     };
     let mut groups: HashMap<String, Vec<f64>> = HashMap::new();
@@ -240,8 +243,8 @@ fn train_violin(
         groups.entry(key).or_default().push(value);
     }
     let options = stats::DensityOptions {
-        bandwidth: numeric_setting(geometry, "bandwidth").filter(|value| *value > 0.0),
-        grid_points: numeric_setting(geometry, "n")
+        bandwidth: number_setting_opt(geometry, "bandwidth").filter(|value| *value > 0.0),
+        grid_points: number_setting_opt(geometry, "n")
             .filter(|value| *value >= 2.0)
             .map(|value| value.round() as usize)
             .unwrap_or(256),
@@ -270,10 +273,10 @@ fn train_bar(
         return;
     }
 
-    let Some(x_axis) = frame_axis(frame, 0) else {
+    let Some(x_axis) = frame_axis_index(frame, 0) else {
         return;
     };
-    let Some(y_col) = frame_axis(frame, 1).and_then(vector_column) else {
+    let Some(y_col) = frame_axis_index(frame, 1).and_then(vector_column_name) else {
         return;
     };
 
@@ -327,46 +330,11 @@ fn is_stacked(geometry: &GeometryIr) -> bool {
     matches!(bar_layout(geometry), BarLayout::Stack | BarLayout::Fill)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum BarLayout {
-    Identity,
-    Stack,
-    Fill,
-}
-
-fn bar_layout(geometry: &GeometryIr) -> BarLayout {
-    geometry
-        .settings
-        .iter()
-        .find(|setting| setting.name == "layout")
-        .and_then(|setting| match &setting.value {
-            SettingValue::String(value) if value == "stack" => Some(BarLayout::Stack),
-            SettingValue::String(value) if value == "fill" => Some(BarLayout::Fill),
-            _ => None,
-        })
-        .unwrap_or(BarLayout::Identity)
-}
-
-fn frame_axis(frame: &FrameIr, index: usize) -> Option<&FrameIr> {
-    match frame {
-        FrameIr::Cartesian(axes) => axes.get(index),
-        _ if index == 0 => Some(frame),
-        _ => None,
-    }
-}
-
-fn vector_column(frame: &FrameIr) -> Option<&str> {
-    match frame {
-        FrameIr::Vector(column) => Some(&column.name),
-        _ => None,
-    }
-}
-
 fn axis_group_key(frame: &FrameIr, table: &dyn Table, row: usize) -> Option<String> {
     match frame {
         FrameIr::Vector(column) => cell_category(table, &column.name, row),
         FrameIr::Nested { outer, .. } => {
-            vector_column(outer).and_then(|col| cell_category(table, col, row))
+            vector_column_name(outer).and_then(|col| cell_category(table, col, row))
         }
         _ => None,
     }
@@ -385,7 +353,7 @@ fn positional_value(
     {
         return cell_f64(table, &mapping.column.name, row);
     }
-    numeric_setting(geometry, property)
+    number_setting_opt(geometry, property)
 }
 
 fn positional_temporal(
@@ -399,15 +367,4 @@ fn positional_temporal(
         .iter()
         .find(|mapping| mapping.aesthetic == property)?;
     cell_micros(table, &mapping.column.name, row)
-}
-
-fn numeric_setting(geometry: &GeometryIr, property: &str) -> Option<f64> {
-    geometry
-        .settings
-        .iter()
-        .find(|setting| setting.name == property)
-        .and_then(|setting| match setting.value {
-            SettingValue::Number(value) => Some(value),
-            _ => None,
-        })
 }

@@ -1,6 +1,6 @@
 # Algraf v0.11.0 Plan
 
-Status: Planned
+Status: Complete
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_10_PLAN.md`](V0_10_PLAN.md)
@@ -86,7 +86,7 @@ The current checked-in examples are the visual regression baseline:
 
 ### 1. Render planning split
 
-Status: Not started.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -100,7 +100,7 @@ Acceptance criteria:
 
 ### 2. Unified panel iteration
 
-Status: Not started.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -114,7 +114,7 @@ Acceptance criteria:
 
 ### 3. Renderer helper consolidation
 
-Status: Not started.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -129,7 +129,7 @@ Acceptance criteria:
 
 ### 4. Geometry renderer split and context threading
 
-Status: Not started.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -152,7 +152,7 @@ Acceptance criteria:
 
 ### 5. Structured SVG writer helpers
 
-Status: Not started.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -166,13 +166,15 @@ Acceptance criteria:
 
 ### 6. Spec, version, and example hygiene
 
-Status: Not started.
+Status: Complete.
 
 Acceptance criteria:
 
 - Workspace and VS Code extension versions are bumped to `0.11.0` when the
   release branch is ready.
 - Any renderer behavior clarification is promoted into the spec before release.
+  No behavior clarification was required for v0.11.0; the release is
+  architecture-only.
 - Examples are regenerated; `git diff -- examples` must be empty for current
   checked-in examples.
 - This document is updated as each item completes, is rejected, or moves scope.
@@ -181,7 +183,7 @@ Acceptance criteria:
 
 ### Render module documentation
 
-Status: Not started.
+Status: Complete.
 
 Add short module-level docs explaining the render stages: derived data, domain
 training, layout/panel planning, geometry emission, guides, legends, and final
@@ -189,10 +191,11 @@ SVG document assembly.
 
 ### Guide module split
 
-Status: Not started.
+Status: Deferred.
 
-If `guide.rs::render_axes` remains too large after panel planning is cleaned up,
-split axis, grid, facet strip, and legend emission into narrower modules.
+`guide.rs::render_axes` remains in scope for a later guide-focused cleanup; the
+v0.11.0 panel iterator removed repeated render branches without requiring a guide
+module split.
 
 ## Explicitly Deferred Past v0.11.0
 

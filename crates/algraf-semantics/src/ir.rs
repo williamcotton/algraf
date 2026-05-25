@@ -374,6 +374,64 @@ pub enum GeometryKind {
     Geo,
 }
 
+impl GeometryKind {
+    /// Human-facing geometry name, used in diagnostics and debug JSON.
+    pub fn display_name(self) -> &'static str {
+        match self {
+            GeometryKind::Point => "Point",
+            GeometryKind::Line => "Line",
+            GeometryKind::Path => "Path",
+            GeometryKind::Bar => "Bar",
+            GeometryKind::Rect => "Rect",
+            GeometryKind::Histogram => "Histogram",
+            GeometryKind::FreqPoly => "FreqPoly",
+            GeometryKind::Bin2D => "Bin2D",
+            GeometryKind::HexBin => "HexBin",
+            GeometryKind::Smooth => "Smooth",
+            GeometryKind::Boxplot => "Boxplot",
+            GeometryKind::Violin => "Violin",
+            GeometryKind::Density => "Density",
+            GeometryKind::Ribbon => "Ribbon",
+            GeometryKind::Tile => "Tile",
+            GeometryKind::HLine => "HLine",
+            GeometryKind::VLine => "VLine",
+            GeometryKind::Rug => "Rug",
+            GeometryKind::Area => "Area",
+            GeometryKind::Text => "Text",
+            GeometryKind::Segment => "Segment",
+            GeometryKind::Geo => "Geo",
+        }
+    }
+
+    /// Stable CSS suffix for rendered geometry layer classes.
+    pub fn css_class(self) -> &'static str {
+        match self {
+            GeometryKind::Point => "point",
+            GeometryKind::Line => "line",
+            GeometryKind::Path => "path",
+            GeometryKind::Bar => "bar",
+            GeometryKind::Rect => "rect",
+            GeometryKind::Histogram => "histogram",
+            GeometryKind::FreqPoly => "freqpoly",
+            GeometryKind::Bin2D => "bin2d",
+            GeometryKind::HexBin => "hexbin",
+            GeometryKind::Smooth => "smooth",
+            GeometryKind::Boxplot => "boxplot",
+            GeometryKind::Violin => "violin",
+            GeometryKind::Density => "density",
+            GeometryKind::Ribbon => "ribbon",
+            GeometryKind::Tile => "tile",
+            GeometryKind::HLine => "hline",
+            GeometryKind::VLine => "vline",
+            GeometryKind::Rug => "rug",
+            GeometryKind::Area => "area",
+            GeometryKind::Text => "text",
+            GeometryKind::Segment => "segment",
+            GeometryKind::Geo => "geo",
+        }
+    }
+}
+
 /// A binding from an aesthetic to a data column (spec §13.6).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AestheticMapping {
