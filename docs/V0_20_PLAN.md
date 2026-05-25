@@ -25,7 +25,8 @@ v0.20.0 is a **language versioning and reuse** release: give source files a
 version declaration, introduce a disciplined feature-gate mechanism, and finish
 small expressive gaps that have been explicitly deferred: reusable style
 fragments, calendar-aware temporal bins, gradient stop positions, and richer
-escape handling.
+escape handling. It also turns temporal parsing and display formats from loose
+implementation choices into explicit, testable contracts.
 
 The release is intentionally about source-language ergonomics, not data
 backends or rendering engines.
@@ -39,6 +40,9 @@ The plan/spec audit found:
   first cut and property bags needed a separate design.
 - v0.2/v0.3 deferred calendar-aware bin intervals such as
   `interval: "month"`.
+- Temporal inference currently recognizes only the original RFC3339/ISO-shaped
+  inputs, and temporal label formats are examples rather than a settled renderer
+  contract.
 - v0.3 implemented evenly spaced color gradients but deferred gradient stop
   positions.
 - The spec mentions Unicode string escapes and advanced quoted-identifier escape
@@ -83,6 +87,10 @@ empty except for new examples.
    `Histogram`, not a new date arithmetic language.
 4. **Gradient positions must stay deterministic.** Explicit positions augment
    existing stop arrays without changing default interpolation.
+5. **Temporal formats are data/render contracts.** Adding an input format means
+   extending data type inference; adding a display format means extending
+   deterministic renderer label formatting, not adding source-language date
+   arithmetic.
 
 ## v0.20.0 Must
 
@@ -129,7 +137,7 @@ Acceptance criteria:
   them for the receiving property context.
 - LSP rename, references, completion, hover, and formatter support the new form.
 
-### 4. Calendar-aware bin intervals
+### 4. Calendar-aware temporal intervals and formats
 
 Status: Planned.
 
@@ -138,10 +146,20 @@ Acceptance criteria:
 - `Bin` and `Histogram` accept a temporal interval option such as
   `interval: "month"` for date/datetime inputs.
 - Supported intervals are enumerated in the spec before implementation.
+- The spec names the exact additional date/datetime input format promoted in
+  v0.20 and whether it is accepted for date-only values, datetimes, or both.
+- Temporal inference accepts the promoted input format deterministically without
+  falling back to locale-dependent parsing or local system time.
+- The spec names the exact temporal display format promoted in v0.20 and the
+  axis/guide contexts where the renderer uses it.
+- Temporal display formatting is deterministic across locales and time zones,
+  and it preserves the date-only versus datetime distinction.
 - Interval assignment is deterministic across time zones and does not depend on
   local system time.
 - Numeric binning behavior remains unchanged.
 - Tests cover date-only, naive datetime, and offset-aware datetime inputs.
+- Tests cover accepted and rejected examples of the promoted input format plus
+  snapshot coverage for the promoted display format.
 - Temporal axes use nice calendar ticks and labels where the new interval model
   gives the renderer enough information to do so deterministically.
 
@@ -179,8 +197,8 @@ Acceptance criteria:
 
 - Workspace and VS Code versions are bumped to `0.20.0` when the release branch
   is ready.
-- Spec §6, §7, §9, §15, §16, §20, §21, §26, and §30 are updated before shipped
-  syntax is marked complete.
+- Spec §6, §7, §9, §10, §15, §16, §19, §20, §21, §26, and §30 are updated
+  before shipped syntax is marked complete.
 - README and examples demonstrate each promoted source feature.
 - Examples are regenerated with `./examples/generate.sh`.
 
@@ -224,7 +242,7 @@ formatter, and editor support.
 - Source-level version declarations.
 - Feature gate declaration model.
 - Reusable style fragments.
-- Calendar-aware bin intervals.
+- Calendar-aware temporal intervals and formats.
 - Gradient stop positions.
 - Unicode and quoted-identifier escape expansion.
 - Spec, plan, and example hygiene.
@@ -244,7 +262,8 @@ formatter, and editor support.
 1. Add parser/formatter fixtures for the source header and style fragments.
 2. Implement version declarations and feature gate parsing before gated features.
 3. Add style fragments with semantic and LSP support.
-4. Add temporal interval bins and gradient stop positions.
+4. Add temporal input parsing, temporal display formatting, interval bins, and
+   gradient stop positions.
 5. Expand escape handling.
 6. Update specs, examples, README, and VS Code grammar.
 7. Run formatter, clippy, workspace tests, regenerate examples, and review
