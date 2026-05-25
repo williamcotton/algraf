@@ -2181,23 +2181,42 @@ The LSP SHOULD cap schema preview read size.
 
 ### 10.9 Schema Cache
 
-The LSP maintains schema cache by data source path.
+A schema cache maps a data source to its resolved schema. Since version 0.16
+the cache is owned by the `driver` crate so the LSP, tests, and future callers
+share one keying and invalidation policy; the LSP holds a concrete instance
+(spec §21.3). The cache stores schemas and load errors only — never full data
+frames.
 
-Cache key SHOULD include:
+The cache key (`DataSourceKey`) MUST include the resolved source path and the
+explicit source-constructor format policy, so the same path read as inferred CSV
+and as `GeoJson(...)` occupy distinct slots. The path SHOULD be normalized
+(lexically, without consulting the filesystem) so equivalent spellings share one
+slot.
 
-absolute path
-
-last modified timestamp
+Cache validity is decided by a separate source fingerprint
+(`SourceFingerprint`), which SHOULD include:
 
 file size
 
+last modified timestamp
+
 optional content hash
 
-The cache MUST invalidate when the source file changes.
+The cache MUST invalidate when the source file changes: a cached schema is
+reused only when a freshly observed fingerprint equals the one stored when the
+entry was created. Invalidation MUST be conservative — when metadata is
+unavailable or ambiguous (for example a missing or unreadable file), the cache
+MUST NOT serve the entry and the source is reloaded.
 
-The cache SHOULD degrade gracefully when file watching is unavailable.
+The cache MUST keep load outcomes distinguishable: a missing file, an unreadable
+file, malformed data, and a successful schema are stored as distinct results
+(cached errors carry their stable diagnostic code and message; spec §23.4).
 
 The cache MUST distinguish parse errors from missing files.
+
+The cache implementation MUST be injectable: callers that want fresh one-shot
+loads (for example CLI render) MAY use a no-op cache, and the LSP uses an
+in-memory, fingerprint-validated cache.
 
 Completion requests SHOULD return cached schemas if available.
 
@@ -5885,9 +5904,14 @@ Recommended state:
 pub struct Backend {
     client: Client,
     documents: DashMap<Url, DocumentState>,
-    schema_cache: DashMap<DataSourceKey, SchemaState>,
+    schema_cache: Arc<InMemorySchemaCache>,
 }
 ```
+
+Since version 0.16 the schema cache is the driver-owned, fingerprint-validated
+service of §10.9 rather than an LSP-local map; `DataSourceKey` and the cached
+schema/error types live in `driver`. Primary and named-table schema resolution
+both go through this one cache, so they share keying and invalidation.
 
 Document state:
 
@@ -6550,9 +6574,17 @@ source-expression extraction
 
 source-relative path resolution
 
+a load-free chart data plan (`ChartDataPlan`) that records primary location,
+named table locations, explicit formats, source spans, and the dependency
+inventory before any byte load; loading and schema resolution execute from it
+
 data and schema loading orchestration
 
 injectable synchronous data I/O provider and OS-backed compatibility adapter
+
+a shared, injectable schema cache service keyed by `DataSourceKey` and validated
+by `SourceFingerprint` (spec §10.9), storing schemas and load errors rather than
+full frames
 
 chart data dependency inventory
 

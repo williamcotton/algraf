@@ -3,7 +3,10 @@ use std::sync::Arc;
 
 use algraf_core::Diagnostic as CoreDiagnostic;
 use algraf_data::{ColumnDef, DEFAULT_SCHEMA_SAMPLE};
-use algraf_driver::{load_schema_path, resolve_named_table_sources, LoadContext};
+use algraf_driver::{
+    resolve_named_table_sources, resolve_schema_cached, CachedSchema, InMemorySchemaCache,
+    LoadContext, OsDriverIo,
+};
 use algraf_semantics::analyze_with_tables;
 use algraf_syntax::ast::Root;
 use algraf_syntax::{format, parse, SourceExpr, SyntaxNode};
@@ -30,8 +33,7 @@ use crate::code_actions::code_actions_for;
 use crate::completion::{completion_context, completion_items};
 use crate::diagnostics::diagnostic_to_lsp;
 use crate::document::{
-    schema_error_from_driver, source_input_for_uri, AnalysisState, DataSourceKey, DocumentState,
-    ParseState, SchemaResolution, SchemaState,
+    source_input_for_uri, AnalysisState, DocumentState, ParseState, SchemaResolution,
 };
 use crate::hover::hover_at;
 use crate::inlay::inlay_hints_for;
@@ -45,7 +47,9 @@ use crate::symbols::document_symbols;
 pub struct Backend {
     pub(crate) client: Client,
     pub(crate) documents: Arc<DashMap<Url, DocumentState>>,
-    pub(crate) schema_cache: Arc<DashMap<DataSourceKey, SchemaState>>,
+    /// Shared, fingerprint-validated schema cache owned by the driver
+    /// (spec §10.9). Primary and named-table schema resolution use one policy.
+    pub(crate) schema_cache: Arc<InMemorySchemaCache>,
     /// Per-document preview request counter. A newer request supersedes older
     /// in-flight preview tasks for the same document (spec §21.13, §21.18).
     pub(crate) preview_generations: Arc<DashMap<Url, u64>>,
@@ -56,7 +60,7 @@ impl Backend {
         Backend {
             client,
             documents: Arc::new(DashMap::new()),
-            schema_cache: Arc::new(DashMap::new()),
+            schema_cache: Arc::new(InMemorySchemaCache::new()),
             preview_generations: Arc::new(DashMap::new()),
         }
     }
@@ -154,60 +158,30 @@ impl Backend {
             return SchemaResolution::MissingOrInvalid;
         };
         let path = resolved.path;
-        let format = resolved.format;
-        let key = DataSourceKey::new(path.clone(), format);
 
-        if let Some(cached) = self.schema_cache.get(&key) {
-            return match cached.value() {
-                SchemaState::Ready {
-                    schema,
-                    provisional: _,
-                } => SchemaResolution::Ready {
-                    schema: schema.clone(),
-                    path: Some(path),
-                },
-                SchemaState::Error { code, message } => SchemaResolution::Unavailable {
-                    diagnostic: CoreDiagnostic::error(*code, message.clone(), *span),
-                },
-            };
-        }
-
-        let loaded = load_schema_path(&path, format, DEFAULT_SCHEMA_SAMPLE, LoadContext::Primary);
-
-        match loaded {
-            Ok(schema) => {
-                self.schema_cache.insert(
-                    key,
-                    SchemaState::Ready {
-                        schema: schema.clone(),
-                        provisional: true,
-                    },
-                );
-                SchemaResolution::Ready {
-                    schema,
-                    path: Some(path),
-                }
-            }
-            Err(err) => {
-                let (code, message) = schema_error_from_driver(&err);
-                self.schema_cache.insert(
-                    key,
-                    SchemaState::Error {
-                        code,
-                        message: message.clone(),
-                    },
-                );
-                SchemaResolution::Unavailable {
-                    diagnostic: CoreDiagnostic::error(code, message, *span),
-                }
-            }
+        match resolve_schema_cached(
+            self.schema_cache.as_ref(),
+            &OsDriverIo,
+            &path,
+            resolved.format,
+            DEFAULT_SCHEMA_SAMPLE,
+            LoadContext::Primary,
+        ) {
+            CachedSchema::Ready(schema) => SchemaResolution::Ready {
+                schema,
+                path: Some(path),
+            },
+            CachedSchema::Error { code, message } => SchemaResolution::Unavailable {
+                diagnostic: CoreDiagnostic::error(code, message, *span),
+            },
         }
     }
 
     /// Resolve schemas for chart-scoped `Table name = "..."` declarations in the
-    /// first chart, reusing the schema cache (spec §10.x). Tables whose file is
-    /// missing or unreadable are simply omitted; their column references then
-    /// resolve as unknown, mirroring a missing primary source.
+    /// first chart, reusing the shared schema cache (spec §10.9, §10.10) along
+    /// the same fingerprint-validated path as the primary schema. Tables whose
+    /// file is missing or unreadable are simply omitted; their column references
+    /// then resolve as unknown, mirroring a missing primary source.
     fn resolve_table_schemas(
         &self,
         uri: &Url,
@@ -219,37 +193,17 @@ impl Backend {
         };
         let source_input = source_input_for_uri(uri);
         for resolved in resolve_named_table_sources(&chart, &source_input, None) {
-            let key = DataSourceKey::new(resolved.path.clone(), resolved.format);
-            if let Some(cached) = self.schema_cache.get(&key) {
-                if let SchemaState::Ready { schema, .. } = cached.value() {
-                    out.insert(resolved.name, schema.clone());
-                }
-                continue;
-            }
-            let loaded = load_schema_path(
+            if let CachedSchema::Ready(schema) = resolve_schema_cached(
+                self.schema_cache.as_ref(),
+                &OsDriverIo,
                 &resolved.path,
                 resolved.format,
                 DEFAULT_SCHEMA_SAMPLE,
                 LoadContext::Table {
                     name: resolved.name.clone(),
                 },
-            );
-            match loaded {
-                Ok(schema) => {
-                    self.schema_cache.insert(
-                        key,
-                        SchemaState::Ready {
-                            schema: schema.clone(),
-                            provisional: true,
-                        },
-                    );
-                    out.insert(resolved.name, schema);
-                }
-                Err(err) => {
-                    let (code, message) = schema_error_from_driver(&err);
-                    self.schema_cache
-                        .insert(key, SchemaState::Error { code, message });
-                }
+            ) {
+                out.insert(resolved.name, schema);
             }
         }
         out

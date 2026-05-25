@@ -1056,6 +1056,90 @@ async fn preview_reports_missing_data_source() {
     assert!(value["message"].as_str().unwrap().contains("data source"));
 }
 
+async fn diagnostic_messages(socket: &mut ClientSocket) -> Vec<String> {
+    let notification = next_client_notification(socket).await;
+    assert_eq!(notification.method(), "textDocument/publishDiagnostics");
+    let params: PublishDiagnosticsParams =
+        serde_json::from_value(notification.params().unwrap().clone()).unwrap();
+    params
+        .diagnostics
+        .into_iter()
+        .map(|diagnostic| diagnostic.message)
+        .collect()
+}
+
+#[tokio::test]
+async fn primary_schema_cache_invalidates_when_data_file_changes() {
+    let dir = temp_project("primary-cache-invalidation");
+    let source_path = dir.join("chart.ag");
+    let data_path = dir.join("data.csv");
+    // v1 has a `sales` column, so `Space(region * sales)` resolves cleanly.
+    std::fs::write(&data_path, "region,sales\nNorth,10\n").unwrap();
+
+    let source =
+        "Chart(data: \"data.csv\") {\n    Space(region * sales) {\n        Point()\n    }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, mut socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+    let before = diagnostic_messages(&mut socket).await;
+    assert!(
+        !before
+            .iter()
+            .any(|message| message.contains("unknown column `sales`")),
+        "{before:?}"
+    );
+
+    // The file changes underneath the editor: `sales` is gone and the byte
+    // length differs, so the cached schema must be invalidated and reloaded.
+    std::fs::write(&data_path, "region,total_amount\nNorth,10\n").unwrap();
+    change_document(&mut service, uri, 2, source).await;
+    let after = diagnostic_messages(&mut socket).await;
+    assert!(
+        after
+            .iter()
+            .any(|message| message.contains("unknown column `sales`")),
+        "{after:?}"
+    );
+}
+
+#[tokio::test]
+async fn named_table_schema_cache_invalidates_when_file_changes() {
+    let dir = temp_project("named-table-cache-invalidation");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "x,y\n1,2\n").unwrap();
+    let table_path = dir.join("cities.csv");
+    // v1 exposes `lat`/`lon`, so the table-bound space resolves cleanly.
+    std::fs::write(&table_path, "lat,lon\n1,2\n").unwrap();
+
+    let source = "Chart(data: \"data.csv\") {\n    Table cities = \"cities.csv\"\n    Space(lat * lon, data: cities) {\n        Point()\n    }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, mut socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+    let before = diagnostic_messages(&mut socket).await;
+    assert!(
+        !before
+            .iter()
+            .any(|message| message.contains("unknown column `lat`")),
+        "{before:?}"
+    );
+
+    // The named table's file changes: `lat`/`lon` are renamed and the byte
+    // length differs, so the shared cache must reload the table schema too.
+    std::fs::write(&table_path, "latitude,longitude\n1,2\n").unwrap();
+    change_document(&mut service, uri, 2, source).await;
+    let after = diagnostic_messages(&mut socket).await;
+    assert!(
+        after
+            .iter()
+            .any(|message| message.contains("unknown column `lat`")),
+        "{after:?}"
+    );
+}
+
 #[test]
 fn lsp_position_helper_counts_utf16_code_units() {
     let source = "Chart(data: \"é.csv\") {\n    Space(a * 💧) {}\n}";

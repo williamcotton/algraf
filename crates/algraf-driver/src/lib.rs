@@ -3,6 +3,7 @@
 //! The driver is intentionally non-UI: it does not parse command-line flags,
 //! print diagnostics, choose output filenames, rasterize PNGs, or speak LSP.
 
+mod cache;
 mod error;
 mod io;
 mod loading;
@@ -10,6 +11,10 @@ mod prepare;
 mod report;
 mod resolution;
 
+pub use cache::{
+    fingerprint_path, resolve_schema_cached, CachedSchema, DataSourceKey, InMemorySchemaCache,
+    NoSchemaCache, SchemaCache, SourceFingerprint,
+};
 pub use error::{DriverError, LoadContext};
 pub use io::{DriverIo, DriverPathMetadata, DriverShapefileBundle, OsDriverIo};
 pub use loading::{
@@ -26,10 +31,11 @@ pub use report::{
     PreparationReport, ReportPhase,
 };
 pub use resolution::{
-    data_dependencies, data_location, resolve_chart_data_path, resolve_document_data_path,
-    resolve_named_table_sources, resolve_path, resolve_source_expr_path, source_base_dir,
-    source_format_to_data, DataDependency, DataDependencyKind, DataLocation, ResolvedSource,
-    ResolvedTableSource, SourceInput,
+    data_dependencies, data_location, plan_chart_data, resolve_chart_data_path,
+    resolve_document_data_path, resolve_named_table_sources, resolve_path,
+    resolve_source_expr_path, source_base_dir, source_format_to_data, ChartDataPlan,
+    DataDependency, DataDependencyKind, DataLocation, ResolvedSource, ResolvedTableSource,
+    SourceInput,
 };
 
 use algraf_syntax::ast::{ChartBlock, Root};
@@ -75,6 +81,7 @@ mod tests {
     use std::fs;
     use std::io;
     use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_dir(test: &str) -> PathBuf {
@@ -145,6 +152,42 @@ mod tests {
                 len: bytes.len() as u64,
                 modified: None,
             })
+        }
+    }
+
+    /// Wraps a [`MemoryIo`] and counts `read_path` calls so cache tests can
+    /// distinguish a cache hit (no read) from a reload (one read).
+    #[derive(Debug)]
+    struct CountingIo {
+        inner: MemoryIo,
+        reads: AtomicUsize,
+    }
+
+    impl CountingIo {
+        fn new(inner: MemoryIo) -> CountingIo {
+            CountingIo {
+                inner,
+                reads: AtomicUsize::new(0),
+            }
+        }
+
+        fn reads(&self) -> usize {
+            self.reads.load(Ordering::SeqCst)
+        }
+    }
+
+    impl DriverIo for CountingIo {
+        fn read_path(&self, path: &Path) -> io::Result<Vec<u8>> {
+            self.reads.fetch_add(1, Ordering::SeqCst);
+            self.inner.read_path(path)
+        }
+
+        fn read_stdin(&self) -> io::Result<Vec<u8>> {
+            self.inner.read_stdin()
+        }
+
+        fn metadata(&self, path: &Path) -> io::Result<DriverPathMetadata> {
+            self.inner.metadata(path)
         }
     }
 
@@ -874,5 +917,166 @@ Chart(data: "b.csv") { Space(x * y) { Line() } }"#,
         let (code, message) = crate::driver_error_code_message(&usage);
         assert_eq!(code, codes::E1006);
         assert_eq!(message, "stdin only");
+    }
+
+    #[test]
+    fn data_source_key_normalizes_equivalent_paths() {
+        let dotted = DataSourceKey::new("a/./b.csv", None);
+        let plain = DataSourceKey::new("a/b.csv", None);
+        let parented = DataSourceKey::new("a/c/../b.csv", None);
+
+        assert_eq!(dotted, plain);
+        assert_eq!(parented, plain);
+        assert_eq!(plain.path(), Path::new("a/b.csv"));
+    }
+
+    #[test]
+    fn data_source_key_distinguishes_explicit_format() {
+        let inferred = DataSourceKey::new("a/data.geojson", None);
+        let explicit = DataSourceKey::new("a/data.geojson", Some(Format::GeoJson));
+
+        assert_ne!(inferred, explicit);
+        assert_eq!(explicit.format(), Some(Format::GeoJson));
+    }
+
+    #[test]
+    fn fingerprint_is_none_for_missing_metadata_and_tracks_size() {
+        let path = PathBuf::from("/mem/data.csv");
+        assert!(fingerprint_path(&MemoryIo::default(), &path).is_none());
+
+        let small = MemoryIo::default().with_file(&path, b"x\n1\n".as_slice());
+        let large = MemoryIo::default().with_file(&path, b"x,y\n1,2\n3,4\n".as_slice());
+        let small_fp = fingerprint_path(&small, &path).unwrap();
+        let large_fp = fingerprint_path(&large, &path).unwrap();
+
+        assert_eq!(small_fp.len, 4);
+        assert_ne!(small_fp, large_fp);
+    }
+
+    #[test]
+    fn chart_data_plan_records_dependencies_without_loading() {
+        // No files are written: a plan that loaded bytes would fail here.
+        let dir = temp_dir("plan-no-load");
+        let source = SourceInput::Path(dir.join("chart.ag"));
+        let chart = parse_chart(
+            r#"Chart(data: "primary.csv") {
+                Table cities = GeoJson("cities.geojson")
+                Space(x * y) { Point() }
+            }"#,
+        );
+
+        let plan = plan_chart_data(&chart, &source, None, None, false).unwrap();
+
+        assert!(matches!(
+            &plan.primary,
+            Some(DataLocation::Path { path, .. }) if path == &dir.join("primary.csv")
+        ));
+        assert!(plan.primary_span().is_some());
+        let deps = plan.data_dependencies();
+        assert_eq!(deps.len(), 2);
+        assert_eq!(deps[0].kind, DataDependencyKind::Primary);
+        assert_eq!(
+            deps[1].kind,
+            DataDependencyKind::Table {
+                name: "cities".to_string()
+            }
+        );
+        assert_eq!(deps[1].format, Some(Format::GeoJson));
+    }
+
+    #[test]
+    fn schema_cache_reuses_unchanged_source() {
+        let path = PathBuf::from("/mem/data.csv");
+        let io = CountingIo::new(MemoryIo::default().with_file(&path, b"x,y\n1,2\n".as_slice()));
+        let cache = InMemorySchemaCache::new();
+
+        let first = resolve_schema_cached(&cache, &io, &path, None, 10, LoadContext::Primary);
+        let second = resolve_schema_cached(&cache, &io, &path, None, 10, LoadContext::Primary);
+
+        assert!(matches!(first, CachedSchema::Ready(ref s) if s[0].name == "x"));
+        assert!(matches!(second, CachedSchema::Ready(_)));
+        assert_eq!(
+            io.reads(),
+            1,
+            "an unchanged source should load exactly once"
+        );
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn schema_cache_reloads_changed_source() {
+        let path = PathBuf::from("/mem/data.csv");
+        let cache = InMemorySchemaCache::new();
+
+        let before =
+            CountingIo::new(MemoryIo::default().with_file(&path, b"x,y\n1,2\n".as_slice()));
+        let first = resolve_schema_cached(&cache, &before, &path, None, 10, LoadContext::Primary);
+
+        // A different byte length yields a different fingerprint, so the entry
+        // must be reloaded rather than served stale.
+        let after =
+            CountingIo::new(MemoryIo::default().with_file(&path, b"x,y,z\n1,2,3\n".as_slice()));
+        let second = resolve_schema_cached(&cache, &after, &path, None, 10, LoadContext::Primary);
+
+        let CachedSchema::Ready(first) = first else {
+            panic!("expected a ready schema");
+        };
+        let CachedSchema::Ready(second) = second else {
+            panic!("expected a ready schema");
+        };
+        assert_eq!(first.len(), 2);
+        assert_eq!(second.len(), 3, "a changed source should reload");
+        assert_eq!(after.reads(), 1);
+    }
+
+    #[test]
+    fn schema_cache_keeps_error_kinds_distinct_and_never_serves_them_stale() {
+        let path = PathBuf::from("/mem/data.csv");
+        let cache = InMemorySchemaCache::new();
+
+        // Missing file: metadata is unavailable, so the fingerprint is `None`.
+        let missing_io = CountingIo::new(MemoryIo::default());
+        let missing =
+            resolve_schema_cached(&cache, &missing_io, &path, None, 10, LoadContext::Primary);
+        match missing {
+            CachedSchema::Error { code, .. } => assert_eq!(code, codes::E1005),
+            _ => panic!("a missing file should resolve to an error"),
+        }
+
+        // The file later appears: a `None` fingerprint must not serve the stale
+        // missing-file error, so the now-present schema is loaded.
+        let present_io =
+            CountingIo::new(MemoryIo::default().with_file(&path, b"x,y\n1,2\n".as_slice()));
+        let present =
+            resolve_schema_cached(&cache, &present_io, &path, None, 10, LoadContext::Primary);
+        assert!(matches!(present, CachedSchema::Ready(_)));
+        assert_eq!(present_io.reads(), 1);
+    }
+
+    #[test]
+    fn schema_cache_reports_malformed_data_distinctly() {
+        let path = PathBuf::from("/mem/bad.csv");
+        let io = CountingIo::new(
+            MemoryIo::default().with_file(&path, b"x,y\n\"unterminated,2\n".as_slice()),
+        );
+        let cache = InMemorySchemaCache::new();
+
+        let result = resolve_schema_cached(&cache, &io, &path, None, 10, LoadContext::Primary);
+        match result {
+            CachedSchema::Error { code, .. } => assert_eq!(code, codes::E1006),
+            _ => panic!("malformed CSV should resolve to an error"),
+        }
+    }
+
+    #[test]
+    fn no_schema_cache_always_reloads() {
+        let path = PathBuf::from("/mem/data.csv");
+        let io = CountingIo::new(MemoryIo::default().with_file(&path, b"x,y\n1,2\n".as_slice()));
+        let cache = NoSchemaCache;
+
+        resolve_schema_cached(&cache, &io, &path, None, 10, LoadContext::Primary);
+        resolve_schema_cached(&cache, &io, &path, None, 10, LoadContext::Primary);
+
+        assert_eq!(io.reads(), 2, "a no-op cache should reload every time");
     }
 }

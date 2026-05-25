@@ -1,6 +1,6 @@
 # Algraf v0.16.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_15_PLAN.md`](V0_15_PLAN.md)
@@ -88,7 +88,12 @@ change what happens for any checked-in example.
 
 ### 1. Shared data source key and fingerprint
 
-Status: Planned.
+Status: Done. `DataSourceKey` and `SourceFingerprint` live in
+`crates/algraf-driver/src/cache.rs`, shared by driver and LSP. The key carries
+the normalized path plus explicit format policy; the fingerprint carries size,
+last-modified time, and an optional content hash. Tests in `algraf-driver`
+cover path normalization, explicit format differences, and missing/changed
+metadata.
 
 Acceptance criteria:
 
@@ -103,7 +108,11 @@ Acceptance criteria:
 
 ### 2. Driver schema cache service
 
-Status: Planned.
+Status: Done. The `SchemaCache` trait, `InMemorySchemaCache`, `NoSchemaCache`,
+and `resolve_schema_cached` store schemas and cached `(code, message)` errors —
+never frames — and invalidate by fingerprint. Missing, unreadable, malformed,
+and successful results stay distinct; the cache is injectable so CLI render can
+opt out with `NoSchemaCache`.
 
 Acceptance criteria:
 
@@ -119,7 +128,11 @@ Acceptance criteria:
 
 ### 3. Public chart data plan
 
-Status: Planned.
+Status: Done. The former private `ResolvedChartInputs` is now the public
+`ChartDataPlan`, built by `plan_chart_data` without loading bytes. It records the
+primary location, named table locations, explicit formats, the primary source
+span, and a dependency inventory; `prepare_chart` loads from it, and
+`data_dependencies` remains as a compatibility wrapper.
 
 Acceptance criteria:
 
@@ -134,7 +147,11 @@ Acceptance criteria:
 
 ### 4. LSP cache migration
 
-Status: Planned.
+Status: Done. The backend holds an `Arc<InMemorySchemaCache>`; both primary and
+named-table schema resolution call `resolve_schema_cached`, so they share one
+fingerprint-validated path. Diagnostic codes and messages are unchanged (the
+driver still owns the mapping), and cached schemas now invalidate when the
+underlying file changes.
 
 Acceptance criteria:
 
@@ -149,7 +166,12 @@ Acceptance criteria:
 
 ### 5. Phase-boundary tests
 
-Status: Planned.
+Status: Done. Driver tests prove `plan_chart_data` records dependencies without
+loading; cache tests prove unchanged sources reuse schemas and changed sources
+reload (counting I/O), and that error kinds stay distinct and are never served
+stale. LSP tests cover primary and named-table cache invalidation. CLI one-shot
+behavior is exercised by the existing `algraf-cli` tests and example generation
+stays byte-for-byte stable.
 
 Acceptance criteria:
 
@@ -161,7 +183,11 @@ Acceptance criteria:
 
 ### 6. Spec, plan, and example hygiene
 
-Status: Planned.
+Status: Done. Workspace and VS Code versions are bumped to `0.16.0`. Spec §10.9
+now describes the driver-owned, fingerprint-validated cache; §21.3 reflects the
+`Arc<InMemorySchemaCache>` backend field; §23.2 lists the chart data plan and
+schema cache service under the driver's responsibilities. Examples were
+regenerated with `./examples/generate.sh` and `git diff -- examples` is empty.
 
 Acceptance criteria:
 
@@ -176,18 +202,16 @@ Acceptance criteria:
 
 ### Analysis reuse audit
 
-Status: Planned.
-
-Measure where LSP analysis still repeats work after schema caching is shared.
-Record follow-up candidates without introducing a query database.
+Status: Deferred to a later release. Schema caching is now shared, but a formal
+audit of remaining repeated LSP analysis work was not undertaken this release.
+The most visible remaining duplication: `analyze_document` re-parses and
+re-resolves named-table schemas on every change even when only unrelated text
+changed, and `did_change` always reanalyzes the whole document.
 
 ### Lightweight benchmarks
 
-Status: Planned.
-
-Add focused benchmarks or timing tests for schema resolution if the project has a
-stable benchmark harness by this point. Do not make CI brittle on machine-specific
-latency thresholds.
+Status: Deferred to a later release. The project still has no stable benchmark
+harness, so adding latency tests now would risk machine-specific CI flakiness.
 
 ## Explicitly Deferred Past v0.16.0
 

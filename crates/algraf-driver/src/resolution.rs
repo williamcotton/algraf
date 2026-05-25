@@ -301,15 +301,33 @@ pub fn data_location(
         .data_location(source_expr)
 }
 
-#[derive(Debug)]
-pub(crate) struct ResolvedChartInputs {
-    pub(crate) source: SourceExpr,
-    pub(crate) primary: Option<DataLocation>,
-    pub(crate) named_tables: Vec<ResolvedTableSource>,
+/// A resolved, load-free plan of one chart's data dependencies (spec §10.9).
+///
+/// Building a plan performs source-expression extraction, `--data` override
+/// handling, and source-relative path resolution, but it reads no data bytes.
+/// Loading and schema resolution then execute *from* the plan, so callers can
+/// inspect what a chart will touch — primary location, named tables, explicit
+/// formats, and source spans — before any expensive I/O starts.
+#[derive(Debug, Clone)]
+pub struct ChartDataPlan {
+    /// The chart's primary data source expression (carries its span).
+    pub source: SourceExpr,
+    /// The resolved primary location, or `None` when the chart declares no
+    /// usable primary source.
+    pub primary: Option<DataLocation>,
+    /// Resolved chart-scoped named table sources, in declaration order.
+    pub named_tables: Vec<ResolvedTableSource>,
 }
 
-impl ResolvedChartInputs {
-    pub(crate) fn data_dependencies(&self) -> Vec<DataDependency> {
+impl ChartDataPlan {
+    /// The span of the primary source expression, where the document records one.
+    pub fn primary_span(&self) -> Option<Span> {
+        self.source.span()
+    }
+
+    /// Every path-backed data dependency: primary first, then named tables in
+    /// declaration order. Stdin primaries contribute no path dependency.
+    pub fn data_dependencies(&self) -> Vec<DataDependency> {
         let primary = self.primary.iter().filter_map(|location| match location {
             DataLocation::Path { path, format } => Some(DataDependency {
                 kind: DataDependencyKind::Primary,
@@ -329,6 +347,20 @@ impl ResolvedChartInputs {
     }
 }
 
+/// Build a [`ChartDataPlan`] without loading any data bytes.
+pub fn plan_chart_data(
+    chart: &ChartBlock,
+    source: &SourceInput,
+    base_dir: Option<&Path>,
+    data_override: Option<&str>,
+    multi_chart: bool,
+) -> Result<ChartDataPlan, DriverError> {
+    resolve_chart_inputs(
+        chart,
+        DriverEnv::new(source, base_dir, data_override, multi_chart),
+    )
+}
+
 /// Resolve all path-backed data dependencies for one chart.
 pub fn data_dependencies(
     chart: &ChartBlock,
@@ -343,7 +375,7 @@ pub fn data_dependencies(
 pub(crate) fn resolve_chart_inputs(
     chart: &ChartBlock,
     env: DriverEnv<'_>,
-) -> Result<ResolvedChartInputs, DriverError> {
+) -> Result<ChartDataPlan, DriverError> {
     let source = chart_data_source(chart);
     if env.multi_chart && (source.is_stdin() || env.data_override == Some("-")) {
         return Err(DriverError::Usage(
@@ -358,7 +390,7 @@ pub(crate) fn resolve_chart_inputs(
         Some(resolver.data_location(&source)?)
     };
 
-    Ok(ResolvedChartInputs {
+    Ok(ChartDataPlan {
         source,
         primary,
         named_tables: resolver.resolve_named_table_sources(chart),
