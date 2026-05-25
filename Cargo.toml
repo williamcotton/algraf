@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.18.0"
+version = "0.19.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/williamcotton/algraf"
@@ -46,7 +46,7 @@ shapefile = { version = "0.6", features = ["geo-types"] }
 proj4rs = "0.1"
 thiserror = "2"
 tower-lsp = "0.20"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "sync"] }
 dashmap = "6"
 insta = "1"
 pretty_assertions = "1"

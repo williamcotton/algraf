@@ -12,3 +12,6 @@ algraf-syntax = { workspace = true }
 algraf-data = { workspace = true }
 algraf-semantics = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

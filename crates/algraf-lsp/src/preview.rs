@@ -69,10 +69,7 @@ impl Backend {
 
         // If a newer request bumped the counter while we rendered, this output
         // is stale; report supersession rather than returning it (spec §21.13).
-        let superseded = self
-            .preview_generations
-            .get(&uri)
-            .is_some_and(|latest| *latest != generation);
+        let superseded = preview_superseded(&self.preview_generations, &uri, generation);
         if superseded {
             return Ok(PreviewResult::superseded(generation).with_data_paths(data_paths));
         }
@@ -84,6 +81,16 @@ impl Backend {
         };
         Ok(result.with_data_paths(data_paths))
     }
+}
+
+fn preview_superseded(
+    generations: &dashmap::DashMap<Url, u64>,
+    uri: &Url,
+    generation: u64,
+) -> bool {
+    generations
+        .get(uri)
+        .is_some_and(|latest| *latest != generation)
 }
 
 /// Parameters for the `algraf/preview` custom request.
@@ -204,6 +211,7 @@ fn render_preview(source: &str, source_input: SourceInput) -> Result<String, Str
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use tower_lsp::lsp_types::Url;
 
     fn input() -> SourceInput {
         SourceInput::Path(PathBuf::from("doc.ag"))
@@ -221,5 +229,15 @@ mod tests {
         // prepare rather than render, and the error is reported (not panicked).
         let source = "Chart(data: \"definitely-missing.csv\") {\n  Space(x * y) { Point() }\n}";
         assert!(render_preview(source, input()).is_err());
+    }
+
+    #[test]
+    fn preview_generation_detects_superseded_results() {
+        let generations = dashmap::DashMap::new();
+        let uri = Url::parse("file:///chart.ag").unwrap();
+        generations.insert(uri.clone(), 2);
+
+        assert!(preview_superseded(&generations, &uri, 1));
+        assert!(!preview_superseded(&generations, &uri, 2));
     }
 }

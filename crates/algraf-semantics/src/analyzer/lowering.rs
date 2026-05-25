@@ -7,8 +7,11 @@ use algraf_core::Span;
 use algraf_data::DataType;
 
 use super::context::Analyzer;
-use super::stats::{bin2d_output_schema, bin_boundary_dtype, bin_output_schema};
 use crate::ir::*;
+use crate::planning::{
+    bin2d_output_schema, bin_boundary_dtype, bin_output_schema, count_output_schema,
+    density_output_schema,
+};
 use algraf_core::{codes, Diagnostic};
 
 impl Analyzer<'_> {
@@ -265,16 +268,7 @@ impl Analyzer<'_> {
 
         let name = self.next_synthetic("density");
         let options = self.density_options(density);
-        let output_schema = vec![
-            ColumnDefIr {
-                name: "density_x".into(),
-                dtype: DataType::Float,
-            },
-            ColumnDefIr {
-                name: "density".into(),
-                dtype: DataType::Float,
-            },
-        ];
+        let output_schema = density_output_schema();
         let derive = DeriveIr {
             name: name.clone(),
             data: SpaceDataRef::Primary,
@@ -430,18 +424,12 @@ impl Analyzer<'_> {
 
         let name = self.next_synthetic("count");
 
-        // The Count derived schema: group columns (as-is) + a `count` integer.
-        let mut output_schema: Vec<ColumnDefIr> = group_cols
-            .iter()
-            .map(|c| ColumnDefIr {
-                name: c.name.clone(),
-                dtype: c.dtype,
-            })
-            .collect();
-        output_schema.push(ColumnDefIr {
-            name: "count".into(),
-            dtype: DataType::Integer,
-        });
+        let output_schema = count_output_schema(
+            &group_cols
+                .iter()
+                .map(|column| (*column).clone())
+                .collect::<Vec<_>>(),
+        );
 
         // The stat input frame is just the categorical key(s).
         let stat_input = if group_cols.len() == 1 {

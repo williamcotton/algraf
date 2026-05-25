@@ -66,7 +66,22 @@ impl Backend {
     }
 
     async fn upsert_document(&self, uri: Url, version: i32, text: String) {
-        let (state, diagnostics) = self.analyze_document(&uri, version, text);
+        let schema_cache = Arc::clone(&self.schema_cache);
+        let analysis_uri = uri.clone();
+        let fallback_schema = self
+            .document(&uri)
+            .and_then(|state| state.primary_schema)
+            .unwrap_or_default();
+        let outcome = tokio::task::spawn_blocking(move || {
+            analyze_document_blocking(&schema_cache, &analysis_uri, version, text, fallback_schema)
+        })
+        .await;
+        let Ok((state, diagnostics)) = outcome else {
+            self.client
+                .log_message(MessageType::ERROR, "Algraf document analysis task failed")
+                .await;
+            return;
+        };
         let lsp_diagnostics = diagnostics
             .iter()
             .map(|d| diagnostic_to_lsp(&state.text, &uri, d))
@@ -77,141 +92,141 @@ impl Backend {
             .await;
     }
 
-    fn analyze_document(
-        &self,
-        uri: &Url,
-        version: i32,
-        text: String,
-    ) -> (DocumentState, Vec<CoreDiagnostic>) {
-        let parsed = parse(&text);
-        let syntax = parsed.syntax();
-        let parse_diagnostics = parsed.diagnostics().to_vec();
-        let data_source = algraf_driver::extract_data_source(&syntax);
-        let schema = self.resolve_schema(uri, &data_source);
-        // Resolve chart-scoped named-table schemas so column references inside
-        // `Space(..., data: tableName)` resolve in the editor (spec §10.x).
-        let table_schemas = self.resolve_table_schemas(uri, &syntax);
-
-        let mut diagnostics = parse_diagnostics.clone();
-        let analysis;
-        let mut primary_schema = None;
-        let mut data_path = None;
-
-        match schema {
-            SchemaResolution::Ready { schema, path } => {
-                let result = analyze_with_tables(&syntax, &schema, &table_schemas);
-                diagnostics.extend(result.diagnostics.clone());
-                analysis = Some(AnalysisState {
-                    ir: result.ir,
-                    diagnostics: result.diagnostics,
-                });
-                primary_schema = Some(schema);
-                data_path = path;
-            }
-            SchemaResolution::MissingOrInvalid => {
-                let result = analyze_with_tables(&syntax, &[], &table_schemas);
-                diagnostics.extend(result.diagnostics.clone());
-                analysis = Some(AnalysisState {
-                    ir: result.ir,
-                    diagnostics: result.diagnostics,
-                });
-            }
-            SchemaResolution::Unavailable { diagnostic } => {
-                diagnostics.push(diagnostic);
-                let fallback_schema = self
-                    .document(uri)
-                    .and_then(|state| state.primary_schema)
-                    .unwrap_or_default();
-                let result = analyze_with_tables(&syntax, &fallback_schema, &table_schemas);
-                diagnostics.extend(result.diagnostics.clone());
-                analysis = Some(AnalysisState {
-                    ir: result.ir,
-                    diagnostics: result.diagnostics,
-                });
-                primary_schema = (!fallback_schema.is_empty()).then_some(fallback_schema);
-            }
-        }
-
-        (
-            DocumentState {
-                text,
-                version,
-                parse: Some(ParseState {
-                    diagnostics: parse_diagnostics,
-                }),
-                analysis,
-                primary_schema,
-                data_path,
-            },
-            diagnostics,
-        )
-    }
-
-    fn resolve_schema(&self, uri: &Url, data_source: &SourceExpr) -> SchemaResolution {
-        let SourceExpr::Path { span, .. } = data_source else {
-            return SchemaResolution::MissingOrInvalid;
-        };
-        let source_input = source_input_for_uri(uri);
-        let Some(resolved) =
-            algraf_driver::resolve_source_expr_path(data_source, &source_input, None)
-        else {
-            return SchemaResolution::MissingOrInvalid;
-        };
-        let path = resolved.path;
-
-        match resolve_schema_cached(
-            self.schema_cache.as_ref(),
-            &OsDriverIo,
-            &path,
-            resolved.format,
-            DEFAULT_SCHEMA_SAMPLE,
-            LoadContext::Primary,
-        ) {
-            CachedSchema::Ready(schema) => SchemaResolution::Ready {
-                schema,
-                path: Some(path),
-            },
-            CachedSchema::Error { code, message } => SchemaResolution::Unavailable {
-                diagnostic: CoreDiagnostic::error(code, message, *span),
-            },
-        }
-    }
-
-    /// Resolve schemas for chart-scoped `Table name = "..."` declarations in the
-    /// first chart, reusing the shared schema cache (spec §10.9, §10.10) along
-    /// the same fingerprint-validated path as the primary schema. Tables whose
-    /// file is missing or unreadable are simply omitted; their column references
-    /// then resolve as unknown, mirroring a missing primary source.
-    fn resolve_table_schemas(
-        &self,
-        uri: &Url,
-        syntax: &SyntaxNode,
-    ) -> HashMap<String, Vec<ColumnDef>> {
-        let mut out = HashMap::new();
-        let Some(chart) = Root::cast(syntax.clone()).and_then(|r| r.chart()) else {
-            return out;
-        };
-        let source_input = source_input_for_uri(uri);
-        for resolved in resolve_named_table_sources(&chart, &source_input, None) {
-            if let CachedSchema::Ready(schema) = resolve_schema_cached(
-                self.schema_cache.as_ref(),
-                &OsDriverIo,
-                &resolved.path,
-                resolved.format,
-                DEFAULT_SCHEMA_SAMPLE,
-                LoadContext::Table {
-                    name: resolved.name.clone(),
-                },
-            ) {
-                out.insert(resolved.name, schema);
-            }
-        }
-        out
-    }
-
     pub(crate) fn document(&self, uri: &Url) -> Option<DocumentState> {
         self.documents.get(uri).map(|entry| entry.value().clone())
     }
+}
+
+fn analyze_document_blocking(
+    schema_cache: &InMemorySchemaCache,
+    uri: &Url,
+    version: i32,
+    text: String,
+    fallback_schema: Vec<ColumnDef>,
+) -> (DocumentState, Vec<CoreDiagnostic>) {
+    let parsed = parse(&text);
+    let syntax = parsed.syntax();
+    let parse_diagnostics = parsed.diagnostics().to_vec();
+    let data_source = algraf_driver::extract_data_source(&syntax);
+    let schema = resolve_schema(schema_cache, uri, &data_source);
+    // Resolve chart-scoped named-table schemas so column references inside
+    // `Space(..., data: tableName)` resolve in the editor (spec §10.x).
+    let table_schemas = resolve_table_schemas(schema_cache, uri, &syntax);
+
+    let mut diagnostics = parse_diagnostics.clone();
+    let analysis;
+    let mut primary_schema = None;
+    let mut data_path = None;
+
+    match schema {
+        SchemaResolution::Ready { schema, path } => {
+            let result = analyze_with_tables(&syntax, &schema, &table_schemas);
+            diagnostics.extend(result.diagnostics.clone());
+            analysis = Some(AnalysisState {
+                ir: result.ir,
+                diagnostics: result.diagnostics,
+            });
+            primary_schema = Some(schema);
+            data_path = path;
+        }
+        SchemaResolution::MissingOrInvalid => {
+            let result = analyze_with_tables(&syntax, &[], &table_schemas);
+            diagnostics.extend(result.diagnostics.clone());
+            analysis = Some(AnalysisState {
+                ir: result.ir,
+                diagnostics: result.diagnostics,
+            });
+        }
+        SchemaResolution::Unavailable { diagnostic } => {
+            diagnostics.push(diagnostic);
+            let result = analyze_with_tables(&syntax, &fallback_schema, &table_schemas);
+            diagnostics.extend(result.diagnostics.clone());
+            analysis = Some(AnalysisState {
+                ir: result.ir,
+                diagnostics: result.diagnostics,
+            });
+            primary_schema = (!fallback_schema.is_empty()).then_some(fallback_schema);
+        }
+    }
+
+    (
+        DocumentState {
+            text,
+            version,
+            parse: Some(ParseState {
+                diagnostics: parse_diagnostics,
+            }),
+            analysis,
+            primary_schema,
+            data_path,
+        },
+        diagnostics,
+    )
+}
+
+fn resolve_schema(
+    schema_cache: &InMemorySchemaCache,
+    uri: &Url,
+    data_source: &SourceExpr,
+) -> SchemaResolution {
+    let SourceExpr::Path { span, .. } = data_source else {
+        return SchemaResolution::MissingOrInvalid;
+    };
+    let source_input = source_input_for_uri(uri);
+    let Some(resolved) = algraf_driver::resolve_source_expr_path(data_source, &source_input, None)
+    else {
+        return SchemaResolution::MissingOrInvalid;
+    };
+    let path = resolved.path;
+
+    match resolve_schema_cached(
+        schema_cache,
+        &OsDriverIo,
+        &path,
+        resolved.format,
+        DEFAULT_SCHEMA_SAMPLE,
+        LoadContext::Primary,
+    ) {
+        CachedSchema::Ready(schema) => SchemaResolution::Ready {
+            schema,
+            path: Some(path),
+        },
+        CachedSchema::Error { code, message } => SchemaResolution::Unavailable {
+            diagnostic: CoreDiagnostic::error(code, message, *span),
+        },
+    }
+}
+
+/// Resolve schemas for chart-scoped `Table name = "..."` declarations in the
+/// first chart, reusing the shared schema cache (spec §10.9, §10.10) along
+/// the same fingerprint-validated path as the primary schema. Tables whose
+/// file is missing or unreadable are simply omitted; their column references
+/// then resolve as unknown, mirroring a missing primary source.
+fn resolve_table_schemas(
+    schema_cache: &InMemorySchemaCache,
+    uri: &Url,
+    syntax: &SyntaxNode,
+) -> HashMap<String, Vec<ColumnDef>> {
+    let mut out = HashMap::new();
+    let Some(chart) = Root::cast(syntax.clone()).and_then(|r| r.chart()) else {
+        return out;
+    };
+    let source_input = source_input_for_uri(uri);
+    for resolved in resolve_named_table_sources(&chart, &source_input, None) {
+        if let CachedSchema::Ready(schema) = resolve_schema_cached(
+            schema_cache,
+            &OsDriverIo,
+            &resolved.path,
+            resolved.format,
+            DEFAULT_SCHEMA_SAMPLE,
+            LoadContext::Table {
+                name: resolved.name.clone(),
+            },
+        ) {
+            out.insert(resolved.name, schema);
+        }
+    }
+    out
 }
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {

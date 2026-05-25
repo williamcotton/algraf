@@ -1,6 +1,6 @@
 # Algraf v0.19.0 Plan
 
-Status: Planned
+Status: Complete
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_18_PLAN.md`](V0_18_PLAN.md)
@@ -86,7 +86,11 @@ git diff -- examples
 
 ### 1. Data engine boundary audit and trait cleanup
 
-Status: Planned.
+Status: Done. The audit confirmed concrete `DataFrame` ownership is limited to
+`algraf-data`, driver load results, CLI/LSP preview handoff, and renderer
+materialized stat outputs. Parser, LSP analysis, semantics, and driver analysis
+paths continue to operate on schemas/IR; renderer planning reads through
+`Table`.
 
 Acceptance criteria:
 
@@ -100,7 +104,11 @@ Acceptance criteria:
 
 ### 2. Schema-only derived planning
 
-Status: Planned.
+Status: Done. Built-in stat output schemas now live in
+`algraf-semantics::planning`, covering `Bin`, `Smooth`, `Bin2D`, `HexBin`,
+`Density`, and `Count` without row-value execution. Semantic tests cover the
+schema-only planner, and render/runtime remains the owner of full stat
+execution.
 
 Acceptance criteria:
 
@@ -114,7 +122,11 @@ Acceptance criteria:
 
 ### 3. Frame-cache policy design
 
-Status: Planned.
+Status: Done. `docs/CACHE_POLICY.md` and spec §10.12 distinguish schema,
+full-frame, render-result, and persistent caches. No full-frame cache was added
+because there is no current caller that can reuse frames without changing CLI
+one-shot behavior or increasing editor memory pressure; future frame keys reuse
+the v0.16 source identity/fingerprint policy.
 
 Acceptance criteria:
 
@@ -127,7 +139,11 @@ Acceptance criteria:
 
 ### 4. Additive async loading boundary
 
-Status: Planned.
+Status: Done. `algraf-driver` exposes `AsyncDriverIo`,
+`BlockingAsyncDriverIo`, and async schema/full-load helpers that mirror the
+synchronous local-source surface. Existing synchronous helpers remain. LSP
+document analysis/schema reads and preview rendering run on blocking tasks, and
+preview generation tests cover stale-result supersession logic.
 
 Acceptance criteria:
 
@@ -141,7 +157,10 @@ Acceptance criteria:
 
 ### 5. WASM build-shape audit
 
-Status: Planned.
+Status: Done. `docs/WASM_AUDIT.md` records the crate audit and follow-up split
+points. The workspace Tokio dependency was narrowed to the features the LSP
+uses. No geospatial/data-loader feature split was added because it is not yet
+behavior-neutral with the shared geometry data model.
 
 Acceptance criteria:
 
@@ -153,7 +172,10 @@ Acceptance criteria:
 
 ### 6. Performance and resource baseline
 
-Status: Planned.
+Status: Done. `scripts/perf-baseline.sh` and
+`docs/PERFORMANCE_BASELINE.md` provide local timing coverage for parser/check,
+schema loading, representative renders, and common stat-heavy examples without
+adding brittle CI timing thresholds.
 
 Acceptance criteria:
 
@@ -166,7 +188,9 @@ Acceptance criteria:
 
 ### 7. Spec, plan, and example hygiene
 
-Status: Planned.
+Status: Done. Workspace and VS Code metadata are bumped to `0.19.0`; spec §10,
+§21, §23, §24, and §28 now document the v0.19 architecture and performance
+clarifications. Examples were regenerated and checked for no output drift.
 
 Acceptance criteria:
 
@@ -181,7 +205,10 @@ Acceptance criteria:
 
 ### Query-driven compilation spike
 
-Status: Planned.
+Status: Done (design note). A future query database can model source text,
+parse trees, source plans, schemas, semantic IR, and render planning as
+fingerprint-keyed queries, but v0.19 keeps ordinary Rust calls and avoids a
+required `salsa` dependency until repeated analysis work is measured.
 
 Prototype or document how a demand-driven query database could represent source
 text, parse trees, schemas, analysis, and render plans. Do not add `salsa` as a
@@ -189,7 +216,10 @@ required dependency in this release.
 
 ### Polars adapter spike
 
-Status: Planned.
+Status: Done (design note). A Polars-backed table would need to implement the
+`Table` access surface while preserving Algraf's schema order, category domain
+ordering, missing-value behavior, data warnings, and deterministic row/value
+iteration. No Polars dependency is added in this release.
 
 Build a private experiment or design note showing what a Polars-backed table
 would need to implement to preserve Algraf's diagnostics, category ordering,

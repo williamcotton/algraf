@@ -11,6 +11,7 @@ use algraf_syntax::node_span;
 use super::args::DupGuard;
 use super::context::{ActiveTable, Analyzer, ValueForm};
 use crate::ir::*;
+use crate::planning::{stat_output_names_for_source, stat_output_schema};
 
 impl Analyzer<'_> {
     // --- Derive (spec §13.4) ---
@@ -162,10 +163,7 @@ impl Analyzer<'_> {
                     }
                 }
                 let options = self.collect_bin_options(&stat.args(), stat_span);
-                let output_schema = match &input_frame {
-                    FrameIr::Vector(column) => bin_output_schema(column.dtype),
-                    _ => bin_output_schema(DataType::Float),
-                };
+                let output_schema = stat_output_schema(kind, &input_frame);
                 (input_frame, options, output_schema)
             }
             StatKind::Smooth => {
@@ -186,11 +184,9 @@ impl Analyzer<'_> {
                         }
                     }
                 }
-                (
-                    input_frame,
-                    self.collect_smooth_options(&stat.args(), stat_span),
-                    smooth_output_schema(),
-                )
+                let options = self.collect_smooth_options(&stat.args(), stat_span);
+                let output_schema = stat_output_schema(kind, &input_frame);
+                (input_frame, options, output_schema)
             }
             StatKind::Bin2D | StatKind::HexBin => {
                 let label = if kind == StatKind::Bin2D {
@@ -215,16 +211,9 @@ impl Analyzer<'_> {
                         }
                     }
                 }
-                let output_schema = if kind == StatKind::Bin2D {
-                    bin2d_output_schema()
-                } else {
-                    hexbin_output_schema()
-                };
-                (
-                    input_frame,
-                    self.collect_bin2d_options(&stat.args(), stat_span, kind),
-                    output_schema,
-                )
+                let options = self.collect_bin2d_options(&stat.args(), stat_span, kind);
+                let output_schema = stat_output_schema(kind, &input_frame);
+                (input_frame, options, output_schema)
             }
             _ => {
                 self.diag(Diagnostic::error(
@@ -502,25 +491,7 @@ pub(super) fn derive_output_names(derive: &DeriveDecl) -> Vec<String> {
     let Some(stat) = derive.stat() else {
         return Vec::new();
     };
-    match stat.name().unwrap_or_default().as_str() {
-        "Bin" => bin_output_schema(DataType::Float)
-            .into_iter()
-            .map(|column| column.name)
-            .collect(),
-        "Smooth" => smooth_output_schema()
-            .into_iter()
-            .map(|column| column.name)
-            .collect(),
-        "Bin2D" => bin2d_output_schema()
-            .into_iter()
-            .map(|column| column.name)
-            .collect(),
-        "HexBin" => hexbin_output_schema()
-            .into_iter()
-            .map(|column| column.name)
-            .collect(),
-        _ => Vec::new(),
-    }
+    stat_output_names_for_source(&stat.name().unwrap_or_default())
 }
 
 fn derive_input_names(derive: &DeriveDecl) -> Vec<String> {
@@ -536,113 +507,4 @@ fn derive_input_names(derive: &DeriveDecl) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
-}
-
-pub(super) fn bin_output_schema(input_dtype: DataType) -> Vec<ColumnDefIr> {
-    let boundary_dtype = bin_boundary_dtype(input_dtype);
-    vec![
-        ColumnDefIr {
-            name: "bin_start".into(),
-            dtype: boundary_dtype,
-        },
-        ColumnDefIr {
-            name: "bin_end".into(),
-            dtype: boundary_dtype,
-        },
-        ColumnDefIr {
-            name: "bin_center".into(),
-            dtype: boundary_dtype,
-        },
-        ColumnDefIr {
-            name: "count".into(),
-            dtype: DataType::Integer,
-        },
-        ColumnDefIr {
-            name: "density".into(),
-            dtype: DataType::Float,
-        },
-    ]
-}
-
-pub(super) fn smooth_output_schema() -> Vec<ColumnDefIr> {
-    vec![
-        ColumnDefIr {
-            name: "x".into(),
-            dtype: DataType::Float,
-        },
-        ColumnDefIr {
-            name: "y".into(),
-            dtype: DataType::Float,
-        },
-    ]
-}
-
-pub(super) fn bin2d_output_schema() -> Vec<ColumnDefIr> {
-    vec![
-        ColumnDefIr {
-            name: "x_start".into(),
-            dtype: DataType::Float,
-        },
-        ColumnDefIr {
-            name: "x_end".into(),
-            dtype: DataType::Float,
-        },
-        ColumnDefIr {
-            name: "x_center".into(),
-            dtype: DataType::Float,
-        },
-        ColumnDefIr {
-            name: "y_start".into(),
-            dtype: DataType::Float,
-        },
-        ColumnDefIr {
-            name: "y_end".into(),
-            dtype: DataType::Float,
-        },
-        ColumnDefIr {
-            name: "y_center".into(),
-            dtype: DataType::Float,
-        },
-        ColumnDefIr {
-            name: "count".into(),
-            dtype: DataType::Integer,
-        },
-        ColumnDefIr {
-            name: "density".into(),
-            dtype: DataType::Float,
-        },
-    ]
-}
-
-pub(super) fn hexbin_output_schema() -> Vec<ColumnDefIr> {
-    vec![
-        ColumnDefIr {
-            name: "x".into(),
-            dtype: DataType::Float,
-        },
-        ColumnDefIr {
-            name: "y".into(),
-            dtype: DataType::Float,
-        },
-        ColumnDefIr {
-            name: "radius".into(),
-            dtype: DataType::Float,
-        },
-        ColumnDefIr {
-            name: "count".into(),
-            dtype: DataType::Integer,
-        },
-        ColumnDefIr {
-            name: "density".into(),
-            dtype: DataType::Float,
-        },
-    ]
-}
-
-pub(super) fn bin_boundary_dtype(input_dtype: DataType) -> DataType {
-    if input_dtype == DataType::Temporal {
-        DataType::Temporal
-    } else {
-        DataType::Float
-    }
 }

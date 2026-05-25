@@ -8,7 +8,7 @@ use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::SourceExpr;
 
 use crate::error::{DriverError, LoadContext};
-use crate::io::{DriverIo, OsDriverIo};
+use crate::io::{AsyncDriverIo, DriverIo, OsDriverIo};
 use crate::resolution::{DataLocation, DriverEnv, ResolvedTableSource, SourceInput};
 
 /// One loaded chart-scoped named table.
@@ -51,6 +51,19 @@ pub fn load_data_with_io(
     load_location(location, LoadContext::Primary, io)
 }
 
+/// Load a full data source through an async-capable I/O provider.
+pub async fn load_data_with_async_io(
+    source_expr: &SourceExpr,
+    source: &SourceInput,
+    base_dir: Option<&Path>,
+    data_override: Option<&str>,
+    io: &dyn AsyncDriverIo,
+) -> Result<LoadResult, DriverError> {
+    let env = DriverEnv::new(source, base_dir, data_override, false);
+    let location = env.resolver().data_location(source_expr)?;
+    load_location_async(location, LoadContext::Primary, io).await
+}
+
 pub(crate) fn load_primary_with_io(
     location: DataLocation,
     io: &dyn DriverIo,
@@ -66,6 +79,19 @@ fn load_location(
     match location {
         DataLocation::Path { path, format } => load_path_with_io(&path, format, context, io),
         DataLocation::Stdin => read_stdin_csv(io),
+    }
+}
+
+async fn load_location_async(
+    location: DataLocation,
+    context: LoadContext,
+    io: &dyn AsyncDriverIo,
+) -> Result<LoadResult, DriverError> {
+    match location {
+        DataLocation::Path { path, format } => {
+            load_path_with_async_io(&path, format, context, io).await
+        }
+        DataLocation::Stdin => read_stdin_csv_async(io).await,
     }
 }
 
@@ -90,6 +116,29 @@ pub fn load_path_with_io(
         Format::Shapefile => io.load_shapefile(path),
         _ => io
             .read_path(path)
+            .map_err(DataError::Io)
+            .and_then(|bytes| read_bytes_as(bytes.as_slice(), format)),
+    };
+    loaded.map_err(|source| DriverError::Data {
+        context,
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
+/// Load a full data source from a path through an async-capable I/O provider.
+pub async fn load_path_with_async_io(
+    path: &Path,
+    format: Option<Format>,
+    context: LoadContext,
+    io: &dyn AsyncDriverIo,
+) -> Result<LoadResult, DriverError> {
+    let format = format.unwrap_or_else(|| Format::from_path(path));
+    let loaded = match format {
+        Format::Shapefile => io.load_shapefile_async(path).await,
+        _ => io
+            .read_path_async(path)
+            .await
             .map_err(DataError::Io)
             .and_then(|bytes| read_bytes_as(bytes.as_slice(), format)),
     };
@@ -140,6 +189,29 @@ pub fn load_schema_with_io(
     load_schema_location(env.resolver().data_location(source_expr)?, sample_size, io)
 }
 
+/// Load only a data schema through an async-capable I/O provider.
+pub async fn load_schema_with_async_io(
+    source_expr: &SourceExpr,
+    source: &SourceInput,
+    base_dir: Option<&Path>,
+    data_override: Option<&str>,
+    sample_size: Option<usize>,
+    io: &dyn AsyncDriverIo,
+) -> Result<Vec<ColumnDef>, DriverError> {
+    let env = DriverEnv::new(source, base_dir, data_override, false);
+    let Some(sample_size) = sample_size else {
+        return Ok(
+            load_data_with_async_io(source_expr, source, base_dir, data_override, io)
+                .await?
+                .frame
+                .schema()
+                .to_vec(),
+        );
+    };
+
+    load_schema_location_async(env.resolver().data_location(source_expr)?, sample_size, io).await
+}
+
 fn load_schema_location(
     location: DataLocation,
     sample_size: usize,
@@ -150,6 +222,20 @@ fn load_schema_location(
             load_schema_path_with_io(&path, format, sample_size, LoadContext::Primary, io)
         }
         DataLocation::Stdin => read_stdin_csv_schema(sample_size, io),
+    }
+}
+
+async fn load_schema_location_async(
+    location: DataLocation,
+    sample_size: usize,
+    io: &dyn AsyncDriverIo,
+) -> Result<Vec<ColumnDef>, DriverError> {
+    match location {
+        DataLocation::Path { path, format } => {
+            load_schema_path_with_async_io(&path, format, sample_size, LoadContext::Primary, io)
+                .await
+        }
+        DataLocation::Stdin => read_stdin_csv_schema_async(sample_size, io).await,
     }
 }
 
@@ -178,6 +264,33 @@ pub fn load_schema_path_with_io(
             .map(|loaded| loaded.frame.schema().to_vec()),
         _ => io
             .read_path(path)
+            .map_err(DataError::Io)
+            .and_then(|bytes| read_schema_bytes_as(bytes.as_slice(), format, sample_size)),
+    };
+    loaded.map_err(|source| DriverError::Data {
+        context,
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
+/// Load only a data schema from a path through an async-capable I/O provider.
+pub async fn load_schema_path_with_async_io(
+    path: &Path,
+    format: Option<Format>,
+    sample_size: usize,
+    context: LoadContext,
+    io: &dyn AsyncDriverIo,
+) -> Result<Vec<ColumnDef>, DriverError> {
+    let format = format.unwrap_or_else(|| Format::from_path(path));
+    let loaded = match format {
+        Format::Shapefile => io
+            .load_shapefile_async(path)
+            .await
+            .map(|loaded| loaded.frame.schema().to_vec()),
+        _ => io
+            .read_path_async(path)
+            .await
             .map_err(DataError::Io)
             .and_then(|bytes| read_schema_bytes_as(bytes.as_slice(), format, sample_size)),
     };
@@ -291,12 +404,33 @@ fn read_stdin_csv(io: &dyn DriverIo) -> Result<LoadResult, DriverError> {
         .map_err(|e| DriverError::StdinParse(format!("failed to parse stdin CSV: {e}")))
 }
 
+async fn read_stdin_csv_async(io: &dyn AsyncDriverIo) -> Result<LoadResult, DriverError> {
+    let bytes = io
+        .read_stdin_async()
+        .await
+        .map_err(|e| DriverError::StdinRead(format!("failed to read CSV from stdin: {e}")))?;
+    read_csv(bytes.as_slice())
+        .map_err(|e| DriverError::StdinParse(format!("failed to parse stdin CSV: {e}")))
+}
+
 fn read_stdin_csv_schema(
     sample_size: usize,
     io: &dyn DriverIo,
 ) -> Result<Vec<ColumnDef>, DriverError> {
     let bytes = io
         .read_stdin()
+        .map_err(|e| DriverError::StdinRead(format!("failed to read CSV from stdin: {e}")))?;
+    read_csv_schema(bytes.as_slice(), sample_size)
+        .map_err(|e| DriverError::StdinParse(format!("failed to parse stdin CSV: {e}")))
+}
+
+async fn read_stdin_csv_schema_async(
+    sample_size: usize,
+    io: &dyn AsyncDriverIo,
+) -> Result<Vec<ColumnDef>, DriverError> {
+    let bytes = io
+        .read_stdin_async()
+        .await
         .map_err(|e| DriverError::StdinRead(format!("failed to read CSV from stdin: {e}")))?;
     read_csv_schema(bytes.as_slice(), sample_size)
         .map_err(|e| DriverError::StdinParse(format!("failed to parse stdin CSV: {e}")))

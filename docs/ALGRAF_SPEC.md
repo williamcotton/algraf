@@ -2079,6 +2079,12 @@ pub trait Table {
 }
 ```
 
+As of version 0.19, concrete `DataFrame` ownership is limited to the data
+crate, driver load results, CLI/LSP preview handoff, and renderer materialized
+stat outputs. Parser, syntax, semantic analysis, and ordinary LSP analysis MUST
+continue to use schemas and IR rather than dataframe internals. Renderer
+planning reads loaded data through the `Table` trait.
+
 ### 10.6 Derived Tables
 
 Derived tables are produced by `Derive` declarations.
@@ -2096,6 +2102,11 @@ Derived table schemas MUST be available to LSP completions inside `Space(..., da
 Derived tables MAY be lazily computed by the renderer.
 
 Derived table schemas SHOULD be computed without running expensive full-data transforms where possible.
+
+Schema-only stat planning lives in semantic planning helpers. The built-in
+schemas for `Bin`, `Smooth`, `Bin2D`, `HexBin`, `Density`, and `Count` MUST be
+derivable from typed input frames and options without reading row values. Full
+stat execution remains a render/runtime responsibility.
 
 Derived table names are chart-scoped.
 
@@ -2169,11 +2180,17 @@ The CLI MUST restrict data reads to explicit paths.
 
 The CLI SHOULD provide an option to allow network sources if implemented later.
 
-Driver-level data loading MUST go through a synchronous, injectable I/O provider
+Driver-level data loading MUST keep a synchronous, injectable I/O provider
 that can read resolved path bytes, stdin bytes, path metadata, and shapefile
-sidecars. The default provider uses the operating system. The provider MUST NOT
-add network access, environment-variable access, command execution, async
-operations, or caching policy.
+sidecars. The default provider uses the operating system. The synchronous
+provider MUST NOT add network access, environment-variable access, command
+execution, async operations, or caching policy.
+
+Version 0.19 adds an async-capable adapter shape with the same local-source
+surface as the synchronous provider. Async loading MUST be additive: existing
+synchronous helpers remain available, and the async boundary MUST NOT add new
+source kinds, network access, environment-variable access, command execution, or
+cache policy.
 
 The LSP SHOULD avoid reading very large files on the hot path.
 
@@ -2296,6 +2313,28 @@ accepted syntax in scattered matches.
 Path resolution, `--base-dir`, and source security (§10.8) apply unchanged. A
 missing source file is `E1106`; an unreadable one is `E1107`. A malformed
 document or unsupported geometry type is `E1805`.
+
+### 10.12 Runtime Cache Policy
+
+Algraf distinguishes four cache kinds:
+
+- A **schema cache** stores schemas and stable load errors. It is implemented in
+  the driver and keyed by `DataSourceKey` plus `SourceFingerprint` (§10.9).
+- A **full-frame cache** would store loaded table data. It is deferred in
+  version 0.19 because no current caller reuses full frames without changing
+  one-shot CLI behavior or increasing editor memory pressure.
+- A **render-result cache** would store SVG or a planned render scene. It is
+  deferred because render output depends on source text, data fingerprints,
+  dimensions, theme, and output options.
+- A **persistent cache** would survive process restarts. It is deferred until a
+  storage location, format version, invalidation policy, and privacy policy are
+  specified.
+
+If full-frame caching is promoted later, its keys SHOULD reuse
+`DataSourceKey`/`SourceFingerprint`, and cached frames MUST preserve data
+warnings, category ordering, missing-value behavior, and deterministic render
+output. CLI one-shot commands MUST continue to load fresh data by default unless
+a cache is explicitly proven behavior-neutral.
 
 ## 11. AST Model
 
@@ -6008,7 +6047,7 @@ store document text
 
 parse
 
-start schema resolution
+start schema resolution on an async path or blocking task
 
 analyze when schema available
 
@@ -6340,6 +6379,11 @@ older result MUST be reported with `superseded: true` and MUST NOT carry stale
 SVG (spec §21.13). The client SHOULD debounce edits and ignore superseded or
 out-of-order replies using `generation`.
 
+Document analysis that may touch data-source metadata or schema bytes SHOULD
+also run off the request reactor, using the driver schema cache and either the
+async driver I/O boundary (§10.8) or a blocking task around the synchronous
+provider. This MUST NOT change LSP protocol behavior or diagnostic content.
+
 The preview is read-only and renders inline SVG; the client MUST NOT execute
 scripts in the preview surface.
 
@@ -6652,9 +6696,15 @@ data and schema loading orchestration
 
 injectable synchronous data I/O provider and OS-backed compatibility adapter
 
+additive async-capable data I/O adapter and async loading helpers that mirror the
+same local-source surface without introducing new source kinds
+
 a shared, injectable schema cache service keyed by `DataSourceKey` and validated
 by `SourceFingerprint` (spec §10.9), storing schemas and load errors rather than
 full frames
+
+runtime cache policy documentation distinguishing schema, full-frame,
+render-result, and persistent caches (spec §10.12)
 
 chart data dependency inventory
 
@@ -6737,6 +6787,10 @@ Recommended dependencies:
 `tower-lsp` for LSP
 
 `tokio` for async LSP runtime
+
+Async driver helper traits SHOULD use `std::future`/boxed futures unless a
+runtime-specific implementation is introduced by a caller. The driver crate MUST
+NOT depend on Tokio.
 
 The `driver` crate SHOULD depend only on `core`, `syntax`, `data`, and
 `semantics`. CLI and LSP MAY depend on the driver, but the driver MUST NOT depend
@@ -6849,7 +6903,7 @@ Parallel output must remain deterministic.
 4. Publish parse diagnostics.
 5. Extract data source if possible.
 6. Resolve schema asynchronously.
-7. Infer derived table schemas where possible.
+7. Infer derived table schemas with schema-only stat planning where possible.
 8. Analyze source when schemas are available.
 9. Publish semantic diagnostics.
 10. Serve completions and hover from cached AST and schemas.
@@ -6928,6 +6982,11 @@ layout and emission during document assembly.
 
 Additional backends (raster, canvas, retained DOM) and lazy or streaming data
 materialization are deferred to a later release.
+
+Schema-only planning is outside this render execution boundary: semantic
+analysis may compute built-in derived schemas from typed frames, but it MUST NOT
+materialize derived frames or inspect data rows. The renderer remains the owner
+of full stat execution.
 
 ## 25. Examples Compared With GramGraph
 
@@ -7598,6 +7657,9 @@ Parser SHOULD parse a 1,000-line file in under 25 ms on the reference developmen
 
 Benchmark machines and thresholds MUST be documented when benchmarks are added to CI.
 
+Version 0.19 provides `scripts/perf-baseline.sh` for local parser/schema/render
+timing. It is not a CI gate.
+
 ### 28.2 LSP Latency
 
 Completion SHOULD respond under 50 ms from warm cache.
@@ -7619,6 +7681,10 @@ Rendering a 25-bin histogram from 100,000 rows SHOULD complete in under 500 ms o
 Rendering 1,000,000 points is not a version 0.1 target.
 
 Future versions MAY stream data and aggregate stats without materializing rows.
+
+Performance notes and reference environment details live in
+`docs/PERFORMANCE_BASELINE.md`. Machine-specific timing thresholds MUST NOT be
+made mandatory without recording the reference hardware and variance policy.
 
 ### 28.4 Memory
 
@@ -7748,10 +7814,10 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.13.0 | [`V0_13_PLAN.md`](V0_13_PLAN.md) | Driver cleanup and preparation | Implemented |
 | 0.14.0 | [`V0_14_PLAN.md`](V0_14_PLAN.md) | Driver I/O seam and VFS preparation | Implemented |
 | 0.15.0 | [`V0_15_PLAN.md`](V0_15_PLAN.md) | Diagnostic pipeline and partial preparation | Implemented |
-| 0.16.0 | [`V0_16_PLAN.md`](V0_16_PLAN.md) | Schema cache and compilation-phase boundary | Planned |
-| 0.17.0 | [`V0_17_PLAN.md`](V0_17_PLAN.md) | Render execution boundary | Planned |
-| 0.18.0 | [`V0_18_PLAN.md`](V0_18_PLAN.md) | Semantic surface hardening | Planned |
-| 0.19.0 | [`V0_19_PLAN.md`](V0_19_PLAN.md) | Data execution boundary | Planned |
+| 0.16.0 | [`V0_16_PLAN.md`](V0_16_PLAN.md) | Schema cache and compilation-phase boundary | Implemented |
+| 0.17.0 | [`V0_17_PLAN.md`](V0_17_PLAN.md) | Render execution boundary | Implemented |
+| 0.18.0 | [`V0_18_PLAN.md`](V0_18_PLAN.md) | Semantic surface hardening | Complete |
+| 0.19.0 | [`V0_19_PLAN.md`](V0_19_PLAN.md) | Data execution boundary | Complete |
 | 0.20.0 | [`V0_20_PLAN.md`](V0_20_PLAN.md) | Language versioning and reuse | Planned |
 | 0.21.0 | [`V0_21_PLAN.md`](V0_21_PLAN.md) | Data backends and source security | Planned |
 | 0.22.0 | [`V0_22_PLAN.md`](V0_22_PLAN.md) | Geospatial completion | Planned |

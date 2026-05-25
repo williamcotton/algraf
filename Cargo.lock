@@ -10,7 +10,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "algraf-cli"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -28,7 +28,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-core"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "serde",
  "thiserror",
@@ -36,7 +36,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-data"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "algraf-core",
  "chrono",
@@ -51,18 +51,19 @@ dependencies = [
 
 [[package]]
 name = "algraf-driver"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
  "algraf-semantics",
  "algraf-syntax",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
 name = "algraf-lsp"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -81,7 +82,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-render"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -95,7 +96,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-semantics"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -104,7 +105,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-syntax"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "algraf-core",
  "logos",
@@ -516,16 +517,6 @@ name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
-
-[[package]]
-name = "errno"
-version = "0.3.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
-dependencies = [
- "libc",
- "windows-sys",
-]
 
 [[package]]
 name = "euclid"
@@ -1133,17 +1124,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mio"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50b7e5b27aa02a74bac8c3f23f448f8d87ff11f92d3aac1a6ed369ee08cc56c1"
-dependencies = [
- "libc",
- "wasi",
- "windows-sys",
-]
-
-[[package]]
 name = "num-conv"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1170,16 +1150,6 @@ name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
-
-[[package]]
-name = "parking_lot"
-version = "0.12.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93857453250e3077bd71ff98b6a65ea6621a19bb0f559a85248955ac12c45a1a"
-dependencies = [
- "lock_api",
- "parking_lot_core",
-]
 
 [[package]]
 name = "parking_lot_core"
@@ -1553,16 +1523,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
-name = "signal-hook-registry"
-version = "1.4.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
-dependencies = [
- "errno",
- "libc",
-]
-
-[[package]]
 name = "simd-adler32"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1603,16 +1563,6 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
-
-[[package]]
-name = "socket2"
-version = "0.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
-dependencies = [
- "libc",
- "windows-sys",
-]
 
 [[package]]
 name = "spin"
@@ -1778,15 +1728,8 @@ version = "1.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fc7f01b389ac15039e4dc9531aa973a135d7a4135281b12d7c1bc79fd57fffe"
 dependencies = [
- "bytes",
- "libc",
- "mio",
- "parking_lot",
  "pin-project-lite",
- "signal-hook-registry",
- "socket2",
  "tokio-macros",
- "windows-sys",
 ]
 
 [[package]]
@@ -2018,12 +1961,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "wasi"
-version = "0.11.1+wasi-snapshot-preview1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
 
 [[package]]
 name = "wasm-bindgen"

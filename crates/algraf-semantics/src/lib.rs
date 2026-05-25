@@ -7,6 +7,7 @@
 
 pub mod analyzer;
 pub mod ir;
+pub mod planning;
 pub mod registry;
 mod util;
 

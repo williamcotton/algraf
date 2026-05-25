@@ -1,9 +1,10 @@
 //! Semantic analysis tests (spec §13, §27.5).
 
+use algraf_core::Span;
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
-    analyze_source, AxisSelectorIr, BinClosedIr, FrameIr, GeometryKind, PropertyKey, ScaleTargetIr,
-    ScaleTypeIr, SettingValue, SpaceDataRef, StatKind, StatOptionsIr,
+    analyze_source, planning, AxisSelectorIr, BinClosedIr, ColumnRef, FrameIr, GeometryKind,
+    PropertyKey, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, StatKind, StatOptionsIr,
 };
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
@@ -737,6 +738,46 @@ fn test_ir_derived_table_schema() {
         vec!["bin_start", "bin_end", "bin_center", "count", "density"]
     );
     assert_eq!(ir.spaces[0].data, SpaceDataRef::Derived("bins".into()));
+}
+
+#[test]
+fn test_schema_only_stat_planning_covers_builtin_outputs() {
+    let value = FrameIr::Vector(ColumnRef {
+        name: "value".into(),
+        dtype: DataType::Temporal,
+        span: Span::new(0, 5),
+    });
+    let xy = FrameIr::Cartesian(vec![
+        FrameIr::Vector(ColumnRef {
+            name: "x".into(),
+            dtype: DataType::Float,
+            span: Span::new(0, 1),
+        }),
+        FrameIr::Vector(ColumnRef {
+            name: "y".into(),
+            dtype: DataType::Float,
+            span: Span::new(4, 5),
+        }),
+    ]);
+
+    let bin = planning::stat_output_schema(StatKind::Bin, &value);
+    assert_eq!(bin[0].dtype, DataType::Temporal);
+    assert_eq!(bin[3].name, "count");
+
+    let smooth_names: Vec<String> = planning::stat_output_schema(StatKind::Smooth, &xy)
+        .into_iter()
+        .map(|column| column.name)
+        .collect();
+    assert_eq!(smooth_names, vec!["x", "y"]);
+
+    let bin2d_names: Vec<String> = planning::stat_output_schema(StatKind::Bin2D, &xy)
+        .into_iter()
+        .map(|column| column.name)
+        .collect();
+    assert_eq!(
+        bin2d_names,
+        vec!["x_start", "x_end", "x_center", "y_start", "y_end", "y_center", "count", "density",]
+    );
 }
 
 #[test]
