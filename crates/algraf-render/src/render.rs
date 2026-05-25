@@ -1,11 +1,20 @@
 //! Render orchestration: IR + data to a deterministic SVG string
-//! (spec §24.4, §24.5, §18).
+//! (spec §24.4, §24.5, §24.6, §18).
 //!
-//! The render pipeline is split into explicit stages:
-//! derived-table execution, guide/legend discovery, layout and panel planning,
-//! spatial projection fitting, geometry emission, guide emission, and final SVG
-//! document assembly.
+//! The pipeline has two halves separated by an explicit boundary:
+//!
+//! 1. **Planning** ([`derived`], [`panels`], [`spatial`], [`legend`], [`common`])
+//!    turns the semantic [`ChartIr`] plus loaded data into a [`RenderScene`]:
+//!    derived-table execution, guide/legend discovery, layout and panel planning,
+//!    spatial projection fitting, and scale training all happen here. No output
+//!    bytes are written in this half.
+//! 2. **Emission** hands the scene to a [`RenderBackend`]. The only backend is
+//!    [`SvgBackend`] ([`document`], geometry emission, guide emission, final SVG
+//!    assembly), which produces deterministic SVG.
+//!
+//! See [`backend`] for the seam itself.
 
+mod backend;
 mod common;
 mod derived;
 mod document;
@@ -22,6 +31,8 @@ use algraf_semantics::ChartIr;
 use crate::error::RenderError;
 use crate::layout::Layout;
 use crate::theme::Theme;
+
+use backend::RenderBackend;
 
 /// The result of rendering: an SVG document plus render diagnostics.
 #[derive(Debug, Clone)]
@@ -57,6 +68,7 @@ pub fn render_with_tables(
 ) -> Result<RenderResult, RenderError> {
     let mut diagnostics = Vec::new();
     let derived = derived::compute_derived(ir, primary, named_tables);
+    // Planning half: resolve everything to draw into a render scene.
     let plan = panels::build_render_plan(
         ir,
         primary,
@@ -65,14 +77,15 @@ pub fn render_with_tables(
         cli_theme_override,
         &mut diagnostics,
     );
-    let svg = document::emit_document(
+    let scene = backend::RenderScene {
         ir,
-        &plan.layout,
-        &plan.legends,
-        &plan.panels,
+        layout: &plan.layout,
+        legends: &plan.legends,
+        panels: &plan.panels,
         theme,
-        &mut diagnostics,
-    );
+    };
+    // Emission half: hand the scene to the (single) output backend.
+    let svg = backend::SvgBackend.emit(&scene, &mut diagnostics);
 
     Ok(RenderResult {
         svg,

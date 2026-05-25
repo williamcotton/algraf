@@ -1074,3 +1074,29 @@ fn test_named_table_overlay_shares_position_scale() {
     assert!(svg.contains(">10</text>") || svg.contains(">9</text>"));
     assert!(svg.contains(">Far</text>"));
 }
+
+#[test]
+fn test_wide_y_tick_labels_reserve_more_left_margin() {
+    // Guide planning (spec §17.3): the plot's left edge is pushed right to fit
+    // the widest y tick label, so a chart with large y values reserves more
+    // left margin than one with single-digit values. Exercises the guide
+    // planning/emission split (`max_y_tick_label_width` / `y_axis_left_margin`).
+    let narrow = render_result(
+        "Chart(data: \"p.csv\") { Space(x * y) { Point() } }",
+        "x,y\n1,1\n2,2\n",
+    )
+    .layout
+    .plot
+    .x;
+    let wide = render_result(
+        "Chart(data: \"p.csv\") { Space(x * y) { Point() } }",
+        "x,y\n1,1000000\n2,2000000\n",
+    )
+    .layout
+    .plot
+    .x;
+    assert!(
+        wide > narrow,
+        "wide y tick labels should reserve more left margin: wide={wide}, narrow={narrow}"
+    );
+}

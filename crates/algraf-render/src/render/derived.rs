@@ -1,3 +1,14 @@
+//! Derived-table execution: the data side of the render planning boundary
+//! (spec §15, §24.6).
+//!
+//! This is where statistical transforms consume loaded data. [`compute_derived`]
+//! runs each `Derive`/named-table stat once, eagerly, against an input resolved
+//! through the [`Table`] trait, and materializes the result into an owned
+//! [`DataFrame`]. Those frames are keyed by name and later resolved by
+//! [`active_table`] when a space references them. All execution happens during
+//! planning; nothing here writes output, and stats read only through [`Table`],
+//! never through concrete dataframe internals.
+
 use std::collections::HashMap;
 
 use algraf_data::{DataFrame, Table};

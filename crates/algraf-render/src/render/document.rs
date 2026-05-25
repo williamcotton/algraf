@@ -1,22 +1,22 @@
 use algraf_core::Diagnostic;
 use algraf_semantics::ChartIr;
 
-use crate::aes::Legend;
 use crate::guide;
 use crate::layout::Layout;
 use crate::svg::{escape_attr, escape_text, num, SvgAttr, SvgWriter};
 use crate::theme::Theme;
 
-use super::panels::{panel_slots, Panel};
+use super::backend::RenderScene;
+use super::panels::panel_slots;
 
-pub(super) fn emit_document(
-    ir: &ChartIr,
-    layout: &Layout,
-    legends: &[Legend],
-    panels: &[Panel<'_>],
-    theme: &Theme,
-    diagnostics: &mut Vec<Diagnostic>,
-) -> String {
+pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> String {
+    let RenderScene {
+        ir,
+        layout,
+        legends,
+        panels,
+        theme,
+    } = *scene;
     let width = ir.width as f64;
     let height = ir.height as f64;
 

@@ -5444,6 +5444,10 @@ pub struct LayerModel {
 }
 ```
 
+The realized renderer resolves an equivalent per-panel scene during planning and
+hands it to the SVG backend during emission; see §24.6 for the planning/emission
+boundary these structures sit on.
+
 ### 18.8 Path Formatting
 
 Numeric SVG values SHOULD be rounded deterministically.
@@ -5540,6 +5544,10 @@ Floating point formatting MUST use locale-independent formatting.
 Floating point output precision MUST be fixed by renderer configuration.
 
 ## 19. Guides
+
+Guide handling is split into planning (label measurement and axis-margin
+reservation, which runs before final layout) and emission (writing axes, grids,
+facet strips, and legends to SVG during document assembly); see §24.6.
 
 ### 19.1 Axis Generation
 
@@ -6618,6 +6626,10 @@ geometries
 
 SVG emission
 
+The render crate is internally split along the planning/emission boundary of
+§24.6: planning modules resolve a render scene (derived tables, scales, layout,
+guide measurements, legends) and a single private backend emits SVG from it.
+
 `lsp`:
 
 tower-lsp backend
@@ -6829,6 +6841,31 @@ finalize layer viewports
 9. Legends.
 10. Caption.
 11. Closing SVG.
+
+### 24.6 Render Execution Boundary
+
+The renderer is organized around one boundary, between **planning** and
+**emission**:
+
+- Planning (pipeline steps 12–17) consumes the IR and loaded data eagerly and
+  resolves a fully described render scene: derived tables, geometry-local stats,
+  trained scales, layout rectangles, guide measurements, and legends. Planning
+  reads data only through the data-table abstraction and MUST NOT write output
+  bytes.
+- Emission (pipeline step 18) takes that scene and serializes it through a
+  single output backend. The backend MUST NOT make layout or scale decisions.
+
+Data materialization MUST be eager: stats and scale training run during
+planning against in-memory tables. The output backend is a private
+implementation detail: the renderer MAY expose a private trait, enum, or facade
+to name this seam, but it MUST have exactly one implementation (the deterministic
+SVG backend of §18) and MUST NOT expose a plugin API. Guide planning (label
+measurement, axis-margin reservation) and guide emission (writing axes, grids,
+strips, and legends to SVG) are likewise separated, planning before final
+layout and emission during document assembly.
+
+Additional backends (raster, canvas, retained DOM) and lazy or streaming data
+materialization are deferred to a later release.
 
 ## 25. Examples Compared With GramGraph
 

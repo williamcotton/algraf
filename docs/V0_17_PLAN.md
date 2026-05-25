@@ -1,6 +1,6 @@
 # Algraf v0.17.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_16_PLAN.md`](V0_16_PLAN.md)
@@ -87,7 +87,11 @@ change what happens for any checked-in example.
 
 ### 1. Render model boundary audit
 
-Status: Planned.
+Status: Done. The planning/emission boundary is documented in spec §24.6 and in
+`algraf-render`'s crate-level docs (`lib.rs`), with module docs on `render.rs`,
+`render/backend.rs`, `render/derived.rs`, and `guide/`. The render scene is the
+named intermediate; `Panel`, `RenderScene`, and the stat/derived frames stay
+private to the crate. No API or SVG behavior changed.
 
 Acceptance criteria:
 
@@ -101,7 +105,12 @@ Acceptance criteria:
 
 ### 2. Private backend seam for SVG emission
 
-Status: Planned.
+Status: Done. `render/backend.rs` introduces a private `RenderScene` plus a
+private `RenderBackend` trait whose sole implementation is `SvgBackend`.
+`render_with_tables` now builds a scene in the planning half and hands it to the
+backend in the emission half. Public `render`/`render_with_tables` signatures and
+result types are unchanged, escaping/number formatting/class names/ordering are
+untouched, and no plugin API is exposed. `git diff -- examples` is empty.
 
 Acceptance criteria:
 
@@ -115,7 +124,14 @@ Acceptance criteria:
 
 ### 3. Guide planning and module split
 
-Status: Planned.
+Status: Done. `guide.rs` is now a `guide/` module: `plan.rs` holds the layout
+math (tick-label width estimation, y-axis margin reservation, tick anchoring) and
+`emit.rs` holds the SVG writers (grid, axes, facet strips, legends). Tick
+generation, label suppression, legend merging, ordering, and theme use are
+unchanged. Coverage spans axis labels, suppressed titles, categorical legends,
+continuous legends, and merged fill/stroke legends, plus a new guard
+(`test_wide_y_tick_labels_reserve_more_left_margin`) for the margin-reservation
+path.
 
 Acceptance criteria:
 
@@ -129,7 +145,12 @@ Acceptance criteria:
 
 ### 4. Data/stat execution boundary cleanup
 
-Status: Planned.
+Status: Done. `render/derived.rs` is documented as the derived-table execution
+boundary: stats run once, eagerly, against inputs resolved through the `Table`
+trait and materialize into owned `DataFrame`s. An audit confirmed planning code
+reads loaded data only through `&dyn Table`; the only concrete `DataFrame` is the
+owned stat output. Category ordering, missing-value handling, warnings, and SVG
+determinism are unchanged.
 
 Acceptance criteria:
 
@@ -143,7 +164,9 @@ Acceptance criteria:
 
 ### 5. Render equivalence guard coverage
 
-Status: Planned.
+Status: Done. The 79 existing render snapshots still pass, plus a new guard for
+the y-axis margin-reservation path. `./examples/generate.sh` produces an empty
+`git diff -- examples`. No non-example SVG serialization changed.
 
 Acceptance criteria:
 
@@ -156,7 +179,10 @@ Acceptance criteria:
 
 ### 6. Spec, plan, and example hygiene
 
-Status: Planned.
+Status: Done. Workspace and VS Code versions are bumped to `0.17.0`. Spec §18.7,
+§19, §23, and the new §24.6 document the planning/emission boundary and the
+single private backend. This plan records each item's outcome. Examples were
+regenerated; `git diff -- examples` is empty.
 
 Acceptance criteria:
 
@@ -171,17 +197,53 @@ Acceptance criteria:
 
 ### Backend extension note
 
-Status: Planned.
+Status: Done (note below).
 
-Write a short design note describing what a future Canvas/WebGL/raster backend
-would still need. This is documentation only; do not add a second backend.
+A second backend would implement the private `RenderBackend` trait and consume a
+`RenderScene`. The scene already carries resolved layout rectangles, trained
+scales (via each `Panel`'s `ScaledSpace`), legends, per-panel geometry, and
+theme, so a raster/canvas backend would not need to re-run planning. What it
+would still need:
+
+- **A primitive vocabulary.** The SVG backend writes element strings directly
+  (`<rect>`, `<line>`, `<text>`, paths). A non-SVG backend needs those calls
+  expressed as backend-neutral primitives (fill rect, stroke polyline, draw
+  text with anchor/rotation, clip region) rather than pre-formatted SVG. Today
+  geometry and guide emission still produce SVG strings; promoting them to a
+  primitive interface is the main remaining work and is deliberately deferred.
+- **Text metrics.** Layout reserves space using a coarse `0.6 * font_size`
+  glyph estimate (`guide::plan::estimate_text_width`). A raster backend with
+  real font metrics would want the estimate and the emission to agree.
+- **Color/gradient handling.** Continuous fills currently resolve to discrete
+  swatch colors; a backend wanting smooth gradients needs the stop list, not the
+  sampled colors.
+- **Determinism contract.** Any backend must preserve the deterministic ordering
+  and number formatting rules of §18.
+
+No second backend is added in this release.
 
 ### Render performance inventory
 
-Status: Planned.
+Status: Done (note below).
 
-Record the main eager-data and SVG-size bottlenecks visible after the boundary
-cleanup. Do not add lazy execution or sampling in this release.
+Bottlenecks visible after the boundary cleanup, all consequences of the eager
+data model and string-based SVG emission:
+
+- **Repeated table scans during planning.** Domain training, shared-axis extent
+  computation, legend collection, and the provisional-layout y-label measurement
+  each iterate the same tables; `build_render_plan` also builds a provisional
+  layout before the real one. Faceting re-scans per category for row membership.
+- **Owned derived frames.** `compute_derived` materializes every stat result
+  into an owned `DataFrame` up front, even when a space is later not laid out.
+- **String-concatenation SVG.** Emission builds the document by pushing
+  formatted strings into one growing buffer; large charts (many marks, hexbin,
+  dense facets) are dominated by `format!` and allocation, and the output buffer
+  grows unbounded with mark count.
+- **No sampling or streaming.** Every row becomes a mark; there is no decimation
+  for high-cardinality scatter/line layers.
+
+Lazy execution, sampling, and a primitive-based emitter are deferred to a later
+release; this is an inventory only.
 
 ## Explicitly Deferred Past v0.17.0
 
