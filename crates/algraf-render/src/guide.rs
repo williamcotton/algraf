@@ -238,9 +238,9 @@ pub fn render_legends(w: &mut SvgWriter, legends: &[Legend], area: Rect, theme: 
     let mut y = area.y + 4.0;
     for legend in legends {
         w.line(&text(area.x, y, "start", &legend.title, theme));
-        y += 18.0;
         match legend.kind {
             LegendKind::Discrete => {
+                y += 18.0;
                 for (index, (label, color)) in legend.entries.iter().enumerate() {
                     // A merged fill+stroke legend draws each swatch with the
                     // fill color and a stroke outline (spec §19.7).
@@ -261,12 +261,87 @@ pub fn render_legends(w: &mut SvgWriter, legends: &[Legend], area: Rect, theme: 
                 }
             }
             LegendKind::Continuous => {
+                y += 18.0;
                 y = render_continuous_legend(w, legend, area.x, y, theme);
             }
+            LegendKind::Width | LegendKind::Radius => {
+                // `render_size_legend` centers each swatch within its own row, so
+                // it needs only a small gap below the title; the row's half-height
+                // supplies the rest. The fixed 18px discrete gap would double up.
+                y += 6.0;
+                y = render_size_legend(w, legend, area.x, y, theme);
+            }
         }
-        y += 8.0;
+        // Separate one legend's content from the next legend's title.
+        y += 16.0;
     }
     w.close_group();
+}
+
+/// Draw a size legend whose swatch is a line of the mapped thickness
+/// ([`LegendKind::Width`]) or a circle of the mapped radius
+/// ([`LegendKind::Radius`]). Swatches share a fixed-width column sized to the
+/// largest entry, so labels never overlap the widest swatch, and each row is
+/// tall enough for its swatch's full vertical extent — the thickest line or the
+/// largest circle's diameter — so swatches never collide vertically (spec
+/// §19.5).
+fn render_size_legend(
+    w: &mut SvgWriter,
+    legend: &Legend,
+    x: f64,
+    mut y: f64,
+    theme: &Theme,
+) -> f64 {
+    const LINE_LEN: f64 = 28.0;
+    const ROW_GAP: f64 = 6.0;
+    const LABEL_PAD: f64 = 8.0;
+    let color = &theme.text_color;
+    let max_mag = legend.sizes.iter().copied().fold(0.0_f64, f64::max);
+    // The x where labels start, reserved past the largest swatch so every label
+    // clears it. A round-capped line overhangs its endpoints by half its
+    // thickness; a circle's right edge sits a full radius past its center.
+    let label_x = match legend.kind {
+        LegendKind::Radius => x + 2.0 * max_mag + LABEL_PAD,
+        _ => x + LINE_LEN + max_mag / 2.0 + LABEL_PAD,
+    };
+    for (index, (label, _)) in legend.entries.iter().enumerate() {
+        let magnitude = legend.sizes.get(index).copied().unwrap_or(0.0);
+        // A line's vertical extent is its thickness; a circle's is its diameter.
+        let extent = match legend.kind {
+            LegendKind::Radius => 2.0 * magnitude,
+            _ => magnitude,
+        };
+        let row_height = (extent + ROW_GAP).max(18.0);
+        let center = y + row_height / 2.0;
+        match legend.kind {
+            LegendKind::Width if magnitude > 0.0 => {
+                w.line(&format!(
+                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\" stroke-linecap=\"round\" />",
+                    num(x),
+                    num(center),
+                    num(x + LINE_LEN),
+                    num(center),
+                    escape_attr(color),
+                    num(magnitude),
+                ));
+            }
+            LegendKind::Radius if magnitude > 0.0 => {
+                // Center every circle on a common vertical axis through the
+                // swatch column so the stack reads as concentric sizes.
+                w.line(&format!(
+                    "<circle cx=\"{}\" cy=\"{}\" r=\"{}\" fill=\"{}\" />",
+                    num(x + max_mag),
+                    num(center),
+                    num(magnitude),
+                    escape_attr(color),
+                ));
+            }
+            _ => {}
+        }
+        w.line(&text(label_x, center + 4.0, "start", label, theme));
+        y += row_height;
+    }
+    y
 }
 
 fn render_continuous_legend(

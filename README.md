@@ -1165,8 +1165,10 @@ Napoleon's 1812 Russian campaign. A chart-scoped `Table` loads a second CSV of
 city labels onto the same long/lat space as the troop path. The troop layer is a
 `Path` drawn in data order, its width encoding the surviving troop count and its
 color split between advance and retreat with two hand-picked colors and renamed
-legend entries. Axis titles are suppressed with `label: null`, since raw
-longitude and latitude need no heading.
+legend entries. The two mapped aesthetics produce two legends: a "Direction"
+swatch legend for the stroke colors and a "Troops" size legend whose swatch lines
+thicken with the surviving-troop count. Axis titles are suppressed with
+`label: null`, since raw longitude and latitude need no heading.
 
 ```algraf
 Chart(

@@ -102,6 +102,7 @@ impl ColorSpec {
                     })
                     .collect(),
                 stroke_entries: Vec::new(),
+                sizes: Vec::new(),
             }),
             ColorSpec::Gradient {
                 min, max, stops, ..
@@ -111,6 +112,7 @@ impl ColorSpec {
                     title: title.to_string(),
                     kind: LegendKind::Continuous,
                     stroke_entries: Vec::new(),
+                    sizes: Vec::new(),
                     entries: ticks
                         .into_iter()
                         .map(|value| {
@@ -148,12 +150,17 @@ fn gradient_legend_ticks(min: f64, max: f64) -> Vec<f64> {
 /// non-empty, is aligned with `entries` and supplies a per-entry stroke color
 /// for the swatch; it is populated when a `fill` and `stroke` legend over the
 /// same categorical column are merged into one (spec §19.7).
+///
+/// `sizes`, when non-empty, is aligned with `entries` and holds the resolved
+/// magnitude (line thickness or circle radius, in px) for each swatch of a
+/// [`LegendKind::Width`] or [`LegendKind::Radius`] size legend.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Legend {
     pub title: String,
     pub kind: LegendKind,
     pub entries: Vec<(String, String)>,
     pub stroke_entries: Vec<String>,
+    pub sizes: Vec<f64>,
 }
 
 /// How a legend's entries should be rendered.
@@ -161,6 +168,10 @@ pub struct Legend {
 pub enum LegendKind {
     Discrete,
     Continuous,
+    /// A `strokeWidth` size legend: each swatch is a line of the mapped thickness.
+    Width,
+    /// A `size` size legend: each swatch is a circle of the mapped radius.
+    Radius,
 }
 
 /// Build a color specification for an aesthetic (`"fill"` or `"stroke"`).
@@ -287,6 +298,34 @@ impl NumberSpec {
                 None => default,
             },
         }
+    }
+
+    /// A size legend for this aesthetic, if it is a data mapping (spec §19.5).
+    /// `kind` selects the swatch shape ([`LegendKind::Width`] for a line of the
+    /// mapped thickness, [`LegendKind::Radius`] for a circle of the mapped
+    /// radius). Constant settings produce no legend.
+    pub fn legend(&self, title: &str, kind: LegendKind) -> Option<Legend> {
+        let NumberSpec::Scaled { domain, range, .. } = self else {
+            return None;
+        };
+        let ticks = gradient_legend_ticks(domain.0, domain.1);
+        if ticks.is_empty() {
+            return None;
+        }
+        let sizes = ticks
+            .iter()
+            .map(|value| scale_linear(*value, *domain, *range))
+            .collect();
+        Some(Legend {
+            title: title.to_string(),
+            kind,
+            entries: ticks
+                .into_iter()
+                .map(|value| (num(value), String::new()))
+                .collect(),
+            stroke_entries: Vec::new(),
+            sizes,
+        })
     }
 }
 

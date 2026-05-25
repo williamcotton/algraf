@@ -10,6 +10,8 @@ mod point;
 mod rect_tile;
 mod text;
 
+pub(crate) use common::{DEFAULT_SIZE_RANGE, DEFAULT_STROKE_WIDTH_RANGE};
+
 use algraf_core::{codes, Diagnostic};
 use algraf_data::Table;
 use algraf_semantics::{GeometryIr, GeometryKind, ScaleIr};

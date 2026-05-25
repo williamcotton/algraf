@@ -5601,7 +5601,13 @@ Fill mapping creates fill legend.
 
 Stroke mapping creates stroke legend.
 
-Size mapping creates size legend.
+A `size` or `strokeWidth` mapping MUST create a size legend. The legend title
+follows the same rules as color legends — the scale's `label:` when declared,
+otherwise the mapped column's display name (see §16.13). Its entries are five
+evenly spaced ticks across the trained domain, each drawn as a swatch sized by
+the scale's output: a `strokeWidth` legend draws a line of the mapped thickness,
+and a `size` legend draws a circle of the mapped radius. A swatch whose mapped
+magnitude is zero draws no mark, only its tick label.
 
 Shape mapping creates shape legend.
 

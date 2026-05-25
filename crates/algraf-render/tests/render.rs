@@ -952,10 +952,15 @@ fn test_mapped_strokewidth_emits_per_segment_lines() {
         csv,
     );
     assert!(svg.contains("algraf-geom-path"));
+    // Restrict to the data layer; the strokeWidth size legend also emits
+    // round-capped swatch lines in the separate `algraf-legends` group.
+    let data_layer = svg
+        .split_once("algraf-legends")
+        .map_or(svg.as_str(), |(before, _)| before);
     // Two segments for three points, drawn as individual round-capped lines.
-    assert_eq!(svg.matches("stroke-linecap=\"round\"").count(), 2);
+    assert_eq!(data_layer.matches("stroke-linecap=\"round\"").count(), 2);
     // Widths differ across segments.
-    let widths: Vec<&str> = svg
+    let widths: Vec<&str> = data_layer
         .match_indices("stroke-width=\"")
         .map(|(i, _)| {
             let s = &svg[i + 14..];
@@ -969,6 +974,46 @@ fn test_mapped_strokewidth_emits_per_segment_lines() {
             .len()
             > 1
     );
+}
+
+#[test]
+fn test_mapped_strokewidth_emits_size_legend() {
+    let csv = "x,y,w\n1,1,0\n2,2,50\n3,1,100\n";
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Scale(strokeWidth: w, domain: [0, null], range: [0, 20], label: \"Weight\") Space(x * y) { Path(strokeWidth: w) } }",
+        csv,
+    );
+    // The size legend lives in its own group, titled by the scale label, with
+    // a swatch line at the widest tick (range max 20px) and tick labels.
+    let legend = svg.split_once("algraf-legends").unwrap().1;
+    assert!(legend.contains(">Weight</text>"));
+    assert!(legend.contains(">100</text>"));
+    assert!(legend.contains("stroke-width=\"20\""));
+}
+
+#[test]
+fn test_mapped_size_emits_radius_legend() {
+    let csv = "x,y,m\n1,1,0\n2,2,5\n3,1,10\n";
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Scale(size: m, range: [0, 12]) Space(x * y) { Point(size: m) } }",
+        csv,
+    );
+    // A `size` mapping yields circle swatches sized by the mapped radius.
+    let legend = svg.split_once("algraf-legends").unwrap().1;
+    assert!(legend.contains(">m</text>"));
+    assert!(legend.contains("<circle"));
+    assert!(legend.contains("r=\"12\""));
+}
+
+#[test]
+fn test_constant_strokewidth_has_no_size_legend() {
+    let csv = "x,y\n1,1\n2,2\n";
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Space(x * y) { Path(strokeWidth: 3) } }",
+        csv,
+    );
+    // A literal setting is not a data mapping, so no legend is generated.
+    assert!(!svg.contains("algraf-legends"));
 }
 
 #[test]

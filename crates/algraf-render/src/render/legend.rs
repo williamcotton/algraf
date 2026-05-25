@@ -5,17 +5,20 @@ use algraf_semantics::{
     ChartIr, FrameIr, GeometryIr, GeometryKind, ScaleIr, ScaleTargetIr, SettingValue,
 };
 
-use crate::aes::{color_spec, ColorSpec, Legend, LegendKind};
+use crate::aes::{color_spec, number_spec, ColorSpec, Legend, LegendKind};
+use crate::geom::{DEFAULT_SIZE_RANGE, DEFAULT_STROKE_WIDTH_RANGE};
 use crate::stats;
+use crate::theme::Theme;
 
 use super::common::merged_scales;
 use super::derived::active_table;
 
-/// Collect deduplicated fill/stroke legends across all spaces (spec §19.5).
+/// Collect deduplicated fill/stroke/size legends across all spaces (spec §19.5).
 pub(super) fn collect_legends(
     ir: &ChartIr,
     primary: &dyn Table,
     derived: &HashMap<String, DataFrame>,
+    theme: &Theme,
 ) -> Vec<Legend> {
     // Candidate legends paired with the aesthetic that produced them, so a
     // fill legend and a stroke legend over the same column can be merged below.
@@ -62,6 +65,45 @@ pub(super) fn collect_legends(
                         .any(|(a, l)| *a == "fill" && l.title == legend.title)
                     {
                         candidates.push(("fill", legend));
+                    }
+                }
+            }
+            // Size legends for numeric aesthetics: `strokeWidth` (a line of the
+            // mapped thickness) and `size` (a circle of the mapped radius). Each
+            // is only produced when the aesthetic maps a column (spec §19.5).
+            for (aesthetic, kind, default_range, constant_default) in [
+                (
+                    "strokeWidth",
+                    LegendKind::Width,
+                    DEFAULT_STROKE_WIDTH_RANGE,
+                    theme.line_width,
+                ),
+                (
+                    "size",
+                    LegendKind::Radius,
+                    DEFAULT_SIZE_RANGE,
+                    theme.point_size,
+                ),
+            ] {
+                let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == aesthetic) else {
+                    continue;
+                };
+                let spec = number_spec(
+                    geo,
+                    aesthetic,
+                    table,
+                    &scales,
+                    default_range,
+                    constant_default,
+                );
+                let title = scale_label(&scales, aesthetic)
+                    .unwrap_or_else(|| crate::svg::display_label(&mapping.column.name));
+                if let Some(legend) = spec.legend(&title, kind) {
+                    if !candidates
+                        .iter()
+                        .any(|(a, l)| *a == aesthetic && l.title == legend.title)
+                    {
+                        candidates.push((aesthetic, legend));
                     }
                 }
             }

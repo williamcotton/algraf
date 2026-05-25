@@ -101,5 +101,16 @@
   <text x="684" y="160" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oceania</text>
   <rect x="666" y="168" width="12" height="12" fill="#EDC948" />
   <text x="684" y="178" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Africa</text>
+  <text x="666" y="212" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Population (M)</text>
+  <circle cx="691" cy="227" r="4" fill="#222222" />
+  <text x="724" y="231" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <circle cx="691" cy="248.25" r="9.25" fill="#222222" />
+  <text x="724" y="252.25" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">369.25</text>
+  <circle cx="691" cy="278" r="14.5" fill="#222222" />
+  <text x="724" y="282" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">713.5</text>
+  <circle cx="691" cy="318.25" r="19.75" fill="#222222" />
+  <text x="724" y="322.25" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1057.75</text>
+  <circle cx="691" cy="369" r="25" fill="#222222" />
+  <text x="724" y="373" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1402</text>
 </g>
 </svg>

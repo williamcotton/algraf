@@ -196,6 +196,17 @@ Status: Planned.
 Add focused snapshots or integration tests for diagnostic ordering across parse,
 load, semantic, data-warning, and render-warning phases.
 
+### Size legend generation
+
+Status: Done.
+
+Reconcile a long-standing drift: spec §19.5 described a size legend for `size`
+and `strokeWidth` mappings, but the renderer only emitted color (`fill`/`stroke`)
+legends. Promoted §19.5 to a `MUST` and implemented size-legend collection and
+rendering (line-thickness swatches for `strokeWidth`, radius swatches for
+`size`). Surfaced by the `minard` example's `survivors → strokeWidth` scale,
+which now carries its own "Troops" legend.
+
 ## Explicitly Deferred Past v0.15.0
 
 - New diagnostic codes or rich data-file spans unless promoted deliberately.

@@ -9,9 +9,9 @@ use crate::svg::{escape_attr, num, SvgWriter};
 pub(super) const DEFAULT_FILL: &str = "#4E79A7";
 pub(super) const DEFAULT_STROKE: &str = "#333333";
 /// Default output range (px) for a mapped `strokeWidth` scale (spec §16.8).
-pub(super) const DEFAULT_STROKE_WIDTH_RANGE: (f64, f64) = (0.5, 4.0);
+pub(crate) const DEFAULT_STROKE_WIDTH_RANGE: (f64, f64) = (0.5, 4.0);
 /// Default output range (radius px) for a mapped `size` scale (spec §16.8).
-pub(super) const DEFAULT_SIZE_RANGE: (f64, f64) = (2.0, 8.0);
+pub(crate) const DEFAULT_SIZE_RANGE: (f64, f64) = (2.0, 8.0);
 
 pub(super) fn row_category(spec: &ColorSpec, table: &dyn Table, row: usize) -> Option<String> {
     match spec {

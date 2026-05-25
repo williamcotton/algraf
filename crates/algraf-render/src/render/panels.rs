@@ -74,7 +74,7 @@ pub(super) fn build_render_plan<'t>(
         0.0,
         margins,
     );
-    let legends = collect_legends(ir, primary, derived);
+    let legends = collect_legends(ir, primary, derived, theme);
     let left_extra = if has_axes {
         y_label_left_extra(ir, primary, derived, &provisional, theme)
     } else {
