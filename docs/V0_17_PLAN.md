@@ -4,6 +4,7 @@ Status: Planned
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_16_PLAN.md`](V0_16_PLAN.md)
+Follow-on plan: [`V0_18_PLAN.md`](V0_18_PLAN.md)
 
 ## Purpose
 

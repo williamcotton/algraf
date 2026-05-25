@@ -34,7 +34,9 @@ Released version 0.1 behavior is preserved by repository tags.
 
 This working copy is the active Draft 0.14.0 specification.
 
-The v0.14.0 release plan and optional-item audit live in [`V0_14_PLAN.md`](V0_14_PLAN.md).
+The staged release plans and optional-item audits live under `docs/` as
+`V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
+target, and later unreleased plans are sequencing guidance.
 
 Items in the plan are planning guidance until they are promoted into normative sections of this specification.
 
@@ -7560,6 +7562,14 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.15.0 | [`V0_15_PLAN.md`](V0_15_PLAN.md) | Diagnostic pipeline and partial preparation | Planned |
 | 0.16.0 | [`V0_16_PLAN.md`](V0_16_PLAN.md) | Schema cache and compilation-phase boundary | Planned |
 | 0.17.0 | [`V0_17_PLAN.md`](V0_17_PLAN.md) | Render execution boundary | Planned |
+| 0.18.0 | [`V0_18_PLAN.md`](V0_18_PLAN.md) | Semantic surface hardening | Planned |
+| 0.19.0 | [`V0_19_PLAN.md`](V0_19_PLAN.md) | Data execution boundary | Planned |
+| 0.20.0 | [`V0_20_PLAN.md`](V0_20_PLAN.md) | Language versioning and reuse | Planned |
+| 0.21.0 | [`V0_21_PLAN.md`](V0_21_PLAN.md) | Data backends and source security | Planned |
+| 0.22.0 | [`V0_22_PLAN.md`](V0_22_PLAN.md) | Geospatial completion | Planned |
+| 0.23.0 | [`V0_23_PLAN.md`](V0_23_PLAN.md) | Stat and geometry polish | Planned |
+| 0.24.0 | [`V0_24_PLAN.md`](V0_24_PLAN.md) | Output backends and interactivity | Planned |
+| 0.25.0 | [`V0_25_PLAN.md`](V0_25_PLAN.md) | Extensibility and sandboxing | Planned |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
