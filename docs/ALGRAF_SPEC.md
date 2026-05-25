@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.13.0
+Status: Draft 0.14.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,9 +32,9 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.13.0 specification.
+This working copy is the active Draft 0.14.0 specification.
 
-The v0.13.0 release plan and optional-item audit live in [`V0_13_PLAN.md`](V0_13_PLAN.md).
+The v0.14.0 release plan and optional-item audit live in [`V0_14_PLAN.md`](V0_14_PLAN.md).
 
 Items in the plan are planning guidance until they are promoted into normative sections of this specification.
 
@@ -7475,7 +7475,10 @@ Render command SHOULD offer user-visible errors for files that are too large if 
 
 Released version 0.1 files have no source-level version declaration.
 
-Releases through the current roadmap (0.2.0–0.7.0) continue to treat source files as unversioned unless this section is amended. Promotion of the optional version declaration is flagged for consideration in the v0.5.0 plan, when new source syntax lands; see §30.4.
+Releases through the current refactor roadmap continue to treat source files as
+unversioned unless this section is amended. Promotion of the optional version
+declaration remains deferred until a release deliberately takes on source-level
+versioning; see §30.4.
 
 Future files MAY include:
 
@@ -7528,6 +7531,10 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.11.0 | [`V0_11_PLAN.md`](V0_11_PLAN.md) | Renderer modularization and SVG safety | Implemented |
 | 0.12.0 | [`V0_12_PLAN.md`](V0_12_PLAN.md) | Tooling, diagnostics, and parser cleanup | Implemented |
 | 0.13.0 | [`V0_13_PLAN.md`](V0_13_PLAN.md) | Driver cleanup and preparation | Implemented |
+| 0.14.0 | [`V0_14_PLAN.md`](V0_14_PLAN.md) | Driver I/O seam and VFS preparation | Planned |
+| 0.15.0 | [`V0_15_PLAN.md`](V0_15_PLAN.md) | Diagnostic pipeline and partial preparation | Planned |
+| 0.16.0 | [`V0_16_PLAN.md`](V0_16_PLAN.md) | Schema cache and compilation-phase boundary | Planned |
+| 0.17.0 | [`V0_17_PLAN.md`](V0_17_PLAN.md) | Render execution boundary | Planned |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

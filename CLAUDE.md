@@ -25,9 +25,10 @@ Three artifacts govern behavior, and they must stay in sync:
    one (e.g. `V0_2_PLAN.md`, `V0_3_PLAN.md`). A plan states the release thesis,
    lists Must/Should items with a `Status:` line each, and records what stays
    deferred. Plans are *guidance*, not normative: a feature is only real once the
-   spec says `MUST`/`SHOULD` and the code implements it. The newest plan file is
-   the active one; older plan files are a historical record — don't reopen a
-   completed release's scope.
+   spec says `MUST`/`SHOULD` and the code implements it. The earliest
+   unreleased plan is the active implementation target; later unreleased plans
+   are sequencing guidance, and completed release plans are historical records —
+   don't reopen a completed release's scope.
 
 3. **The code** under `crates/`, plus its tests and `examples/`.
 

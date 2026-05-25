@@ -4,6 +4,7 @@ Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_12_PLAN.md`](V0_12_PLAN.md)
+Follow-on plan: [`V0_14_PLAN.md`](V0_14_PLAN.md)
 
 ## Purpose
 
