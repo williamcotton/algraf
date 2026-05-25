@@ -3,176 +3,28 @@
 //! The driver is intentionally non-UI: it does not parse command-line flags,
 //! print diagnostics, choose output filenames, rasterize PNGs, or speak LSP.
 
-use std::collections::HashMap;
-use std::fmt;
-use std::io::Read;
-use std::path::{Path, PathBuf};
+mod error;
+mod loading;
+mod prepare;
+mod resolution;
 
-use algraf_core::Span;
-use algraf_data::{
-    read_csv, read_path, read_path_as, read_schema_path, read_schema_path_as, ColumnDef, DataError,
-    DataFrame, DataWarning, Format, LoadResult, Table,
+pub use error::{DriverError, LoadContext};
+pub use loading::{
+    load_data, load_named_table_schemas, load_named_tables, load_path, load_schema,
+    load_schema_path, NamedTable, NamedTableSchema,
 };
-use algraf_semantics::{analyze_chart_with_tables, Analysis};
+pub use prepare::{prepare_chart, PrepareOptions, PreparedChart};
+pub use resolution::{
+    data_location, resolve_chart_data_path, resolve_document_data_path,
+    resolve_named_table_sources, resolve_path, resolve_source_expr_path, source_base_dir,
+    source_format_to_data, DataLocation, ResolvedSource, ResolvedTableSource, SourceInput,
+};
+
 use algraf_syntax::ast::{ChartBlock, Root};
 use algraf_syntax::{
     chart_data_source, chart_table_sources, document_data_source, parse, Parse, SourceExpr,
-    SourceFormat, SyntaxNode,
+    SyntaxNode,
 };
-
-/// Where the Algraf source text came from.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SourceInput {
-    Stdin,
-    Path(PathBuf),
-}
-
-impl SourceInput {
-    /// A human-facing label for diagnostics.
-    pub fn label(&self) -> String {
-        match self {
-            SourceInput::Stdin => "<stdin>".to_string(),
-            SourceInput::Path(path) => path.display().to_string(),
-        }
-    }
-
-    pub fn is_stdin(&self) -> bool {
-        matches!(self, SourceInput::Stdin)
-    }
-}
-
-/// A resolved source path plus the loader format policy.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResolvedSource {
-    pub path: PathBuf,
-    /// `None` means select format by extension.
-    pub format: Option<Format>,
-    pub span: Option<Span>,
-}
-
-/// A resolved chart-scoped named table source.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResolvedTableSource {
-    pub name: String,
-    pub path: PathBuf,
-    /// `None` means select format by extension.
-    pub format: Option<Format>,
-    pub span: Option<Span>,
-}
-
-/// A data location after source-relative path resolution and `--data` override
-/// handling.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DataLocation {
-    Path {
-        path: PathBuf,
-        /// `None` means select format by extension.
-        format: Option<Format>,
-    },
-    Stdin,
-}
-
-/// One loaded chart-scoped named table.
-#[derive(Debug, Clone)]
-pub struct NamedTable {
-    pub name: String,
-    pub path: PathBuf,
-    pub frame: DataFrame,
-    pub warnings: Vec<DataWarning>,
-}
-
-/// One loaded chart-scoped named table schema.
-#[derive(Debug, Clone)]
-pub struct NamedTableSchema {
-    pub name: String,
-    pub path: PathBuf,
-    pub schema: Vec<ColumnDef>,
-}
-
-/// Data loading context used to preserve caller-facing error messages.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum LoadContext {
-    Primary,
-    Table { name: String },
-}
-
-/// Structured driver errors.
-#[derive(Debug)]
-pub enum DriverError {
-    Usage(String),
-    Data {
-        context: LoadContext,
-        path: PathBuf,
-        source: DataError,
-    },
-    StdinRead(String),
-    StdinParse(String),
-}
-
-impl fmt::Display for DriverError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DriverError::Usage(message) => f.write_str(message),
-            DriverError::Data {
-                context,
-                path,
-                source,
-            } => match context {
-                LoadContext::Primary => {
-                    write!(f, "failed to load data {}: {source}", path.display())
-                }
-                LoadContext::Table { name } => {
-                    write!(
-                        f,
-                        "failed to load Table `{name}` data {}: {source}",
-                        path.display()
-                    )
-                }
-            },
-            DriverError::StdinRead(message) | DriverError::StdinParse(message) => {
-                f.write_str(message)
-            }
-        }
-    }
-}
-
-impl std::error::Error for DriverError {}
-
-/// Prepared chart inputs after loading and semantic analysis.
-#[derive(Debug)]
-pub struct PreparedChart {
-    pub source: SourceExpr,
-    pub primary: Option<LoadResult>,
-    pub named_tables: Vec<NamedTable>,
-    pub analysis: Analysis,
-}
-
-impl PreparedChart {
-    /// Named-table schemas keyed by declaration name.
-    pub fn table_schemas(&self) -> HashMap<String, Vec<ColumnDef>> {
-        self.named_tables
-            .iter()
-            .map(|table| (table.name.clone(), table.frame.schema().to_vec()))
-            .collect()
-    }
-
-    /// Named-table frames keyed by declaration name.
-    pub fn into_named_frames(self) -> HashMap<String, DataFrame> {
-        self.named_tables
-            .into_iter()
-            .map(|table| (table.name, table.frame))
-            .collect()
-    }
-}
-
-/// Options for loading and analyzing one chart.
-#[derive(Debug, Clone, Copy)]
-pub struct PrepareOptions<'a> {
-    pub source_input: &'a SourceInput,
-    pub base_dir: Option<&'a Path>,
-    pub data_override: Option<&'a str>,
-    pub multi_chart: bool,
-}
 
 /// Parse source text.
 pub fn parse_source(source: &str) -> Parse {
@@ -201,315 +53,14 @@ pub fn document_charts(root: &SyntaxNode) -> Vec<ChartBlock> {
         .unwrap_or_default()
 }
 
-/// Resolve the base directory for relative data paths.
-pub fn source_base_dir(source: &SourceInput, base_dir: Option<&Path>) -> PathBuf {
-    base_dir
-        .map(PathBuf::from)
-        .or_else(|| match source {
-            SourceInput::Path(path) => path.parent().map(PathBuf::from),
-            SourceInput::Stdin => Some(PathBuf::from(".")),
-        })
-        .unwrap_or_else(|| PathBuf::from("."))
-}
-
-/// Resolve a path string using the source path or `--base-dir`.
-pub fn resolve_path(path: &str, source: &SourceInput, base_dir: Option<&Path>) -> PathBuf {
-    let path = PathBuf::from(path);
-    if path.is_absolute() {
-        path
-    } else {
-        source_base_dir(source, base_dir).join(path)
-    }
-}
-
-/// Convert a syntax source format into a runtime data loader format.
-pub fn source_format_to_data(format: SourceFormat) -> Format {
-    match format {
-        SourceFormat::GeoJson => Format::GeoJson,
-        SourceFormat::Shapefile => Format::Shapefile,
-    }
-}
-
-fn data_format(format: Option<SourceFormat>) -> Option<Format> {
-    format.map(source_format_to_data)
-}
-
-/// Resolve a path source expression. Non-path expressions return `None`.
-pub fn resolve_source_expr_path(
-    source_expr: &SourceExpr,
-    source: &SourceInput,
-    base_dir: Option<&Path>,
-) -> Option<ResolvedSource> {
-    match source_expr {
-        SourceExpr::Path { path, format, span } => Some(ResolvedSource {
-            path: resolve_path(path, source, base_dir),
-            format: data_format(*format),
-            span: Some(*span),
-        }),
-        _ => None,
-    }
-}
-
-/// Resolve one chart's primary data path, without applying a data override.
-pub fn resolve_chart_data_path(
-    chart: &ChartBlock,
-    source: &SourceInput,
-    base_dir: Option<&Path>,
-) -> Option<ResolvedSource> {
-    resolve_source_expr_path(&chart_data_source(chart), source, base_dir)
-}
-
-/// Resolve every valid named table path in a chart.
-pub fn resolve_named_table_sources(
-    chart: &ChartBlock,
-    source: &SourceInput,
-    base_dir: Option<&Path>,
-) -> Vec<ResolvedTableSource> {
-    chart_table_sources(chart)
-        .into_iter()
-        .filter_map(|(name, source_expr)| {
-            resolve_source_expr_path(&source_expr, source, base_dir).map(|resolved| {
-                ResolvedTableSource {
-                    name,
-                    path: resolved.path,
-                    format: resolved.format,
-                    span: resolved.span,
-                }
-            })
-        })
-        .collect()
-}
-
-/// Apply `--data` override and source-relative path rules.
-pub fn data_location(
-    source_expr: &SourceExpr,
-    source: &SourceInput,
-    base_dir: Option<&Path>,
-    data_override: Option<&str>,
-) -> Result<DataLocation, DriverError> {
-    if let Some(data) = data_override {
-        if data == "-" {
-            if source.is_stdin() {
-                return Err(DriverError::Usage(
-                    "cannot read both source and CSV data from stdin".to_string(),
-                ));
-            }
-            return Ok(DataLocation::Stdin);
-        }
-        return Ok(DataLocation::Path {
-            path: PathBuf::from(data),
-            format: None,
-        });
-    }
-
-    match source_expr {
-        SourceExpr::Stdin { .. } => {
-            if source.is_stdin() {
-                return Err(DriverError::Usage(
-                    "Chart(data: stdin) but source was also read from stdin; use --data"
-                        .to_string(),
-                ));
-            }
-            Ok(DataLocation::Stdin)
-        }
-        SourceExpr::Path { .. } => {
-            let resolved = resolve_source_expr_path(source_expr, source, base_dir)
-                .expect("path source should resolve");
-            Ok(DataLocation::Path {
-                path: resolved.path,
-                format: resolved.format,
-            })
-        }
-        SourceExpr::Missing | SourceExpr::Invalid { .. } => Err(DriverError::Usage(
-            "chart has no data source; add Chart(data: \"file.csv\")".to_string(),
-        )),
-    }
-}
-
-/// Load a full data source for a chart.
-pub fn load_data(
-    source_expr: &SourceExpr,
-    source: &SourceInput,
-    base_dir: Option<&Path>,
-    data_override: Option<&str>,
-) -> Result<LoadResult, DriverError> {
-    match data_location(source_expr, source, base_dir, data_override)? {
-        DataLocation::Path { path, format } => load_path(&path, format, LoadContext::Primary),
-        DataLocation::Stdin => read_stdin_csv(),
-    }
-}
-
-/// Load a full data source from a path.
-pub fn load_path(
-    path: &Path,
-    format: Option<Format>,
-    context: LoadContext,
-) -> Result<LoadResult, DriverError> {
-    let loaded = match format {
-        Some(format) => read_path_as(path, format),
-        None => read_path(path),
-    };
-    loaded.map_err(|source| DriverError::Data {
-        context,
-        path: path.to_path_buf(),
-        source,
-    })
-}
-
-/// Load only a data schema, optionally sampling rows for delimited formats.
-pub fn load_schema(
-    source_expr: &SourceExpr,
-    source: &SourceInput,
-    base_dir: Option<&Path>,
-    data_override: Option<&str>,
-    sample_size: Option<usize>,
-) -> Result<Vec<ColumnDef>, DriverError> {
-    let Some(sample_size) = sample_size else {
-        return Ok(load_data(source_expr, source, base_dir, data_override)?
-            .frame
-            .schema()
-            .to_vec());
-    };
-
-    match data_location(source_expr, source, base_dir, data_override)? {
-        DataLocation::Path { path, format } => {
-            load_schema_path(&path, format, sample_size, LoadContext::Primary)
-        }
-        DataLocation::Stdin => {
-            let mut bytes = Vec::new();
-            std::io::stdin().read_to_end(&mut bytes).map_err(|e| {
-                DriverError::StdinRead(format!("failed to read CSV from stdin: {e}"))
-            })?;
-            algraf_data::read_csv_schema(bytes.as_slice(), sample_size)
-                .map_err(|e| DriverError::StdinParse(format!("failed to parse stdin CSV: {e}")))
-        }
-    }
-}
-
-/// Load only a schema from a path.
-pub fn load_schema_path(
-    path: &Path,
-    format: Option<Format>,
-    sample_size: usize,
-    context: LoadContext,
-) -> Result<Vec<ColumnDef>, DriverError> {
-    let loaded = match format {
-        Some(format) => read_schema_path_as(path, format, sample_size),
-        None => read_schema_path(path, sample_size),
-    };
-    loaded.map_err(|source| DriverError::Data {
-        context,
-        path: path.to_path_buf(),
-        source,
-    })
-}
-
-/// Load every valid named table in a chart.
-pub fn load_named_tables(
-    chart: &ChartBlock,
-    source: &SourceInput,
-    base_dir: Option<&Path>,
-) -> Result<Vec<NamedTable>, DriverError> {
-    let mut out = Vec::new();
-    for resolved in resolve_named_table_sources(chart, source, base_dir) {
-        let loaded = load_path(
-            &resolved.path,
-            resolved.format,
-            LoadContext::Table {
-                name: resolved.name.clone(),
-            },
-        )?;
-        out.push(NamedTable {
-            name: resolved.name,
-            path: resolved.path,
-            frame: loaded.frame,
-            warnings: loaded.warnings,
-        });
-    }
-    Ok(out)
-}
-
-/// Load every valid named table schema in a chart.
-pub fn load_named_table_schemas(
-    chart: &ChartBlock,
-    source: &SourceInput,
-    base_dir: Option<&Path>,
-    sample_size: usize,
-) -> Result<Vec<NamedTableSchema>, DriverError> {
-    let mut out = Vec::new();
-    for resolved in resolve_named_table_sources(chart, source, base_dir) {
-        let schema = load_schema_path(
-            &resolved.path,
-            resolved.format,
-            sample_size,
-            LoadContext::Table {
-                name: resolved.name.clone(),
-            },
-        )?;
-        out.push(NamedTableSchema {
-            name: resolved.name,
-            path: resolved.path,
-            schema,
-        });
-    }
-    Ok(out)
-}
-
-/// Load data and analyze a chart.
-pub fn prepare_chart(
-    chart: &ChartBlock,
-    options: PrepareOptions<'_>,
-) -> Result<PreparedChart, DriverError> {
-    let source_expr = chart_data_source(chart);
-    if options.multi_chart && (source_expr.is_stdin() || options.data_override == Some("-")) {
-        return Err(DriverError::Usage(
-            "stdin data cannot be shared across charts; give each chart a file path".to_string(),
-        ));
-    }
-
-    let primary = if source_expr.is_missing() || matches!(source_expr, SourceExpr::Invalid { .. }) {
-        None
-    } else {
-        Some(load_data(
-            &source_expr,
-            options.source_input,
-            options.base_dir,
-            options.data_override,
-        )?)
-    };
-    let schema = primary
-        .as_ref()
-        .map(|loaded| loaded.frame.schema())
-        .unwrap_or(&[] as &[ColumnDef]);
-
-    let named_tables = load_named_tables(chart, options.source_input, options.base_dir)?;
-    let table_schemas: HashMap<String, Vec<ColumnDef>> = named_tables
-        .iter()
-        .map(|table| (table.name.clone(), table.frame.schema().to_vec()))
-        .collect();
-    let analysis = analyze_chart_with_tables(chart, schema, &table_schemas);
-
-    Ok(PreparedChart {
-        source: source_expr,
-        primary,
-        named_tables,
-        analysis,
-    })
-}
-
-fn read_stdin_csv() -> Result<LoadResult, DriverError> {
-    let mut bytes = Vec::new();
-    std::io::stdin()
-        .read_to_end(&mut bytes)
-        .map_err(|e| DriverError::StdinRead(format!("failed to read CSV from stdin: {e}")))?;
-    read_csv(bytes.as_slice())
-        .map_err(|e| DriverError::StdinParse(format!("failed to parse stdin CSV: {e}")))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use algraf_core::Span;
+    use algraf_data::Format;
+    use algraf_syntax::SourceFormat;
     use std::fs;
+    use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_dir(test: &str) -> PathBuf {
@@ -572,6 +123,111 @@ mod tests {
     }
 
     #[test]
+    fn resolves_absolute_paths_without_rebasing() {
+        let dir = temp_dir("absolute");
+        let absolute = dir.join("data.csv");
+        let source = SourceInput::Path(dir.join("nested/chart.ag"));
+
+        let resolved = resolve_path(absolute.to_str().unwrap(), &source, None);
+
+        assert_eq!(resolved, absolute);
+    }
+
+    #[test]
+    fn resolves_stdin_source_paths_against_current_directory() {
+        let resolved = resolve_path("data.csv", &SourceInput::Stdin, None);
+
+        assert_eq!(resolved, PathBuf::from(".").join("data.csv"));
+    }
+
+    #[test]
+    fn explicit_base_dir_overrides_source_parent() {
+        let dir = temp_dir("base-dir");
+        let base = dir.join("data-root");
+        let source = SourceInput::Path(dir.join("source-root/chart.ag"));
+
+        let resolved = resolve_path("data.csv", &source, Some(&base));
+
+        assert_eq!(resolved, base.join("data.csv"));
+    }
+
+    #[test]
+    fn data_override_applies_to_primary_without_rebasing() {
+        let dir = temp_dir("override");
+        let source = SourceInput::Path(dir.join("nested/chart.ag"));
+        let expr = SourceExpr::Path {
+            path: "declared.csv".to_string(),
+            format: None,
+            span: Span::new(0, 0),
+        };
+
+        let location = data_location(&expr, &source, Some(&dir), Some("override.csv")).unwrap();
+
+        assert_eq!(
+            location,
+            DataLocation::Path {
+                path: PathBuf::from("override.csv"),
+                format: None
+            }
+        );
+    }
+
+    #[test]
+    fn chart_and_named_table_sources_share_base_resolution() {
+        let dir = temp_dir("chart-table-resolution");
+        let base = dir.join("base");
+        let source = SourceInput::Path(dir.join("source/chart.ag"));
+        let chart = parse_chart(
+            r#"Chart(data: "primary.csv") {
+                Table cities = GeoJson("cities.geojson")
+                Space(geom, data: cities) { Geo() }
+            }"#,
+        );
+
+        let primary = resolve_chart_data_path(&chart, &source, Some(&base)).unwrap();
+        let tables = resolve_named_table_sources(&chart, &source, Some(&base));
+
+        assert_eq!(primary.path, base.join("primary.csv"));
+        assert_eq!(tables[0].path, base.join("cities.geojson"));
+        assert_eq!(tables[0].format, Some(Format::GeoJson));
+    }
+
+    #[test]
+    fn document_data_path_uses_same_resolver_as_chart_path() {
+        let dir = temp_dir("document-resolution");
+        let source = SourceInput::Path(dir.join("chart.ag"));
+        let root = parse(r#"Chart(data: "primary.csv") { Space(x * y) { Point() } }"#).syntax();
+        let chart = document_charts(&root).remove(0);
+
+        let document = resolve_document_data_path(&root, &source, None).unwrap();
+        let chart = resolve_chart_data_path(&chart, &source, None).unwrap();
+
+        assert_eq!(document, chart);
+    }
+
+    #[test]
+    fn internal_driver_env_matches_public_resolution_wrappers() {
+        let dir = temp_dir("driver-env");
+        let base = dir.join("base");
+        let source = SourceInput::Path(dir.join("source/chart.ag"));
+        let chart = parse_chart(
+            r#"Chart(data: "primary.csv") {
+                Table cities = "cities.csv"
+                Space(x * y) { Point() }
+            }"#,
+        );
+        let env = crate::resolution::DriverEnv::new(&source, Some(&base), None, false);
+
+        let internal_primary = env.resolver().resolve_chart_data_path(&chart).unwrap();
+        let public_primary = resolve_chart_data_path(&chart, &source, Some(&base)).unwrap();
+        let internal_tables = env.resolver().resolve_named_table_sources(&chart);
+        let public_tables = resolve_named_table_sources(&chart, &source, Some(&base));
+
+        assert_eq!(internal_primary, public_primary);
+        assert_eq!(internal_tables, public_tables);
+    }
+
+    #[test]
     fn loads_supported_path_formats() {
         let dir = temp_dir("formats");
         fs::write(dir.join("data.csv"), "x,y\n1,2\n").unwrap();
@@ -624,6 +280,25 @@ mod tests {
             .unwrap();
             assert!(prepared.primary.unwrap().frame.column("geom").is_some());
         }
+    }
+
+    #[test]
+    fn loads_inferred_and_explicit_schema_formats() {
+        let dir = temp_dir("schema-formats");
+        fs::write(dir.join("data.csv"), "x,y\n1,2\n").unwrap();
+
+        let csv_schema =
+            load_schema_path(&dir.join("data.csv"), None, 10, LoadContext::Primary).unwrap();
+        let geo_schema = load_schema_path(
+            &fixture("tiny.geojson"),
+            Some(Format::GeoJson),
+            10,
+            LoadContext::Primary,
+        )
+        .unwrap();
+
+        assert_eq!(csv_schema[0].name, "x");
+        assert!(geo_schema.iter().any(|column| column.name == "geom"));
     }
 
     #[test]

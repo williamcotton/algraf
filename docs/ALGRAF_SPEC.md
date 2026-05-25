@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.12.0
+Status: Draft 0.13.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,9 +32,9 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.3.0 specification.
+This working copy is the active Draft 0.13.0 specification.
 
-The v0.3.0 release plan and optional-item audit live in [`V0_3_PLAN.md`](V0_3_PLAN.md).
+The v0.13.0 release plan and optional-item audit live in [`V0_13_PLAN.md`](V0_13_PLAN.md).
 
 Items in the plan are planning guidance until they are promoted into normative sections of this specification.
 
@@ -7527,6 +7527,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.10.0 | [`V0_10_PLAN.md`](V0_10_PLAN.md) | Semantic analyzer modularization and typed stat IR | Implemented |
 | 0.11.0 | [`V0_11_PLAN.md`](V0_11_PLAN.md) | Renderer modularization and SVG safety | Implemented |
 | 0.12.0 | [`V0_12_PLAN.md`](V0_12_PLAN.md) | Tooling, diagnostics, and parser cleanup | Implemented |
+| 0.13.0 | [`V0_13_PLAN.md`](V0_13_PLAN.md) | Driver cleanup and preparation | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

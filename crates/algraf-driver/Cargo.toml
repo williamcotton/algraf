@@ -11,3 +11,4 @@ algraf-core = { workspace = true }
 algraf-syntax = { workspace = true }
 algraf-data = { workspace = true }
 algraf-semantics = { workspace = true }
+thiserror = { workspace = true }
