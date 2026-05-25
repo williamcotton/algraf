@@ -57,6 +57,11 @@ ast_node!(
 );
 
 impl Root {
+    /// The optional source header (`Algraf(...)`), if present.
+    pub fn source_header(&self) -> Option<SourceHeader> {
+        self.syntax.children().find_map(SourceHeader::cast)
+    }
+
     /// The first chart block, if one was parsed.
     pub fn chart(&self) -> Option<ChartBlock> {
         self.syntax.children().find_map(ChartBlock::cast)
@@ -65,6 +70,18 @@ impl Root {
     /// Every top-level chart block, in source order (spec §7.1).
     pub fn charts(&self) -> Vec<ChartBlock> {
         child_nodes(&self.syntax, ChartBlock::cast)
+    }
+}
+
+ast_node!(
+    /// The optional top-level `Algraf(...)` source header.
+    SourceHeader = SOURCE_HEADER
+);
+
+impl SourceHeader {
+    /// The header's arguments (e.g. `version`, `features`).
+    pub fn args(&self) -> Vec<Arg> {
+        child_nodes(&self.syntax, Arg::cast)
     }
 }
 

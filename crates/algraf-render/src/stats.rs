@@ -5,7 +5,7 @@
 //! stat (spec §15.5), producing one row per category with a `count` column.
 
 use algraf_data::{Column, ColumnDef, DataFrame, DataType, DateTimeValue, Table};
-use chrono::DateTime;
+use chrono::{DateTime, Datelike, Duration, Months, NaiveDate, NaiveDateTime, Timelike};
 
 use crate::scale::{
     categorical_domain, cell_category, cell_f64, cell_micros, numeric_domain, temporal_domain,
@@ -18,12 +18,24 @@ pub struct BinOptions {
     pub bin_width: Option<f64>,
     pub boundary: Option<f64>,
     pub closed: BinClosed,
+    pub interval: Option<BinInterval>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinClosed {
     Left,
     Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinInterval {
+    Minute,
+    Hour,
+    Day,
+    Week,
+    Month,
+    Quarter,
+    Year,
 }
 
 /// Compute a histogram-bin derived table over a numeric input column.
@@ -33,6 +45,9 @@ pub fn bin_with_options(table: &dyn Table, input_column: &str, options: BinOptio
         .iter()
         .any(|column| column.name == input_column && column.dtype == DataType::Temporal)
     {
+        if let Some(interval) = options.interval {
+            return temporal_calendar_bin(table, input_column, options, interval);
+        }
         return temporal_bin_with_options(table, input_column, options);
     }
 
@@ -104,6 +119,7 @@ pub fn temporal_bin_with_options(
         bin_width: options.bin_width,
         boundary: options.boundary,
         closed: options.closed,
+        interval: None,
     };
     let (start, width, bin_count) = bin_layout(min as f64, max as f64, bins, numeric_options);
 
@@ -152,6 +168,194 @@ pub fn temporal_bin_with_options(
         Column::Float(densities),
     ];
     DataFrame::new(schema, columns)
+}
+
+fn temporal_calendar_bin(
+    table: &dyn Table,
+    input_column: &str,
+    options: BinOptions,
+    interval: BinInterval,
+) -> DataFrame {
+    let Some((min, max, precision)) = temporal_domain(table, input_column) else {
+        return empty_temporal_bin_frame();
+    };
+    let Some(min_dt) = DateTime::from_timestamp_micros(min).map(|dt| dt.naive_utc()) else {
+        return empty_temporal_bin_frame();
+    };
+    let Some(max_dt) = DateTime::from_timestamp_micros(max).map(|dt| dt.naive_utc()) else {
+        return empty_temporal_bin_frame();
+    };
+    let Some(first_start) = floor_interval(min_dt, interval) else {
+        return empty_temporal_bin_frame();
+    };
+    let mut last_start = floor_interval(max_dt, interval).unwrap_or(first_start);
+    if options.closed == BinClosed::Right && max_dt == last_start && max_dt > first_start {
+        last_start = previous_interval(last_start, interval).unwrap_or(last_start);
+    }
+
+    let mut starts = Vec::new();
+    let mut cursor = first_start;
+    let mut guard = 0usize;
+    while cursor <= last_start && guard < 20_000 {
+        starts.push(cursor);
+        let Some(next) = add_interval(cursor, interval) else {
+            break;
+        };
+        if next <= cursor {
+            break;
+        }
+        cursor = next;
+        guard += 1;
+    }
+    if starts.is_empty() {
+        starts.push(first_start);
+    }
+
+    let mut counts = vec![0i64; starts.len()];
+    let mut total_count = 0i64;
+    for row in 0..table.row_count() {
+        let Some(micros) = cell_micros(table, input_column, row) else {
+            continue;
+        };
+        let Some(dt) = DateTime::from_timestamp_micros(micros).map(|dt| dt.naive_utc()) else {
+            continue;
+        };
+        let mut start = floor_interval(dt, interval).unwrap_or(first_start);
+        if options.closed == BinClosed::Right && dt == start && dt > first_start {
+            start = previous_interval(start, interval).unwrap_or(start);
+        }
+        if let Some(index) = starts.iter().position(|candidate| *candidate == start) {
+            counts[index] += 1;
+            total_count += 1;
+        }
+    }
+
+    let mut out_starts = Vec::with_capacity(starts.len());
+    let mut out_ends = Vec::with_capacity(starts.len());
+    let mut centers = Vec::with_capacity(starts.len());
+    let mut densities = Vec::with_capacity(starts.len());
+    let total = total_count as f64;
+    for (index, start) in starts.iter().copied().enumerate() {
+        let end = add_interval(start, interval).unwrap_or(start);
+        out_starts.push(Some(DateTimeValue::new(start, precision)));
+        out_ends.push(Some(DateTimeValue::new(end, precision)));
+        centers.push(midpoint_temporal(start, end, precision));
+        let width = end
+            .and_utc()
+            .timestamp_micros()
+            .saturating_sub(start.and_utc().timestamp_micros())
+            .abs() as f64;
+        let density = if total > 0.0 && width > f64::EPSILON {
+            counts[index] as f64 / (total * width)
+        } else {
+            0.0
+        };
+        densities.push(Some(density));
+    }
+
+    let columns = vec![
+        Column::Temporal(out_starts),
+        Column::Temporal(out_ends),
+        Column::Temporal(centers),
+        Column::Int(counts.into_iter().map(Some).collect()),
+        Column::Float(densities),
+    ];
+    DataFrame::new(temporal_bin_schema(), columns)
+}
+
+fn empty_temporal_bin_frame() -> DataFrame {
+    DataFrame::new(
+        temporal_bin_schema(),
+        vec![
+            Column::Temporal(vec![]),
+            Column::Temporal(vec![]),
+            Column::Temporal(vec![]),
+            Column::Int(vec![]),
+            Column::Float(vec![]),
+        ],
+    )
+}
+
+fn temporal_bin_schema() -> Vec<ColumnDef> {
+    vec![
+        col_def("bin_start", DataType::Temporal),
+        col_def("bin_end", DataType::Temporal),
+        col_def("bin_center", DataType::Temporal),
+        col_def("count", DataType::Integer),
+        col_def("density", DataType::Float),
+    ]
+}
+
+fn floor_interval(dt: NaiveDateTime, interval: BinInterval) -> Option<NaiveDateTime> {
+    let date = dt.date();
+    match interval {
+        BinInterval::Minute => date.and_hms_opt(dt.hour(), dt.minute(), 0),
+        BinInterval::Hour => date.and_hms_opt(dt.hour(), 0, 0),
+        BinInterval::Day => date.and_hms_opt(0, 0, 0),
+        BinInterval::Week => {
+            let days = date.weekday().num_days_from_monday() as i64;
+            date.checked_sub_signed(Duration::days(days))?
+                .and_hms_opt(0, 0, 0)
+        }
+        BinInterval::Month => {
+            NaiveDate::from_ymd_opt(date.year(), date.month(), 1)?.and_hms_opt(0, 0, 0)
+        }
+        BinInterval::Quarter => {
+            let month = ((date.month() - 1) / 3) * 3 + 1;
+            NaiveDate::from_ymd_opt(date.year(), month, 1)?.and_hms_opt(0, 0, 0)
+        }
+        BinInterval::Year => NaiveDate::from_ymd_opt(date.year(), 1, 1)?.and_hms_opt(0, 0, 0),
+    }
+}
+
+fn add_interval(dt: NaiveDateTime, interval: BinInterval) -> Option<NaiveDateTime> {
+    match interval {
+        BinInterval::Minute => dt.checked_add_signed(Duration::minutes(1)),
+        BinInterval::Hour => dt.checked_add_signed(Duration::hours(1)),
+        BinInterval::Day => dt.checked_add_signed(Duration::days(1)),
+        BinInterval::Week => dt.checked_add_signed(Duration::weeks(1)),
+        BinInterval::Month => dt.checked_add_months(Months::new(1)),
+        BinInterval::Quarter => dt.checked_add_months(Months::new(3)),
+        BinInterval::Year => dt.checked_add_months(Months::new(12)),
+    }
+}
+
+fn previous_interval(dt: NaiveDateTime, interval: BinInterval) -> Option<NaiveDateTime> {
+    match interval {
+        BinInterval::Minute => dt.checked_sub_signed(Duration::minutes(1)),
+        BinInterval::Hour => dt.checked_sub_signed(Duration::hours(1)),
+        BinInterval::Day => dt.checked_sub_signed(Duration::days(1)),
+        BinInterval::Week => dt.checked_sub_signed(Duration::weeks(1)),
+        BinInterval::Month => dt.checked_sub_months(Months::new(1)),
+        BinInterval::Quarter => dt.checked_sub_months(Months::new(3)),
+        BinInterval::Year => dt.checked_sub_months(Months::new(12)),
+    }
+}
+
+fn midpoint_temporal(
+    start: NaiveDateTime,
+    end: NaiveDateTime,
+    precision: algraf_data::TemporalPrecision,
+) -> Option<DateTimeValue> {
+    match precision {
+        algraf_data::TemporalPrecision::Date => {
+            let days = end
+                .date()
+                .signed_duration_since(start.date())
+                .num_days()
+                .max(0);
+            let date = start.date().checked_add_signed(Duration::days(days / 2))?;
+            Some(DateTimeValue::new(
+                date.and_hms_opt(0, 0, 0)?,
+                algraf_data::TemporalPrecision::Date,
+            ))
+        }
+        algraf_data::TemporalPrecision::DateTime => {
+            let a = start.and_utc().timestamp_micros();
+            let b = end.and_utc().timestamp_micros();
+            datetime_value(a + (b - a) / 2, precision)
+        }
+    }
 }
 
 /// Options for kernel density estimation.
@@ -396,6 +600,7 @@ fn bin2d_cells(
             bin_width: None,
             boundary: None,
             closed: BinClosed::Left,
+            interval: None,
         },
     );
     let (y_start, y_width, y_bins) = bin_layout(
@@ -407,6 +612,7 @@ fn bin2d_cells(
             bin_width: None,
             boundary: None,
             closed: BinClosed::Left,
+            interval: None,
         },
     );
     let mut counts = vec![0i64; x_bins * y_bins];

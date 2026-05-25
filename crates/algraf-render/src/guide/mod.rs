@@ -13,5 +13,7 @@
 mod emit;
 mod plan;
 
-pub(crate) use emit::{render_axes, render_facet_label, render_grid, render_legends};
+pub(crate) use emit::{
+    render_axes, render_facet_label, render_grid, render_legends, AxisRenderOptions,
+};
 pub(crate) use plan::{max_y_tick_label_width, y_axis_left_margin};

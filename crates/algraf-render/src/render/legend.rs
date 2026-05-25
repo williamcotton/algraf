@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use algraf_data::{DataFrame, Table};
 use algraf_semantics::{
-    ChartIr, FrameIr, GeometryIr, GeometryKind, PropertyKey, ScaleIr, ScaleTargetIr, SettingValue,
+    ChartIr, FrameIr, GeometryIr, GeometryKind, GradientIr, PropertyKey, ScaleIr, ScaleTargetIr,
+    SettingValue,
 };
 
 use crate::aes::{color_spec, number_spec, ColorSpec, Legend, LegendKind};
@@ -147,10 +148,12 @@ fn hexbin_count_legend(
     let cells = stats::hexbin(table, &x.name, &y.name, stats::Bin2DOptions { bins });
     let min = cells.iter().map(|c| c.count).min()? as f64;
     let max = cells.iter().map(|c| c.count).max()? as f64;
-    let stops = crate::theme::CONTINUOUS_GRADIENT
-        .iter()
-        .map(|stop| (*stop).to_string())
-        .collect();
+    let stops = GradientIr::Even(
+        crate::theme::CONTINUOUS_GRADIENT
+            .iter()
+            .map(|stop| (*stop).to_string())
+            .collect(),
+    );
     let spec = ColorSpec::Gradient {
         col: "count".to_string(),
         min,

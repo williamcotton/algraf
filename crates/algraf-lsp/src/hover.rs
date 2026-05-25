@@ -70,6 +70,26 @@ fn hover_for_ident(
             registry::geometry_doc(name)
         ));
     }
+    match name {
+        "Algraf" => {
+            return Some(
+                "**Algraf source header**\n\nDeclares the source language version and optional feature gates."
+                    .to_string(),
+            );
+        }
+        "Style" => {
+            return Some(
+                "**Style fragment**\n\nReusable property bag applied with `style:`.".to_string(),
+            );
+        }
+        "Stop" => {
+            return Some(
+                "**Gradient stop**\n\nA positioned continuous color stop with `value:` and `color:`."
+                    .to_string(),
+            );
+        }
+        _ => {}
+    }
     if let Some(column) = state
         .primary_schema
         .as_ref()
@@ -106,6 +126,21 @@ fn hover_for_string(state: &DocumentState, raw: &str) -> Option<String> {
     if ["lm", "loess"].contains(&value.as_str()) {
         return Some(format!(
             "**Smooth method `{value}`**\n\nControls the statistical model used for a smooth layer."
+        ));
+    }
+    if ["iso-date", "iso-minute"].contains(&value.as_str()) {
+        return Some(format!(
+            "**Temporal format `{value}`**\n\nDeterministic ISO-style axis label format."
+        ));
+    }
+    if ["minute", "hour", "day", "week", "month", "quarter", "year"].contains(&value.as_str()) {
+        return Some(format!(
+            "**Temporal interval `{value}`**\n\nCalendar-aware temporal bin interval."
+        ));
+    }
+    if ["sql", "network", "plugins", "experimental"].contains(&value.as_str()) {
+        return Some(format!(
+            "**Feature gate `{value}`**\n\nReserved v0.20 feature gate; it does not enable runtime access yet."
         ));
     }
     if state.data_path.is_some() {

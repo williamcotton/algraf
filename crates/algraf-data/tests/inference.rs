@@ -125,6 +125,16 @@ fn test_space_separated_datetime() {
 }
 
 #[test]
+fn test_space_separated_minute_datetime() {
+    let parsed = parse_temporal("2026-05-25 14:30").expect("minute datetime");
+    assert_eq!(parsed.value.precision, TemporalPrecision::DateTime);
+    assert_eq!(
+        parsed.value.instant.format("%Y-%m-%d %H:%M").to_string(),
+        "2026-05-25 14:30"
+    );
+}
+
+#[test]
 fn test_non_temporal_strings_stay_strings() {
     assert!(parse_temporal("not a date").is_none());
     assert!(parse_temporal("2020").is_none());

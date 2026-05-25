@@ -5,10 +5,14 @@
 //! diagnostics with spans, and recovers locally so a single mistake does not
 //! discard later valid blocks (spec §12.1, §12.16, §12.17).
 
+use std::collections::HashSet;
+
 use algraf_core::{codes, Diagnostic, DiagnosticCode, Span};
 use rowan::{GreenNode, GreenNodeBuilder};
 
+use crate::ast::{LiteralKind, Root, ValueExpr};
 use crate::lexer::{tokenize, TokenKind, TokenWithSpan};
+use crate::source::{node_span, unescape_string_literal as string_value};
 use crate::syntax_kind::{SyntaxKind, SyntaxNode};
 
 /// The result of a parse: a lossless green tree plus parse diagnostics.
@@ -46,8 +50,12 @@ pub fn parse(source: &str) -> Parse {
     parser.program();
     parser.builder.finish_node();
 
+    let green = parser.builder.finish();
+    let root = SyntaxNode::new_root(green.clone());
+    validate_source_header(&root, &mut parser.diagnostics);
+
     Parse {
-        green: parser.builder.finish(),
+        green,
         diagnostics: parser.diagnostics,
     }
 }
@@ -171,6 +179,7 @@ impl Parser {
                     | "Theme"
                     | "Layout"
                     | "Table"
+                    | "Algraf"
                     | "let"
             )
         )
@@ -256,7 +265,27 @@ impl Parser {
             || (self.at_misspelled_kw("Chart") && self.nth_kind(1) == SyntaxKind::L_PAREN)
     }
 
+    fn at_source_header_start(&self) -> bool {
+        self.at_kw("Algraf")
+            || (self.at_misspelled_kw("Algraf") && self.nth_kind(1) == SyntaxKind::L_PAREN)
+    }
+
     fn program(&mut self) {
+        let mut saw_header = false;
+        while self.at_source_header_start() {
+            if saw_header {
+                let span = self.current_span();
+                self.error(codes::E0022, "duplicate Algraf source header", span);
+            }
+            if !self.at_kw("Algraf") {
+                let span = self.current_span();
+                self.error(codes::E0022, "expected Algraf source header", span);
+            }
+            self.source_header();
+            saw_header = true;
+            self.eat_trivia();
+        }
+
         // A document holds one or more chart blocks (spec §7.1). The first
         // block is required; later blocks render independently.
         if !self.at_chart_start() {
@@ -313,6 +342,19 @@ impl Parser {
         self.expect(SyntaxKind::L_BRACE, codes::E0007, "expected '{'");
         self.chart_body();
         self.expect(SyntaxKind::R_BRACE, codes::E0008, "expected '}'");
+        self.builder.finish_node();
+    }
+
+    fn source_header(&mut self) {
+        self.builder.start_node(SyntaxKind::SOURCE_HEADER.into());
+        self.bump_as(SyntaxKind::ALGRAF_KW);
+        self.expect(
+            SyntaxKind::L_PAREN,
+            codes::E0002,
+            "expected '(' after Algraf",
+        );
+        self.arg_list();
+        self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
         self.builder.finish_node();
     }
 
@@ -914,4 +956,161 @@ fn edit_distance_ascii(a: &str, b: &str) -> usize {
     }
 
     prev[b.len()]
+}
+
+const KNOWN_FEATURE_GATES: &[&str] = &["sql", "network", "plugins", "experimental"];
+
+fn validate_source_header(root: &SyntaxNode, diagnostics: &mut Vec<Diagnostic>) {
+    let Some(root) = Root::cast(root.clone()) else {
+        return;
+    };
+    let Some(header) = root.source_header() else {
+        return;
+    };
+
+    let mut seen_args = HashSet::new();
+    let mut saw_version = false;
+    for arg in header.args() {
+        let arg_span = node_span(arg.syntax());
+        let Some(key) = arg.key() else {
+            diagnostics.push(Diagnostic::error(
+                codes::E0022,
+                "Algraf source header arguments must be named",
+                arg_span,
+            ));
+            continue;
+        };
+        if !seen_args.insert(key.clone()) {
+            diagnostics.push(Diagnostic::error(
+                codes::E0022,
+                format!("duplicate Algraf source header argument `{key}`"),
+                arg_span,
+            ));
+            continue;
+        }
+
+        match key.as_str() {
+            "version" => {
+                saw_version = true;
+                validate_header_version(&arg, diagnostics);
+            }
+            "features" => validate_header_features(&arg, diagnostics),
+            _ => diagnostics.push(Diagnostic::error(
+                codes::E0022,
+                format!("unsupported Algraf source header argument `{key}`"),
+                arg_span,
+            )),
+        }
+    }
+
+    if !saw_version {
+        diagnostics.push(Diagnostic::error(
+            codes::E0022,
+            "`Algraf(...)` requires `version: \"0.20\"`",
+            node_span(header.syntax()),
+        ));
+    }
+}
+
+fn validate_header_version(arg: &crate::ast::Arg, diagnostics: &mut Vec<Diagnostic>) {
+    match arg.value() {
+        Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+            let raw = string_value(&lit.text().unwrap_or_default());
+            let span = node_span(lit.syntax());
+            match parse_language_version(&raw) {
+                Some((major, minor, _patch)) if major == 0 && minor <= 20 => {}
+                Some(_) => diagnostics.push(Diagnostic::error(
+                    codes::E0023,
+                    format!("unsupported Algraf language version `{raw}`"),
+                    span,
+                )),
+                None => diagnostics.push(Diagnostic::error(
+                    codes::E0022,
+                    "`version` expects a string like \"0.20\"",
+                    span,
+                )),
+            }
+        }
+        Some(value) => diagnostics.push(Diagnostic::error(
+            codes::E0022,
+            "`version` expects a string literal",
+            node_span(value.syntax()),
+        )),
+        None => diagnostics.push(Diagnostic::error(
+            codes::E0022,
+            "`version` expects a string literal",
+            node_span(arg.syntax()),
+        )),
+    }
+}
+
+fn parse_language_version(raw: &str) -> Option<(u64, u64, u64)> {
+    let parts: Vec<&str> = raw.split('.').collect();
+    if !(2..=3).contains(&parts.len()) || parts.iter().any(|part| part.is_empty()) {
+        return None;
+    }
+    let major = parts[0].parse().ok()?;
+    let minor = parts[1].parse().ok()?;
+    let patch = if parts.len() == 3 {
+        parts[2].parse().ok()?
+    } else {
+        0
+    };
+    Some((major, minor, patch))
+}
+
+fn validate_header_features(arg: &crate::ast::Arg, diagnostics: &mut Vec<Diagnostic>) {
+    let Some(value) = arg.value() else {
+        diagnostics.push(Diagnostic::error(
+            codes::E1703,
+            "`features` expects an array of string feature gates",
+            node_span(arg.syntax()),
+        ));
+        return;
+    };
+    let ValueExpr::Array(array) = value else {
+        diagnostics.push(Diagnostic::error(
+            codes::E1703,
+            "`features` expects an array of string feature gates",
+            node_span(value.syntax()),
+        ));
+        return;
+    };
+
+    let mut seen = HashSet::new();
+    for item in array.values() {
+        let span = node_span(item.syntax());
+        let Some(gate) = string_literal_value(&item) else {
+            diagnostics.push(Diagnostic::error(
+                codes::E1703,
+                "`features` entries must be string literals",
+                span,
+            ));
+            continue;
+        };
+        if !KNOWN_FEATURE_GATES.contains(&gate.as_str()) {
+            diagnostics.push(Diagnostic::error(
+                codes::E0024,
+                format!("unknown feature gate `{gate}`"),
+                span,
+            ));
+            continue;
+        }
+        if !seen.insert(gate.clone()) {
+            diagnostics.push(Diagnostic::error(
+                codes::E0024,
+                format!("duplicate feature gate `{gate}`"),
+                span,
+            ));
+        }
+    }
+}
+
+fn string_literal_value(value: &ValueExpr) -> Option<String> {
+    match value {
+        ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::String) => {
+            Some(string_value(&lit.text().unwrap_or_default()))
+        }
+        _ => None,
+    }
 }

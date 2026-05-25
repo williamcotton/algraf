@@ -390,15 +390,16 @@ Chart(data: "samples.csv", width: 760, height: 500, title: "Binned 2D Regression
 `Bin` and `Histogram` work on temporal columns too. Mapping a single date
 column into the space and adding `Histogram(bins: ...)` buckets the rows by
 date and keeps the temporal type on the axis, so you get time-aware tick
-labels for free.
+labels for free. For calendar bins, use `interval: "month"` (or `day`, `week`,
+`quarter`, etc.) and optional temporal labels such as `timeFormat: "iso-minute"`.
 
 ```algraf
 Chart(data: "signups.csv", width: 760, height: 460, title: "Signups over the launch quarter") {
-    Guide(axis: x, label: "Signup date")
+    Guide(axis: x, label: "Signup date", timeFormat: "iso-date")
 
     Space(signup_date) {
         Histogram(
-            bins: 24,
+            interval: "week",
             fill: "steelblue",
             stroke: "#ffffff",
             strokeWidth: 1,
@@ -427,11 +428,19 @@ Chart(data: "heatmap.csv", width: 700, height: 460) {
 ## Custom continuous gradients
 
 `Scale(fill: ..., gradient: [...])` sets evenly spaced color stops for a
-continuous fill or stroke mapping.
+continuous fill or stroke mapping. Use `Stop(value: ..., color: ...)` when the
+colors should land at explicit domain values.
 
 ```algraf
 Chart(data: "heatmap.csv", width: 700, height: 460, title: "Custom continuous gradient") {
-    Scale(fill: value, gradient: ["#3366cc", "#cc3333"], label: "Intensity")
+    Scale(
+        fill: value,
+        gradient: [
+            Stop(value: 3, color: "#3366cc"),
+            Stop(value: 10, color: "#cc3333"),
+        ],
+        label: "Intensity",
+    )
 
     Space(day * hour) {
         Tile(fill: value, alpha: 0.92)
@@ -1073,10 +1082,10 @@ identifier is always a column.
 ```algraf
 Chart(data: "penguins.csv") {
     let primary = "#3366cc"
-    let dim_alpha = 0.4
+    let muted = Style(fill: "#6b7280", alpha: 0.55)
 
     Space(flipper_length * body_mass) {
-        Point(fill: primary, alpha: dim_alpha)
+        Point(style: muted, stroke: primary)
     }
 }
 ```

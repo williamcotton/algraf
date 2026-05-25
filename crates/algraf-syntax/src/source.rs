@@ -187,7 +187,7 @@ pub fn unescape_string_literal(raw: &str) -> String {
         .and_then(|s| s.strip_suffix('"'))
         .unwrap_or(raw);
     let mut out = String::new();
-    let mut chars = inner.chars();
+    let mut chars = inner.chars().peekable();
     while let Some(ch) = chars.next() {
         if ch == '\\' {
             match chars.next() {
@@ -196,6 +196,11 @@ pub fn unescape_string_literal(raw: &str) -> String {
                 Some('t') => out.push('\t'),
                 Some('"') => out.push('"'),
                 Some('\\') => out.push('\\'),
+                Some('u') => {
+                    if let Some(decoded) = decode_unicode_escape(&mut chars) {
+                        out.push(decoded);
+                    }
+                }
                 Some(other) => out.push(other),
                 None => {}
             }
@@ -221,12 +226,38 @@ pub fn unescape_quoted_ident(raw: &str) -> String {
             '`' if chars.peek().is_none() => break,
             '\\' => match chars.peek() {
                 Some('`') | Some('\\') => out.push(chars.next().unwrap()),
+                Some('u') => {
+                    chars.next();
+                    if let Some(decoded) = decode_unicode_escape(&mut chars) {
+                        out.push(decoded);
+                    }
+                }
                 _ => out.push('\\'),
             },
             other => out.push(other),
         }
     }
     out
+}
+
+fn decode_unicode_escape(chars: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Option<char> {
+    if chars.next() != Some('{') {
+        return None;
+    }
+    let mut value = 0u32;
+    let mut digits = 0usize;
+    for ch in chars.by_ref() {
+        if ch == '}' {
+            return (digits > 0).then(|| char::from_u32(value)).flatten();
+        }
+        let digit = ch.to_digit(16)?;
+        digits += 1;
+        if digits > 6 {
+            return None;
+        }
+        value = value.checked_mul(16)?.checked_add(digit)?;
+    }
+    None
 }
 
 /// Whether a call value is a recognized source constructor by name.

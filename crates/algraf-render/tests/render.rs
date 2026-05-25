@@ -262,6 +262,15 @@ fn test_temporal_axis() {
 }
 
 #[test]
+fn test_temporal_axis_iso_minute_format() {
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Guide(axis: x, timeFormat: \"iso-minute\") Space(ts * value) { Line() } }",
+        "ts,value\n2026-05-25 14:30,1\n2026-05-25 15:30,5\n",
+    );
+    assert!(svg.contains("2026-05-25 14:30"));
+}
+
+#[test]
 fn test_temporal_axis_uses_calendar_month_ticks() {
     let svg = render_svg(
         "Chart(data: \"t.csv\") { Space(day * value) { Line() } }",
@@ -435,6 +444,16 @@ fn test_source_gradient_controls_numeric_fill_colors() {
     let svg = render_svg(
         "Chart(data: \"h.csv\") { Scale(fill: value, gradient: [\"#3366cc\", \"#cc3333\"]) Space(day * hour) { Tile(fill: value) } }",
         "day,hour,value\nMon,9am,1\nMon,10am,9\n",
+    );
+    assert!(svg.contains("fill=\"#3366cc\""));
+    assert!(svg.contains("fill=\"#cc3333\""));
+}
+
+#[test]
+fn test_positioned_gradient_controls_numeric_fill_colors() {
+    let svg = render_svg(
+        "Chart(data: \"h.csv\") { Scale(fill: value, gradient: [Stop(value: 0, color: \"#3366cc\"), Stop(value: 10, color: \"#cc3333\")]) Space(day * hour) { Tile(fill: value) } }",
+        "day,hour,value\nMon,9am,0\nMon,10am,10\n",
     );
     assert!(svg.contains("fill=\"#3366cc\""));
     assert!(svg.contains("fill=\"#cc3333\""));
@@ -734,6 +753,18 @@ fn test_temporal_histogram_renders_bins() {
     assert!(result.svg.contains("algraf-geom-rect"));
     assert_eq!(result.svg.matches("<rect x=").count(), 3);
     assert!(result.svg.contains("2026-01"));
+}
+
+#[test]
+fn test_temporal_histogram_calendar_interval_renders_bins() {
+    let result = render_result(
+        "Chart(data: \"t.csv\") { Space(day) { Histogram(interval: \"month\", fill: \"steelblue\") } }",
+        "day\n2026-01-03\n2026-01-20\n2026-02-02\n2026-03-15\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-rect"));
+    assert!(result.svg.contains("2026-01"));
+    assert!(result.svg.contains("2026-02"));
 }
 
 // --- Area, Text, Segment ---

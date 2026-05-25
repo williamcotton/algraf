@@ -352,6 +352,26 @@ fn test_multiple_chart_blocks_parse() {
     assert_eq!(charts.len(), 2);
 }
 
+#[test]
+fn test_source_header_parses_before_chart() {
+    let source =
+        "Algraf(version: \"0.20\", features: [\"experimental\"])\n\nChart(data: \"a.csv\") {}";
+    no_errors(source);
+    let root = root(source);
+    let header = root.source_header().expect("source header");
+    assert_eq!(header.args().len(), 2);
+    assert_eq!(root.charts().len(), 1);
+}
+
+#[test]
+fn test_source_header_diagnostics() {
+    let parsed = parse(
+        "Algraf(version: \"9.0\", features: [\"sql\", \"sql\", \"wat\"])\nChart(data: \"a.csv\") {}",
+    );
+    assert!(parsed.diagnostics().iter().any(|d| d.code == "E0023"));
+    assert!(parsed.diagnostics().iter().any(|d| d.code == "E0024"));
+}
+
 // --- v0.6.0: Table declarations and map literals (spec §7.4, §7.8) ---
 
 use algraf_syntax::ast::{MapValue, TableDecl};

@@ -1,5 +1,14 @@
+Algraf(version: "0.20")
+
 Chart(data: "heatmap.csv", width: 700, height: 460, title: "Custom continuous gradient") {
-    Scale(fill: value, gradient: ["#3366cc", "#cc3333"], label: "Intensity")
+    Scale(
+        fill: value,
+        gradient: [
+            Stop(value: 3, color: "#3366cc"),
+            Stop(value: 10, color: "#cc3333"),
+        ],
+        label: "Intensity",
+    )
 
     Space(day * hour) {
         Tile(fill: value, alpha: 0.92)

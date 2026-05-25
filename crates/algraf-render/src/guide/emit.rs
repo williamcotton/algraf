@@ -1,6 +1,8 @@
 //! Guide emission: writes grid lines, axes, facet strips, and legends to SVG
 //! from trained scales and the planning results in [`super::plan`] (spec §19).
 
+use algraf_semantics::TemporalFormatIr;
+
 use crate::aes::{Legend, LegendKind};
 use crate::layout::Rect;
 use crate::space::ScaledSpace;
@@ -8,6 +10,13 @@ use crate::svg::{escape_attr, escape_text, num, SvgWriter};
 use crate::theme::Theme;
 
 use super::plan::{max_y_tick_label_width, x_tick_label_anchor, y_axis_title_x};
+
+pub(crate) struct AxisRenderOptions<'a> {
+    pub(crate) x_label_override: Option<&'a str>,
+    pub(crate) y_label_override: Option<&'a str>,
+    pub(crate) x_time_format: Option<TemporalFormatIr>,
+    pub(crate) y_time_format: Option<TemporalFormatIr>,
+}
 
 /// Draw grid lines behind the data marks (spec §17.6). Only continuous and
 /// temporal axes get grid lines; categorical axes do not.
@@ -54,8 +63,7 @@ pub(crate) fn render_axes(
     space: &ScaledSpace,
     plot: Rect,
     theme: &Theme,
-    x_label_override: Option<&str>,
-    y_label_override: Option<&str>,
+    options: AxisRenderOptions<'_>,
 ) {
     w.open_group("class=\"algraf-axes\"");
 
@@ -68,7 +76,7 @@ pub(crate) fn render_axes(
         &theme.axis_color,
         1.0,
     ));
-    for (x, label) in space.x.ticks() {
+    for (x, label) in space.x.ticks_with_format(options.x_time_format) {
         w.line(&grid_line(
             x,
             plot.bottom(),
@@ -87,10 +95,11 @@ pub(crate) fn render_axes(
     }
     // An override of "" suppresses the axis title (`Guide(axis: x, label: null)`,
     // spec §19.x); ticks and grid are unaffected.
-    let x_label = x_label_override
+    let x_label = options
+        .x_label_override
         .map(str::to_string)
         .unwrap_or_else(|| space.x.label());
-    if x_label_override != Some("") {
+    if options.x_label_override != Some("") {
         w.line(&text(
             plot.x + plot.width / 2.0,
             plot.bottom() + 38.0,
@@ -110,7 +119,7 @@ pub(crate) fn render_axes(
             &theme.axis_color,
             1.0,
         ));
-        for (yp, label) in y.ticks() {
+        for (yp, label) in y.ticks_with_format(options.y_time_format) {
             w.line(&grid_line(
                 plot.x - 5.0,
                 yp,
@@ -122,12 +131,13 @@ pub(crate) fn render_axes(
             w.line(&text(plot.x - 8.0, yp + 4.0, "end", &label, theme));
         }
         let cy = plot.y + plot.height / 2.0;
-        let max_label_width = max_y_tick_label_width(space, theme.font_size);
+        let max_label_width = max_y_tick_label_width(space, theme.font_size, options.y_time_format);
         let label_x = y_axis_title_x(plot.x, max_label_width, theme.font_size);
-        let y_label = y_label_override
+        let y_label = options
+            .y_label_override
             .map(str::to_string)
             .unwrap_or_else(|| y.label());
-        if y_label_override != Some("") {
+        if options.y_label_override != Some("") {
             w.line(&format!(
                 "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" transform=\"rotate(-90 {} {})\" \
                  font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",

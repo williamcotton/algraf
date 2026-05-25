@@ -162,7 +162,11 @@ impl Analyzer<'_> {
                         )),
                     }
                 }
-                let options = self.collect_bin_options(&stat.args(), stat_span);
+                let input_dtype = match &input_frame {
+                    FrameIr::Vector(col) => Some(col.dtype),
+                    _ => None,
+                };
+                let options = self.collect_bin_options(&stat.args(), stat_span, input_dtype);
                 let output_schema = stat_output_schema(kind, &input_frame);
                 (input_frame, options, output_schema)
             }
@@ -379,11 +383,17 @@ impl Analyzer<'_> {
         }
     }
 
-    fn collect_bin_options(&mut self, args: &[Arg], stat_span: Span) -> StatOptionsIr {
+    fn collect_bin_options(
+        &mut self,
+        args: &[Arg],
+        stat_span: Span,
+        input_dtype: Option<DataType>,
+    ) -> StatOptionsIr {
         let mut bins = None;
         let mut bin_width = None;
         let mut boundary = None;
         let mut closed = BinClosedIr::Left;
+        let mut interval = None;
         let mut dup = DupGuard::new(codes::E1404, "Bin setting");
         for arg in args {
             let Some(name) = arg.key() else { continue };
@@ -458,6 +468,40 @@ impl Analyzer<'_> {
                         )),
                     }
                 }
+                "interval" => {
+                    let Some(value) = arg.value() else {
+                        continue;
+                    };
+                    match ValueForm::of(&value) {
+                        ValueForm::Str(s) => match parse_bin_interval(&s) {
+                            Some(unit) => interval = Some(unit),
+                            None => self.diag(Diagnostic::error(
+                                codes::E1404,
+                                format!("unknown temporal interval `{s}`"),
+                                node_span(value.syntax()),
+                            )),
+                        },
+                        ValueForm::Column(column) => {
+                            let written = column.name().unwrap_or_else(|| "month".to_string());
+                            self.diag(
+                                Diagnostic::error(
+                                    codes::E1404,
+                                    "`interval` expects a quoted string value",
+                                    node_span(value.syntax()),
+                                )
+                                .with_help(format!("write it as a string, e.g. {written:?}")),
+                            );
+                        }
+                        form => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            format!(
+                                "`interval` expects a temporal interval string, found {}",
+                                form.describe()
+                            ),
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
                 _ => self.diag(Diagnostic::error(
                     codes::E1404,
                     format!("unknown Bin setting `{name}`"),
@@ -465,18 +509,44 @@ impl Analyzer<'_> {
                 )),
             }
         }
-        self.check_bin_conflict(bins.is_some(), bin_width.is_some(), stat_span);
+        if interval.is_some()
+            && !matches!(
+                input_dtype,
+                Some(DataType::Temporal) | Some(DataType::Unknown) | None
+            )
+        {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                "`interval` applies only to temporal `Bin` inputs",
+                stat_span,
+            ));
+        }
+        self.check_bin_conflict(
+            bins.is_some(),
+            bin_width.is_some(),
+            boundary.is_some(),
+            interval.is_some(),
+            stat_span,
+        );
         StatOptionsIr::Bin {
             bins,
             bin_width,
             boundary,
             closed,
+            interval,
         }
     }
 
     /// `bins` and `binWidth` are mutually exclusive (spec §15.x). Shared by the
     /// explicit `Bin` derive and `Histogram`/`FreqPoly` lowering.
-    pub(super) fn check_bin_conflict(&mut self, has_bins: bool, has_bin_width: bool, span: Span) {
+    pub(super) fn check_bin_conflict(
+        &mut self,
+        has_bins: bool,
+        has_bin_width: bool,
+        has_boundary: bool,
+        has_interval: bool,
+        span: Span,
+    ) {
         if has_bins && has_bin_width {
             self.diag(Diagnostic::error(
                 codes::E1404,
@@ -484,6 +554,26 @@ impl Analyzer<'_> {
                 span,
             ));
         }
+        if has_interval && (has_bins || has_bin_width || has_boundary) {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                "`interval` must not be combined with `bins`, `binWidth`, or `boundary`",
+                span,
+            ));
+        }
+    }
+}
+
+pub(super) fn parse_bin_interval(value: &str) -> Option<BinIntervalIr> {
+    match value {
+        "minute" => Some(BinIntervalIr::Minute),
+        "hour" => Some(BinIntervalIr::Hour),
+        "day" => Some(BinIntervalIr::Day),
+        "week" => Some(BinIntervalIr::Week),
+        "month" => Some(BinIntervalIr::Month),
+        "quarter" => Some(BinIntervalIr::Quarter),
+        "year" => Some(BinIntervalIr::Year),
+        _ => None,
     }
 }
 

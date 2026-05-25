@@ -2,7 +2,7 @@
 //! colors, opacity, and size (spec §16.8).
 
 use algraf_data::{DataType, Table};
-use algraf_semantics::{GeometryIr, PropertyKey, ScaleIr, ScaleTargetIr, SettingValue};
+use algraf_semantics::{GeometryIr, GradientIr, PropertyKey, ScaleIr, ScaleTargetIr, SettingValue};
 
 use crate::scale::{categorical_domain, cell_category, cell_f64, numeric_domain};
 use crate::svg::num;
@@ -29,7 +29,7 @@ pub enum ColorSpec {
         col: String,
         min: f64,
         max: f64,
-        stops: Vec<String>,
+        stops: GradientIr,
     },
 }
 
@@ -67,7 +67,7 @@ impl ColorSpec {
                 } else {
                     (v - min) / (max - min)
                 };
-                Some(gradient_at(stops, t))
+                Some(gradient_at(stops, v, *min, *max, t))
             }
         }
     }
@@ -121,7 +121,7 @@ impl ColorSpec {
                             } else {
                                 (value - min) / (max - min)
                             };
-                            (num(value), gradient_at(stops, t))
+                            (num(value), gradient_at(stops, value, *min, *max, t))
                         })
                         .collect(),
                 })
@@ -241,19 +241,54 @@ pub fn color_spec(
     ColorSpec::None
 }
 
-fn gradient_at(stops: &[String], t: f64) -> String {
-    let borrowed: Vec<&str> = stops.iter().map(String::as_str).collect();
-    gradient_color_from(&borrowed, t)
+fn gradient_at(stops: &GradientIr, value: f64, _min: f64, _max: f64, t: f64) -> String {
+    match stops {
+        GradientIr::Even(stops) => {
+            let borrowed: Vec<&str> = stops.iter().map(String::as_str).collect();
+            gradient_color_from(&borrowed, t)
+        }
+        GradientIr::Positioned(stops) => {
+            if stops.is_empty() {
+                return "#000000".to_string();
+            }
+            if value <= stops[0].value {
+                return stops[0].color.clone();
+            }
+            if let Some(last) = stops.last() {
+                if value >= last.value {
+                    return last.color.clone();
+                }
+            }
+            for pair in stops.windows(2) {
+                let a = &pair[0];
+                let b = &pair[1];
+                if value >= a.value && value <= b.value {
+                    let local = if (b.value - a.value).abs() < f64::EPSILON {
+                        0.0
+                    } else {
+                        (value - a.value) / (b.value - a.value)
+                    };
+                    return gradient_color_from(&[a.color.as_str(), b.color.as_str()], local);
+                }
+            }
+            stops
+                .last()
+                .map(|stop| stop.color.clone())
+                .unwrap_or_else(|| "#000000".to_string())
+        }
+    }
 }
 
-fn default_gradient() -> Vec<String> {
-    CONTINUOUS_GRADIENT
-        .iter()
-        .map(|stop| (*stop).to_string())
-        .collect()
+fn default_gradient() -> GradientIr {
+    GradientIr::Even(
+        CONTINUOUS_GRADIENT
+            .iter()
+            .map(|stop| (*stop).to_string())
+            .collect(),
+    )
 }
 
-fn gradient_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<Vec<String>> {
+fn gradient_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<GradientIr> {
     aesthetic_scale(scales, aesthetic, column).and_then(|scale| scale.gradient.clone())
 }
 

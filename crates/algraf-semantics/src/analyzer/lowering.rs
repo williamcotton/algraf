@@ -7,6 +7,7 @@ use algraf_core::Span;
 use algraf_data::DataType;
 
 use super::context::Analyzer;
+use super::stats::parse_bin_interval;
 use crate::ir::*;
 use crate::planning::{
     bin2d_output_schema, bin_boundary_dtype, bin_output_schema, count_output_schema,
@@ -28,7 +29,7 @@ impl Analyzer<'_> {
             .clone();
 
         let name = self.next_synthetic("histogram");
-        let options = self.bin_options_from_geometry(histogram);
+        let options = self.bin_options_from_geometry(histogram, input.dtype);
         let output_schema = bin_output_schema(input.dtype);
         let derive = DeriveIr {
             name: name.clone(),
@@ -95,7 +96,7 @@ impl Analyzer<'_> {
             .clone();
 
         let name = self.next_synthetic("freqpoly");
-        let options = self.bin_options_from_geometry(freq_poly);
+        let options = self.bin_options_from_geometry(freq_poly, input.dtype);
         let output_schema = bin_output_schema(input.dtype);
         let derive = DeriveIr {
             name: name.clone(),
@@ -513,11 +514,16 @@ impl Analyzer<'_> {
     /// settings, re-validating ranges and the `bins`/`binWidth` conflict against
     /// the original call span (spec §15.x). Property types were already checked
     /// by the geometry registry, so only ranges are re-checked here.
-    fn bin_options_from_geometry(&mut self, geometry: &GeometryIr) -> StatOptionsIr {
+    fn bin_options_from_geometry(
+        &mut self,
+        geometry: &GeometryIr,
+        input_dtype: DataType,
+    ) -> StatOptionsIr {
         let mut bins = None;
         let mut bin_width = None;
         let mut boundary = None;
         let mut closed = BinClosedIr::Left;
+        let mut interval = None;
         for setting in &geometry.settings {
             match (setting.name, &setting.value) {
                 (PropertyKey::Bins, SettingValue::Number(n)) => bins = Some(*n),
@@ -528,6 +534,9 @@ impl Analyzer<'_> {
                 }
                 (PropertyKey::Closed, SettingValue::String(s)) if s == "left" => {
                     closed = BinClosedIr::Left
+                }
+                (PropertyKey::Interval, SettingValue::String(s)) => {
+                    interval = parse_bin_interval(s);
                 }
                 _ => {}
             }
@@ -546,12 +555,26 @@ impl Analyzer<'_> {
                 geometry.span,
             ));
         }
-        self.check_bin_conflict(bins.is_some(), bin_width.is_some(), geometry.span);
+        if interval.is_some() && !matches!(input_dtype, DataType::Temporal | DataType::Unknown) {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                "`interval` applies only to temporal histogram inputs",
+                geometry.span,
+            ));
+        }
+        self.check_bin_conflict(
+            bins.is_some(),
+            bin_width.is_some(),
+            boundary.is_some(),
+            interval.is_some(),
+            geometry.span,
+        );
         StatOptionsIr::Bin {
             bins,
             bin_width,
             boundary,
             closed,
+            interval,
         }
     }
 }

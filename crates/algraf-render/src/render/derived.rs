@@ -12,7 +12,7 @@
 use std::collections::HashMap;
 
 use algraf_data::{DataFrame, Table};
-use algraf_semantics::{BinClosedIr, ChartIr, FrameIr, SpaceDataRef, StatOptionsIr};
+use algraf_semantics::{BinClosedIr, BinIntervalIr, ChartIr, FrameIr, SpaceDataRef, StatOptionsIr};
 
 use crate::stats;
 
@@ -49,6 +49,7 @@ pub(super) fn compute_derived(
                     bin_width,
                     boundary,
                     closed,
+                    interval,
                 } => {
                     if let FrameIr::Vector(col) = &d.stat.input {
                         let options = stats::BinOptions {
@@ -59,6 +60,7 @@ pub(super) fn compute_derived(
                                 BinClosedIr::Left => stats::BinClosed::Left,
                                 BinClosedIr::Right => stats::BinClosed::Right,
                             },
+                            interval: interval.map(render_bin_interval),
                         };
                         Some(stats::bin_with_options(source, &col.name, options))
                     } else {
@@ -162,6 +164,18 @@ pub(super) fn compute_derived(
         }
     }
     derived
+}
+
+fn render_bin_interval(interval: BinIntervalIr) -> stats::BinInterval {
+    match interval {
+        BinIntervalIr::Minute => stats::BinInterval::Minute,
+        BinIntervalIr::Hour => stats::BinInterval::Hour,
+        BinIntervalIr::Day => stats::BinInterval::Day,
+        BinIntervalIr::Week => stats::BinInterval::Week,
+        BinIntervalIr::Month => stats::BinInterval::Month,
+        BinIntervalIr::Quarter => stats::BinInterval::Quarter,
+        BinIntervalIr::Year => stats::BinInterval::Year,
+    }
 }
 
 /// Resolve a `bins` option to a positive integer, falling back to the default

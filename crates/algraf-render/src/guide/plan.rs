@@ -2,6 +2,8 @@
 //! from trained scales (spec §17.3, §19). Pure geometry — nothing here writes
 //! SVG; [`super::emit`] consumes these results.
 
+use algraf_semantics::TemporalFormatIr;
+
 use crate::layout::Rect;
 use crate::space::ScaledSpace;
 
@@ -33,11 +35,15 @@ pub(crate) fn y_axis_left_margin(max_label_width: f64, font_size: f64) -> f64 {
 
 /// The widest y tick label width for a scaled space, or 0.0 when there is no
 /// continuous y axis to label.
-pub(crate) fn max_y_tick_label_width(space: &ScaledSpace, font_size: f64) -> f64 {
+pub(crate) fn max_y_tick_label_width(
+    space: &ScaledSpace,
+    font_size: f64,
+    format: Option<TemporalFormatIr>,
+) -> f64 {
     let Some(y) = &space.y else {
         return 0.0;
     };
-    y.ticks()
+    y.ticks_with_format(format)
         .iter()
         .map(|(_, label)| estimate_text_width(label, font_size))
         .fold(0.0_f64, f64::max)

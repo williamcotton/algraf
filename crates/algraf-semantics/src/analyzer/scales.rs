@@ -5,11 +5,11 @@ use std::collections::HashSet;
 
 use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::DataType;
-use algraf_syntax::ast::{AlgebraExpr, Decl, LiteralKind, MapValue, ValueExpr};
+use algraf_syntax::ast::{AlgebraExpr, CallValue, Decl, LiteralKind, MapValue, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
 use super::args::DupGuard;
-use super::context::{ActiveTable, Analyzer, ValueForm};
+use super::context::{ActiveTable, Analyzer};
 use super::properties::is_color_literal;
 use crate::ir::*;
 use crate::registry;
@@ -34,7 +34,7 @@ impl Analyzer<'_> {
         let mut reverse = None;
         let mut integer = None;
         let mut palette = None;
-        let mut gradient: Option<Vec<String>> = None;
+        let mut gradient: Option<GradientIr> = None;
         let mut gradient_span: Option<Span> = None;
         let mut label_map: Option<Vec<(String, String)>> = None;
         let mut labels_span: Option<Span> = None;
@@ -179,19 +179,7 @@ impl Analyzer<'_> {
                 "gradient" => {
                     let Some(value) = arg.value() else { continue };
                     gradient_span = Some(node_span(value.syntax()));
-                    match ValueForm::of(&value) {
-                        ValueForm::StringArray(Some(values))
-                            if values.len() >= 2
-                                && values.iter().all(|value| is_color_literal(value)) =>
-                        {
-                            gradient = Some(values);
-                        }
-                        _ => self.diag(Diagnostic::error(
-                            codes::E1601,
-                            "`gradient` expects an array of two or more color strings",
-                            node_span(value.syntax()),
-                        )),
-                    }
+                    gradient = self.gradient_value(&value);
                 }
                 "label" => match arg.value() {
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
@@ -282,6 +270,24 @@ impl Analyzer<'_> {
                             "`gradient` is valid only for continuous fill or stroke mappings",
                             gradient_span.unwrap_or(span),
                         ));
+                    }
+                    if let (Some(GradientIr::Positioned(stops)), Some([Some(a), Some(b)])) =
+                        (&gradient, domain)
+                    {
+                        let lo = a.min(b);
+                        let hi = a.max(b);
+                        for stop in stops {
+                            if stop.value < lo || stop.value > hi {
+                                self.diag(Diagnostic::error(
+                                    codes::E1601,
+                                    format!(
+                                        "gradient stop value {} is outside explicit domain [{lo}, {hi}]",
+                                        stop.value
+                                    ),
+                                    gradient_span.unwrap_or(span),
+                                ));
+                            }
+                        }
                     }
                     if let Some(s) = domain_span {
                         self.diag(Diagnostic::error(
@@ -448,6 +454,212 @@ impl Analyzer<'_> {
             out.push((key, val));
         }
         Some(out)
+    }
+
+    fn gradient_value(&mut self, value: &ValueExpr) -> Option<GradientIr> {
+        let ValueExpr::Array(array) = value else {
+            self.diag(Diagnostic::error(
+                codes::E1601,
+                "`gradient` expects an array of two or more color strings or Stop(...) values",
+                node_span(value.syntax()),
+            ));
+            return None;
+        };
+        let values = array.values();
+        if values.len() < 2 {
+            self.diag(Diagnostic::error(
+                codes::E1601,
+                "`gradient` requires at least two stops",
+                node_span(value.syntax()),
+            ));
+            return None;
+        }
+
+        let has_string = values.iter().any(|item| {
+            matches!(item, ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::String))
+        });
+        let has_stop = values.iter().any(
+            |item| matches!(item, ValueExpr::Call(call) if call.name().as_deref() == Some("Stop")),
+        );
+        if has_string && has_stop {
+            self.diag(Diagnostic::error(
+                codes::E1601,
+                "`gradient` cannot mix color strings and Stop(...) values",
+                node_span(value.syntax()),
+            ));
+            return None;
+        }
+
+        if has_string {
+            let mut colors = Vec::new();
+            for item in values {
+                match item {
+                    ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::String) => {
+                        let color = string_value(&lit.text().unwrap_or_default());
+                        if is_color_literal(&color) {
+                            colors.push(color);
+                        } else {
+                            self.diag(Diagnostic::error(
+                                codes::E1601,
+                                format!("invalid gradient color `{color}`"),
+                                node_span(lit.syntax()),
+                            ));
+                            return None;
+                        }
+                    }
+                    other => {
+                        self.diag(Diagnostic::error(
+                            codes::E1601,
+                            "`gradient` string form accepts only color strings",
+                            node_span(other.syntax()),
+                        ));
+                        return None;
+                    }
+                }
+            }
+            return Some(GradientIr::Even(colors));
+        }
+
+        let mut stops = Vec::new();
+        for item in values {
+            match item {
+                ValueExpr::Call(call) if call.name().as_deref() == Some("Stop") => {
+                    if let Some(stop) = self.gradient_stop(&call) {
+                        stops.push(stop);
+                    } else {
+                        return None;
+                    }
+                }
+                other => {
+                    self.diag(Diagnostic::error(
+                        codes::E1601,
+                        "`gradient` positioned form accepts only Stop(...) values",
+                        node_span(other.syntax()),
+                    ));
+                    return None;
+                }
+            }
+        }
+        for pair in stops.windows(2) {
+            if pair[0].value >= pair[1].value {
+                self.diag(Diagnostic::error(
+                    codes::E1601,
+                    "gradient stop values must be strictly increasing",
+                    node_span(value.syntax()),
+                ));
+                return None;
+            }
+        }
+        Some(GradientIr::Positioned(stops))
+    }
+
+    fn gradient_stop(&mut self, call: &CallValue) -> Option<GradientStopIr> {
+        let mut value = None;
+        let mut color = None;
+        let mut seen = HashSet::new();
+        let mut ok = true;
+        for arg in call.args() {
+            let span = node_span(arg.syntax());
+            let Some(key) = arg.key() else {
+                self.diag(Diagnostic::error(
+                    codes::E1601,
+                    "`Stop(...)` arguments must be named",
+                    span,
+                ));
+                ok = false;
+                continue;
+            };
+            if !seen.insert(key.clone()) {
+                self.diag(Diagnostic::error(
+                    codes::E1601,
+                    format!("duplicate Stop argument `{key}`"),
+                    span,
+                ));
+                ok = false;
+                continue;
+            }
+            match key.as_str() {
+                "value" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Number) => {
+                        let n = lit
+                            .text()
+                            .and_then(|text| text.parse::<f64>().ok())
+                            .unwrap_or(f64::NAN);
+                        if n.is_finite() {
+                            value = Some(n);
+                        } else {
+                            self.diag(Diagnostic::error(
+                                codes::E1601,
+                                "`Stop(value:)` expects a finite number",
+                                node_span(lit.syntax()),
+                            ));
+                            ok = false;
+                        }
+                    }
+                    Some(other) => {
+                        self.diag(Diagnostic::error(
+                            codes::E1601,
+                            "`Stop(value:)` expects a finite number",
+                            node_span(other.syntax()),
+                        ));
+                        ok = false;
+                    }
+                    None => ok = false,
+                },
+                "color" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        let c = string_value(&lit.text().unwrap_or_default());
+                        if is_color_literal(&c) {
+                            color = Some(c);
+                        } else {
+                            self.diag(Diagnostic::error(
+                                codes::E1601,
+                                format!("invalid gradient color `{c}`"),
+                                node_span(lit.syntax()),
+                            ));
+                            ok = false;
+                        }
+                    }
+                    Some(other) => {
+                        self.diag(Diagnostic::error(
+                            codes::E1601,
+                            "`Stop(color:)` expects a color string",
+                            node_span(other.syntax()),
+                        ));
+                        ok = false;
+                    }
+                    None => ok = false,
+                },
+                _ => {
+                    self.diag(Diagnostic::error(
+                        codes::E1601,
+                        format!("unknown Stop argument `{key}`"),
+                        span,
+                    ));
+                    ok = false;
+                }
+            }
+        }
+        if value.is_none() {
+            self.diag(Diagnostic::error(
+                codes::E1601,
+                "`Stop(...)` requires `value:`",
+                node_span(call.syntax()),
+            ));
+            ok = false;
+        }
+        if color.is_none() {
+            self.diag(Diagnostic::error(
+                codes::E1601,
+                "`Stop(...)` requires `color:`",
+                node_span(call.syntax()),
+            ));
+            ok = false;
+        }
+        ok.then(|| GradientStopIr {
+            value: value.unwrap_or(0.0),
+            color: color.unwrap_or_default(),
+        })
     }
 
     fn set_scale_target(

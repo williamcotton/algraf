@@ -3,8 +3,9 @@
 use algraf_core::Span;
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
-    analyze_source, planning, AxisSelectorIr, BinClosedIr, ColumnRef, FrameIr, GeometryKind,
-    PropertyKey, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, StatKind, StatOptionsIr,
+    analyze_source, planning, AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef, FrameIr,
+    GeometryKind, GradientIr, PropertyKey, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef,
+    StatKind, StatOptionsIr, TemporalFormatIr,
 };
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
@@ -441,10 +442,11 @@ fn test_scale_gradient_is_recorded_for_continuous_fill() {
         analysis.diagnostics
     );
     let ir = analysis.ir.expect("ir");
-    assert_eq!(
-        ir.scales[0].gradient.as_ref().unwrap(),
-        &vec!["#3366cc".to_string(), "#cc3333".to_string()]
-    );
+    assert!(matches!(
+        ir.scales[0].gradient,
+        Some(GradientIr::Even(ref stops))
+            if stops == &vec!["#3366cc".to_string(), "#cc3333".to_string()]
+    ));
     assert_eq!(ir.scales[0].label.as_deref(), Some("Value"));
 }
 
@@ -636,6 +638,81 @@ fn test_histogram_temporal_input_desugars_to_temporal_bins() {
         if matches!(&axes[0], FrameIr::Vector(column) if column.dtype == DataType::Temporal)));
 }
 
+#[test]
+fn test_style_fragment_expands_and_later_property_overrides() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  let muted = Style(fill: \"#6b7280\", alpha: 0.4)\n  Space(flipper_length * body_mass) {\n    Point(style: muted, alpha: 0.9)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let point = &ir.spaces[0].geometries[0];
+    assert!(point.settings.iter().any(|s| s.name == PropertyKey::Fill
+        && matches!(&s.value, SettingValue::String(s) if s == "#6b7280")));
+    assert!(point.settings.iter().any(|s| s.name == PropertyKey::Alpha
+        && matches!(&s.value, SettingValue::Number(n) if *n == 0.9)));
+    assert_eq!(
+        point
+            .settings
+            .iter()
+            .filter(|s| s.name == PropertyKey::Alpha)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn test_style_fragment_rejects_non_style_value() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  let c = \"#3366cc\"\n  Space(value) { Point(style: c) }\n}",
+        "E1706",
+    ));
+}
+
+#[test]
+fn test_temporal_interval_and_guide_format_are_typed() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: x, timeFormat: \"iso-minute\")\n  Derive months = Bin(time, interval: \"month\")\n  Space(bin_start * count, data: months) { Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count) }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.guides.x_time_format, Some(TemporalFormatIr::IsoMinute));
+    assert!(matches!(
+        ir.derived_tables[0].stat.options,
+        StatOptionsIr::Bin {
+            interval: Some(BinIntervalIr::Month),
+            ..
+        }
+    ));
+}
+
+#[test]
+fn test_positioned_gradient_is_typed() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: value, gradient: [Stop(value: 0, color: \"#3366cc\"), Stop(value: 100, color: \"#cc3333\")])\n  Space(value * amount) { Point(fill: value) }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert!(matches!(
+        ir.scales[0].gradient,
+        Some(GradientIr::Positioned(ref stops)) if stops.len() == 2 && stops[1].value == 100.0
+    ));
+}
+
 // --- IR shape ---
 
 #[test]
@@ -800,6 +877,7 @@ fn test_explicit_bin_derive_carries_typed_options() {
             bin_width,
             boundary,
             closed,
+            ..
         } => {
             assert_eq!(*bins, None);
             assert_eq!(*bin_width, Some(2.5));

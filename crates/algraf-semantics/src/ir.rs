@@ -117,6 +117,10 @@ pub struct GuideIr {
     pub x_label: Option<String>,
     /// Override label for the y axis (spec §19.4).
     pub y_label: Option<String>,
+    /// Optional temporal label format for the x axis.
+    pub x_time_format: Option<TemporalFormatIr>,
+    /// Optional temporal label format for the y axis.
+    pub y_time_format: Option<TemporalFormatIr>,
 }
 
 impl Default for GuideIr {
@@ -128,6 +132,8 @@ impl Default for GuideIr {
             grid: true,
             x_label: None,
             y_label: None,
+            x_time_format: None,
+            y_time_format: None,
         }
     }
 }
@@ -141,6 +147,8 @@ impl GuideIr {
             grid: overrides.grid.unwrap_or(self.grid),
             x_label: overrides.x_label.clone().or_else(|| self.x_label.clone()),
             y_label: overrides.y_label.clone().or_else(|| self.y_label.clone()),
+            x_time_format: overrides.x_time_format.or(self.x_time_format),
+            y_time_format: overrides.y_time_format.or(self.y_time_format),
         }
     }
 }
@@ -154,6 +162,24 @@ pub struct GuideOverridesIr {
     pub grid: Option<bool>,
     pub x_label: Option<String>,
     pub y_label: Option<String>,
+    pub x_time_format: Option<TemporalFormatIr>,
+    pub y_time_format: Option<TemporalFormatIr>,
+}
+
+/// Named temporal label formats accepted by `Guide(timeFormat: ...)`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TemporalFormatIr {
+    IsoDate,
+    IsoMinute,
+}
+
+impl TemporalFormatIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TemporalFormatIr::IsoDate => "iso-date",
+            TemporalFormatIr::IsoMinute => "iso-minute",
+        }
+    }
 }
 
 /// A source-level scale declaration (spec §16.11).
@@ -172,7 +198,7 @@ pub struct ScaleIr {
     /// continuous axis scales.
     pub integer: Option<bool>,
     pub palette: Option<String>,
-    pub gradient: Option<Vec<String>>,
+    pub gradient: Option<GradientIr>,
     /// A manual category → color map for a categorical `fill`/`stroke` scale
     /// (`range: ["A" => "burlywood"]`, spec §16.13). Order defines category and
     /// legend-entry order.
@@ -184,6 +210,21 @@ pub struct ScaleIr {
     /// `fill`/`stroke` aesthetic scale (spec §16.13).
     pub label: Option<String>,
     pub span: Span,
+}
+
+/// Continuous color-gradient stops.
+#[derive(Debug, Clone, PartialEq)]
+pub enum GradientIr {
+    /// Existing evenly spaced color-string stops.
+    Even(Vec<String>),
+    /// Explicit domain-value stops.
+    Positioned(Vec<GradientStopIr>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GradientStopIr {
+    pub value: f64,
+    pub color: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -285,6 +326,7 @@ pub enum StatOptionsIr {
         bin_width: Option<f64>,
         boundary: Option<f64>,
         closed: BinClosedIr,
+        interval: Option<BinIntervalIr>,
     },
     Bin2D {
         bins: Option<f64>,
@@ -300,6 +342,32 @@ pub enum StatOptionsIr {
         grid_points: Option<f64>,
     },
     Count,
+}
+
+/// Calendar-aware bin interval units.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinIntervalIr {
+    Minute,
+    Hour,
+    Day,
+    Week,
+    Month,
+    Quarter,
+    Year,
+}
+
+impl BinIntervalIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BinIntervalIr::Minute => "minute",
+            BinIntervalIr::Hour => "hour",
+            BinIntervalIr::Day => "day",
+            BinIntervalIr::Week => "week",
+            BinIntervalIr::Month => "month",
+            BinIntervalIr::Quarter => "quarter",
+            BinIntervalIr::Year => "year",
+        }
+    }
 }
 
 /// Which side of a histogram bin interval is closed (spec §15.x).
@@ -510,6 +578,7 @@ pub enum PropertyKey {
     BinWidth,
     Boundary,
     Closed,
+    Interval,
     Method,
     Bandwidth,
     N,
@@ -548,6 +617,7 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::BinWidth,
     PropertyKey::Boundary,
     PropertyKey::Closed,
+    PropertyKey::Interval,
     PropertyKey::Method,
     PropertyKey::Bandwidth,
     PropertyKey::N,
@@ -587,6 +657,7 @@ impl PropertyKey {
             PropertyKey::BinWidth => "binWidth",
             PropertyKey::Boundary => "boundary",
             PropertyKey::Closed => "closed",
+            PropertyKey::Interval => "interval",
             PropertyKey::Method => "method",
             PropertyKey::Bandwidth => "bandwidth",
             PropertyKey::N => "n",

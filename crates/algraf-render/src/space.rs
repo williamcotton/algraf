@@ -5,7 +5,9 @@
 //! accessors without knowing the underlying scale kind.
 
 use algraf_data::{DataType, Table, TemporalPrecision};
-use algraf_semantics::{AxisSelectorIr, ColumnRef, FrameIr, ScaleIr, ScaleTargetIr, ScaleTypeIr};
+use algraf_semantics::{
+    AxisSelectorIr, ColumnRef, FrameIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, TemporalFormatIr,
+};
 use chrono::{DateTime, Datelike, NaiveDate};
 
 use crate::domains::{AxisDomainHints, SpaceDomainHints};
@@ -129,6 +131,10 @@ impl AxisScale {
 
     /// Tick positions and labels for guide rendering (spec §19).
     pub fn ticks(&self) -> Vec<(f64, String)> {
+        self.ticks_with_format(None)
+    }
+
+    pub fn ticks_with_format(&self, format: Option<TemporalFormatIr>) -> Vec<(f64, String)> {
         match self {
             AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => scale
                 .ticks(6)
@@ -138,11 +144,21 @@ impl AxisScale {
                 .collect(),
             AxisScale::Temporal { scale, .. } => temporal_ticks(scale)
                 .into_iter()
-                .map(|micros| (scale.map(micros), format_temporal(micros, scale.precision)))
+                .map(|micros| {
+                    (
+                        scale.map(micros),
+                        format_temporal(micros, scale.precision, format),
+                    )
+                })
                 .collect(),
             AxisScale::TemporalUnion { scale, .. } => temporal_ticks(scale)
                 .into_iter()
-                .map(|micros| (scale.map(micros), format_temporal(micros, scale.precision)))
+                .map(|micros| {
+                    (
+                        scale.map(micros),
+                        format_temporal(micros, scale.precision, format),
+                    )
+                })
                 .collect(),
             AxisScale::Band { scale, .. } => scale
                 .categories
@@ -159,11 +175,19 @@ impl AxisScale {
     }
 }
 
-fn format_temporal(micros: i64, precision: TemporalPrecision) -> String {
+fn format_temporal(
+    micros: i64,
+    precision: TemporalPrecision,
+    format: Option<TemporalFormatIr>,
+) -> String {
     match DateTime::from_timestamp_micros(micros) {
-        Some(dt) => match precision {
-            TemporalPrecision::Date => dt.format("%Y-%m-%d").to_string(),
-            TemporalPrecision::DateTime => dt.format("%Y-%m-%d %H:%M").to_string(),
+        Some(dt) => match format {
+            Some(TemporalFormatIr::IsoDate) => dt.format("%Y-%m-%d").to_string(),
+            Some(TemporalFormatIr::IsoMinute) => dt.format("%Y-%m-%d %H:%M").to_string(),
+            None => match precision {
+                TemporalPrecision::Date => dt.format("%Y-%m-%d").to_string(),
+                TemporalPrecision::DateTime => dt.format("%Y-%m-%d %H:%M").to_string(),
+            },
         },
         None => String::new(),
     }

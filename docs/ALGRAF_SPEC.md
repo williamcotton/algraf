@@ -738,9 +738,15 @@ Double quotes are always string literals.
 
 Backticks inside quoted identifiers MUST be escaped with a backslash.
 
+Version 0.20.0 quoted identifiers MUST also support Unicode scalar escapes in
+the form `\u{...}`. Quoted identifiers MUST NOT support string-only control
+escapes such as `\n` or `\t`.
+
 ### 6.5 Keywords
 
 The following identifiers are reserved in version 0.1:
+
+`Algraf`
 
 `Chart`
 
@@ -783,6 +789,9 @@ Outside `Chart(data: stdin)`, `stdin` is an ordinary plain identifier.
 
 `Derive stdin = Bin(value, bins: 25)` is syntactically valid, though style guides SHOULD discourage it because it is visually confusing.
 
+`Algraf` introduces the optional source header in version 0.20.0 and is
+reserved only at top level before the first `Chart`.
+
 Reserved words MUST NOT be used as plain column identifiers.
 
 Reserved words MAY be used as column identifiers when quoted with backticks.
@@ -809,7 +818,9 @@ Required escape sequences:
 
 `\\`
 
-Unicode escapes MAY be added later.
+Version 0.20.0 MUST support Unicode scalar escapes in string literals:
+`\u{...}`. The escape body MUST contain one to six ASCII hex digits and MUST
+decode to a valid Unicode scalar value.
 
 Invalid escapes MUST produce diagnostics.
 
@@ -953,7 +964,9 @@ It is intentionally simple enough for recursive descent plus Pratt expression pa
 ### 7.1 Program
 
 ```ebnf
-Program        ::= Trivia* ChartBlock (Trivia* ChartBlock)* Trivia* EOF
+Program        ::= Trivia* SourceHeader? ChartBlock (Trivia* ChartBlock)* Trivia* EOF
+SourceHeader   ::= "Algraf" "(" SourceHeaderArgs ")"
+SourceHeaderArgs ::= Arg ("," Arg)* ","?
 ```
 
 `Trivia` means whitespace and comments retained by the lexer/CST layer.
@@ -961,6 +974,18 @@ Program        ::= Trivia* ChartBlock (Trivia* ChartBlock)* Trivia* EOF
 Trivia is not represented as typed AST children.
 
 A source file MUST contain at least one chart block.
+
+Version 0.20.0 MAY begin with a single source header before the first chart:
+
+```ag
+Algraf(version: "0.20", features: ["experimental"])
+```
+
+If present, `version` is required and MUST be a string literal. `features` is an
+optional array of string literals. Version 0.20.0 recognizes `sql`, `network`,
+`plugins`, and `experimental` as reserved feature gates; these gates do not
+enable SQL, network access, plugins, or experimental syntax in version 0.20.0.
+Unknown or duplicate feature gates MUST emit diagnostics.
 
 A source file MAY contain more than one top-level chart block. Each chart is a
 complete, independent chart: it has its own data source, scales, guides, theme,
@@ -1292,6 +1317,18 @@ an array of those (spec §7.8). Column mappings, algebra expressions, the `stdin
 sentinel, and references to other variables MUST produce diagnostic `E1701`.
 Version 0.1 of variables intentionally excludes user-defined functions and
 column shadowing; the first cut is constant values only.
+
+Version 0.20.0 also permits a `let` binding to hold a `Style(...)` fragment:
+
+```ag
+let muted = Style(fill: "#6b7280", alpha: 0.55)
+```
+
+`Style(...)` is a property bag, not a user-defined function. Its entries MUST be
+named arguments. A style fragment MUST NOT contain `style:`. A `style:` argument
+inside a geometry call applies a style fragment at that source position; later
+explicit properties or later style fragments override earlier expanded
+properties.
 
 The bound name lives in a variable namespace separate from columns and derived
 tables (spec §9.6). A variable name MUST be unique within its scope; a second
@@ -1981,6 +2018,9 @@ Version 0.1 temporal inference MUST recognize ISO dates in `YYYY-MM-DD` form.
 Version 0.1 temporal inference MUST recognize ISO datetimes without time zone in `YYYY-MM-DDTHH:MM:SS` form.
 
 Version 0.1 temporal inference SHOULD recognize ISO datetimes with a space separator in `YYYY-MM-DD HH:MM:SS` form.
+
+Version 0.20.0 temporal inference MUST also recognize strict minute-precision
+naive datetimes in `YYYY-MM-DD HH:MM` form.
 
 Values outside these formats MUST remain strings unless an explicit temporal parsing declaration is added in a later version.
 
@@ -4588,7 +4628,12 @@ Version 0.2.0 MUST support temporal binning for `Bin` and `Histogram`.
 
 For temporal inputs, `bins`, `boundary`, and `closed` use the same interval assignment semantics as numeric binning over UTC-equivalent microsecond instants.
 
-Calendar-aware interval syntax such as `interval: "month"` is not required in version 0.2.0.
+Version 0.20.0 MUST support calendar-aware temporal bins with
+`interval: "<unit>"` on `Bin`, `Histogram`, and `FreqPoly`. Supported units are
+`minute`, `hour`, `day`, `week`, `month`, `quarter`, and `year`. `interval` is
+valid only for temporal inputs and MUST NOT be combined with `bins`,
+`binWidth`, or `boundary`. Weeks start on Monday, and quarters start on January
+1, April 1, July 1, and October 1.
 
 `Histogram` over a temporal vector MUST trigger the same diagnostic when temporal binning is unavailable.
 
@@ -5091,7 +5136,18 @@ with `gradient: [...]`.
 Gradient stops MUST be interpolated evenly across the trained continuous
 domain.
 
-Gradient stop positions are deferred.
+Version 0.20.0 MUST also support positioned gradient stops:
+
+```ag
+Scale(fill: value, gradient: [
+    Stop(value: 0, color: "#3366cc"),
+    Stop(value: 100, color: "#cc3333"),
+])
+```
+
+String stops and `Stop(...)` values MUST NOT be mixed in one gradient. Stop
+values are domain values and MUST be strictly increasing. Colors use the
+existing color validation rules.
 
 `gradient` MUST be valid only for continuous color mappings. Invalid gradient
 arrays MUST emit `E1601`; using `gradient` with a categorical mapping MUST emit
@@ -5700,6 +5756,13 @@ Version 0.6.0 MUST support `Guide(axis: x, label: null)` (and `axis: y`) to
 suppress that axis's title, reusing the `null` = "suppress" convention. Axis
 ticks and grid lines are unaffected. `label` accepts a string literal or `null`;
 any other value MUST emit `E1204`.
+
+Version 0.20.0 MUST support `Guide(axis: x, timeFormat: "iso-minute")` and
+`Guide(axis: y, timeFormat: "iso-minute")` for temporal axes. `iso-minute`
+renders datetime labels as `YYYY-MM-DD HH:MM`; `iso-date` renders the UTC date
+portion as `YYYY-MM-DD`. `timeFormat` without `axis: x` or `axis: y`, unknown
+format names, and non-temporal application contexts MUST produce targeted
+diagnostics or be ignored with diagnostics during semantic analysis.
 
 ### 19.5 Legend Generation
 
@@ -7233,6 +7296,12 @@ its stable string form.
 `E0021 malformed binding or map-literal entry` (a missing `=` in a `let`, or a
 missing `=>`/stray separator in a map literal)
 
+`E0022 malformed source header`
+
+`E0023 unsupported source language version`
+
+`E0024 unknown or duplicate feature gate`
+
 ### 26.2 Semantic Diagnostics
 
 `E1001 Chart requires data argument`
@@ -7309,9 +7378,13 @@ missing `=>`/stray separator in a map literal)
 
 `E1702 duplicate let binding`
 
+`E1703 invalid feature-gate declaration`
+
 `E1704 unknown Theme property`
 
 `E1705 invalid Theme property value`
+
+`E1706 invalid Style fragment`
 
 `E1601 invalid gradient declaration`
 
@@ -7756,18 +7829,17 @@ Render command SHOULD offer user-visible errors for files that are too large if 
 
 Released version 0.1 files have no source-level version declaration.
 
-Releases through the current refactor roadmap continue to treat source files as
-unversioned unless this section is amended. Promotion of the optional version
-declaration remains deferred until a release deliberately takes on source-level
-versioning; see §30.4.
+Version 0.20.0 supports an optional source-level version declaration. Unversioned
+files remain valid and keep current behavior.
 
-Future files MAY include:
+Files MAY include:
 
 ```ag
-Algraf(version: "0.2")
+Algraf(version: "0.20")
 ```
 
-This is not version 0.1 syntax and is not part of the v0.2.0 plan unless explicitly promoted.
+The canonical v0.20 spelling is `"0.20"`; `"0.20.0"` is accepted. Unsupported
+future versions MUST emit a diagnostic while preserving parser recovery.
 
 ### 30.2 Stability
 
@@ -7778,6 +7850,10 @@ Published examples SHOULD include language version once version declarations exi
 Diagnostics codes SHOULD remain stable where practical.
 
 ### 30.3 Feature Gates
+
+Version 0.20.0 recognizes feature gate names as reserved strings. The recognized
+names are `sql`, `network`, `plugins`, and `experimental`; they do not enable
+runtime access in version 0.20.0.
 
 Future feature gates MAY enable:
 
@@ -7818,7 +7894,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.17.0 | [`V0_17_PLAN.md`](V0_17_PLAN.md) | Render execution boundary | Implemented |
 | 0.18.0 | [`V0_18_PLAN.md`](V0_18_PLAN.md) | Semantic surface hardening | Complete |
 | 0.19.0 | [`V0_19_PLAN.md`](V0_19_PLAN.md) | Data execution boundary | Complete |
-| 0.20.0 | [`V0_20_PLAN.md`](V0_20_PLAN.md) | Language versioning and reuse | Planned |
+| 0.20.0 | [`V0_20_PLAN.md`](V0_20_PLAN.md) | Language versioning and reuse | Complete |
 | 0.21.0 | [`V0_21_PLAN.md`](V0_21_PLAN.md) | Data backends and source security | Planned |
 | 0.22.0 | [`V0_22_PLAN.md`](V0_22_PLAN.md) | Geospatial completion | Planned |
 | 0.23.0 | [`V0_23_PLAN.md`](V0_23_PLAN.md) | Stat and geometry polish | Planned |

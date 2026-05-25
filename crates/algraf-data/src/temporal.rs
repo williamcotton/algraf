@@ -4,7 +4,8 @@
 //! 1. RFC3339 timestamps with an offset (converted to a UTC instant).
 //! 2. Naive datetimes `YYYY-MM-DDTHH:MM:SS` (no offset).
 //! 3. Naive datetimes with a space separator `YYYY-MM-DD HH:MM:SS`.
-//! 4. ISO dates `YYYY-MM-DD` (lifted to midnight).
+//! 4. Naive minute-precision datetimes `YYYY-MM-DD HH:MM`.
+//! 5. ISO dates `YYYY-MM-DD` (lifted to midnight).
 //!
 //! Anything else remains a string.
 
@@ -46,7 +47,15 @@ pub fn parse_temporal(text: &str) -> Option<ParsedTemporal> {
         });
     }
 
-    // 4. Date only, lifted to midnight.
+    // 4. Naive minute-precision datetime with a space separator.
+    if let Ok(ndt) = NaiveDateTime::parse_from_str(text, "%Y-%m-%d %H:%M") {
+        return Some(ParsedTemporal {
+            value: DateTimeValue::new(ndt, TemporalPrecision::DateTime),
+            offset_aware: false,
+        });
+    }
+
+    // 5. Date only, lifted to midnight.
     if let Ok(date) = NaiveDate::parse_from_str(text, "%Y-%m-%d") {
         let instant = date.and_hms_opt(0, 0, 0).expect("midnight is valid");
         return Some(ParsedTemporal {

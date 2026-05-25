@@ -71,14 +71,17 @@ pub(crate) fn signature_help_at(text: &str, offset: usize) -> Option<SignatureHe
 /// declaration metadata that also drives completion (spec §13.8–13.9).
 fn signature_params(name: &str) -> Option<Vec<&'static str>> {
     if let Some(geometry) = registry::geometry(name) {
-        return Some(geometry.prop_names().collect());
+        let mut params: Vec<&'static str> = geometry.prop_names().collect();
+        params.push("style");
+        return Some(params);
     }
     match name {
+        "Algraf" => Some(registry::declaration_arg_names(name).to_vec()),
         "Chart" => Some(registry::CHART_ARGS.to_vec()),
-        "Scale" | "Guide" | "Theme" | "Layout" => {
+        "Scale" | "Guide" | "Theme" | "Layout" | "Style" | "Stop" => {
             Some(registry::declaration_arg_names(name).to_vec())
         }
-        "Bin" => Some(vec!["bins", "binWidth", "boundary", "closed"]),
+        "Bin" => Some(registry::declaration_arg_names(name).to_vec()),
         _ => None,
     }
 }

@@ -9,7 +9,9 @@ use std::collections::{HashMap, HashSet};
 
 use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::{ColumnDef, DataType};
-use algraf_syntax::ast::{AlgebraExpr, AlgebraName, LetDecl, LiteralKind, ValueExpr};
+use algraf_syntax::ast::{
+    AlgebraExpr, AlgebraName, Arg, CallValue, LetDecl, LiteralKind, ValueExpr,
+};
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
 use crate::ir::*;
@@ -63,6 +65,13 @@ pub(super) struct LetVar {
     pub(super) value: ConstValue,
 }
 
+#[derive(Clone)]
+pub(super) struct StyleEntry {
+    pub(super) key: String,
+    pub(super) arg: Arg,
+    pub(super) span: Span,
+}
+
 /// The constant value forms a `let` binding may hold (spec §7.10).
 #[derive(Clone)]
 pub(super) enum ConstValue {
@@ -72,6 +81,7 @@ pub(super) enum ConstValue {
     Null,
     NumberArray(Vec<f64>),
     StringArray(Vec<String>),
+    Style(Vec<StyleEntry>),
 }
 
 impl ConstValue {
@@ -85,8 +95,15 @@ impl ConstValue {
             ConstValue::Null => ValueForm::Null,
             ConstValue::NumberArray(v) => ValueForm::Array(Some(v.clone())),
             ConstValue::StringArray(v) => ValueForm::StringArray(Some(v.clone())),
+            ConstValue::Style(_) => ValueForm::Error,
         }
     }
+}
+
+pub(super) enum StyleFragmentLookup {
+    Found(Vec<StyleEntry>),
+    NotStyle,
+    Invalid,
 }
 
 pub(super) struct Analyzer<'a> {
@@ -176,6 +193,11 @@ impl<'a> Analyzer<'a> {
     fn eval_let_value(&mut self, decl: &LetDecl) -> Option<ConstValue> {
         let value = decl.value()?;
         let span = node_span(value.syntax());
+        if let ValueExpr::Call(call) = &value {
+            if call.name().as_deref() == Some("Style") {
+                return self.eval_style_call(call).map(ConstValue::Style);
+            }
+        }
         match ValueForm::of(&value) {
             ValueForm::Number(n) => Some(ConstValue::Number(n)),
             ValueForm::Str(s) => Some(ConstValue::Str(s)),
@@ -217,6 +239,86 @@ impl<'a> Analyzer<'a> {
             }
         }
         form
+    }
+
+    pub(super) fn style_fragment_for_value(&mut self, value: &ValueExpr) -> StyleFragmentLookup {
+        match value {
+            ValueExpr::Algebra(AlgebraExpr::Name(name)) if !name.is_quoted() => {
+                let Some(var_name) = name.name() else {
+                    return StyleFragmentLookup::NotStyle;
+                };
+                match self
+                    .space_vars
+                    .get(&var_name)
+                    .or_else(|| self.chart_vars.get(&var_name))
+                {
+                    Some(LetVar {
+                        value: ConstValue::Style(entries),
+                    }) => StyleFragmentLookup::Found(entries.clone()),
+                    _ => StyleFragmentLookup::NotStyle,
+                }
+            }
+            ValueExpr::Call(call) if call.name().as_deref() == Some("Style") => self
+                .eval_style_call(call)
+                .map(StyleFragmentLookup::Found)
+                .unwrap_or(StyleFragmentLookup::Invalid),
+            _ => StyleFragmentLookup::NotStyle,
+        }
+    }
+
+    pub(super) fn eval_style_call(&mut self, call: &CallValue) -> Option<Vec<StyleEntry>> {
+        let mut entries = Vec::new();
+        let mut seen: HashMap<String, Span> = HashMap::new();
+        let mut ok = true;
+        for arg in call.args() {
+            let arg_span = node_span(arg.syntax());
+            let Some(key) = arg.key() else {
+                self.diag(Diagnostic::error(
+                    codes::E1706,
+                    "`Style(...)` entries must be named",
+                    arg_span,
+                ));
+                ok = false;
+                continue;
+            };
+            if key == "style" {
+                self.diag(Diagnostic::error(
+                    codes::E1706,
+                    "`Style(...)` cannot contain `style:`",
+                    arg_span,
+                ));
+                ok = false;
+                continue;
+            }
+            if let Some(&first) = seen.get(&key) {
+                self.diag(
+                    Diagnostic::error(
+                        codes::E1706,
+                        format!("duplicate `Style` property `{key}`"),
+                        arg_span,
+                    )
+                    .with_related(first, "first defined here"),
+                );
+                ok = false;
+                continue;
+            }
+            if matches!(arg.value(), Some(ValueExpr::Call(_))) {
+                self.diag(Diagnostic::error(
+                    codes::E1706,
+                    "`Style(...)` values must be literals or column mappings",
+                    arg_span,
+                ));
+                ok = false;
+                continue;
+            }
+            seen.insert(key.clone(), arg_span);
+            entries.push(StyleEntry {
+                key,
+                arg,
+                span: arg_span,
+            });
+        }
+        ok.then_some(entries)
     }
 }
 

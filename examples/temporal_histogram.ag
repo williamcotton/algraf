@@ -1,9 +1,9 @@
 Chart(data: "signups.csv", width: 760, height: 460, title: "Signups over the launch quarter") {
-    Guide(axis: x, label: "Signup date")
+    Guide(axis: x, label: "Signup date", timeFormat: "iso-date")
 
     Space(signup_date) {
         Histogram(
-            bins: 24,
+            interval: "week",
             fill: "steelblue",
             stroke: "#ffffff",
             strokeWidth: 1,

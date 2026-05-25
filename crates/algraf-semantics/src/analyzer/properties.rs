@@ -1,14 +1,13 @@
 //! Geometry and property analysis (spec §13.6, §13.9–13.13): geometry
 //! recognition, per-property type checking, and the dodged-bar hint.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use algraf_core::{codes, Diagnostic, Severity, Span};
 use algraf_syntax::ast::{Arg, GeometryCall};
 use algraf_syntax::node_span;
 
-use super::args::DupGuard;
-use super::context::{ActiveTable, Analyzer, ValueForm};
+use super::context::{ActiveTable, Analyzer, StyleFragmentLookup, ValueForm};
 use super::frames::contains_nested;
 use crate::ir::*;
 use crate::registry::{self, Accept, GeometryDef, PropSpec};
@@ -18,6 +17,13 @@ enum PropOutcome {
     Mapping(ColumnRef),
     Setting(SettingValue),
     Invalid,
+}
+
+struct EffectiveArg {
+    key: String,
+    arg: Arg,
+    span: Span,
+    from_style: bool,
 }
 
 impl Analyzer<'_> {
@@ -45,27 +51,41 @@ impl Analyzer<'_> {
             }
         };
 
-        let args = call.args();
-        let mut dup = DupGuard::new(codes::E1203, "property");
+        let args = self.expand_style_args(&call.args());
         let mut seen: HashSet<String> = HashSet::new();
+        let mut seen_for_duplicates: HashMap<String, (Span, bool)> = HashMap::new();
         let mut mappings = Vec::new();
         let mut settings = Vec::new();
 
-        for arg in &args {
-            let Some(key) = arg.key() else { continue };
-            let key_span = node_span(arg.syntax());
+        for effective in &args {
+            let key = &effective.key;
+            let key_span = effective.span;
 
-            if dup.is_duplicate(&mut self.diagnostics, &key, key_span) {
-                continue;
+            if let Some((first, first_from_style)) = seen_for_duplicates.get(key).copied() {
+                if !first_from_style && !effective.from_style {
+                    self.diag(
+                        Diagnostic::error(
+                            codes::E1203,
+                            format!("duplicate property `{key}`"),
+                            key_span,
+                        )
+                        .with_related(first, "first defined here"),
+                    );
+                    continue;
+                }
             }
+            seen_for_duplicates.insert(key.clone(), (key_span, effective.from_style));
             seen.insert(key.clone());
 
-            let Some(prop) = def.prop(&key) else {
-                self.unknown_property(def, &key, key_span);
+            let Some(prop) = def.prop(key) else {
+                self.unknown_property(def, key, key_span);
                 continue;
             };
 
-            match self.check_property(prop, arg, table) {
+            mappings.retain(|mapping: &AestheticMapping| mapping.aesthetic != prop.key);
+            settings.retain(|setting: &GeometrySetting| setting.name != prop.key);
+
+            match self.check_property(prop, &effective.arg, table) {
                 PropOutcome::Mapping(column) => mappings.push(AestheticMapping {
                     aesthetic: prop.key,
                     column,
@@ -98,6 +118,52 @@ impl Analyzer<'_> {
             settings,
             span,
         })
+    }
+
+    fn expand_style_args(&mut self, args: &[Arg]) -> Vec<EffectiveArg> {
+        let mut out = Vec::new();
+        for arg in args {
+            let Some(key) = arg.key() else { continue };
+            let span = node_span(arg.syntax());
+            if key != "style" {
+                out.push(EffectiveArg {
+                    key,
+                    arg: arg.clone(),
+                    span,
+                    from_style: false,
+                });
+                continue;
+            }
+            let Some(value) = arg.value() else {
+                self.diag(Diagnostic::error(
+                    codes::E1706,
+                    "`style` expects a `Style(...)` fragment",
+                    span,
+                ));
+                continue;
+            };
+            match self.style_fragment_for_value(&value) {
+                StyleFragmentLookup::Found(entries) => {
+                    for entry in entries {
+                        out.push(EffectiveArg {
+                            key: entry.key,
+                            arg: entry.arg,
+                            span: entry.span,
+                            from_style: true,
+                        });
+                    }
+                }
+                StyleFragmentLookup::NotStyle => {
+                    self.diag(Diagnostic::error(
+                        codes::E1706,
+                        "`style` expects a `Style(...)` fragment",
+                        node_span(value.syntax()),
+                    ));
+                }
+                StyleFragmentLookup::Invalid => {}
+            }
+        }
+        out
     }
 
     fn unknown_property(&mut self, def: &GeometryDef, key: &str, span: Span) {

@@ -53,8 +53,17 @@ pub const PALETTE_NAMES: &[&str] = &["default", "accent"];
 /// The ordered argument names for a declaration keyword.
 pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
     match decl {
+        "Algraf" => &["version", "features"],
         "Layout" => &["facetColumns"],
-        "Guide" => &["axis", "label", "legend", "fill", "stroke", "grid"],
+        "Guide" => &[
+            "axis",
+            "label",
+            "timeFormat",
+            "legend",
+            "fill",
+            "stroke",
+            "grid",
+        ],
         "Theme" => {
             const THEME_ARGS: &[&str] = &[
                 "name",
@@ -87,8 +96,24 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
             "strokeWidth",
             "palette",
             "gradient",
+            "range",
+            "labels",
             "label",
         ],
+        "Style" => &[
+            "fill",
+            "stroke",
+            "strokeWidth",
+            "alpha",
+            "size",
+            "shape",
+            "group",
+            "label",
+            "dx",
+            "dy",
+        ],
+        "Stop" => &["value", "color"],
+        "Bin" => &["bins", "binWidth", "boundary", "closed", "interval"],
         _ => &[],
     }
 }
@@ -171,6 +196,9 @@ const STROKE_WIDTH: &[Accept] = &[Accept::Number];
 const LINE_STROKE_WIDTH: &[Accept] = &[Accept::Number, Accept::Column];
 const POS: &[Accept] = &[Accept::Column, Accept::Number];
 const GROUP: &[Accept] = &[Accept::Column];
+const BIN_INTERVAL: &[Accept] = &[Accept::Enum(&[
+    "minute", "hour", "day", "week", "month", "quarter", "year",
+])];
 
 const POINT: &[PropSpec] = &[
     opt(PropertyKey::Fill, FILL),
@@ -222,6 +250,7 @@ const HISTOGRAM: &[PropSpec] = &[
     opt(PropertyKey::BinWidth, &[Accept::Number]),
     opt(PropertyKey::Boundary, &[Accept::Number]),
     opt(PropertyKey::Closed, &[Accept::Enum(&["left", "right"])]),
+    opt(PropertyKey::Interval, BIN_INTERVAL),
     opt(PropertyKey::Fill, &[Accept::Color]),
     opt(PropertyKey::Stroke, &[Accept::Color]),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
@@ -233,6 +262,7 @@ const FREQ_POLY: &[PropSpec] = &[
     opt(PropertyKey::BinWidth, &[Accept::Number]),
     opt(PropertyKey::Boundary, &[Accept::Number]),
     opt(PropertyKey::Closed, &[Accept::Enum(&["left", "right"])]),
+    opt(PropertyKey::Interval, BIN_INTERVAL),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
@@ -460,10 +490,15 @@ pub fn property_doc(name: &str) -> &'static str {
         "binWidth" => "Histogram bin width.",
         "boundary" => "Histogram bin boundary.",
         "closed" => "Histogram interval closure: `\"left\"` or `\"right\"`.",
+        "interval" => "Calendar interval for temporal bins.",
         "bandwidth" => "Kernel density bandwidth.",
         "n" => "Number of kernel density grid points.",
         "quantiles" => "Violin quantile line positions.",
         "gradient" => "Continuous color gradient stops.",
+        "style" => "Reusable `Style(...)` fragment applied at this argument position.",
+        "timeFormat" => "Temporal axis label format: `\"iso-date\"` or `\"iso-minute\"`.",
+        "features" => "Source feature gates reserved for future language capabilities.",
+        "version" => "Algraf source language version.",
         "xmin" => "Rectangle minimum x boundary.",
         "xmax" => "Rectangle maximum x boundary.",
         "ymin" => "Lower y boundary.",

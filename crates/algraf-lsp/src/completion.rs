@@ -108,7 +108,10 @@ pub(crate) fn completion_context(text: &str, offset: usize) -> CompletionContext
             active_key,
             last_kind,
         },
-        Some("Scale" | "Guide" | "Theme" | "Layout") => CompletionContext::DeclArgs {
+        Some(
+            "Algraf" | "Scale" | "Guide" | "Theme" | "Layout" | "Style" | "Stop" | "Bin" | "Smooth"
+            | "Bin2D" | "HexBin",
+        ) => CompletionContext::DeclArgs {
             decl: call_name_stack
                 .last()
                 .and_then(|name| name.clone())
@@ -172,11 +175,18 @@ pub(crate) fn completion_items(
     context: CompletionContext,
 ) -> Vec<CompletionItem> {
     match context {
-        CompletionContext::TopLevel => vec![snippet(
-            "Chart",
-            "Chart(data: \"$1\") {\n    Space($2) {\n        Point($3)\n    }\n}",
-            "Root chart block",
-        )],
+        CompletionContext::TopLevel => vec![
+            snippet(
+                "Algraf",
+                "Algraf(version: \"0.20\")",
+                "Optional source language header",
+            ),
+            snippet(
+                "Chart",
+                "Chart(data: \"$1\") {\n    Space($2) {\n        Point($3)\n    }\n}",
+                "Root chart block",
+            ),
+        ],
         CompletionContext::ChartArgs { active_key } => {
             if active_key.as_deref() == Some("data") {
                 let mut items = vec![
@@ -241,10 +251,12 @@ pub(crate) fn completion_items(
                 return property_value_items(state, geometry.as_deref(), &key);
             }
             if let Some(geometry) = geometry.and_then(|name| registry::geometry(&name)) {
-                geometry
+                let mut items = geometry
                     .prop_names()
                     .map(|name| property(name, registry::property_doc(name)))
-                    .collect()
+                    .collect::<Vec<_>>();
+                items.push(property("style", registry::property_doc("style")));
+                items
             } else {
                 all_property_items()
             }
@@ -323,6 +335,12 @@ fn property_value_items(
         .and_then(|geometry| geometry.prop(property_name));
     let mut items = Vec::new();
 
+    if property_name == "style" {
+        items.extend(variable_items(state));
+        items.push(value_item("Style()", "Inline style fragment"));
+        return dedupe_by_label(items);
+    }
+
     let accepts_columns = match spec {
         Some(spec) => spec
             .accepts
@@ -381,6 +399,13 @@ fn declaration_value_items(
     active_key: &str,
 ) -> Vec<CompletionItem> {
     match (decl, active_key) {
+        ("Algraf", "version") => vec![value_item("\"0.20\"", "Algraf v0.20 source version")],
+        ("Algraf", "features") => {
+            vec![value_item(
+                "[\"sql\", \"network\", \"plugins\", \"experimental\"]",
+                "Reserved feature gates",
+            )]
+        }
         ("Theme", "name") => registry::THEME_NAMES
             .iter()
             .map(|value| value_item(&format!("\"{value}\""), "Theme name"))
@@ -389,6 +414,10 @@ fn declaration_value_items(
             vec![value_item("x", "X axis"), value_item("y", "Y axis")]
         }
         ("Guide", "label") => vec![value_item("\"\"", "Axis label")],
+        ("Guide", "timeFormat") => vec![
+            value_item("\"iso-minute\"", "YYYY-MM-DD HH:MM labels"),
+            value_item("\"iso-date\"", "YYYY-MM-DD labels"),
+        ],
         ("Guide", "legend") | ("Guide", "grid") | ("Scale", "reverse") | ("Scale", "integer") => {
             vec![
                 value_item("true", "Boolean literal"),
@@ -409,11 +438,26 @@ fn declaration_value_items(
             .map(|name| value_item(&format!("\"{name}\""), "Categorical palette"))
             .collect(),
         ("Scale", "gradient") => {
-            vec![value_item(
-                "[\"#3366cc\", \"#cc3333\"]",
-                "Color gradient stops",
-            )]
+            vec![
+                value_item("[\"#3366cc\", \"#cc3333\"]", "Even color gradient stops"),
+                value_item(
+                    "[Stop(value: 0, color: \"#3366cc\"), Stop(value: 100, color: \"#cc3333\")]",
+                    "Positioned color gradient stops",
+                ),
+            ]
         }
+        ("Stop", "value") => vec![value_item("0", "Domain value")],
+        ("Stop", "color") => vec![color("\"#3366cc\"", "Gradient stop color")],
+        ("Style", _) => property_value_items(state, None, active_key),
+        ("Bin", "interval") => ["minute", "hour", "day", "week", "month", "quarter", "year"]
+            .iter()
+            .map(|value| value_item(&format!("\"{value}\""), "Temporal bin interval"))
+            .collect(),
+        ("Bin", "closed") => ["left", "right"]
+            .iter()
+            .map(|value| value_item(&format!("\"{value}\""), "Bin closure"))
+            .collect(),
+        ("Bin", "bins" | "binWidth" | "boundary") => vec![value_item("30", "Number literal")],
         ("Theme", "axisText") => vec![value_item(
             "Text(size: 12, fill: \"#333333\")",
             "Axis text style",
@@ -446,6 +490,9 @@ fn all_property_items() -> Vec<CompletionItem> {
                 items.push(property(name, registry::property_doc(name)));
             }
         }
+    }
+    if seen.insert("style") {
+        items.push(property("style", registry::property_doc("style")));
     }
     items
 }
@@ -644,6 +691,6 @@ mod tests {
     #[test]
     fn top_level_completion_offers_chart() {
         let items = completion_items(&empty_state(), CompletionContext::TopLevel);
-        assert_eq!(labels(&items), vec!["Chart"]);
+        assert_eq!(labels(&items), vec!["Algraf", "Chart"]);
     }
 }

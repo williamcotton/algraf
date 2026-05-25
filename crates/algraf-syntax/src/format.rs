@@ -12,8 +12,8 @@
 use std::collections::HashMap;
 
 use crate::ast::{
-    AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, DeriveDecl, LetDecl, Root, SpaceBlock,
-    SpaceItem, StatCall, TableDecl, ValueExpr,
+    AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, DeriveDecl, LetDecl, Root, SourceHeader,
+    SpaceBlock, SpaceItem, StatCall, TableDecl, ValueExpr,
 };
 use crate::parser::parse;
 use crate::syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken};
@@ -28,12 +28,27 @@ pub fn format(source: &str) -> String {
         return source.to_string();
     }
     let root = parsed.syntax();
-    let Some(chart) = Root::cast(root.clone()).and_then(|r| r.chart()) else {
+    let Some(root_view) = Root::cast(root.clone()) else {
         return source.to_string();
     };
+    let charts = root_view.charts();
+    if charts.is_empty() {
+        return source.to_string();
+    }
 
     let mut printer = Printer::new(Comments::collect(&root));
-    printer.chart(&chart);
+    if let Some(header) = root_view.source_header() {
+        printer.source_header(&header);
+        printer.line("");
+    }
+    for (index, chart) in charts.iter().enumerate() {
+        if index > 0 {
+            printer.line("");
+        }
+        printer.chart(chart);
+    }
+    // Comments after the final top-level item, on their own line.
+    printer.emit_standalone(Some(usize::MAX));
     printer.out
 }
 
@@ -153,6 +168,10 @@ impl Printer {
 
     // --- Chart ---
 
+    fn source_header(&mut self, header: &SourceHeader) {
+        self.call_item(header.syntax(), "Algraf", &header.args());
+    }
+
     fn chart(&mut self, chart: &ChartBlock) {
         let node = chart.syntax();
         self.emit_standalone(first_code(node));
@@ -168,9 +187,6 @@ impl Printer {
         self.emit_standalone(brace(node, SyntaxKind::R_BRACE));
         self.line("}");
         self.append_trailing(brace(node, SyntaxKind::R_BRACE));
-
-        // Comments after the final brace, on their own line.
-        self.emit_standalone(Some(usize::MAX));
     }
 
     fn chart_item(&mut self, item: &ChartItem) {

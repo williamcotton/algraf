@@ -75,6 +75,23 @@ fn test_escaped_strings() {
 }
 
 #[test]
+fn test_unicode_escapes_in_strings_and_quoted_identifiers() {
+    assert_eq!(
+        significant(r#""Revenue \u{2014}" `city\u{20}name`"#),
+        vec![
+            TokenKind::String("Revenue \u{2014}".into()),
+            TokenKind::QuotedIdent("city name".into()),
+        ]
+    );
+}
+
+#[test]
+fn test_invalid_unicode_escape_reports_diagnostic() {
+    let result = tokenize(r#""bad \u{110000}""#);
+    assert!(result.diagnostics.iter().any(|d| d.code == "E0018"));
+}
+
+#[test]
 fn test_string_is_distinct_from_quoted_identifier() {
     // Double quotes are always string literals; backticks are column ids.
     assert_eq!(

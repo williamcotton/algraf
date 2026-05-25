@@ -57,6 +57,7 @@ pub enum SyntaxKind {
     LAYOUT_KW,
     LET_KW,
     TABLE_KW,
+    ALGRAF_KW,
     STDIN_KW,
 
     // --- Synthetic tokens ---
@@ -76,6 +77,8 @@ pub enum SyntaxKind {
     ALGEBRA_PAREN,
     /// The root chart block.
     CHART_BLOCK,
+    /// An optional top-level `Algraf(...)` source header.
+    SOURCE_HEADER,
     /// A space block.
     SPACE_BLOCK,
     /// A `Derive` declaration.

@@ -18,7 +18,7 @@ use algraf_driver::{
 use algraf_render::{render_with_tables, svg_num, Layout, Rect, Theme};
 use algraf_semantics::{
     analyze, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
-    GeometryKind, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
+    GeometryKind, GradientIr, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
     SpaceDataRef, SpaceIr, StatKind, StatOptionsIr,
 };
 use algraf_syntax::ast::ChartBlock;
@@ -718,6 +718,8 @@ fn ir_to_json(ir: &ChartIr) -> Value {
             "grid": ir.guides.grid,
             "xLabel": ir.guides.x_label.as_deref(),
             "yLabel": ir.guides.y_label.as_deref(),
+            "xTimeFormat": ir.guides.x_time_format.map(|format| format.as_str()),
+            "yTimeFormat": ir.guides.y_time_format.map(|format| format.as_str()),
         },
         "scales": ir.scales.iter().map(scale_json).collect::<Vec<_>>(),
         "title": ir.title.as_deref(),
@@ -778,6 +780,8 @@ fn guide_overrides_json(guides: &GuideOverridesIr) -> Value {
         "grid": guides.grid,
         "xLabel": guides.x_label.as_deref(),
         "yLabel": guides.y_label.as_deref(),
+        "xTimeFormat": guides.x_time_format.map(|format| format.as_str()),
+        "yTimeFormat": guides.y_time_format.map(|format| format.as_str()),
     })
 }
 
@@ -788,8 +792,24 @@ fn scale_json(scale: &ScaleIr) -> Value {
         "domain": scale.domain,
         "reverse": scale.reverse,
         "palette": scale.palette.as_deref(),
+        "gradient": scale.gradient.as_ref().map(gradient_json),
         "span": span_json(scale.span),
     })
+}
+
+fn gradient_json(gradient: &GradientIr) -> Value {
+    match gradient {
+        GradientIr::Even(stops) => json!({
+            "kind": "even",
+            "stops": stops,
+        }),
+        GradientIr::Positioned(stops) => json!({
+            "kind": "positioned",
+            "stops": stops.iter().map(|stop| {
+                json!({ "value": stop.value, "color": stop.color })
+            }).collect::<Vec<_>>(),
+        }),
+    }
 }
 
 fn scale_target_json(target: &ScaleTargetIr) -> Value {
@@ -881,12 +901,14 @@ fn stat_options_json(options: &StatOptionsIr) -> Value {
             bin_width,
             boundary,
             closed,
+            interval,
         } => json!({
             "kind": "bin",
             "bins": bins,
             "binWidth": bin_width,
             "boundary": boundary,
             "closed": closed.as_str(),
+            "interval": interval.map(|unit| unit.as_str()),
         }),
         StatOptionsIr::Bin2D { bins } => json!({ "kind": "bin2d", "bins": bins }),
         StatOptionsIr::HexBin { bins } => json!({ "kind": "hexbin", "bins": bins }),

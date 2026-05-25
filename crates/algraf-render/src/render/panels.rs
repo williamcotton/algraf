@@ -276,8 +276,12 @@ fn y_label_left_extra(
         if let Some(scaled) =
             ScaledSpace::build(frame, table, x_range, y_range, &hints, &space_scales)
         {
-            max_label_width =
-                max_label_width.max(guide::max_y_tick_label_width(&scaled, theme.font_size));
+            let guides = ir.guides.with_overrides(&space.guides);
+            max_label_width = max_label_width.max(guide::max_y_tick_label_width(
+                &scaled,
+                theme.font_size,
+                guides.y_time_format,
+            ));
         }
     }
     if max_label_width <= 0.0 {

@@ -52,7 +52,7 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | `violin.ag` | `demographics.csv` | `violin.svg`, `violin.png` | Violin geometry with quantile lines |
 | `freqpoly.ag` | `distribution.csv` | `freqpoly.svg`, `freqpoly.png` | Frequency polygon over binned counts |
 | `derived_chain.ag` | `distribution.csv` | `derived_chain.svg`, `derived_chain.png` | Chained `Derive` declarations |
-| `gradient.ag` | `heatmap.csv` | `gradient.svg`, `gradient.png` | Source-level continuous gradient stops |
+| `gradient.ag` | `heatmap.csv` | `gradient.svg`, `gradient.png` | Source header and positioned continuous gradient stops |
 | `group_line.ag` | `series.csv` | `group_line.svg`, `group_line.png` | `group` aesthetic with constant line stroke |
 | `shapes.ag` | `series.csv` | `shapes.svg`, `shapes.png` | Categorical point shape mapping |
 | `bin2d.ag` | `penguins.csv` | `bin2d.svg`, `bin2d.png` | Rectangular 2D binning |

@@ -282,7 +282,7 @@ fn lex_string(lex: &mut Lexer<RawToken>) -> String {
     let start = lex.span().start;
     let remainder = lex.remainder();
     let mut value = String::new();
-    let mut chars = remainder.char_indices();
+    let mut chars = remainder.char_indices().peekable();
     let mut consumed = remainder.len();
     let mut terminated = false;
 
@@ -295,7 +295,13 @@ fn lex_string(lex: &mut Lexer<RawToken>) -> String {
             }
             '\\' => match chars.next() {
                 Some((esc_index, esc)) => {
-                    if let Some(decoded) = decode_escape(esc) {
+                    if esc == 'u' {
+                        if let Some(decoded) =
+                            unicode_escape(lex, &mut chars, start + 1, index, '"')
+                        {
+                            value.push(decoded);
+                        }
+                    } else if let Some(decoded) = decode_escape(esc) {
                         value.push(decoded);
                     } else {
                         // Body offset of the backslash is `index`; the escape
@@ -392,8 +398,26 @@ fn lex_quoted_ident(lex: &mut Lexer<RawToken>) -> String {
                     value.push(next);
                     chars.next();
                 }
-                // A backslash before anything else is a literal backslash.
-                _ => value.push('\\'),
+                Some(&(_, 'u')) => {
+                    chars.next();
+                    if let Some(decoded) = unicode_escape(lex, &mut chars, start + 1, index, '`') {
+                        value.push(decoded);
+                    }
+                }
+                Some(&(next_index, next)) => {
+                    chars.next();
+                    let abs = start + 1 + index;
+                    push(
+                        lex,
+                        Diagnostic::error(
+                            codes::E0018,
+                            format!("invalid escape sequence '\\{next}'"),
+                            Span::new(abs, start + 1 + next_index + next.len_utf8()),
+                        ),
+                    );
+                    value.push(next);
+                }
+                None => value.push('\\'),
             },
             other => value.push(other),
         }
@@ -423,6 +447,109 @@ fn decode_escape(esc: char) -> Option<char> {
         '\\' => Some('\\'),
         _ => None,
     }
+}
+
+fn unicode_escape(
+    lex: &mut Lexer<RawToken>,
+    chars: &mut std::iter::Peekable<std::str::CharIndices<'_>>,
+    body_start: usize,
+    slash_index: usize,
+    delimiter: char,
+) -> Option<char> {
+    let span_start = body_start + slash_index;
+    match chars.peek() {
+        Some(&(_, '{')) => {
+            chars.next();
+        }
+        _ => {
+            push(
+                lex,
+                Diagnostic::error(
+                    codes::E0018,
+                    "invalid Unicode escape; expected `\\u{...}`",
+                    Span::new(span_start, span_start + 2),
+                ),
+            );
+            return None;
+        }
+    }
+
+    let mut value = 0u32;
+    let mut digits = 0usize;
+    while let Some(&(index, ch)) = chars.peek() {
+        if ch == '}' {
+            chars.next();
+            if digits == 0 {
+                push(
+                    lex,
+                    Diagnostic::error(
+                        codes::E0018,
+                        "Unicode escape requires at least one hex digit",
+                        Span::new(span_start, body_start + index + 1),
+                    ),
+                );
+                return None;
+            }
+            if let Some(decoded) = char::from_u32(value) {
+                return Some(decoded);
+            }
+            push(
+                lex,
+                Diagnostic::error(
+                    codes::E0018,
+                    "Unicode escape is not a valid scalar value",
+                    Span::new(span_start, body_start + index + 1),
+                ),
+            );
+            return None;
+        }
+        if ch == delimiter {
+            push(
+                lex,
+                Diagnostic::error(
+                    codes::E0018,
+                    "unterminated Unicode escape",
+                    Span::new(span_start, body_start + index),
+                ),
+            );
+            return None;
+        }
+        chars.next();
+        let Some(digit) = ch.to_digit(16) else {
+            push(
+                lex,
+                Diagnostic::error(
+                    codes::E0018,
+                    "Unicode escape contains a non-hex digit",
+                    Span::new(body_start + index, body_start + index + ch.len_utf8()),
+                ),
+            );
+            return None;
+        };
+        digits += 1;
+        if digits > 6 {
+            push(
+                lex,
+                Diagnostic::error(
+                    codes::E0018,
+                    "Unicode escape must contain at most six hex digits",
+                    Span::new(span_start, body_start + index + ch.len_utf8()),
+                ),
+            );
+            return None;
+        }
+        value = value * 16 + digit;
+    }
+
+    push(
+        lex,
+        Diagnostic::error(
+            codes::E0018,
+            "unterminated Unicode escape",
+            Span::new(span_start, lex.span().end),
+        ),
+    );
+    None
 }
 
 fn current_span(lex: &Lexer<RawToken>) -> Span {

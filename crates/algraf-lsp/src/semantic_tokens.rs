@@ -121,7 +121,21 @@ fn token_type_index(token_type: SemanticTokenType) -> u32 {
 fn declaration_name(name: &str) -> bool {
     matches!(
         name,
-        "Chart" | "Space" | "Derive" | "Table" | "Scale" | "Guide" | "Theme" | "Layout" | "Bin"
+        "Algraf"
+            | "Chart"
+            | "Space"
+            | "Derive"
+            | "Table"
+            | "Scale"
+            | "Guide"
+            | "Theme"
+            | "Layout"
+            | "Style"
+            | "Stop"
+            | "Bin"
+            | "Bin2D"
+            | "HexBin"
+            | "Smooth"
     )
 }
 

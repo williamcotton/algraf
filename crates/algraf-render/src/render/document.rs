@@ -114,8 +114,12 @@ pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagn
                     &panel.scaled,
                     panel.plot,
                     &panel.theme,
-                    panel.guides.x_label.as_deref(),
-                    panel.guides.y_label.as_deref(),
+                    guide::AxisRenderOptions {
+                        x_label_override: panel.guides.x_label.as_deref(),
+                        y_label_override: panel.guides.y_label.as_deref(),
+                        x_time_format: panel.guides.x_time_format,
+                        y_time_format: panel.guides.y_time_format,
+                    },
                 );
             }
         }
