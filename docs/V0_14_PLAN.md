@@ -1,6 +1,6 @@
 # Algraf v0.14.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_13_PLAN.md`](V0_13_PLAN.md)
@@ -88,7 +88,9 @@ change what happens for any checked-in example.
 
 ### 1. Driver I/O trait and OS implementation
 
-Status: Planned.
+Status: Implemented. `algraf-driver` now exposes `DriverIo`, `OsDriverIo`,
+path metadata, and a shapefile sidecar bundle type. OS-backed public wrappers
+remain the default, while injectable APIs sit beside them.
 
 Acceptance criteria:
 
@@ -108,7 +110,9 @@ Acceptance criteria:
 
 ### 2. Data reader split behind existing path APIs
 
-Status: Planned.
+Status: Implemented. `algraf-data` keeps existing path APIs and now exposes
+byte-slice readers for single-file formats plus an in-memory shapefile sidecar
+bundle reader. `OsDriverIo` preserves path-backed shapefile loading behavior.
 
 Acceptance criteria:
 
@@ -125,7 +129,9 @@ Acceptance criteria:
 
 ### 3. Thread I/O through driver preparation
 
-Status: Planned.
+Status: Implemented. Driver loading and `prepare_chart_with_io` accept an
+injected provider; existing `prepare_chart`, `load_path`, `load_schema_path`,
+and related helpers keep using `OsDriverIo`.
 
 Acceptance criteria:
 
@@ -140,7 +146,9 @@ Acceptance criteria:
 
 ### 4. In-memory driver tests
 
-Status: Planned.
+Status: Implemented. Driver tests cover in-memory CSV, TSV, JSON, NDJSON,
+GeoJSON, named tables, schema loading, primary loading, data overrides, stdin,
+and shapefile bundles. Disk-backed shapefile fixture tests remain.
 
 Acceptance criteria:
 
@@ -155,7 +163,9 @@ Acceptance criteria:
 
 ### 5. Data dependency inventory
 
-Status: Planned.
+Status: Implemented. `data_dependencies` centralizes one chart's resolved
+path-backed primary and named-table dependencies, and LSP preview data-path
+reporting now uses it.
 
 Acceptance criteria:
 
@@ -170,7 +180,9 @@ Acceptance criteria:
 
 ### 6. Spec, plan, and example hygiene
 
-Status: Planned.
+Status: Implemented. Workspace and VS Code package versions are bumped to
+`0.14.0`; spec §10, §21, and §23 document the I/O boundary and dependency
+inventory. Example regeneration produced no checked-in example drift.
 
 Acceptance criteria:
 
@@ -185,14 +197,20 @@ Acceptance criteria:
 
 ### WASM-readiness audit
 
-Status: Planned.
+Status: Implemented. Remaining OS-only use after this release is limited to
+compatibility callers and product surfaces: CLI source reads, output writes,
+example generation, LSP URI-to-path schema/cache reads, and the OS adapter used
+by default wrappers. No `wasm32-unknown-unknown` port is attempted.
 
 Document the remaining OS-only dependencies after the I/O seam lands. This is
 an audit only; v0.14.0 should not attempt a `wasm32-unknown-unknown` port.
 
 ### LSP unsaved-buffer spike
 
-Status: Planned.
+Status: Implemented. The in-memory driver tests use an unsaved `/mem/chart.ag`
+source input with data served entirely by an injected provider, proving the
+driver seam can support unsaved-buffer data dependencies without protocol
+changes.
 
 Add one small test or prototype proving an injected source/data provider can
 serve an unsaved in-memory data dependency. Do not change editor behavior unless

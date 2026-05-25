@@ -11,12 +11,13 @@
 //! decodes to the same `geo_types`, so both formats share the spatial scale,
 //! projection, and `Geo` render path.
 
+use std::io::{Cursor, Read, Seek};
 use std::path::Path;
 
 use geo_types::Geometry;
 use indexmap::IndexMap;
 use shapefile::dbase::FieldValue;
-use shapefile::Shape;
+use shapefile::{Shape, ShapeReader};
 
 use crate::csv::LoadResult;
 use crate::error::DataError;
@@ -25,9 +26,39 @@ use crate::geojson::build_with_geometry;
 /// Fully load a shapefile bundle from the path to its `.shp` file (spec §10.11).
 /// The `.dbf` and `.shx` sidecars are resolved next to it by the reader.
 pub fn read_shapefile_path(path: &Path) -> Result<LoadResult, DataError> {
-    let mut reader =
-        shapefile::Reader::from_path(path).map_err(|e| DataError::Geo(e.to_string()))?;
+    let reader = shapefile::Reader::from_path(path).map_err(|e| DataError::Geo(e.to_string()))?;
+    read_shapefile_reader(reader)
+}
 
+/// Borrowed bytes for an ESRI shapefile bundle.
+#[derive(Debug, Clone, Copy)]
+pub struct ShapefileBundle<'a> {
+    /// Bytes from the `.shp` geometry file.
+    pub shp: &'a [u8],
+    /// Bytes from the required `.dbf` attribute sidecar.
+    pub dbf: &'a [u8],
+    /// Bytes from the optional `.shx` index sidecar.
+    pub shx: Option<&'a [u8]>,
+}
+
+/// Fully load a shapefile bundle from already-resolved sidecar bytes.
+pub fn read_shapefile_bundle(bundle: ShapefileBundle<'_>) -> Result<LoadResult, DataError> {
+    let shp = Cursor::new(bundle.shp);
+    let shape_reader = match bundle.shx {
+        Some(shx) => ShapeReader::with_shx(shp, Cursor::new(shx)),
+        None => ShapeReader::new(shp),
+    }
+    .map_err(|e| DataError::Geo(e.to_string()))?;
+    let dbf_reader = shapefile::dbase::Reader::new(Cursor::new(bundle.dbf))
+        .map_err(|e| DataError::Geo(e.to_string()))?;
+    read_shapefile_reader(shapefile::Reader::new(shape_reader, dbf_reader))
+}
+
+fn read_shapefile_reader<T, D>(mut reader: shapefile::Reader<T, D>) -> Result<LoadResult, DataError>
+where
+    T: Read + Seek,
+    D: Read + Seek,
+{
     let mut field_names: Vec<String> = Vec::new();
     let mut field_index: IndexMap<String, usize> = IndexMap::new();
     let mut field_cols: Vec<Vec<String>> = Vec::new();

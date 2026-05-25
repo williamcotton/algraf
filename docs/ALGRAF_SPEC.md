@@ -1788,6 +1788,11 @@ The data source format is selected by the path's file extension (spec §10.2).
 The same rule applies to the `--data` override and to `Table name = "..."`
 declarations (spec §10.10).
 
+The data crate MUST keep path-oriented compatibility APIs for all supported
+formats. Single-file formats (`csv`, `tsv`, `json`, `ndjson`, and `geojson`)
+MUST also be loadable from an already-open reader or byte slice so callers can
+provide bytes without forcing the data crate to re-open a filesystem path.
+
 Version 0.8 adds two geospatial **source constructors** on the same seam,
 selected explicitly rather than by extension (spec §10.11): `GeoJson("path")`
 loads a GeoJSON `FeatureCollection`, and `Shapefile("path.shp")` loads an ESRI
@@ -2162,6 +2167,12 @@ The CLI MUST restrict data reads to explicit paths.
 
 The CLI SHOULD provide an option to allow network sources if implemented later.
 
+Driver-level data loading MUST go through a synchronous, injectable I/O provider
+that can read resolved path bytes, stdin bytes, path metadata, and shapefile
+sidecars. The default provider uses the operating system. The provider MUST NOT
+add network access, environment-variable access, command execution, async
+operations, or caching policy.
+
 The LSP SHOULD avoid reading very large files on the hot path.
 
 The LSP SHOULD cap schema preview read size.
@@ -2238,11 +2249,16 @@ the spatial scale, projection, and `Geo` render path identically:
   becomes a scalar column via the shared type-inference pipeline (§10.3), and
   each feature's `geometry` becomes the `geom` column.
 - **`Shapefile("path.shp")`** reads the `.shp` for geometry and the sidecar
-  `.dbf` for attributes (the `.dbf`/`.shx`/`.prj` sidecars resolve next to the
-  named `.shp`), one row per record in file order. A shapefile's polygon type
-  normalizes to `MultiPolygon`. Attributes run through the same inference
+  `.dbf` for attributes (the `.dbf`/`.shx`/`.prj`/`.cpg` sidecars resolve next
+  to the named `.shp`), one row per record in file order. A shapefile's polygon
+  type normalizes to `MultiPolygon`. Attributes run through the same inference
   pipeline, so a shapefile and an equivalent GeoJSON produce the same dataframe
   shape.
+
+The implementation MAY load shapefiles from a resolved in-memory sidecar bundle
+instead of a filesystem path. When using the default operating-system provider,
+path-relative sidecar behavior MUST remain the same as path-backed shapefile
+loading.
 
 Path resolution, `--base-dir`, and source security (§10.8) apply unchanged. A
 missing source file is `E1106`; an unreadable one is `E1107`. A malformed
@@ -6209,11 +6225,12 @@ The server renders by calling the same pipeline as `algraf render`: it parses
 the cached document, loads the full CSV identified by the chart's `data:` path,
 analyzes against that schema, and renders to SVG.
 
-`dataPaths` reports the resolved data dependencies so the client can watch them
-and re-request when the underlying data changes without a source edit. Path
-resolution stays on the server; the client watches (so remote workspaces work)
-and SHOULD also offer a manual refresh, which is the fallback for data sources
-that cannot signal change. `data: stdin` and a missing
+`dataPaths` reports the resolved data dependencies from the driver's chart
+dependency inventory so the client can watch them and re-request when the
+underlying data changes without a source edit. Path resolution stays on the
+server; the client watches (so remote workspaces work) and SHOULD also offer a
+manual refresh, which is the fallback for data sources that cannot signal
+change. `data: stdin` and a missing
 data source return a `message` rather than an SVG. A document with blocking
 parse or semantic errors returns a `message` so the previous preview is not
 replaced with a broken render.
@@ -6527,6 +6544,10 @@ source-relative path resolution
 
 data and schema loading orchestration
 
+injectable synchronous data I/O provider and OS-backed compatibility adapter
+
+chart data dependency inventory
+
 chart analysis preparation for CLI, LSP, and render callers
 
 `data`:
@@ -6600,6 +6621,10 @@ Recommended dependencies:
 The `driver` crate SHOULD depend only on `core`, `syntax`, `data`, and
 `semantics`. CLI and LSP MAY depend on the driver, but the driver MUST NOT depend
 on CLI or LSP crates.
+
+The `driver` crate MUST keep data I/O behind its provider trait. Existing public
+driver helpers MAY keep OS-backed defaults for compatibility, but internal
+preparation and loading paths MUST be able to use an injected provider.
 
 `dashmap` for concurrent LSP caches
 
@@ -7531,7 +7556,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.11.0 | [`V0_11_PLAN.md`](V0_11_PLAN.md) | Renderer modularization and SVG safety | Implemented |
 | 0.12.0 | [`V0_12_PLAN.md`](V0_12_PLAN.md) | Tooling, diagnostics, and parser cleanup | Implemented |
 | 0.13.0 | [`V0_13_PLAN.md`](V0_13_PLAN.md) | Driver cleanup and preparation | Implemented |
-| 0.14.0 | [`V0_14_PLAN.md`](V0_14_PLAN.md) | Driver I/O seam and VFS preparation | Planned |
+| 0.14.0 | [`V0_14_PLAN.md`](V0_14_PLAN.md) | Driver I/O seam and VFS preparation | Implemented |
 | 0.15.0 | [`V0_15_PLAN.md`](V0_15_PLAN.md) | Diagnostic pipeline and partial preparation | Planned |
 | 0.16.0 | [`V0_16_PLAN.md`](V0_16_PLAN.md) | Schema cache and compilation-phase boundary | Planned |
 | 0.17.0 | [`V0_17_PLAN.md`](V0_17_PLAN.md) | Render execution boundary | Planned |

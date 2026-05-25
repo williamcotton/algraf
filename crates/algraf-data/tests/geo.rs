@@ -4,8 +4,8 @@ use std::path::PathBuf;
 
 use algraf_data::geo_types::{Geometry, LineString, Point, Polygon};
 use algraf_data::{
-    read_geojson_str, read_path, read_shapefile_path, Column, ColumnDef, DataFrame, DataType,
-    DataValueRef, Table,
+    read_geojson_str, read_path, read_shapefile_bundle, read_shapefile_path, Column, ColumnDef,
+    DataFrame, DataType, DataValueRef, ShapefileBundle, Table,
 };
 
 fn fixture(name: &str) -> PathBuf {
@@ -212,4 +212,32 @@ fn test_shapefile_via_read_path() {
     let frame = read_path(&fixture("tiny.shp")).expect("loads").frame;
     assert_eq!(frame.row_count(), 2);
     assert_eq!(dtype(&frame, "geom"), DataType::Geometry);
+}
+
+/// The sidecar-bundle reader matches path-backed shapefile loading for the
+/// checked-in fixture.
+#[test]
+fn test_shapefile_bundle_reader_matches_path_reader() {
+    let path_frame = read_shapefile_path(&fixture("tiny.shp"))
+        .expect("path loads")
+        .frame;
+    let shp = std::fs::read(fixture("tiny.shp")).unwrap();
+    let dbf = std::fs::read(fixture("tiny.dbf")).unwrap();
+    let shx = std::fs::read(fixture("tiny.shx")).unwrap();
+
+    let bundle_frame = read_shapefile_bundle(ShapefileBundle {
+        shp: &shp,
+        dbf: &dbf,
+        shx: Some(&shx),
+    })
+    .expect("bundle loads")
+    .frame;
+
+    assert_eq!(bundle_frame.row_count(), path_frame.row_count());
+    let mut bundle_names: Vec<&str> = bundle_frame.column_names().collect();
+    let mut path_names: Vec<&str> = path_frame.column_names().collect();
+    bundle_names.sort_unstable();
+    path_names.sort_unstable();
+    assert_eq!(bundle_names, path_names);
+    assert_eq!(dtype(&bundle_frame, "geom"), DataType::Geometry);
 }

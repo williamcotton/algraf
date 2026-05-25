@@ -50,6 +50,22 @@ pub struct ResolvedTableSource {
     pub span: Option<Span>,
 }
 
+/// Role of a resolved data dependency for one chart.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DataDependencyKind {
+    Primary,
+    Table { name: String },
+}
+
+/// One resolved path dependency for a chart.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DataDependency {
+    pub kind: DataDependencyKind,
+    pub path: PathBuf,
+    /// `None` means select format by extension.
+    pub format: Option<Format>,
+}
+
 /// A data location after source-relative path resolution and `--data` override
 /// handling.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -290,6 +306,38 @@ pub(crate) struct ResolvedChartInputs {
     pub(crate) source: SourceExpr,
     pub(crate) primary: Option<DataLocation>,
     pub(crate) named_tables: Vec<ResolvedTableSource>,
+}
+
+impl ResolvedChartInputs {
+    pub(crate) fn data_dependencies(&self) -> Vec<DataDependency> {
+        let primary = self.primary.iter().filter_map(|location| match location {
+            DataLocation::Path { path, format } => Some(DataDependency {
+                kind: DataDependencyKind::Primary,
+                path: path.clone(),
+                format: *format,
+            }),
+            DataLocation::Stdin => None,
+        });
+        let tables = self.named_tables.iter().map(|table| DataDependency {
+            kind: DataDependencyKind::Table {
+                name: table.name.clone(),
+            },
+            path: table.path.clone(),
+            format: table.format,
+        });
+        primary.chain(tables).collect()
+    }
+}
+
+/// Resolve all path-backed data dependencies for one chart.
+pub fn data_dependencies(
+    chart: &ChartBlock,
+    source: &SourceInput,
+    base_dir: Option<&Path>,
+    data_override: Option<&str>,
+) -> Result<Vec<DataDependency>, DriverError> {
+    let env = DriverEnv::new(source, base_dir, data_override, false);
+    Ok(resolve_chart_inputs(chart, env)?.data_dependencies())
 }
 
 pub(crate) fn resolve_chart_inputs(

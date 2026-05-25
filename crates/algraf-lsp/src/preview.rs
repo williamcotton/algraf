@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use algraf_core::Severity;
-use algraf_driver::{
-    prepare_chart, resolve_chart_data_path, resolve_named_table_sources, PrepareOptions,
-    SourceInput,
-};
+use algraf_driver::{data_dependencies, prepare_chart, PrepareOptions, SourceInput};
 use algraf_render::{render_with_tables, Theme};
 use algraf_syntax::ast::Root;
 use algraf_syntax::{parse, SourceExpr};
@@ -44,32 +41,25 @@ impl Backend {
                 ));
             };
             match algraf_syntax::chart_data_source(&chart) {
-                SourceExpr::Path { .. } => {
-                    let Some(primary) = resolve_chart_data_path(&chart, &source_input, None) else {
-                        return Ok(PreviewResult::message(
-                            generation,
-                            "chart has no data source; add Chart(data: \"file.csv\")",
-                        ));
-                    };
-                    let mut paths = vec![primary.path.display().to_string()];
-                    paths.extend(
-                        resolve_named_table_sources(&chart, &source_input, None)
+                SourceExpr::Path { .. } => data_dependencies(&chart, &source_input, None, None)
+                    .map(|dependencies| {
+                        dependencies
                             .into_iter()
-                            .map(|table| table.path.display().to_string()),
-                    );
-                    Ok(paths)
-                }
+                            .map(|dependency| dependency.path.display().to_string())
+                            .collect()
+                    })
+                    .map_err(|err| err.to_string()),
                 SourceExpr::Stdin { .. } => {
-                    Err("preview does not support `stdin` data; use a CSV path")
+                    Err("preview does not support `stdin` data; use a CSV path".to_string())
                 }
                 SourceExpr::Missing | SourceExpr::Invalid { .. } => {
-                    Err("chart has no data source; add Chart(data: \"file.csv\")")
+                    Err("chart has no data source; add Chart(data: \"file.csv\")".to_string())
                 }
             }
         };
         let data_paths = match data_paths {
             Ok(paths) => paths,
-            Err(message) => return Ok(PreviewResult::message(generation, message)),
+            Err(message) => return Ok(PreviewResult::message(generation, &message)),
         };
 
         let text = state.text.clone();

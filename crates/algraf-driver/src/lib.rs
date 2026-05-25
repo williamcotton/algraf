@@ -4,20 +4,24 @@
 //! print diagnostics, choose output filenames, rasterize PNGs, or speak LSP.
 
 mod error;
+mod io;
 mod loading;
 mod prepare;
 mod resolution;
 
 pub use error::{DriverError, LoadContext};
+pub use io::{DriverIo, DriverPathMetadata, DriverShapefileBundle, OsDriverIo};
 pub use loading::{
-    load_data, load_named_table_schemas, load_named_tables, load_path, load_schema,
-    load_schema_path, NamedTable, NamedTableSchema,
+    load_data, load_data_with_io, load_named_table_schemas, load_named_table_schemas_with_io,
+    load_named_tables, load_named_tables_with_io, load_path, load_path_with_io, load_schema,
+    load_schema_path, load_schema_path_with_io, load_schema_with_io, NamedTable, NamedTableSchema,
 };
-pub use prepare::{prepare_chart, PrepareOptions, PreparedChart};
+pub use prepare::{prepare_chart, prepare_chart_with_io, PrepareOptions, PreparedChart};
 pub use resolution::{
-    data_location, resolve_chart_data_path, resolve_document_data_path,
+    data_dependencies, data_location, resolve_chart_data_path, resolve_document_data_path,
     resolve_named_table_sources, resolve_path, resolve_source_expr_path, source_base_dir,
-    source_format_to_data, DataLocation, ResolvedSource, ResolvedTableSource, SourceInput,
+    source_format_to_data, DataDependency, DataDependencyKind, DataLocation, ResolvedSource,
+    ResolvedTableSource, SourceInput,
 };
 
 use algraf_syntax::ast::{ChartBlock, Root};
@@ -57,9 +61,11 @@ pub fn document_charts(root: &SyntaxNode) -> Vec<ChartBlock> {
 mod tests {
     use super::*;
     use algraf_core::Span;
-    use algraf_data::Format;
+    use algraf_data::{DataFrame, DataType, Format, Table};
     use algraf_syntax::SourceFormat;
+    use std::collections::HashMap;
     use std::fs;
+    use std::io;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -86,6 +92,69 @@ mod tests {
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../algraf-data/tests/fixtures")
             .join(name)
+    }
+
+    #[derive(Debug, Default)]
+    struct MemoryIo {
+        files: HashMap<PathBuf, Vec<u8>>,
+        stdin: Vec<u8>,
+    }
+
+    impl MemoryIo {
+        fn with_file(mut self, path: impl Into<PathBuf>, bytes: impl Into<Vec<u8>>) -> Self {
+            self.files.insert(path.into(), bytes.into());
+            self
+        }
+
+        fn with_stdin(mut self, bytes: impl Into<Vec<u8>>) -> Self {
+            self.stdin = bytes.into();
+            self
+        }
+    }
+
+    impl DriverIo for MemoryIo {
+        fn read_path(&self, path: &Path) -> io::Result<Vec<u8>> {
+            self.files.get(path).cloned().ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("missing {}", path.display()),
+                )
+            })
+        }
+
+        fn read_stdin(&self) -> io::Result<Vec<u8>> {
+            Ok(self.stdin.clone())
+        }
+
+        fn metadata(&self, path: &Path) -> io::Result<DriverPathMetadata> {
+            let bytes = self.files.get(path).ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("missing {}", path.display()),
+                )
+            })?;
+            Ok(DriverPathMetadata {
+                len: bytes.len() as u64,
+                modified: None,
+            })
+        }
+    }
+
+    fn frame_signature(frame: &DataFrame) -> (usize, Vec<(String, DataType, bool)>) {
+        (
+            frame.row_count(),
+            frame
+                .schema()
+                .iter()
+                .map(|column| (column.name.clone(), column.dtype, column.nullable))
+                .collect(),
+        )
+    }
+
+    fn sorted_frame_signature(frame: &DataFrame) -> (usize, Vec<(String, DataType, bool)>) {
+        let (rows, mut schema) = frame_signature(frame);
+        schema.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        (rows, schema)
     }
 
     #[test]
@@ -206,6 +275,33 @@ mod tests {
     }
 
     #[test]
+    fn data_dependency_inventory_reports_primary_then_named_paths() {
+        let dir = temp_dir("dependencies");
+        let base = dir.join("base");
+        let source = SourceInput::Path(dir.join("source/chart.ag"));
+        let chart = parse_chart(
+            r#"Chart(data: "primary.csv") {
+                Table cities = GeoJson("cities.geojson")
+                Space(x * y) { Point() }
+            }"#,
+        );
+
+        let deps = data_dependencies(&chart, &source, Some(&base), None).unwrap();
+
+        assert_eq!(deps.len(), 2);
+        assert_eq!(deps[0].kind, DataDependencyKind::Primary);
+        assert_eq!(deps[0].path, base.join("primary.csv"));
+        assert_eq!(
+            deps[1].kind,
+            DataDependencyKind::Table {
+                name: "cities".to_string()
+            }
+        );
+        assert_eq!(deps[1].path, base.join("cities.geojson"));
+        assert_eq!(deps[1].format, Some(Format::GeoJson));
+    }
+
+    #[test]
     fn internal_driver_env_matches_public_resolution_wrappers() {
         let dir = temp_dir("driver-env");
         let base = dir.join("base");
@@ -255,6 +351,189 @@ mod tests {
                 "{path}"
             );
         }
+    }
+
+    #[test]
+    fn in_memory_io_matches_os_for_single_file_primary_sources() {
+        let dir = temp_dir("memory-primary");
+        let cases = [
+            (
+                "data.csv",
+                "x,y\n1,2\n",
+                r#"Chart(data: "data.csv") { Space(x * y) { Point() } }"#,
+            ),
+            (
+                "data.tsv",
+                "x\ty\n1\t2\n",
+                r#"Chart(data: "data.tsv") { Space(x * y) { Point() } }"#,
+            ),
+            (
+                "data.json",
+                r#"[{"x":1,"y":2}]"#,
+                r#"Chart(data: "data.json") { Space(x * y) { Point() } }"#,
+            ),
+            (
+                "data.ndjson",
+                "{\"x\":1,\"y\":2}\n",
+                r#"Chart(data: "data.ndjson") { Space(x * y) { Point() } }"#,
+            ),
+            (
+                "map.data",
+                r#"{
+                  "type":"FeatureCollection",
+                  "features":[
+                    {"type":"Feature","properties":{"name":"a"},
+                     "geometry":{"type":"Point","coordinates":[1,2]}}
+                  ]
+                }"#,
+                r#"Chart(data: GeoJson("map.data")) { Space(geom) { Geo() } }"#,
+            ),
+        ];
+
+        let source = SourceInput::Path(dir.join("chart.ag"));
+        let mut memory = MemoryIo::default();
+        for (path, bytes, _) in cases {
+            fs::write(dir.join(path), bytes).unwrap();
+            memory = memory.with_file(dir.join(path), bytes.as_bytes());
+        }
+
+        for (_, _, source_text) in cases {
+            let chart = parse_chart(source_text);
+            let os = prepare_chart(
+                &chart,
+                PrepareOptions {
+                    source_input: &source,
+                    base_dir: None,
+                    data_override: None,
+                    multi_chart: false,
+                },
+            )
+            .unwrap()
+            .primary
+            .unwrap();
+            let injected = prepare_chart_with_io(
+                &chart,
+                PrepareOptions {
+                    source_input: &source,
+                    base_dir: None,
+                    data_override: None,
+                    multi_chart: false,
+                },
+                &memory,
+            )
+            .unwrap()
+            .primary
+            .unwrap();
+
+            assert_eq!(frame_signature(&injected.frame), frame_signature(&os.frame));
+            assert_eq!(injected.warnings, os.warnings);
+        }
+    }
+
+    #[test]
+    fn in_memory_io_loads_named_tables_schemas_stdin_and_data_override() {
+        let root = PathBuf::from("/mem");
+        let source = SourceInput::Path(root.join("chart.ag"));
+        let memory = MemoryIo::default()
+            .with_file(root.join("primary.csv"), b"x,y\n1,2\n".as_slice())
+            .with_file(
+                root.join("cities.tsv"),
+                b"long\tlat\tcity\n1\t2\tA\n".as_slice(),
+            )
+            .with_file(
+                root.join("override.json"),
+                br#"[{"x":9,"y":10}]"#.as_slice(),
+            )
+            .with_stdin(b"x,y\n5,6\n".as_slice());
+        let chart = parse_chart(
+            r#"Chart(data: "primary.csv") {
+                Table cities = "cities.tsv"
+                Space(long * lat, data: cities) { Point() }
+            }"#,
+        );
+
+        let prepared = prepare_chart_with_io(
+            &chart,
+            PrepareOptions {
+                source_input: &source,
+                base_dir: None,
+                data_override: None,
+                multi_chart: false,
+            },
+            &memory,
+        )
+        .unwrap();
+        assert_eq!(prepared.primary.unwrap().frame.row_count(), 1);
+        assert_eq!(prepared.named_tables[0].name, "cities");
+        assert!(prepared.named_tables[0].frame.column("city").is_some());
+
+        let schemas = load_named_table_schemas_with_io(&chart, &source, None, 10, &memory).unwrap();
+        assert_eq!(schemas[0].schema[0].name, "long");
+
+        let overridden = load_schema_with_io(
+            &SourceExpr::Path {
+                path: "primary.csv".to_string(),
+                format: None,
+                span: Span::new(0, 0),
+            },
+            &source,
+            None,
+            Some("/mem/override.json"),
+            Some(10),
+            &memory,
+        )
+        .unwrap();
+        assert_eq!(overridden[0].name, "x");
+
+        let stdin = load_data_with_io(
+            &SourceExpr::Stdin {
+                span: Span::new(0, 0),
+            },
+            &source,
+            None,
+            None,
+            &memory,
+        )
+        .unwrap();
+        assert_eq!(stdin.frame.row_count(), 1);
+    }
+
+    #[test]
+    fn in_memory_shapefile_bundle_matches_os_loading() {
+        let source = SourceInput::Path(PathBuf::from("/mem/chart.ag"));
+        let path = PathBuf::from("/mem/tiny.shp");
+        let memory = MemoryIo::default()
+            .with_file(&path, fs::read(fixture("tiny.shp")).unwrap())
+            .with_file("/mem/tiny.dbf", fs::read(fixture("tiny.dbf")).unwrap())
+            .with_file("/mem/tiny.shx", fs::read(fixture("tiny.shx")).unwrap())
+            .with_file("/mem/tiny.prj", fs::read(fixture("tiny.prj")).unwrap())
+            .with_file("/mem/tiny.cpg", fs::read(fixture("tiny.cpg")).unwrap());
+        let chart = parse_chart(r#"Chart(data: Shapefile("tiny.shp")) { Space(geom) { Geo() } }"#);
+
+        let os = load_path(
+            &fixture("tiny.shp"),
+            Some(Format::Shapefile),
+            LoadContext::Primary,
+        )
+        .unwrap();
+        let injected = prepare_chart_with_io(
+            &chart,
+            PrepareOptions {
+                source_input: &source,
+                base_dir: None,
+                data_override: None,
+                multi_chart: false,
+            },
+            &memory,
+        )
+        .unwrap()
+        .primary
+        .unwrap();
+
+        assert_eq!(
+            sorted_frame_signature(&injected.frame),
+            sorted_frame_signature(&os.frame)
+        );
     }
 
     #[test]

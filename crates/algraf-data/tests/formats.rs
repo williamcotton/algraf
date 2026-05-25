@@ -1,8 +1,10 @@
 //! TSV, JSON, and NDJSON loading and inference tests (spec §10.2, §10.3, §27.1).
 
 use algraf_data::{
-    read_json_str, read_ndjson_str, read_tsv_str, DataError, DataType, DataValueRef, Format, Table,
+    read_bytes, read_json_str, read_ndjson_str, read_schema_bytes, read_tsv_str, DataError,
+    DataType, DataValueRef, Format, Table,
 };
+use std::path::Path;
 
 fn dtype(frame: &algraf_data::DataFrame, column: &str) -> DataType {
     frame.column_def(column).expect("column exists").dtype
@@ -12,7 +14,6 @@ fn dtype(frame: &algraf_data::DataFrame, column: &str) -> DataType {
 
 #[test]
 fn test_format_from_extension() {
-    use std::path::Path;
     assert_eq!(Format::from_path(Path::new("a.csv")), Format::Csv);
     assert_eq!(Format::from_path(Path::new("a.tsv")), Format::Tsv);
     assert_eq!(Format::from_path(Path::new("a.tab")), Format::Tsv);
@@ -24,6 +25,19 @@ fn test_format_from_extension() {
     // Unknown and missing extensions fall back to CSV.
     assert_eq!(Format::from_path(Path::new("a.txt")), Format::Csv);
     assert_eq!(Format::from_path(Path::new("a")), Format::Csv);
+}
+
+#[test]
+fn test_byte_readers_dispatch_by_extension() {
+    let frame = read_bytes(Path::new("data.tsv"), b"x\ty\n1\t2\n")
+        .expect("tsv bytes load")
+        .frame;
+    assert_eq!(dtype(&frame, "x"), DataType::Integer);
+
+    let schema = read_schema_bytes(Path::new("rows.ndjson"), b"{\"label\":\"a\"}\n", 10)
+        .expect("schema bytes load");
+    assert_eq!(schema[0].name, "label");
+    assert_eq!(schema[0].dtype, DataType::String);
 }
 
 // --- TSV (spec §10.2) -------------------------------------------------------

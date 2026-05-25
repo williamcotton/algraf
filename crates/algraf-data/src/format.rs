@@ -79,6 +79,24 @@ pub fn read_path_as(path: &Path, format: Format) -> Result<LoadResult, DataError
     }
 }
 
+/// Fully load a data source from bytes, selecting the format by extension.
+pub fn read_bytes(path: &Path, bytes: &[u8]) -> Result<LoadResult, DataError> {
+    read_bytes_as(bytes, Format::from_path(path))
+}
+
+/// Fully load a single-file data source from bytes using an explicit format.
+///
+/// [`Format::Shapefile`] is a multi-file bundle; use
+/// [`crate::read_shapefile_bundle`] for in-memory shapefile sidecars.
+pub fn read_bytes_as(bytes: &[u8], format: Format) -> Result<LoadResult, DataError> {
+    match format {
+        Format::Shapefile => Err(DataError::Geo(
+            "a shapefile must be loaded from a sidecar bundle, not a byte slice".to_string(),
+        )),
+        _ => read_format(bytes, format),
+    }
+}
+
 /// Fully load a data source from a reader using an explicit format.
 ///
 /// [`Format::Shapefile`] is not loadable from a bare reader (it needs sidecar
@@ -115,6 +133,32 @@ pub fn read_schema_path_as(
             let file = std::fs::File::open(path)?;
             read_schema_format(file, format, sample)
         }
+    }
+}
+
+/// Infer a provisional schema from data source bytes, selecting format by path.
+pub fn read_schema_bytes(
+    path: &Path,
+    bytes: &[u8],
+    sample: usize,
+) -> Result<Vec<ColumnDef>, DataError> {
+    read_schema_bytes_as(bytes, Format::from_path(path), sample)
+}
+
+/// Infer a provisional schema from single-file data source bytes.
+///
+/// [`Format::Shapefile`] is a multi-file bundle; use
+/// [`crate::read_shapefile_bundle`] and inspect the loaded frame schema.
+pub fn read_schema_bytes_as(
+    bytes: &[u8],
+    format: Format,
+    sample: usize,
+) -> Result<Vec<ColumnDef>, DataError> {
+    match format {
+        Format::Shapefile => Err(DataError::Geo(
+            "a shapefile must be loaded from a sidecar bundle, not a byte slice".to_string(),
+        )),
+        _ => read_schema_format(bytes, format, sample),
     }
 }
 
