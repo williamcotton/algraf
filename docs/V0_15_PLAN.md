@@ -1,6 +1,6 @@
 # Algraf v0.15.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_14_PLAN.md`](V0_14_PLAN.md)
@@ -89,7 +89,7 @@ change what happens for any checked-in example.
 
 ### 1. Shared preparation report model
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -108,7 +108,7 @@ Acceptance criteria:
 
 ### 2. Central driver-error diagnostic mapping
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -123,7 +123,7 @@ Acceptance criteria:
 
 ### 3. Partial preparation path
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -140,7 +140,7 @@ Acceptance criteria:
 
 ### 4. Data-warning normalization
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -154,7 +154,7 @@ Acceptance criteria:
 
 ### 5. CLI and LSP report adapters
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -168,7 +168,7 @@ Acceptance criteria:
 
 ### 6. Spec, plan, and example hygiene
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -183,7 +183,7 @@ Acceptance criteria:
 
 ### Render diagnostic adapter
 
-Status: Planned.
+Status: Done.
 
 If the report model is small enough, add a render-result adapter so CLI render
 can append render diagnostics through the same report structure. Do not make the
@@ -191,7 +191,7 @@ driver depend on `algraf-render`.
 
 ### Diagnostic order snapshots
 
-Status: Planned.
+Status: Done.
 
 Add focused snapshots or integration tests for diagnostic ordering across parse,
 load, semantic, data-warning, and render-warning phases.

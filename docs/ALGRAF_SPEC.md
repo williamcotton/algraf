@@ -6558,6 +6558,12 @@ chart data dependency inventory
 
 chart analysis preparation for CLI, LSP, and render callers
 
+centralized driver/data error-to-diagnostic mapping shared by CLI and LSP
+
+a preparation report model that collects parse, load, semantic, data-warning,
+and render entries in deterministic phase order, plus a partial preparation path
+that does not short-circuit at the first recoverable phase boundary
+
 `data`:
 
 CSV loading
@@ -6661,6 +6667,21 @@ Panic is reserved for programmer bugs.
 CLI catches top-level errors and prints concise messages.
 
 LSP logs internal errors and avoids crashing where possible.
+
+The driver SHOULD provide a single mapping from driver/data loading errors to
+stable diagnostic `(code, message)` pairs, so the CLI and LSP report
+missing-file, unreadable-file, malformed CSV/JSON, and geospatial parse
+conditions identically (codes `E1005`–`E1010`, `E1805`).
+
+The driver SHOULD offer a preparation report that holds parse, load, semantic,
+data-warning, and render entries in deterministic phase order. Diagnostics that
+carry a meaningful source span live in the diagnostic stream; data inference
+warnings, which generally know only a data-column name, are kept as structured
+entries with table/source/column context rather than given a synthetic span
+(spec §10.3). A partial preparation path MAY return whatever loaded successfully
+alongside this report instead of failing at the first recoverable phase
+boundary, while a strict preparation path remains available for render callers
+that must block on parse, load, or semantic errors.
 
 ### 23.5 Immutability
 
@@ -7565,7 +7586,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.12.0 | [`V0_12_PLAN.md`](V0_12_PLAN.md) | Tooling, diagnostics, and parser cleanup | Implemented |
 | 0.13.0 | [`V0_13_PLAN.md`](V0_13_PLAN.md) | Driver cleanup and preparation | Implemented |
 | 0.14.0 | [`V0_14_PLAN.md`](V0_14_PLAN.md) | Driver I/O seam and VFS preparation | Implemented |
-| 0.15.0 | [`V0_15_PLAN.md`](V0_15_PLAN.md) | Diagnostic pipeline and partial preparation | Planned |
+| 0.15.0 | [`V0_15_PLAN.md`](V0_15_PLAN.md) | Diagnostic pipeline and partial preparation | Implemented |
 | 0.16.0 | [`V0_16_PLAN.md`](V0_16_PLAN.md) | Schema cache and compilation-phase boundary | Planned |
 | 0.17.0 | [`V0_17_PLAN.md`](V0_17_PLAN.md) | Render execution boundary | Planned |
 | 0.18.0 | [`V0_18_PLAN.md`](V0_18_PLAN.md) | Semantic surface hardening | Planned |

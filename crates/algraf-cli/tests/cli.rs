@@ -311,6 +311,56 @@ fn check_loads_named_geojson_table_constructor() {
     assert!(output.status.success(), "stderr: {}", stderr(&output));
 }
 
+#[test]
+fn check_emits_data_warning_in_human_output_but_not_json() {
+    let dir = temp_dir("data-warning");
+    let data = dir.join("data.csv");
+    let chart = dir.join("chart.ag");
+    // A column mixing naive and offset-aware datetimes raises a data inference
+    // warning (spec §10.3). The warning has no source span, so it prints as a
+    // plain `warning:` line in human output and is omitted from JSON.
+    fs::write(&data, "t\n2020-01-01T00:00:00Z\n2020-01-01T00:00:00\n").unwrap();
+    fs::write(
+        &chart,
+        "Chart(data: \"data.csv\") {\n  Space(t) {\n    Point()\n  }\n}\n",
+    )
+    .unwrap();
+
+    let human = Command::new(bin())
+        .arg("check")
+        .arg(&chart)
+        .output()
+        .unwrap();
+    assert!(human.status.success(), "stderr: {}", stderr(&human));
+    assert!(
+        stderr(&human).contains("warning: column mixes naive and offset-aware datetime values"),
+        "stderr: {}",
+        stderr(&human)
+    );
+
+    let json = Command::new(bin())
+        .arg("check")
+        .arg(&chart)
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert!(json.status.success(), "stderr: {}", stderr(&json));
+    assert!(
+        !stdout(&json).contains("naive and offset-aware"),
+        "data warnings must not appear in JSON diagnostics: {}",
+        stdout(&json)
+    );
+
+    // --strict promotes the data warning to a failure.
+    let strict = Command::new(bin())
+        .arg("check")
+        .arg(&chart)
+        .arg("--strict")
+        .output()
+        .unwrap();
+    assert!(!strict.status.success());
+}
+
 fn stdout(output: &std::process::Output) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
 }

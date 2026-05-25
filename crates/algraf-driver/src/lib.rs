@@ -7,6 +7,7 @@ mod error;
 mod io;
 mod loading;
 mod prepare;
+mod report;
 mod resolution;
 
 pub use error::{DriverError, LoadContext};
@@ -16,7 +17,14 @@ pub use loading::{
     load_named_tables, load_named_tables_with_io, load_path, load_path_with_io, load_schema,
     load_schema_path, load_schema_path_with_io, load_schema_with_io, NamedTable, NamedTableSchema,
 };
-pub use prepare::{prepare_chart, prepare_chart_with_io, PrepareOptions, PreparedChart};
+pub use prepare::{
+    prepare_chart, prepare_chart_partial, prepare_chart_partial_with_io, prepare_chart_with_io,
+    PrepareOptions, PreparedChart, PreparedReport,
+};
+pub use report::{
+    data_error_code_message, driver_error_code_message, driver_error_diagnostic, DataWarningEntry,
+    PreparationReport, ReportPhase,
+};
 pub use resolution::{
     data_dependencies, data_location, resolve_chart_data_path, resolve_document_data_path,
     resolve_named_table_sources, resolve_path, resolve_source_expr_path, source_base_dir,
@@ -60,7 +68,7 @@ pub fn document_charts(root: &SyntaxNode) -> Vec<ChartBlock> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algraf_core::Span;
+    use algraf_core::{codes, Span};
     use algraf_data::{DataFrame, DataType, Format, Table};
     use algraf_syntax::SourceFormat;
     use std::collections::HashMap;
@@ -694,5 +702,177 @@ Chart(data: "b.csv") { Space(x * y) { Line() } }"#,
         )
         .unwrap_err();
         assert!(matches!(err, DriverError::Usage(message) if message.contains("stdin data")));
+    }
+
+    fn partial_options(source: &SourceInput) -> PrepareOptions<'_> {
+        PrepareOptions {
+            source_input: source,
+            base_dir: None,
+            data_override: None,
+            multi_chart: false,
+        }
+    }
+
+    #[test]
+    fn partial_preparation_reports_missing_data_without_aborting() {
+        let dir = temp_dir("partial-missing");
+        let source = SourceInput::Path(dir.join("chart.ag"));
+        let chart = parse_chart(r#"Chart(data: "missing.csv") { Space(x * y) { Point() } }"#);
+
+        let prepared = prepare_chart_partial(&chart, partial_options(&source));
+
+        assert!(prepared.primary.is_none());
+        let load: Vec<_> = prepared
+            .report
+            .entries()
+            .iter()
+            .filter(|(phase, _)| *phase == ReportPhase::Load)
+            .collect();
+        assert_eq!(load.len(), 1);
+        assert_eq!(load[0].1.code, codes::E1005.as_str());
+        // Semantic analysis still runs against the empty schema.
+        assert!(prepared
+            .report
+            .entries()
+            .iter()
+            .any(|(phase, _)| *phase == ReportPhase::Semantic));
+    }
+
+    #[test]
+    fn partial_preparation_reports_malformed_data() {
+        let dir = temp_dir("partial-malformed");
+        fs::write(dir.join("bad.csv"), "x,y\n\"unterminated,2\n").unwrap();
+        let source = SourceInput::Path(dir.join("chart.ag"));
+        let chart = parse_chart(r#"Chart(data: "bad.csv") { Space(x * y) { Point() } }"#);
+
+        let prepared = prepare_chart_partial(&chart, partial_options(&source));
+
+        assert!(prepared.primary.is_none());
+        assert!(prepared
+            .report
+            .entries()
+            .iter()
+            .any(|(phase, d)| *phase == ReportPhase::Load && d.code == codes::E1006.as_str()));
+    }
+
+    #[test]
+    fn partial_preparation_surfaces_unknown_column_diagnostics() {
+        let dir = temp_dir("partial-unknown");
+        fs::write(dir.join("data.csv"), "x,y\n1,2\n").unwrap();
+        let source = SourceInput::Path(dir.join("chart.ag"));
+        let chart = parse_chart(r#"Chart(data: "data.csv") { Space(missing * y) { Point() } }"#);
+
+        let prepared = prepare_chart_partial(&chart, partial_options(&source));
+
+        assert!(prepared.primary.is_some());
+        assert!(
+            !prepared.analysis.diagnostics.is_empty(),
+            "unknown column should produce a semantic diagnostic"
+        );
+        assert!(prepared
+            .report
+            .entries()
+            .iter()
+            .any(|(phase, _)| *phase == ReportPhase::Semantic));
+    }
+
+    #[test]
+    fn partial_preparation_reports_named_table_failure_but_keeps_primary() {
+        let dir = temp_dir("partial-named-fail");
+        fs::write(dir.join("primary.csv"), "x,y\n1,2\n").unwrap();
+        let source = SourceInput::Path(dir.join("chart.ag"));
+        let chart = parse_chart(
+            r#"Chart(data: "primary.csv") {
+                Table cities = "missing.csv"
+                Space(x * y) { Point() }
+            }"#,
+        );
+
+        let prepared = prepare_chart_partial(&chart, partial_options(&source));
+
+        assert!(prepared.primary.is_some());
+        assert!(prepared.named_tables.is_empty());
+        let load: Vec<_> = prepared
+            .report
+            .entries()
+            .iter()
+            .filter(|(phase, _)| *phase == ReportPhase::Load)
+            .collect();
+        assert_eq!(load.len(), 1);
+        assert_eq!(load[0].1.code, codes::E1005.as_str());
+    }
+
+    #[test]
+    fn partial_preparation_collects_data_warnings_with_context() {
+        let dir = temp_dir("partial-warnings");
+        fs::write(
+            dir.join("data.csv"),
+            "t\n2020-01-01T00:00:00Z\n2020-01-01T00:00:00\n",
+        )
+        .unwrap();
+        let source = SourceInput::Path(dir.join("chart.ag"));
+        let chart = parse_chart(r#"Chart(data: "data.csv") { Space(t) { Point() } }"#);
+
+        let prepared = prepare_chart_partial(&chart, partial_options(&source));
+
+        assert!(prepared.report.has_data_warnings());
+        let entry = &prepared.report.data_warnings()[0];
+        assert_eq!(entry.context, LoadContext::Primary);
+        assert_eq!(entry.path.as_deref(), Some(dir.join("data.csv").as_path()));
+        assert_eq!(entry.warning.column.as_deref(), Some("t"));
+    }
+
+    #[test]
+    fn report_diagnostics_preserve_insertion_order_across_phases() {
+        use algraf_core::{Diagnostic, Span};
+        let mut report = crate::PreparationReport::new();
+        report.extend(
+            ReportPhase::Parse,
+            [Diagnostic::error(codes::E0001, "parse", Span::new(0, 1))],
+        );
+        report.push(
+            ReportPhase::Load,
+            Diagnostic::error(codes::E1005, "load", Span::new(1, 2)),
+        );
+        report.extend(
+            ReportPhase::Semantic,
+            [Diagnostic::error(codes::E1001, "semantic", Span::new(2, 3))],
+        );
+        let observed: Vec<&str> = report.diagnostics().iter().map(|d| d.code).collect();
+        assert_eq!(
+            observed,
+            vec![
+                codes::E0001.as_str(),
+                codes::E1005.as_str(),
+                codes::E1001.as_str()
+            ]
+        );
+    }
+
+    #[test]
+    fn central_driver_error_mapping_assigns_stable_codes() {
+        use algraf_data::DataError;
+        use std::io;
+        use std::path::Path;
+
+        let not_found = DataError::Io(io::Error::new(io::ErrorKind::NotFound, "nope"));
+        let (code, message) = crate::data_error_code_message(Path::new("a.csv"), &not_found);
+        assert_eq!(code, codes::E1005);
+        assert!(message.contains("a.csv"));
+
+        let (code, _) =
+            crate::data_error_code_message(Path::new("a.json"), &DataError::JsonNotArray);
+        assert_eq!(code, codes::E1010);
+
+        let (code, _) = crate::data_error_code_message(
+            Path::new("a.shp"),
+            &DataError::Geo("bad geometry".to_string()),
+        );
+        assert_eq!(code, codes::E1805);
+
+        let usage = DriverError::Usage("stdin only".to_string());
+        let (code, message) = crate::driver_error_code_message(&usage);
+        assert_eq!(code, codes::E1006);
+        assert_eq!(message, "stdin only");
     }
 }

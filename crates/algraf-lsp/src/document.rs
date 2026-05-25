@@ -1,9 +1,8 @@
-use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use algraf_core::{codes, Diagnostic as CoreDiagnostic, DiagnosticCode};
-use algraf_data::{ColumnDef, DataError, Format};
-use algraf_driver::{DriverError, SourceInput};
+use algraf_core::{Diagnostic as CoreDiagnostic, DiagnosticCode};
+use algraf_data::{ColumnDef, Format};
+use algraf_driver::{driver_error_code_message, DriverError, SourceInput};
 use algraf_semantics::ChartIr;
 use tower_lsp::lsp_types::Url;
 
@@ -82,66 +81,9 @@ pub(crate) fn source_input_for_uri(uri: &Url) -> SourceInput {
     )
 }
 
+/// Map a driver error to the LSP `(code, message)` pair. The actual mapping
+/// lives in `algraf-driver` so the CLI and LSP agree on driver-error wording
+/// (spec §23.4); this wrapper keeps the call sites in this crate stable.
 pub(crate) fn schema_error_from_driver(err: &DriverError) -> (DiagnosticCode, String) {
-    match err {
-        DriverError::Data { path, source, .. } => schema_error(path, source),
-        DriverError::Usage(message)
-        | DriverError::StdinRead(message)
-        | DriverError::StdinParse(message) => (codes::E1006, message.clone()),
-    }
-}
-
-fn schema_error(path: &Path, err: &DataError) -> (DiagnosticCode, String) {
-    match err {
-        DataError::Io(io) if io.kind() == io::ErrorKind::NotFound => (
-            codes::E1005,
-            format!("data file not found: {}", path.display()),
-        ),
-        DataError::Io(io) => (
-            codes::E1006,
-            format!("data file could not be read: {}: {io}", path.display()),
-        ),
-        DataError::Csv(err) => (
-            codes::E1006,
-            format!("CSV parse error in {}: {err}", path.display()),
-        ),
-        DataError::MissingHeader => (
-            codes::E1007,
-            format!("CSV header missing in {}", path.display()),
-        ),
-        DataError::DuplicateHeader(name) => (
-            codes::E1008,
-            format!("duplicate CSV column `{name}` in {}", path.display()),
-        ),
-        DataError::Json(err) => (
-            codes::E1009,
-            format!("malformed JSON in {}: {err}", path.display()),
-        ),
-        DataError::NdJson { line, source } => (
-            codes::E1009,
-            format!(
-                "malformed JSON on line {line} in {}: {source}",
-                path.display()
-            ),
-        ),
-        DataError::JsonNotArray => (
-            codes::E1010,
-            format!(
-                "JSON data must be an array of row objects in {}",
-                path.display()
-            ),
-        ),
-        DataError::JsonRowNotObject { index } => (
-            codes::E1010,
-            format!("JSON row {index} is not an object in {}", path.display()),
-        ),
-        DataError::NdJsonRowNotObject { line } => (
-            codes::E1010,
-            format!("NDJSON line {line} is not an object in {}", path.display()),
-        ),
-        DataError::Geo(message) => (
-            codes::E1805,
-            format!("geospatial parse error in {}: {message}", path.display()),
-        ),
-    }
+    driver_error_code_message(err)
 }

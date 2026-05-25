@@ -12,8 +12,8 @@ use std::process::ExitCode;
 
 use algraf_data::DataType;
 use algraf_driver::{
-    document_charts, extract_data_source, load_schema, prepare_chart, DriverError, PrepareOptions,
-    SourceInput,
+    document_charts, extract_data_source, load_schema, prepare_chart, DriverError, LoadContext,
+    PreparationReport, PrepareOptions, ReportPhase, SourceInput,
 };
 use algraf_render::{render_with_tables, svg_num, Layout, Rect, Theme};
 use algraf_semantics::{
@@ -296,17 +296,23 @@ fn render_chart_svg(
     let loaded = primary.take().ok_or_else(|| {
         CliError::Internal("analysis allowed rendering with a missing data source".to_string())
     })?;
-    for warning in &loaded.warnings {
-        eprintln!("warning: {}", warning.message);
-    }
-    let mut table_warnings = false;
+    // Collect data warnings with their table/source context (spec §10.3); they
+    // print as plain `warning:` lines because they carry no source span.
+    let mut report = PreparationReport::new();
+    report.push_data_warnings(&LoadContext::Primary, None, &loaded.warnings);
     for table in &named_tables {
-        for warning in &table.warnings {
-            eprintln!("warning: {}", warning.message);
-            table_warnings = true;
-        }
+        report.push_data_warnings(
+            &LoadContext::Table {
+                name: table.name.clone(),
+            },
+            Some(table.path.as_path()),
+            &table.warnings,
+        );
     }
-    if args.strict && (!loaded.warnings.is_empty() || table_warnings) {
+    for warning in report.data_warnings() {
+        eprintln!("warning: {}", warning.message());
+    }
+    if args.strict && report.has_data_warnings() {
         return Err(CliError::Diagnostics);
     }
     let frame = loaded.frame;
@@ -343,13 +349,17 @@ fn render_chart_svg(
         cli_theme_override.as_deref(),
     )
     .map_err(|e| CliError::Internal(e.to_string()))?;
-    if !result.diagnostics.is_empty() {
+    // Append render diagnostics to the same report (spec §23.4); they carry
+    // source spans, so they print through the diagnostic renderer.
+    report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());
+    let render_diags = report.diagnostics();
+    if !render_diags.is_empty() {
         eprint!(
             "{}",
-            diagnostics::render_human(source, label, &result.diagnostics)
+            diagnostics::render_human(source, label, &render_diags)
         );
     }
-    if diagnostics::has_blocking(&result.diagnostics, args.strict) {
+    if diagnostics::has_blocking(&render_diags, args.strict) {
         return Err(CliError::Diagnostics);
     }
 
@@ -409,11 +419,14 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
         return Err(CliError::Diagnostics);
     }
 
-    // Validate every chart in the document independently (spec §7.1).
+    // Validate every chart in the document independently (spec §7.1),
+    // assembling parse and semantic diagnostics plus data warnings into one
+    // shared report (spec §23.4). Load failures still abort with a process
+    // error here, preserving the pre-0.15 strict-check behavior.
     let charts = document_charts(&root);
-    let mut diags = parsed.diagnostics().to_vec();
-    let mut data_warning = false;
     let multi = charts.len() > 1;
+    let mut report = PreparationReport::new();
+    report.extend(ReportPhase::Parse, parsed.diagnostics().iter().cloned());
     for chart in &charts {
         let prepared = prepare_chart(
             chart,
@@ -425,30 +438,30 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
             },
         )
         .map_err(driver_error)?;
-        let analysis = prepared.analysis;
-        diags.extend(analysis.diagnostics);
+        report.extend(ReportPhase::Semantic, prepared.analysis.diagnostics);
         if let Some(loaded) = &prepared.primary {
-            if !loaded.warnings.is_empty() {
-                data_warning = true;
-                if !args.json {
-                    for warning in &loaded.warnings {
-                        eprintln!("warning: {}", warning.message);
-                    }
-                }
-            }
+            report.push_data_warnings(&LoadContext::Primary, None, &loaded.warnings);
         }
         for table in &prepared.named_tables {
-            if !table.warnings.is_empty() {
-                data_warning = true;
-                if !args.json {
-                    for warning in &table.warnings {
-                        eprintln!("warning: {}", warning.message);
-                    }
-                }
-            }
+            report.push_data_warnings(
+                &LoadContext::Table {
+                    name: table.name.clone(),
+                },
+                Some(table.path.as_path()),
+                &table.warnings,
+            );
         }
     }
 
+    // Human output lists data warnings (which carry no source span) before the
+    // spanned diagnostics; JSON output carries only the spanned diagnostics.
+    if !args.json {
+        for warning in report.data_warnings() {
+            eprintln!("warning: {}", warning.message());
+        }
+    }
+
+    let diags = report.diagnostics();
     if args.json {
         println!("{}", diagnostics::render_json(&source, &label, &diags));
     } else if diags.is_empty() {
@@ -457,7 +470,8 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
         eprint!("{}", diagnostics::render_human(&source, &label, &diags));
     }
 
-    if diagnostics::has_blocking(&diags, args.strict) || (args.strict && data_warning) {
+    if diagnostics::has_blocking(&diags, args.strict) || (args.strict && report.has_data_warnings())
+    {
         Err(CliError::Diagnostics)
     } else {
         Ok(())
@@ -590,8 +604,10 @@ fn ir_cmd(args: IrArgs) -> Result<(), CliError> {
     )
     .map_err(driver_error)?;
     let analysis = prepared.analysis;
-    let mut diags = parsed.diagnostics().to_vec();
-    diags.extend(analysis.diagnostics);
+    let mut report = PreparationReport::new();
+    report.extend(ReportPhase::Parse, parsed.diagnostics().iter().cloned());
+    report.extend(ReportPhase::Semantic, analysis.diagnostics);
+    let diags = report.diagnostics();
 
     if !diags.is_empty() {
         eprint!("{}", diagnostics::render_human(&source, &label, &diags));
