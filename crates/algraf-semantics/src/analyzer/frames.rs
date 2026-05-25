@@ -439,7 +439,8 @@ fn blend_parenthesized(binary: &AlgebraBinary) -> bool {
 
 fn has_count_stat(geo: &GeometryIr) -> bool {
     geo.settings.iter().any(|setting| {
-        setting.name == "stat" && matches!(&setting.value, SettingValue::String(v) if v == "count")
+        setting.name == PropertyKey::Stat
+            && matches!(&setting.value, SettingValue::String(v) if v == "count")
     })
 }
 

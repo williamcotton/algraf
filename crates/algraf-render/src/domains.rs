@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use algraf_data::Table;
-use algraf_semantics::{FrameIr, GeometryIr, GeometryKind};
+use algraf_semantics::{FrameIr, GeometryIr, GeometryKind, PropertyKey};
 
 use crate::helpers::{
     bar_layout, frame_axis_index, number_setting_opt, vector_column_name, BarLayout,
@@ -178,19 +178,19 @@ pub fn train_space_domains(
             // is zero, also suppress lower padding so the x-axis sits flush
             // against the area's bottom edge.
             GeometryKind::Area => {
-                let baseline = number_setting_opt(geometry, "baseline").unwrap_or(0.0);
+                let baseline = number_setting_opt(geometry, PropertyKey::Baseline).unwrap_or(0.0);
                 hints.y.add_numeric(baseline);
                 if baseline.abs() < f64::EPSILON {
                     hints.y.include_zero();
                 }
             }
             GeometryKind::HLine => {
-                if let Some(y) = number_setting_opt(geometry, "y") {
+                if let Some(y) = number_setting_opt(geometry, PropertyKey::Y) {
                     hints.y.add_numeric(y);
                 }
             }
             GeometryKind::VLine => {
-                if let Some(x) = number_setting_opt(geometry, "x") {
+                if let Some(x) = number_setting_opt(geometry, PropertyKey::X) {
                     hints.x.add_numeric(x);
                 }
             }
@@ -203,12 +203,12 @@ pub fn train_space_domains(
             // Segment endpoints are literal data values; include them so the
             // segment stays inside the plot rect (spec §14.19).
             GeometryKind::Segment => {
-                for property in ["x", "xend"] {
+                for property in [PropertyKey::X, PropertyKey::Xend] {
                     if let Some(value) = number_setting_opt(geometry, property) {
                         hints.x.add_numeric(value);
                     }
                 }
-                for property in ["y", "yend"] {
+                for property in [PropertyKey::Y, PropertyKey::Yend] {
                     if let Some(value) = number_setting_opt(geometry, property) {
                         hints.y.add_numeric(value);
                     }
@@ -243,8 +243,9 @@ fn train_violin(
         groups.entry(key).or_default().push(value);
     }
     let options = stats::DensityOptions {
-        bandwidth: number_setting_opt(geometry, "bandwidth").filter(|value| *value > 0.0),
-        grid_points: number_setting_opt(geometry, "n")
+        bandwidth: number_setting_opt(geometry, PropertyKey::Bandwidth)
+            .filter(|value| *value > 0.0),
+        grid_points: number_setting_opt(geometry, PropertyKey::N)
             .filter(|value| *value >= 2.0)
             .map(|value| value.round() as usize)
             .unwrap_or(256),
@@ -304,7 +305,7 @@ fn train_bar(
 fn train_rect(table: &dyn Table, geometry: &GeometryIr, hints: &mut SpaceDomainHints) {
     hints.x.lock_bounds();
     for row in 0..table.row_count() {
-        for property in ["xmin", "xmax"] {
+        for property in [PropertyKey::Xmin, PropertyKey::Xmax] {
             if let Some(value) = positional_value(geometry, property, table, row) {
                 hints.x.add_numeric(value);
             }
@@ -312,7 +313,7 @@ fn train_rect(table: &dyn Table, geometry: &GeometryIr, hints: &mut SpaceDomainH
                 hints.x.add_temporal(micros);
             }
         }
-        for property in ["ymin", "ymax"] {
+        for property in [PropertyKey::Ymin, PropertyKey::Ymax] {
             if let Some(value) = positional_value(geometry, property, table, row) {
                 hints.y.add_numeric(value);
                 if value.abs() < f64::EPSILON {
@@ -342,7 +343,7 @@ fn axis_group_key(frame: &FrameIr, table: &dyn Table, row: usize) -> Option<Stri
 
 fn positional_value(
     geometry: &GeometryIr,
-    property: &str,
+    property: PropertyKey,
     table: &dyn Table,
     row: usize,
 ) -> Option<f64> {
@@ -358,7 +359,7 @@ fn positional_value(
 
 fn positional_temporal(
     geometry: &GeometryIr,
-    property: &str,
+    property: PropertyKey,
     table: &dyn Table,
     row: usize,
 ) -> Option<i64> {

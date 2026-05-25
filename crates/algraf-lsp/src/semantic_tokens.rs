@@ -176,4 +176,20 @@ mod semantic_token_tests {
             1
         );
     }
+
+    #[test]
+    fn non_ascii_comment_uses_utf16_token_length() {
+        // Semantic-token lengths are UTF-16 units (spec §21.x). A comment with a
+        // multi-byte `é` and an astral `𝄞` must report its UTF-16 length, not
+        // its byte length.
+        let source = "// café 𝄞\nChart(data: \"d.csv\") {}";
+        let tokens = semantic_tokens_for(source);
+        let comment_type = token_type_index(SemanticTokenType::COMMENT);
+        let comment = tokens
+            .iter()
+            .find(|t| t.token_type == comment_type)
+            .expect("comment token");
+        // "// café 𝄞" is "// café " (8 UTF-16 units) plus `𝄞` (2 units) => 10.
+        assert_eq!(comment.length, 10);
+    }
 }

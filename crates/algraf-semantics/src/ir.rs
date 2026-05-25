@@ -201,10 +201,31 @@ pub enum AxisSelectorIr {
     Y,
 }
 
+impl AxisSelectorIr {
+    /// The authoritative source spelling (`"x"` / `"y"`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AxisSelectorIr::X => "x",
+            AxisSelectorIr::Y => "y",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScaleTypeIr {
     Linear,
     Log10,
+}
+
+impl ScaleTypeIr {
+    /// The authoritative source spelling (`"linear"` / `"log10"`), matching
+    /// [`crate::registry::SCALE_TYPE_NAMES`].
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ScaleTypeIr::Linear => "linear",
+            ScaleTypeIr::Log10 => "log10",
+        }
+    }
 }
 
 /// A derived table produced by a `Derive` declaration (spec §13.4).
@@ -236,6 +257,22 @@ pub enum StatKind {
     Smooth,
     Boxplot,
     Density,
+}
+
+impl StatKind {
+    /// The authoritative display name for this stat, used in debug JSON and
+    /// diagnostics.
+    pub fn display_name(self) -> &'static str {
+        match self {
+            StatKind::Bin => "Bin",
+            StatKind::Bin2D => "Bin2D",
+            StatKind::HexBin => "HexBin",
+            StatKind::Count => "Count",
+            StatKind::Smooth => "Smooth",
+            StatKind::Boxplot => "Boxplot",
+            StatKind::Density => "Density",
+        }
+    }
 }
 
 /// Typed options for a built-in statistical transform (spec §13.4). Each variant
@@ -273,12 +310,31 @@ pub enum BinClosedIr {
     Right,
 }
 
+impl BinClosedIr {
+    /// The authoritative source spelling (`"left"` / `"right"`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BinClosedIr::Left => "left",
+            BinClosedIr::Right => "right",
+        }
+    }
+}
+
 /// The smoothing method for a `Smooth` stat (spec §15.x). Only linear-model
 /// fitting is supported in this version; `loess` remains deferred.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SmoothMethodIr {
     #[default]
     Lm,
+}
+
+impl SmoothMethodIr {
+    /// The authoritative source spelling (`"lm"`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SmoothMethodIr::Lm => "lm",
+        }
+    }
 }
 
 /// A minimal column definition carried in the IR (name + type + span).
@@ -375,8 +431,9 @@ pub enum GeometryKind {
 }
 
 impl GeometryKind {
-    /// Human-facing geometry name, used in diagnostics and debug JSON.
-    pub fn display_name(self) -> &'static str {
+    /// Human-facing geometry name, used in diagnostics and debug JSON. This is
+    /// the single authoritative spelling, reused by the geometry registry.
+    pub const fn display_name(self) -> &'static str {
         match self {
             GeometryKind::Point => "Point",
             GeometryKind::Line => "Line",
@@ -432,18 +489,161 @@ impl GeometryKind {
     }
 }
 
-/// A binding from an aesthetic to a data column (spec §13.6).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AestheticMapping {
-    pub aesthetic: String,
-    pub column: ColumnRef,
+/// A built-in geometry property or aesthetic key (spec §13.9).
+///
+/// Every property the geometry registry accepts has exactly one `PropertyKey`
+/// variant, so the renderer and lowering match on variants instead of comparing
+/// strings (spec §13.9). [`PropertyKey::as_str`] is the single authoritative
+/// spelling, shared by the registry, diagnostics, and debug JSON.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PropertyKey {
+    Fill,
+    Stroke,
+    StrokeWidth,
+    Alpha,
+    Size,
+    Shape,
+    Group,
+    Layout,
+    Stat,
+    Bins,
+    BinWidth,
+    Boundary,
+    Closed,
+    Method,
+    Bandwidth,
+    N,
+    Quantiles,
+    Width,
+    Baseline,
+    Label,
+    Anchor,
+    Dx,
+    Dy,
+    Declutter,
+    Sides,
+    X,
+    Y,
+    Xmin,
+    Xmax,
+    Ymin,
+    Ymax,
+    Xend,
+    Yend,
 }
 
-/// A geometry setting bound to a literal value.
+/// Every [`PropertyKey`] variant, in declaration order. Used by registry
+/// round-trip checks and exhaustive iteration.
+pub const PROPERTY_KEYS: &[PropertyKey] = &[
+    PropertyKey::Fill,
+    PropertyKey::Stroke,
+    PropertyKey::StrokeWidth,
+    PropertyKey::Alpha,
+    PropertyKey::Size,
+    PropertyKey::Shape,
+    PropertyKey::Group,
+    PropertyKey::Layout,
+    PropertyKey::Stat,
+    PropertyKey::Bins,
+    PropertyKey::BinWidth,
+    PropertyKey::Boundary,
+    PropertyKey::Closed,
+    PropertyKey::Method,
+    PropertyKey::Bandwidth,
+    PropertyKey::N,
+    PropertyKey::Quantiles,
+    PropertyKey::Width,
+    PropertyKey::Baseline,
+    PropertyKey::Label,
+    PropertyKey::Anchor,
+    PropertyKey::Dx,
+    PropertyKey::Dy,
+    PropertyKey::Declutter,
+    PropertyKey::Sides,
+    PropertyKey::X,
+    PropertyKey::Y,
+    PropertyKey::Xmin,
+    PropertyKey::Xmax,
+    PropertyKey::Ymin,
+    PropertyKey::Ymax,
+    PropertyKey::Xend,
+    PropertyKey::Yend,
+];
+
+impl PropertyKey {
+    /// The single authoritative source spelling of this property key.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            PropertyKey::Fill => "fill",
+            PropertyKey::Stroke => "stroke",
+            PropertyKey::StrokeWidth => "strokeWidth",
+            PropertyKey::Alpha => "alpha",
+            PropertyKey::Size => "size",
+            PropertyKey::Shape => "shape",
+            PropertyKey::Group => "group",
+            PropertyKey::Layout => "layout",
+            PropertyKey::Stat => "stat",
+            PropertyKey::Bins => "bins",
+            PropertyKey::BinWidth => "binWidth",
+            PropertyKey::Boundary => "boundary",
+            PropertyKey::Closed => "closed",
+            PropertyKey::Method => "method",
+            PropertyKey::Bandwidth => "bandwidth",
+            PropertyKey::N => "n",
+            PropertyKey::Quantiles => "quantiles",
+            PropertyKey::Width => "width",
+            PropertyKey::Baseline => "baseline",
+            PropertyKey::Label => "label",
+            PropertyKey::Anchor => "anchor",
+            PropertyKey::Dx => "dx",
+            PropertyKey::Dy => "dy",
+            PropertyKey::Declutter => "declutter",
+            PropertyKey::Sides => "sides",
+            PropertyKey::X => "x",
+            PropertyKey::Y => "y",
+            PropertyKey::Xmin => "xmin",
+            PropertyKey::Xmax => "xmax",
+            PropertyKey::Ymin => "ymin",
+            PropertyKey::Ymax => "ymax",
+            PropertyKey::Xend => "xend",
+            PropertyKey::Yend => "yend",
+        }
+    }
+
+    /// Resolve a registry property name to its typed key. Returns `None` for a
+    /// name no built-in geometry property uses.
+    pub fn from_name(name: &str) -> Option<PropertyKey> {
+        PROPERTY_KEYS
+            .iter()
+            .copied()
+            .find(|key| key.as_str() == name)
+    }
+}
+
+impl std::fmt::Display for PropertyKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// A binding from an aesthetic to a data column (spec §13.6). `span` covers the
+/// user-authored argument (or the originating geometry call for a mapping
+/// synthesized during lowering).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AestheticMapping {
+    pub aesthetic: PropertyKey,
+    pub column: ColumnRef,
+    pub span: Span,
+}
+
+/// A geometry setting bound to a literal value (spec §13.6). `span` covers the
+/// user-authored argument (or the originating geometry call for a setting
+/// synthesized during lowering).
 #[derive(Debug, Clone, PartialEq)]
 pub struct GeometrySetting {
-    pub name: String,
+    pub name: PropertyKey,
     pub value: SettingValue,
+    pub span: Span,
 }
 
 /// A general statistical-transform or geometry setting.

@@ -10,39 +10,92 @@ use crate::ast::{Arg, CallValue, ChartBlock, ChartItem, LiteralKind, Root, Table
 use crate::{SyntaxNode, SyntaxToken};
 
 /// A source constructor that selects a data loader explicitly (spec §10.11).
+///
+/// This is a syntax-level identity for a recognized constructor; the driver maps
+/// it to a concrete data-loader format. New constructors are added to
+/// [`SOURCE_CONSTRUCTORS`], not by widening accepted syntax elsewhere.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SourceFormat {
     GeoJson,
     Shapefile,
 }
 
-pub const SOURCE_FORMATS: &[SourceFormat] = &[SourceFormat::GeoJson, SourceFormat::Shapefile];
+/// How a source constructor's path argument must be written (spec §10.11).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathArgRule {
+    /// Exactly one positional string-literal path argument.
+    SingleStringLiteral,
+}
+
+/// Static metadata describing a recognized source constructor (spec §10.11).
+///
+/// The table is the single authority for recognized constructor names, their
+/// format policy, path-argument rules, documentation, and editor completion
+/// text. It is intentionally closed: adding `Sqlite(...)` later means adding an
+/// entry here, not accepting arbitrary runtime strings as constructors.
+#[derive(Debug, Clone, Copy)]
+pub struct SourceConstructorMeta {
+    /// The explicit loader format this constructor selects.
+    pub format: SourceFormat,
+    /// The constructor's authoritative source spelling (e.g. `"GeoJson"`).
+    pub name: &'static str,
+    /// How the path argument must be written.
+    pub path_arg: PathArgRule,
+    /// Human-facing documentation, shared by LSP completion and hover.
+    pub doc: &'static str,
+    /// The LSP completion snippet body for this constructor.
+    pub completion_snippet: &'static str,
+}
+
+/// Every recognized source constructor, in declaration order.
+pub const SOURCE_CONSTRUCTORS: &[SourceConstructorMeta] = &[
+    SourceConstructorMeta {
+        format: SourceFormat::GeoJson,
+        name: "GeoJson",
+        path_arg: PathArgRule::SingleStringLiteral,
+        doc: "Load a GeoJSON FeatureCollection as the data source.",
+        completion_snippet: "GeoJson(\"$1\")",
+    },
+    SourceConstructorMeta {
+        format: SourceFormat::Shapefile,
+        name: "Shapefile",
+        path_arg: PathArgRule::SingleStringLiteral,
+        doc: "Load an ESRI shapefile bundle as the data source.",
+        completion_snippet: "Shapefile(\"$1\")",
+    },
+];
 
 impl SourceFormat {
-    /// The Algraf constructor name for this explicit source format.
-    pub fn constructor_name(self) -> &'static str {
-        match self {
-            SourceFormat::GeoJson => "GeoJson",
-            SourceFormat::Shapefile => "Shapefile",
-        }
+    /// The shared metadata for this format.
+    pub fn meta(self) -> &'static SourceConstructorMeta {
+        SOURCE_CONSTRUCTORS
+            .iter()
+            .find(|meta| meta.format == self)
+            .expect("every SourceFormat has constructor metadata")
     }
 
-    /// Resolve a recognized source constructor name.
+    /// The Algraf constructor name for this explicit source format.
+    pub fn constructor_name(self) -> &'static str {
+        self.meta().name
+    }
+
+    /// Resolve a recognized source constructor name to its format.
     pub fn from_constructor_name(name: &str) -> Option<SourceFormat> {
-        match name {
-            "GeoJson" => Some(SourceFormat::GeoJson),
-            "Shapefile" => Some(SourceFormat::Shapefile),
-            _ => None,
-        }
+        SOURCE_CONSTRUCTORS
+            .iter()
+            .find(|meta| meta.name == name)
+            .map(|meta| meta.format)
     }
 
     /// All recognized source constructor names.
     pub fn constructor_names() -> impl Iterator<Item = &'static str> {
-        SOURCE_FORMATS
-            .iter()
-            .copied()
-            .map(SourceFormat::constructor_name)
+        SOURCE_CONSTRUCTORS.iter().map(|meta| meta.name)
     }
+}
+
+/// Resolve a recognized source constructor's metadata by name.
+pub fn source_constructor_meta(name: &str) -> Option<&'static SourceConstructorMeta> {
+    SOURCE_CONSTRUCTORS.iter().find(|meta| meta.name == name)
 }
 
 /// The source expression forms currently understood by `Chart(data:)` and
@@ -295,6 +348,21 @@ mod tests {
         Root::cast(parse(source).syntax())
             .and_then(|root| root.chart())
             .unwrap()
+    }
+
+    #[test]
+    fn source_constructor_metadata_round_trips_by_name_and_format() {
+        for meta in SOURCE_CONSTRUCTORS {
+            assert_eq!(
+                SourceFormat::from_constructor_name(meta.name),
+                Some(meta.format)
+            );
+            assert_eq!(meta.format.constructor_name(), meta.name);
+            assert_eq!(meta.format.meta().name, meta.name);
+            assert!(source_constructor_meta(meta.name).is_some());
+        }
+        assert!(SourceFormat::from_constructor_name("Sqlite").is_none());
+        assert!(source_constructor_meta("Csv").is_none());
     }
 
     #[test]

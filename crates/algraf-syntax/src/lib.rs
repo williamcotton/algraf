@@ -15,8 +15,9 @@ pub use lexer::{tokenize, LexResult, NumberLiteral, TokenKind, TokenWithSpan};
 pub use parser::{parse, parse_algebra, Parse};
 pub use source::{
     chart_data_source, chart_table_sources, document_data_source, is_source_constructor, node_span,
-    source_constructor, source_constructor_path, source_expr_from_arg, source_expr_from_value,
-    table_data_source, unescape_quoted_ident, unescape_string_literal, SourceConstructor,
-    SourceExpr, SourceFormat,
+    source_constructor, source_constructor_meta, source_constructor_path, source_expr_from_arg,
+    source_expr_from_value, table_data_source, unescape_quoted_ident, unescape_string_literal,
+    PathArgRule, SourceConstructor, SourceConstructorMeta, SourceExpr, SourceFormat,
+    SOURCE_CONSTRUCTORS,
 };
 pub use syntax_kind::{AlgrafLang, SyntaxKind, SyntaxNode, SyntaxToken};

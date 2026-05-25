@@ -1,5 +1,5 @@
 use algraf_data::Table;
-use algraf_semantics::{GeometryIr, SettingValue};
+use algraf_semantics::{GeometryIr, PropertyKey, SettingValue};
 
 use crate::aes::ColorSpec;
 use crate::scale::{cell_category, cell_f64, cell_micros};
@@ -29,7 +29,7 @@ pub(super) fn grouped_rows(
     if let Some(mapping) = geo
         .mappings
         .iter()
-        .find(|mapping| mapping.aesthetic == "group")
+        .find(|mapping| mapping.aesthetic == PropertyKey::Group)
     {
         return crate::scale::categorical_domain(table, &mapping.column.name)
             .into_iter()
@@ -128,7 +128,12 @@ pub(super) fn quantile_type7(values: &[f64], p: f64) -> f64 {
     }
 }
 
-pub(super) fn pos(geo: &GeometryIr, name: &str, table: &dyn Table, row: usize) -> Option<f64> {
+pub(super) fn pos(
+    geo: &GeometryIr,
+    name: PropertyKey,
+    table: &dyn Table,
+    row: usize,
+) -> Option<f64> {
     if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == name) {
         let column = &mapping.column.name;
         if let Some(value) = cell_f64(table, column, row) {
@@ -147,7 +152,7 @@ pub(super) fn pos(geo: &GeometryIr, name: &str, table: &dyn Table, row: usize) -
 
 pub(super) fn pos_bound(
     geo: &GeometryIr,
-    name: &str,
+    name: PropertyKey,
     axis: &AxisScale,
     table: &dyn Table,
     row: usize,
@@ -171,8 +176,8 @@ pub(super) fn pos_bound(
         })
 }
 
-fn bound_is_upper(name: &str) -> bool {
-    matches!(name, "xmax" | "ymax")
+fn bound_is_upper(name: PropertyKey) -> bool {
+    matches!(name, PropertyKey::Xmax | PropertyKey::Ymax)
 }
 
 fn categorical_bound(

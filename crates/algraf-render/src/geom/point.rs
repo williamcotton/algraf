@@ -1,6 +1,6 @@
 use algraf_core::{codes, Diagnostic};
 use algraf_data::Table;
-use algraf_semantics::{GeometryIr, SettingValue};
+use algraf_semantics::{GeometryIr, PropertyKey, SettingValue};
 
 use crate::aes::{color_spec, number_setting, number_spec};
 use crate::scale::cell_category;
@@ -20,11 +20,11 @@ pub(super) fn render(
     let rows = ctx.rows;
     let theme = ctx.theme;
     let scales = ctx.scales;
-    let fill = color_spec(geo, "fill", table, scales);
-    let alpha = number_setting(geo, "alpha", 1.0);
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     let size = number_spec(
         geo,
-        "size",
+        PropertyKey::Size,
         table,
         scales,
         DEFAULT_SIZE_RANGE,
@@ -84,7 +84,11 @@ const SHAPES: &[PointShape] = &[
 ];
 
 fn shape_spec(geo: &GeometryIr, table: &dyn Table, diagnostics: &mut Vec<Diagnostic>) -> ShapeSpec {
-    if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == "shape") {
+    if let Some(mapping) = geo
+        .mappings
+        .iter()
+        .find(|m| m.aesthetic == PropertyKey::Shape)
+    {
         return ShapeSpec {
             constant: None,
             mapping: Some((
@@ -96,7 +100,7 @@ fn shape_spec(geo: &GeometryIr, table: &dyn Table, diagnostics: &mut Vec<Diagnos
     let constant = geo
         .settings
         .iter()
-        .find(|setting| setting.name == "shape")
+        .find(|setting| setting.name == PropertyKey::Shape)
         .and_then(|setting| match &setting.value {
             SettingValue::String(value) => match value.as_str() {
                 "circle" => Some(PointShape::Circle),

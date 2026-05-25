@@ -140,3 +140,51 @@ pub(crate) fn dtype_name(dtype: DataType) -> &'static str {
         DataType::Unknown => "unknown",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::document::DocumentState;
+
+    fn state(text: &str) -> DocumentState {
+        DocumentState {
+            text: text.to_string(),
+            version: 0,
+            parse: None,
+            analysis: None,
+            primary_schema: None,
+            data_path: None,
+        }
+    }
+
+    fn markdown(hover: Hover) -> String {
+        match hover.contents {
+            HoverContents::Markup(m) => m.value,
+            _ => panic!("expected markup"),
+        }
+    }
+
+    #[test]
+    fn hovers_geometry_name_with_registry_doc() {
+        let text = "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Point()\n  }\n}";
+        let offset = text.find("Point").unwrap() + 1;
+        let md = markdown(hover_at(&state(text), offset).expect("hover"));
+        assert!(md.contains("Geometry `Point`"));
+    }
+
+    #[test]
+    fn hovers_property_key_with_registry_doc() {
+        let text = "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Point(fill: x)\n  }\n}";
+        let offset = text.find("fill").unwrap() + 1;
+        let md = markdown(hover_at(&state(text), offset).expect("hover"));
+        assert!(md.contains("Property `fill`"));
+    }
+
+    #[test]
+    fn hovers_cross_operator() {
+        let text = "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Point()\n  }\n}";
+        let offset = text.find('*').unwrap();
+        let md = markdown(hover_at(&state(text), offset).expect("hover"));
+        assert!(md.contains("Cross operator"));
+    }
+}

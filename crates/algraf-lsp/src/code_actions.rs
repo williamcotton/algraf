@@ -348,3 +348,37 @@ fn first_ident_range(source: &str, range: Range) -> Option<Range> {
             span_to_range(source, span)
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn uri() -> Url {
+        Url::parse("file:///doc.ag").unwrap()
+    }
+
+    fn whole(source: &str) -> Range {
+        span_to_range(source, Span::new(0, source.len()))
+    }
+
+    #[test]
+    fn histogram_space_offers_derive_refactor() {
+        let source =
+            "Chart(data: \"p.csv\") {\n  Space(flipper_length) {\n    Histogram(bins: 20)\n  }\n}";
+        let action = histogram_refactor_action(source, &uri(), whole(source));
+        let action = action.expect("histogram refactor offered");
+        match action {
+            CodeActionOrCommand::CodeAction(action) => {
+                assert!(action.title.to_lowercase().contains("derive"));
+                assert!(action.edit.is_some());
+            }
+            _ => panic!("expected a code action"),
+        }
+    }
+
+    #[test]
+    fn non_histogram_space_offers_no_refactor() {
+        let source = "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Point()\n  }\n}";
+        assert!(histogram_refactor_action(source, &uri(), whole(source)).is_none());
+    }
+}

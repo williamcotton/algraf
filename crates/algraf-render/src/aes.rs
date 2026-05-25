@@ -2,7 +2,7 @@
 //! colors, opacity, and size (spec §16.8).
 
 use algraf_data::{DataType, Table};
-use algraf_semantics::{GeometryIr, ScaleIr, ScaleTargetIr, SettingValue};
+use algraf_semantics::{GeometryIr, PropertyKey, ScaleIr, ScaleTargetIr, SettingValue};
 
 use crate::scale::{categorical_domain, cell_category, cell_f64, numeric_domain};
 use crate::svg::num;
@@ -174,13 +174,15 @@ pub enum LegendKind {
     Radius,
 }
 
-/// Build a color specification for an aesthetic (`"fill"` or `"stroke"`).
+/// Build a color specification for an aesthetic ([`PropertyKey::Fill`] or
+/// [`PropertyKey::Stroke`]).
 pub fn color_spec(
     geo: &GeometryIr,
-    aesthetic: &str,
+    aesthetic: PropertyKey,
     table: &dyn Table,
     scales: &[ScaleIr],
 ) -> ColorSpec {
+    let aesthetic_name = aesthetic.as_str();
     if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == aesthetic) {
         let col = &mapping.column.name;
         return match mapping.column.dtype {
@@ -190,17 +192,18 @@ pub fn color_spec(
                     col: col.clone(),
                     min,
                     max,
-                    stops: gradient_for(scales, aesthetic, col).unwrap_or_else(default_gradient),
+                    stops: gradient_for(scales, aesthetic_name, col)
+                        .unwrap_or_else(default_gradient),
                 }
             }
             _ => {
                 // A manual `range: ["A" => "..."]` map fixes both the category
                 // order and the colors; otherwise categories come from the data
                 // in first-appearance order (spec §16.13).
-                if let Some(map) = color_map_for(scales, aesthetic, col) {
+                if let Some(map) = color_map_for(scales, aesthetic_name, col) {
                     let categories: Vec<String> = map.iter().map(|(k, _)| k.clone()).collect();
                     let colors: Vec<String> = map.iter().map(|(_, v)| v.clone()).collect();
-                    let labels = label_map_for(scales, aesthetic, col).map(|lm| {
+                    let labels = label_map_for(scales, aesthetic_name, col).map(|lm| {
                         categories
                             .iter()
                             .map(|cat| {
@@ -222,7 +225,7 @@ pub fn color_spec(
                     ColorSpec::Categorical {
                         col: col.clone(),
                         categories: categorical_domain(table, col),
-                        palette: palette_for(scales, aesthetic, col),
+                        palette: palette_for(scales, aesthetic_name, col),
                         colors: None,
                         labels: None,
                     }
@@ -346,7 +349,7 @@ fn scale_linear(value: f64, domain: (f64, f64), range: (f64, f64)) -> f64 {
 /// `constant_default` (spec §16.8).
 pub fn number_spec(
     geo: &GeometryIr,
-    aesthetic: &str,
+    aesthetic: PropertyKey,
     table: &dyn Table,
     scales: &[ScaleIr],
     default_range: (f64, f64),
@@ -355,7 +358,7 @@ pub fn number_spec(
     if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == aesthetic) {
         let col = mapping.column.name.clone();
         let (data_min, data_max) = numeric_domain(table, &col).unwrap_or((0.0, 1.0));
-        let scale = aesthetic_scale(scales, aesthetic, &col);
+        let scale = aesthetic_scale(scales, aesthetic.as_str(), &col);
         let domain = match scale.and_then(|s| s.domain) {
             Some([lo, hi]) => (lo.unwrap_or(data_min), hi.unwrap_or(data_max)),
             None => (data_min, data_max),
@@ -388,10 +391,10 @@ pub(crate) fn aesthetic_scale<'a>(
 }
 
 /// A constant numeric setting value, or a default.
-pub fn number_setting(geo: &GeometryIr, name: &str, default: f64) -> f64 {
+pub fn number_setting(geo: &GeometryIr, key: PropertyKey, default: f64) -> f64 {
     geo.settings
         .iter()
-        .find(|s| s.name == name)
+        .find(|s| s.name == key)
         .and_then(|s| match s.value {
             SettingValue::Number(n) => Some(n),
             _ => None,
@@ -404,13 +407,13 @@ pub fn number_setting(geo: &GeometryIr, name: &str, default: f64) -> f64 {
 /// fall back to `default` (spec §16.8).
 pub fn number_for_row(
     geo: &GeometryIr,
-    name: &str,
+    key: PropertyKey,
     table: &dyn Table,
     row: usize,
     default: f64,
 ) -> f64 {
-    if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == name) {
+    if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == key) {
         return cell_f64(table, &mapping.column.name, row).unwrap_or(default);
     }
-    number_setting(geo, name, default)
+    number_setting(geo, key, default)
 }

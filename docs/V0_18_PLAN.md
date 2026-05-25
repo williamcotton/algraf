@@ -1,6 +1,6 @@
 # Algraf v0.18.0 Plan
 
-Status: Planned
+Status: Complete
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_17_PLAN.md`](V0_17_PLAN.md)
@@ -90,7 +90,7 @@ git diff -- examples
 
 ### 1. Typed geometry-property IR
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -106,7 +106,7 @@ Acceptance criteria:
 
 ### 2. Registry display and documentation helpers
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -120,7 +120,7 @@ Acceptance criteria:
 
 ### 3. Source-constructor registry boundary
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -136,7 +136,7 @@ Acceptance criteria:
 
 ### 4. LSP feature tests by module
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -151,7 +151,7 @@ Acceptance criteria:
 
 ### 5. Resilience and resource guardrails
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -165,7 +165,7 @@ Acceptance criteria:
 
 ### 6. Spec, plan, and example hygiene
 
-Status: Planned.
+Status: Done.
 
 Acceptance criteria:
 
@@ -180,14 +180,14 @@ Acceptance criteria:
 
 ### Parser recovery fixture expansion
 
-Status: Planned.
+Status: Done.
 
 Add a small fixture corpus for recovery cases that are currently unit-test only,
 especially malformed nested calls, map literals, and source constructors.
 
 ### On-type formatting policy note
 
-Status: Planned.
+Status: Done.
 
 Document why on-type formatting remains deferred or define the narrow safe cases
 that could be enabled later. Do not implement on-type formatting in this

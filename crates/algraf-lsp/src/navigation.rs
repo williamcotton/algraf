@@ -519,3 +519,47 @@ pub(crate) fn rename_edits(
         change_annotations: None,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::document::DocumentState;
+
+    fn state(text: &str) -> DocumentState {
+        DocumentState {
+            text: text.to_string(),
+            version: 0,
+            parse: None,
+            analysis: None,
+            primary_schema: None,
+            data_path: None,
+        }
+    }
+
+    fn uri() -> Url {
+        Url::parse("file:///doc.ag").unwrap()
+    }
+
+    #[test]
+    fn build_name_index_records_let_declaration() {
+        let text =
+            "Chart(data: \"p.csv\") {\n  let c = \"#111\"\n  Space(x * y) { Point(fill: c) }\n}";
+        let index = build_name_index(&parse(text).syntax());
+        assert!(index.lets.iter().any(|site| site.name == "c"));
+        assert!(!index.var_refs.is_empty());
+    }
+
+    #[test]
+    fn rename_let_rewrites_declaration_and_use() {
+        let text =
+            "Chart(data: \"p.csv\") {\n  let c = \"#111\"\n  Space(x * y) { Point(fill: c) }\n}";
+        let state = state(text);
+        let offset = text.find("let c").unwrap() + 4; // on the `c` of the decl
+        assert!(renameable_at(&state, offset).is_some());
+        let edit = rename_edits(&state, &uri(), offset, "color").expect("rename");
+        let edits = &edit.changes.unwrap()[&uri()];
+        // Declaration plus the one `fill: c` use are both rewritten.
+        assert_eq!(edits.len(), 2);
+        assert!(edits.iter().all(|e| e.new_text == "color"));
+    }
+}

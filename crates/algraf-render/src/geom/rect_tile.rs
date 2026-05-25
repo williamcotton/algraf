@@ -1,4 +1,4 @@
-use algraf_semantics::GeometryIr;
+use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting};
 use crate::svg::{escape_attr, num, SvgWriter};
@@ -11,22 +11,22 @@ pub(super) fn render_rect(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
     let table = ctx.table;
     let rows = ctx.rows;
     let scales = ctx.scales;
-    let fill = color_spec(geo, "fill", table, scales);
-    let stroke = color_spec(geo, "stroke", table, scales);
-    let stroke_width = number_setting(geo, "strokeWidth", 1.0);
-    let alpha = number_setting(geo, "alpha", 1.0);
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     for row in render_rows(table, rows) {
         let (Some(xmin), Some(xmax), Some(ymin), Some(ymax)) = (
-            pos_bound(geo, "xmin", &space.x, table, row),
-            pos_bound(geo, "xmax", &space.x, table, row),
+            pos_bound(geo, PropertyKey::Xmin, &space.x, table, row),
+            pos_bound(geo, PropertyKey::Xmax, &space.x, table, row),
             space
                 .y
                 .as_ref()
-                .and_then(|axis| pos_bound(geo, "ymin", axis, table, row)),
+                .and_then(|axis| pos_bound(geo, PropertyKey::Ymin, axis, table, row)),
             space
                 .y
                 .as_ref()
-                .and_then(|axis| pos_bound(geo, "ymax", axis, table, row)),
+                .and_then(|axis| pos_bound(geo, PropertyKey::Ymax, axis, table, row)),
         ) else {
             continue;
         };
@@ -64,10 +64,10 @@ pub(super) fn render_tile(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
     let table = ctx.table;
     let rows = ctx.rows;
     let scales = ctx.scales;
-    let fill = color_spec(geo, "fill", table, scales);
-    let stroke = color_spec(geo, "stroke", table, scales);
-    let stroke_width = number_setting(geo, "strokeWidth", 1.0);
-    let alpha = number_setting(geo, "alpha", 1.0);
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     for row in render_rows(table, rows) {
         let (Some(cx), Some(bw), Some(cy), Some(bh)) = (
             space.resolve_x(table, row),

@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use algraf_core::{codes, Diagnostic};
-use algraf_semantics::GeometryIr;
+use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting, number_spec, ColorSpec, NumberSpec};
 use crate::svg::{escape_attr, num, SvgWriter};
@@ -27,16 +27,16 @@ pub(super) fn render_polyline(
     let rows = ctx.rows;
     let theme = ctx.theme;
     let scales = ctx.scales;
-    let stroke = color_spec(geo, "stroke", table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
     let width = number_spec(
         geo,
-        "strokeWidth",
+        PropertyKey::StrokeWidth,
         table,
         scales,
         DEFAULT_STROKE_WIDTH_RANGE,
         theme.line_width,
     );
-    let alpha = number_setting(geo, "alpha", 1.0);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     let row_list = render_rows(table, rows);
 
     // Group rows into series by `group` if present; otherwise preserve the
@@ -126,9 +126,9 @@ pub(super) fn render_smooth(
         return;
     }
 
-    let stroke = color_spec(geo, "stroke", table, scales);
-    let width = number_setting(geo, "strokeWidth", theme.line_width);
-    let alpha = number_setting(geo, "alpha", 1.0);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    let width = number_setting(geo, PropertyKey::StrokeWidth, theme.line_width);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     let row_list = render_rows(table, rows);
 
     for (_, group_rows) in grouped_rows(geo, &stroke, table, row_list) {
@@ -192,10 +192,10 @@ pub(super) fn render_ribbon(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRe
     let table = ctx.table;
     let rows = ctx.rows;
     let scales = ctx.scales;
-    let fill = color_spec(geo, "fill", table, scales);
-    let stroke = color_spec(geo, "stroke", table, scales);
-    let stroke_width = number_setting(geo, "strokeWidth", 1.0);
-    let alpha = number_setting(geo, "alpha", 0.25);
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 0.25);
     let row_list = render_rows(table, rows);
     let groups = match (&fill, &stroke) {
         (ColorSpec::Categorical { .. }, _) => grouped_rows_by_color(&fill, table, row_list),
@@ -208,8 +208,8 @@ pub(super) fn render_ribbon(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRe
             .iter()
             .filter_map(|&row| {
                 let x = space.resolve_x(table, row)?;
-                let ymin = pos(geo, "ymin", table, row).and_then(|v| space.map_y(v))?;
-                let ymax = pos(geo, "ymax", table, row).and_then(|v| space.map_y(v))?;
+                let ymin = pos(geo, PropertyKey::Ymin, table, row).and_then(|v| space.map_y(v))?;
+                let ymax = pos(geo, PropertyKey::Ymax, table, row).and_then(|v| space.map_y(v))?;
                 Some((x, ymin, ymax, row))
             })
             .collect();
@@ -247,11 +247,11 @@ pub(super) fn render_area(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
     let table = ctx.table;
     let rows = ctx.rows;
     let scales = ctx.scales;
-    let fill = color_spec(geo, "fill", table, scales);
-    let stroke = color_spec(geo, "stroke", table, scales);
-    let stroke_width = number_setting(geo, "strokeWidth", 1.0);
-    let alpha = number_setting(geo, "alpha", 0.4);
-    let baseline_value = number_setting(geo, "baseline", 0.0);
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 0.4);
+    let baseline_value = number_setting(geo, PropertyKey::Baseline, 0.0);
     let Some(baseline_y) = space.map_y(baseline_value) else {
         return;
     };

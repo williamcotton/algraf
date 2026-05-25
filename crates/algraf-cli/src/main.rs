@@ -17,9 +17,9 @@ use algraf_driver::{
 };
 use algraf_render::{render_with_tables, svg_num, Layout, Rect, Theme};
 use algraf_semantics::{
-    analyze, AestheticMapping, BinClosedIr, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr,
-    GeometryIr, GeometryKind, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
-    SmoothMethodIr, SpaceDataRef, SpaceIr, StatKind, StatOptionsIr,
+    analyze, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
+    GeometryKind, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
+    SpaceDataRef, SpaceIr, StatKind, StatOptionsIr,
 };
 use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::{format, parse};
@@ -796,10 +796,7 @@ fn scale_target_json(target: &ScaleTargetIr) -> Value {
     match target {
         ScaleTargetIr::Axis(axis) => json!({
             "kind": "axis",
-            "axis": match axis {
-                algraf_semantics::AxisSelectorIr::X => "x",
-                algraf_semantics::AxisSelectorIr::Y => "y",
-            },
+            "axis": axis.as_str(),
         }),
         ScaleTargetIr::Aesthetic { aesthetic, column } => json!({
             "kind": "aesthetic",
@@ -810,10 +807,7 @@ fn scale_target_json(target: &ScaleTargetIr) -> Value {
 }
 
 fn scale_type_str(scale_type: ScaleTypeIr) -> &'static str {
-    match scale_type {
-        ScaleTypeIr::Linear => "linear",
-        ScaleTypeIr::Log10 => "log10",
-    }
+    scale_type.as_str()
 }
 
 fn space_data_json(data: &SpaceDataRef) -> Value {
@@ -829,7 +823,7 @@ fn geometry_json(geometry: &GeometryIr) -> Value {
         "kind": geometry_kind_str(geometry.kind),
         "mappings": geometry.mappings.iter().map(mapping_json).collect::<Vec<_>>(),
         "settings": geometry.settings.iter().map(|s| {
-            json!({ "name": s.name, "value": setting_value_json(&s.value) })
+            json!({ "name": s.name.as_str(), "value": setting_value_json(&s.value) })
         }).collect::<Vec<_>>(),
         "span": span_json(geometry.span),
     })
@@ -837,7 +831,7 @@ fn geometry_json(geometry: &GeometryIr) -> Value {
 
 fn mapping_json(mapping: &AestheticMapping) -> Value {
     json!({
-        "aesthetic": mapping.aesthetic,
+        "aesthetic": mapping.aesthetic.as_str(),
         "column": column_json(&mapping.column),
     })
 }
@@ -892,18 +886,13 @@ fn stat_options_json(options: &StatOptionsIr) -> Value {
             "bins": bins,
             "binWidth": bin_width,
             "boundary": boundary,
-            "closed": match closed {
-                BinClosedIr::Left => "left",
-                BinClosedIr::Right => "right",
-            },
+            "closed": closed.as_str(),
         }),
         StatOptionsIr::Bin2D { bins } => json!({ "kind": "bin2d", "bins": bins }),
         StatOptionsIr::HexBin { bins } => json!({ "kind": "hexbin", "bins": bins }),
         StatOptionsIr::Smooth { method } => json!({
             "kind": "smooth",
-            "method": match method {
-                SmoothMethodIr::Lm => "lm",
-            },
+            "method": method.as_str(),
         }),
         StatOptionsIr::Density {
             bandwidth,
@@ -918,15 +907,7 @@ fn stat_options_json(options: &StatOptionsIr) -> Value {
 }
 
 fn stat_kind_str(kind: StatKind) -> &'static str {
-    match kind {
-        StatKind::Bin => "Bin",
-        StatKind::Bin2D => "Bin2D",
-        StatKind::HexBin => "HexBin",
-        StatKind::Count => "Count",
-        StatKind::Smooth => "Smooth",
-        StatKind::Boxplot => "Boxplot",
-        StatKind::Density => "Density",
-    }
+    kind.display_name()
 }
 
 fn geometry_kind_str(kind: GeometryKind) -> &'static str {

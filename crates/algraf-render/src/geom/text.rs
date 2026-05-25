@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use algraf_semantics::GeometryIr;
+use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_for_row, number_setting};
 use crate::helpers::{bool_setting, string_setting};
@@ -32,14 +32,17 @@ pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderCon
     let plot = ctx.plot;
     let theme = ctx.theme;
     let scales = ctx.scales;
-    let fill = color_spec(geo, "fill", table, scales);
-    let alpha = number_setting(geo, "alpha", 1.0);
-    let size = number_setting(geo, "size", theme.font_size);
-    let anchor = string_setting(geo, "anchor").unwrap_or_else(|| "middle".to_string());
-    let declutter = bool_setting(geo, "declutter", false);
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
+    let size = number_setting(geo, PropertyKey::Size, theme.font_size);
+    let anchor = string_setting(geo, PropertyKey::Anchor).unwrap_or_else(|| "middle".to_string());
+    let declutter = bool_setting(geo, PropertyKey::Declutter, false);
 
-    let label_mapping = geo.mappings.iter().find(|m| m.aesthetic == "label");
-    let label_literal = string_setting(geo, "label");
+    let label_mapping = geo
+        .mappings
+        .iter()
+        .find(|m| m.aesthetic == PropertyKey::Label);
+    let label_literal = string_setting(geo, PropertyKey::Label);
 
     // Phase 1: collect each resolvable label at its post-dx/dy position.
     let mut labels: Vec<PlacedLabel> = Vec::new();
@@ -58,8 +61,8 @@ pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderCon
         } else {
             continue;
         };
-        let dx = number_for_row(geo, "dx", table, row, 0.0);
-        let dy = number_for_row(geo, "dy", table, row, 0.0);
+        let dx = number_for_row(geo, PropertyKey::Dx, table, row, 0.0);
+        let dy = number_for_row(geo, PropertyKey::Dy, table, row, 0.0);
         let color = fill
             .resolve(table, row)
             .unwrap_or_else(|| theme.text_color.clone());

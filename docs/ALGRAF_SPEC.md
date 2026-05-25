@@ -2281,6 +2281,18 @@ instead of a filesystem path. When using the default operating-system provider,
 path-relative sidecar behavior MUST remain the same as path-backed shapefile
 loading.
 
+Recognized source constructors MUST be described by a single shared
+constructor-metadata table in the syntax layer. The metadata records the
+constructor's authoritative name, its explicit loader-format policy, its
+path-argument rule, documentation, and editor completion text. The set of
+recognized constructors is closed: a name absent from the table is not a
+constructor (and falls through to the usual invalid-source diagnostics). The
+driver maps a constructor's format policy into a data-loader format at one
+boundary; syntax MUST NOT depend on the data crate's runtime format type, and
+runtime strings MUST NOT be promoted to constructors outside the table. Adding a
+future constructor (e.g. `Sqlite(...)`) means adding a table entry, not widening
+accepted syntax in scattered matches.
+
 Path resolution, `--base-dir`, and source security (§10.8) apply unchanged. A
 missing source file is `E1106`; an unreadable one is `E1107`. A malformed
 document or unsupported geometry type is `E1805`.
@@ -3199,6 +3211,30 @@ IR produced by high-level geometry desugaring MUST carry an origin mapping.
 
 Diagnostics on synthetic IR nodes MUST use the origin mapping to report source spans in the user-authored program.
 
+A geometry's aesthetic mappings and literal settings are keyed by a typed
+property key rather than a raw string:
+
+```rust
+pub struct AestheticMapping {
+    pub aesthetic: PropertyKey,
+    pub column: ColumnRef,
+    pub span: Span,
+}
+
+pub struct GeometrySetting {
+    pub name: PropertyKey,
+    pub value: SettingValue,
+    pub span: Span,
+}
+```
+
+`PropertyKey` is a closed enum with one variant per built-in geometry property
+(spec §13.9). The renderer and geometry lowering MUST match on `PropertyKey`
+variants rather than comparing property-name strings. Every mapping and setting
+MUST carry the `Span` of the user-authored argument that produced it; mappings
+and settings synthesized during desugaring MUST carry the span of the
+originating geometry call.
+
 ### 13.7 Column Reference
 
 ```rust
@@ -3294,6 +3330,14 @@ Before a property value is checked against its accepted forms, an unquoted
 bare-identifier value MUST be resolved against in-scope `let` variables (spec
 §9.6). When the identifier names a variable, the bound constant is substituted
 and checked in its place; the type rules above then apply to the constant.
+
+Each recognized property name maps to exactly one typed `PropertyKey` variant
+(spec §13.6), and a property's name MUST be the single authoritative spelling of
+its key (the registry derives the name from the key, so the two cannot drift).
+Geometry names are likewise derived from a single authoritative
+`GeometryKind` spelling. The registry remains the source of completion, hover,
+and signature-help metadata; LSP features MUST reuse this metadata rather than
+re-listing names.
 
 ### 13.10 Duplicate Argument Diagnostics
 
@@ -6118,6 +6162,20 @@ the whole document and returns a single edit rather than implementing a partial
 formatter. On-type formatting is deferred: reformatting on each keystroke would
 surprise authors, which §21.1-style high-confidence behavior avoids.
 
+On-type formatting (`textDocument/onTypeFormatting`) remains deferred and MUST
+NOT be advertised in this version. The reasons are intrinsic to the holistic
+formatter: (1) it only reflows documents that parse without errors (spec
+§21.10), and source is most often mid-edit — and thus invalid — at the moment a
+trigger character is typed, so the formatter would no-op or, worse, reflow a
+stale-but-valid parse; (2) the formatter rewrites the whole document, so a
+keystroke trigger would produce large, cursor-displacing edits rather than the
+local touch-ups on-type formatting implies; and (3) deterministic whole-document
+formatting is already available on demand via document and range formatting. A
+future version MAY enable a deliberately narrow subset — e.g. closing-brace (`}`)
+and newline triggers that only re-indent the just-closed block when the document
+parses cleanly — but only if it can guarantee edits stay local and never fire on
+invalid input. Until then, no on-type formatting capability is registered.
+
 ### 21.11 Semantic Tokens
 
 Semantic token categories:
@@ -6563,6 +6621,10 @@ AST/CST
 parse diagnostics
 
 formatter
+
+shared source-constructor metadata table (recognized constructor names, format
+policy, path-argument rules, documentation, completion text; spec §10.11),
+expressed without depending on the data crate's runtime format type
 
 `semantics`:
 
@@ -7386,6 +7448,19 @@ parser does not panic
 
 useful context remains available for completion
 
+The resilience suite MUST also cover adversarial **nesting and malformed-input**
+cases as deterministic fixtures: deeply nested algebra (parentheses and operator
+chains), deeply nested array literals, densely unbalanced delimiters, and
+truncation of a valid document at every byte boundary. The analyzer MUST tolerate
+the same deeply nested algebra without panicking or overflowing. The formatter
+MUST return invalid input unchanged (spec §21.10) and MUST be idempotent on valid
+input. These are fixtures rather than a fuzzing harness, so they run in CI
+without extra dependencies; property-based fuzzing remains OPTIONAL (spec §27.8).
+The implementation currently relies on the host stack depth rather than an
+explicit nesting limit; if a future change makes parsing or analysis recurse more
+deeply per level, an explicit nesting-limit diagnostic SHOULD be added here
+before relaxing these tests.
+
 ### 27.5 Semantic Tests
 
 Test unknown columns.
@@ -7486,6 +7561,15 @@ Hover tests SHOULD verify operator docs.
 
 Diagnostics tests SHOULD verify ranges.
 
+In addition to the cross-feature integration suite above, each LSP feature module
+(completion, hover, semantic tokens, navigation, signature help, rename, inlay
+hints, diagnostics conversion, code actions, preview, document symbols) SHOULD
+own focused unit tests next to its implementation. At least one module-level test
+MUST exercise non-ASCII byte-span ↔ UTF-16 position conversion (spec §11.2,
+§21.x), since spans are byte offsets while LSP positions and token lengths are
+UTF-16 units. The integration suite remains the home for protocol-level behavior
+that spans more than one feature.
+
 ### 27.8 Property-Based Tests
 
 Property tests MAY verify:
@@ -7559,6 +7643,14 @@ Algraf MUST NOT load remote resources by default.
 Algraf MUST escape SVG text and attributes.
 
 Algraf SHOULD cap resource usage for LSP schema reads.
+
+Parsing and analysis MUST remain resilient against adversarial nesting and
+malformed input: recover and continue, never panic (spec §12.1, §27.4). This
+version does not impose an explicit nesting-depth limit and relies on the host
+stack; a deterministic resilience fixture suite (spec §27.4) guards the
+guarantee. If a future change increases per-level recursion such that realistic
+adversarial inputs could exhaust the stack, an explicit nesting-limit diagnostic
+SHOULD be introduced (reserved for that purpose) rather than allowing a crash.
 
 ### 29.2 Path Handling
 

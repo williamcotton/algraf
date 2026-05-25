@@ -4,7 +4,7 @@
 //! completion. Each geometry lists its accepted properties; each property lists
 //! the value forms it accepts and whether it is required.
 
-use crate::ir::GeometryKind;
+use crate::ir::{GeometryKind, PropertyKey};
 
 /// Recognized `Chart(...)` arguments.
 pub const CHART_ARGS: &[&str] = &[
@@ -112,36 +112,51 @@ pub enum Accept {
     NumberArray,
 }
 
-/// A geometry property definition (spec §13.9).
+/// A geometry property definition (spec §13.9). `key` is the typed property
+/// identity; `name` is its authoritative source spelling, derived from `key` so
+/// the registry never duplicates a property name (spec §13.9).
 #[derive(Debug, Clone, Copy)]
 pub struct PropSpec {
+    pub key: PropertyKey,
     pub name: &'static str,
     pub accepts: &'static [Accept],
     pub required: bool,
 }
 
-const fn opt(name: &'static str, accepts: &'static [Accept]) -> PropSpec {
+const fn opt(key: PropertyKey, accepts: &'static [Accept]) -> PropSpec {
     PropSpec {
-        name,
+        key,
+        name: key.as_str(),
         accepts,
         required: false,
     }
 }
 
-const fn req(name: &'static str, accepts: &'static [Accept]) -> PropSpec {
+const fn req(key: PropertyKey, accepts: &'static [Accept]) -> PropSpec {
     PropSpec {
-        name,
+        key,
+        name: key.as_str(),
         accepts,
         required: true,
     }
 }
 
-/// A geometry definition (spec §13.8).
+/// A geometry definition (spec §13.8). `name` is derived from
+/// [`GeometryKind::display_name`] so the registry never duplicates a geometry's
+/// authoritative spelling.
 #[derive(Debug, Clone, Copy)]
 pub struct GeometryDef {
     pub name: &'static str,
     pub kind: GeometryKind,
     pub props: &'static [PropSpec],
+}
+
+const fn geo(kind: GeometryKind, props: &'static [PropSpec]) -> GeometryDef {
+    GeometryDef {
+        name: kind.display_name(),
+        kind,
+        props,
+    }
 }
 
 // Common aesthetic value forms.
@@ -158,307 +173,225 @@ const POS: &[Accept] = &[Accept::Column, Accept::Number];
 const GROUP: &[Accept] = &[Accept::Column];
 
 const POINT: &[PropSpec] = &[
-    opt("fill", FILL),
-    opt("stroke", STROKE),
-    opt("alpha", ALPHA),
-    opt("size", SIZE),
-    opt("shape", SHAPE),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Size, SIZE),
+    opt(PropertyKey::Shape, SHAPE),
 ];
 
 const LINE: &[PropSpec] = &[
-    opt("stroke", STROKE),
-    opt("strokeWidth", LINE_STROKE_WIDTH),
-    opt("alpha", ALPHA),
-    opt("group", GROUP),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, LINE_STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Group, GROUP),
 ];
 
 const PATH: &[PropSpec] = &[
-    opt("stroke", STROKE),
-    opt("strokeWidth", LINE_STROKE_WIDTH),
-    opt("alpha", ALPHA),
-    opt("group", GROUP),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, LINE_STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Group, GROUP),
 ];
 
 const BAR: &[PropSpec] = &[
-    opt("fill", FILL),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
-    opt("layout", &[Accept::Enum(&["identity", "stack", "fill"])]),
-    opt("stat", &[Accept::Enum(&["identity", "count"])]),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(
+        PropertyKey::Layout,
+        &[Accept::Enum(&["identity", "stack", "fill"])],
+    ),
+    opt(PropertyKey::Stat, &[Accept::Enum(&["identity", "count"])]),
 ];
 
 const RECT: &[PropSpec] = &[
-    req("xmin", POS),
-    req("xmax", POS),
-    req("ymin", POS),
-    req("ymax", POS),
-    opt("fill", FILL),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
+    req(PropertyKey::Xmin, POS),
+    req(PropertyKey::Xmax, POS),
+    req(PropertyKey::Ymin, POS),
+    req(PropertyKey::Ymax, POS),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
 ];
 
 const HISTOGRAM: &[PropSpec] = &[
-    opt("bins", &[Accept::Number]),
-    opt("binWidth", &[Accept::Number]),
-    opt("boundary", &[Accept::Number]),
-    opt("closed", &[Accept::Enum(&["left", "right"])]),
-    opt("fill", &[Accept::Color]),
-    opt("stroke", &[Accept::Color]),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
+    opt(PropertyKey::Bins, &[Accept::Number]),
+    opt(PropertyKey::BinWidth, &[Accept::Number]),
+    opt(PropertyKey::Boundary, &[Accept::Number]),
+    opt(PropertyKey::Closed, &[Accept::Enum(&["left", "right"])]),
+    opt(PropertyKey::Fill, &[Accept::Color]),
+    opt(PropertyKey::Stroke, &[Accept::Color]),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
 ];
 
 const FREQ_POLY: &[PropSpec] = &[
-    opt("bins", &[Accept::Number]),
-    opt("binWidth", &[Accept::Number]),
-    opt("boundary", &[Accept::Number]),
-    opt("closed", &[Accept::Enum(&["left", "right"])]),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
-    opt("group", GROUP),
+    opt(PropertyKey::Bins, &[Accept::Number]),
+    opt(PropertyKey::BinWidth, &[Accept::Number]),
+    opt(PropertyKey::Boundary, &[Accept::Number]),
+    opt(PropertyKey::Closed, &[Accept::Enum(&["left", "right"])]),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Group, GROUP),
 ];
 
 const BIN2D: &[PropSpec] = &[
-    opt("bins", &[Accept::Number]),
-    opt("fill", &[Accept::Color]),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
+    opt(PropertyKey::Bins, &[Accept::Number]),
+    opt(PropertyKey::Fill, &[Accept::Color]),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
 ];
 
 const HEXBIN: &[PropSpec] = &[
-    opt("bins", &[Accept::Number]),
-    opt("fill", &[Accept::Color]),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
+    opt(PropertyKey::Bins, &[Accept::Number]),
+    opt(PropertyKey::Fill, &[Accept::Color]),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
 ];
 
 const SMOOTH: &[PropSpec] = &[
-    opt("method", &[Accept::Enum(&["lm"])]),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
-    opt("group", GROUP),
+    opt(PropertyKey::Method, &[Accept::Enum(&["lm"])]),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Group, GROUP),
 ];
 
 const DENSITY: &[PropSpec] = &[
-    opt("bandwidth", &[Accept::Number]),
-    opt("n", &[Accept::Number]),
-    opt("fill", &[Accept::Color]),
-    opt("stroke", &[Accept::Color]),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
+    opt(PropertyKey::Bandwidth, &[Accept::Number]),
+    opt(PropertyKey::N, &[Accept::Number]),
+    opt(PropertyKey::Fill, &[Accept::Color]),
+    opt(PropertyKey::Stroke, &[Accept::Color]),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
 ];
 
 const BOXPLOT: &[PropSpec] = &[
-    opt("fill", FILL),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
-    opt("width", &[Accept::Number]),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Width, &[Accept::Number]),
 ];
 
 const VIOLIN: &[PropSpec] = &[
-    opt("bandwidth", &[Accept::Number]),
-    opt("n", &[Accept::Number]),
-    opt("quantiles", &[Accept::NumberArray]),
-    opt("fill", FILL),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
-    opt("width", &[Accept::Number]),
+    opt(PropertyKey::Bandwidth, &[Accept::Number]),
+    opt(PropertyKey::N, &[Accept::Number]),
+    opt(PropertyKey::Quantiles, &[Accept::NumberArray]),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Width, &[Accept::Number]),
 ];
 
 const RIBBON: &[PropSpec] = &[
-    req("ymin", POS),
-    req("ymax", POS),
-    opt("fill", FILL),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
+    req(PropertyKey::Ymin, POS),
+    req(PropertyKey::Ymax, POS),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
 ];
 
 const TILE: &[PropSpec] = &[
-    opt("fill", FILL),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
 ];
 
 const HLINE: &[PropSpec] = &[
-    req("y", &[Accept::Number]),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
-    opt("label", &[Accept::Str]),
+    req(PropertyKey::Y, &[Accept::Number]),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Label, &[Accept::Str]),
 ];
 
 const VLINE: &[PropSpec] = &[
-    req("x", &[Accept::Number]),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
-    opt("label", &[Accept::Str]),
+    req(PropertyKey::X, &[Accept::Number]),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Label, &[Accept::Str]),
 ];
 
 const RUG: &[PropSpec] = &[
-    opt("sides", &[Accept::Str]),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
+    opt(PropertyKey::Sides, &[Accept::Str]),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
 ];
 
 const AREA: &[PropSpec] = &[
-    opt("baseline", &[Accept::Number]),
-    opt("fill", FILL),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
+    opt(PropertyKey::Baseline, &[Accept::Number]),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
 ];
 
 const TEXT: &[PropSpec] = &[
-    req("label", &[Accept::Column, Accept::Str]),
-    opt("fill", FILL),
-    opt("alpha", ALPHA),
-    opt("size", SIZE),
-    opt("anchor", &[Accept::Enum(&["start", "middle", "end"])]),
-    opt("dx", &[Accept::Column, Accept::Number]),
-    opt("dy", &[Accept::Column, Accept::Number]),
-    opt("declutter", &[Accept::Bool]),
+    req(PropertyKey::Label, &[Accept::Column, Accept::Str]),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Size, SIZE),
+    opt(
+        PropertyKey::Anchor,
+        &[Accept::Enum(&["start", "middle", "end"])],
+    ),
+    opt(PropertyKey::Dx, &[Accept::Column, Accept::Number]),
+    opt(PropertyKey::Dy, &[Accept::Column, Accept::Number]),
+    opt(PropertyKey::Declutter, &[Accept::Bool]),
 ];
 
 const GEO: &[PropSpec] = &[
-    opt("fill", FILL),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
 ];
 
 const SEGMENT: &[PropSpec] = &[
-    req("x", &[Accept::Number]),
-    req("y", &[Accept::Number]),
-    req("xend", &[Accept::Number]),
-    req("yend", &[Accept::Number]),
-    opt("stroke", STROKE),
-    opt("strokeWidth", STROKE_WIDTH),
-    opt("alpha", ALPHA),
+    req(PropertyKey::X, &[Accept::Number]),
+    req(PropertyKey::Y, &[Accept::Number]),
+    req(PropertyKey::Xend, &[Accept::Number]),
+    req(PropertyKey::Yend, &[Accept::Number]),
+    opt(PropertyKey::Stroke, STROKE),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
 ];
 
 const GEOMETRIES: &[GeometryDef] = &[
-    GeometryDef {
-        name: "Point",
-        kind: GeometryKind::Point,
-        props: POINT,
-    },
-    GeometryDef {
-        name: "Line",
-        kind: GeometryKind::Line,
-        props: LINE,
-    },
-    GeometryDef {
-        name: "Path",
-        kind: GeometryKind::Path,
-        props: PATH,
-    },
-    GeometryDef {
-        name: "Bar",
-        kind: GeometryKind::Bar,
-        props: BAR,
-    },
-    GeometryDef {
-        name: "Rect",
-        kind: GeometryKind::Rect,
-        props: RECT,
-    },
-    GeometryDef {
-        name: "Histogram",
-        kind: GeometryKind::Histogram,
-        props: HISTOGRAM,
-    },
-    GeometryDef {
-        name: "FreqPoly",
-        kind: GeometryKind::FreqPoly,
-        props: FREQ_POLY,
-    },
-    GeometryDef {
-        name: "Bin2D",
-        kind: GeometryKind::Bin2D,
-        props: BIN2D,
-    },
-    GeometryDef {
-        name: "HexBin",
-        kind: GeometryKind::HexBin,
-        props: HEXBIN,
-    },
-    GeometryDef {
-        name: "Smooth",
-        kind: GeometryKind::Smooth,
-        props: SMOOTH,
-    },
-    GeometryDef {
-        name: "Boxplot",
-        kind: GeometryKind::Boxplot,
-        props: BOXPLOT,
-    },
-    GeometryDef {
-        name: "Violin",
-        kind: GeometryKind::Violin,
-        props: VIOLIN,
-    },
-    GeometryDef {
-        name: "Density",
-        kind: GeometryKind::Density,
-        props: DENSITY,
-    },
-    GeometryDef {
-        name: "Ribbon",
-        kind: GeometryKind::Ribbon,
-        props: RIBBON,
-    },
-    GeometryDef {
-        name: "Tile",
-        kind: GeometryKind::Tile,
-        props: TILE,
-    },
-    GeometryDef {
-        name: "HLine",
-        kind: GeometryKind::HLine,
-        props: HLINE,
-    },
-    GeometryDef {
-        name: "VLine",
-        kind: GeometryKind::VLine,
-        props: VLINE,
-    },
-    GeometryDef {
-        name: "Rug",
-        kind: GeometryKind::Rug,
-        props: RUG,
-    },
-    GeometryDef {
-        name: "Area",
-        kind: GeometryKind::Area,
-        props: AREA,
-    },
-    GeometryDef {
-        name: "Text",
-        kind: GeometryKind::Text,
-        props: TEXT,
-    },
-    GeometryDef {
-        name: "Segment",
-        kind: GeometryKind::Segment,
-        props: SEGMENT,
-    },
-    GeometryDef {
-        name: "Geo",
-        kind: GeometryKind::Geo,
-        props: GEO,
-    },
+    geo(GeometryKind::Point, POINT),
+    geo(GeometryKind::Line, LINE),
+    geo(GeometryKind::Path, PATH),
+    geo(GeometryKind::Bar, BAR),
+    geo(GeometryKind::Rect, RECT),
+    geo(GeometryKind::Histogram, HISTOGRAM),
+    geo(GeometryKind::FreqPoly, FREQ_POLY),
+    geo(GeometryKind::Bin2D, BIN2D),
+    geo(GeometryKind::HexBin, HEXBIN),
+    geo(GeometryKind::Smooth, SMOOTH),
+    geo(GeometryKind::Boxplot, BOXPLOT),
+    geo(GeometryKind::Violin, VIOLIN),
+    geo(GeometryKind::Density, DENSITY),
+    geo(GeometryKind::Ribbon, RIBBON),
+    geo(GeometryKind::Tile, TILE),
+    geo(GeometryKind::HLine, HLINE),
+    geo(GeometryKind::VLine, VLINE),
+    geo(GeometryKind::Rug, RUG),
+    geo(GeometryKind::Area, AREA),
+    geo(GeometryKind::Text, TEXT),
+    geo(GeometryKind::Segment, SEGMENT),
+    geo(GeometryKind::Geo, GEO),
 ];
 
 /// Look up a geometry definition by exact (case-sensitive) name.
@@ -553,5 +486,38 @@ pub fn property_doc(name: &str) -> &'static str {
         "marginBottom" => "Minimum bottom plot margin in pixels (floor over the computed margin).",
         "marginLeft" => "Minimum left plot margin in pixels (floor over the computed margin).",
         _ => "Algraf argument.",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ir::{PropertyKey, PROPERTY_KEYS};
+
+    #[test]
+    fn every_registry_property_resolves_to_its_typed_key() {
+        // The registry derives `name` from `key.as_str()`, so a property's name
+        // and typed key must always agree and round-trip through `from_name`.
+        for geo in GEOMETRIES {
+            for prop in geo.props {
+                assert_eq!(prop.name, prop.key.as_str());
+                assert_eq!(PropertyKey::from_name(prop.name), Some(prop.key));
+            }
+        }
+    }
+
+    #[test]
+    fn property_key_as_str_round_trips() {
+        for &key in PROPERTY_KEYS {
+            assert_eq!(PropertyKey::from_name(key.as_str()), Some(key));
+        }
+    }
+
+    #[test]
+    fn property_key_spellings_are_unique() {
+        let mut seen = std::collections::HashSet::new();
+        for &key in PROPERTY_KEYS {
+            assert!(seen.insert(key.as_str()), "duplicate spelling {key:?}");
+        }
     }
 }

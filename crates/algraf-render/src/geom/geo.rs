@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use algraf_data::geo_types::{Geometry, LineString};
 use algraf_data::DataValueRef;
-use algraf_semantics::GeometryIr;
+use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting};
 use crate::svg::{escape_attr, num, SvgWriter};
@@ -31,10 +31,10 @@ pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderCon
     let Some(geom_col) = spatial.geom_col.clone() else {
         return;
     };
-    let fill = color_spec(geo, "fill", table, scales);
-    let stroke = color_spec(geo, "stroke", table, scales);
-    let stroke_width = number_setting(geo, "strokeWidth", 0.0);
-    let alpha = number_setting(geo, "alpha", 1.0);
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 0.0);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
 
     for row in render_rows(table, rows) {
         let Some(DataValueRef::Geometry(geometry)) = table.value(&geom_col, row) else {

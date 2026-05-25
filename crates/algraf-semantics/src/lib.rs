@@ -16,7 +16,7 @@ pub use analyzer::{
 };
 pub use ir::{
     AestheticMapping, AxisSelectorIr, BinClosedIr, ChartIr, ColumnRef, DataSourceIr, DeriveIr,
-    FrameIr, GeometryIr, GeometryKind, GuideIr, GuideOverridesIr, ScaleIr, ScaleTargetIr,
-    ScaleTypeIr, SettingValue, SmoothMethodIr, SpaceDataRef, SpaceIr, StatCallIr, StatKind,
-    StatOptionsIr, TableDeclIr, ThemeIr, ThemeOverrides,
+    FrameIr, GeometryIr, GeometryKind, GuideIr, GuideOverridesIr, PropertyKey, ScaleIr,
+    ScaleTargetIr, ScaleTypeIr, SettingValue, SmoothMethodIr, SpaceDataRef, SpaceIr, StatCallIr,
+    StatKind, StatOptionsIr, TableDeclIr, ThemeIr, ThemeOverrides, PROPERTY_KEYS,
 };

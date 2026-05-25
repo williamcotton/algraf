@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use algraf_core::{codes, Diagnostic};
 use algraf_data::Table;
-use algraf_semantics::GeometryIr;
+use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting, ColorSpec};
 use crate::helpers::{bar_layout, BarLayout};
@@ -35,10 +35,10 @@ pub(super) fn render(
         ));
         return;
     }
-    let fill = color_spec(geo, "fill", table, scales);
-    let stroke = color_spec(geo, "stroke", table, scales);
-    let stroke_width = number_setting(geo, "strokeWidth", 1.0);
-    let alpha = number_setting(geo, "alpha", 1.0);
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     let layout = bar_layout(geo);
     let stacked = matches!(layout, BarLayout::Stack | BarLayout::Fill);
 

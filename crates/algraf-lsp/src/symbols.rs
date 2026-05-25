@@ -137,3 +137,34 @@ fn symbol(
         children: (!children.is_empty()).then_some(children),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use algraf_syntax::parse;
+
+    #[test]
+    fn space_and_geometry_nest_under_chart() {
+        let source = "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Point()\n  }\n}";
+        let syntax = parse(source).syntax();
+        let symbols = document_symbols(source, &syntax);
+        // The single top-level symbol is the Chart; Space nests under it, and
+        // Point under the Space.
+        assert_eq!(symbols.len(), 1);
+        let chart = &symbols[0];
+        assert_eq!(chart.name, "Chart");
+        let chart_children = chart.children.as_ref().expect("chart children");
+        let space = chart_children
+            .iter()
+            .find(|s| s.name == "Space")
+            .expect("space symbol");
+        let space_children = space.children.as_ref().expect("space children");
+        assert!(space_children.iter().any(|c| c.name == "Point"));
+    }
+
+    #[test]
+    fn empty_source_has_no_symbols() {
+        let syntax = parse("").syntax();
+        assert!(document_symbols("", &syntax).is_empty());
+    }
+}

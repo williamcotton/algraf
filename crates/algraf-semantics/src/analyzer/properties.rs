@@ -67,10 +67,15 @@ impl Analyzer<'_> {
 
             match self.check_property(prop, arg, table) {
                 PropOutcome::Mapping(column) => mappings.push(AestheticMapping {
-                    aesthetic: key,
+                    aesthetic: prop.key,
                     column,
+                    span: key_span,
                 }),
-                PropOutcome::Setting(value) => settings.push(GeometrySetting { name: key, value }),
+                PropOutcome::Setting(value) => settings.push(GeometrySetting {
+                    name: prop.key,
+                    value,
+                    span: key_span,
+                }),
                 PropOutcome::Invalid => {}
             }
         }
@@ -207,9 +212,10 @@ impl Analyzer<'_> {
         if def.kind != GeometryKind::Bar {
             return;
         }
-        let has_fill = mappings.iter().any(|m| m.aesthetic == "fill");
+        let has_fill = mappings.iter().any(|m| m.aesthetic == PropertyKey::Fill);
         let stacked = settings.iter().any(|s| {
-            s.name == "layout" && matches!(&s.value, SettingValue::String(v) if v != "identity")
+            s.name == PropertyKey::Layout
+                && matches!(&s.value, SettingValue::String(v) if v != "identity")
         });
         // Only hint when the space is a flat Cartesian with no nesting; a
         // frame that already nests is the dodge form the hint would suggest.

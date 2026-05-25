@@ -62,3 +62,49 @@ pub(crate) fn inlay_hints_for(state: &DocumentState, range: Range) -> Vec<InlayH
     }
     hints
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::document::{AnalysisState, DocumentState};
+    use algraf_data::{ColumnDef, DataType};
+    use algraf_semantics::analyze_with_tables;
+    use std::collections::HashMap;
+    use tower_lsp::lsp_types::Position;
+
+    fn col(name: &str, dtype: DataType) -> ColumnDef {
+        ColumnDef {
+            name: name.to_string(),
+            dtype,
+            nullable: false,
+            examples: vec![],
+        }
+    }
+
+    #[test]
+    fn derive_inlay_hint_lists_output_columns() {
+        let text =
+            "Chart(data: \"p.csv\") {\n  Derive d = Bin(flipper_length)\n  Space(d) { Point() }\n}";
+        let schema = vec![col("flipper_length", DataType::Float)];
+        let analysis = analyze_with_tables(&parse(text).syntax(), &schema, &HashMap::new());
+        let state = DocumentState {
+            text: text.to_string(),
+            version: 0,
+            parse: None,
+            analysis: Some(AnalysisState {
+                ir: analysis.ir,
+                diagnostics: analysis.diagnostics,
+            }),
+            primary_schema: Some(schema),
+            data_path: None,
+        };
+        let full = Range::new(Position::new(0, 0), Position::new(100, 0));
+        let hints = inlay_hints_for(&state, full);
+        assert_eq!(hints.len(), 1);
+        let InlayHintLabel::String(label) = &hints[0].label else {
+            panic!("expected string label");
+        };
+        assert!(label.contains("bin_start"));
+        assert!(label.contains("count"));
+    }
+}

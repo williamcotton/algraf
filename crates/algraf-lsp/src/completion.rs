@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::registry;
-use algraf_syntax::{parse, tokenize, SourceFormat};
+use algraf_syntax::{parse, tokenize, SOURCE_CONSTRUCTORS};
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, InsertTextFormat, MarkupContent, MarkupKind,
 };
@@ -183,13 +183,11 @@ pub(crate) fn completion_items(
                     snippet("\"data.csv\"", "\"$1.csv\"", "CSV data path"),
                     keyword("stdin", "Read CSV data from standard input"),
                 ];
-                items.extend(SourceFormat::constructor_names().map(|name| {
-                    snippet(
-                        name,
-                        &format!("{name}(\"$1\")"),
-                        "Explicit data source constructor",
-                    )
-                }));
+                items.extend(
+                    SOURCE_CONSTRUCTORS
+                        .iter()
+                        .map(|meta| snippet(meta.name, meta.completion_snippet, meta.doc)),
+                );
                 items
             } else {
                 registry::CHART_ARGS
@@ -596,4 +594,56 @@ fn is_plain_identifier(name: &str) -> bool {
         return false;
     }
     chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::document::DocumentState;
+
+    fn empty_state() -> DocumentState {
+        DocumentState {
+            text: String::new(),
+            version: 0,
+            parse: None,
+            analysis: None,
+            primary_schema: None,
+            data_path: None,
+        }
+    }
+
+    fn labels(items: &[CompletionItem]) -> Vec<&str> {
+        items.iter().map(|i| i.label.as_str()).collect()
+    }
+
+    #[test]
+    fn context_inside_geometry_call_resolves_geometry_args() {
+        let source = "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Point(";
+        match completion_context(source, source.len()) {
+            CompletionContext::GeometryArgs { geometry, .. } => {
+                assert_eq!(geometry.as_deref(), Some("Point"));
+            }
+            other => panic!("unexpected context: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn data_arg_completion_offers_source_constructors() {
+        let items = completion_items(
+            &empty_state(),
+            CompletionContext::ChartArgs {
+                active_key: Some("data".to_string()),
+            },
+        );
+        let labels = labels(&items);
+        assert!(labels.contains(&"GeoJson"));
+        assert!(labels.contains(&"Shapefile"));
+        assert!(labels.contains(&"stdin"));
+    }
+
+    #[test]
+    fn top_level_completion_offers_chart() {
+        let items = completion_items(&empty_state(), CompletionContext::TopLevel);
+        assert_eq!(labels(&items), vec!["Chart"]);
+    }
 }

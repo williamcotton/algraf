@@ -117,3 +117,33 @@ fn build_signature(name: &str, params: &[&str], commas: usize) -> SignatureHelp 
         active_parameter,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn help(source: &str) -> SignatureHelp {
+        signature_help_at(source, source.len()).expect("signature help")
+    }
+
+    #[test]
+    fn geometry_signature_lists_registry_properties() {
+        let sig = help("Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Point(");
+        let info = &sig.signatures[0];
+        assert!(info.label.starts_with("Point("));
+        assert!(info.label.contains("fill"));
+        // The first argument is active before any comma.
+        assert_eq!(sig.active_parameter, Some(0));
+    }
+
+    #[test]
+    fn active_parameter_advances_past_commas() {
+        let sig = help("Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Point(fill: x, ");
+        assert_eq!(sig.active_parameter, Some(1));
+    }
+
+    #[test]
+    fn unknown_call_has_no_signature() {
+        assert!(signature_help_at("Nope(", 5).is_none());
+    }
+}

@@ -45,3 +45,41 @@ pub(crate) fn diagnostic_to_lsp(
         data: None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use algraf_core::{codes, Span};
+
+    fn uri() -> Url {
+        Url::parse("file:///doc.ag").unwrap()
+    }
+
+    #[test]
+    fn maps_severity_code_and_appends_help() {
+        let source = "Chart(data: \"p.csv\") {}";
+        let core = CoreDiagnostic::error(codes::E1201, "unknown geometry `Poimt`", Span::new(0, 5))
+            .with_help("did you mean `Point`?");
+        let lsp = diagnostic_to_lsp(source, &uri(), &core);
+        assert_eq!(lsp.severity, Some(DiagnosticSeverity::ERROR));
+        assert_eq!(
+            lsp.code,
+            Some(NumberOrString::String(codes::E1201.to_string()))
+        );
+        assert_eq!(lsp.source.as_deref(), Some("algraf"));
+        assert!(lsp.message.contains("unknown geometry"));
+        assert!(lsp.message.contains("Help: did you mean `Point`?"));
+        // Span 0..5 is on the first line, columns 0..5.
+        assert_eq!(lsp.range.start.line, 0);
+        assert_eq!(lsp.range.end.character, 5);
+        assert!(lsp.related_information.is_none());
+    }
+
+    #[test]
+    fn hint_severity_maps_to_hint() {
+        let core = CoreDiagnostic::new(Severity::Hint, codes::H3001, "hint", Span::new(0, 1));
+        let lsp = diagnostic_to_lsp("x", &uri(), &core);
+        assert_eq!(lsp.severity, Some(DiagnosticSeverity::HINT));
+        assert!(!lsp.message.contains("Help:"));
+    }
+}

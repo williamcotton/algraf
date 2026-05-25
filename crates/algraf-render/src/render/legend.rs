@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use algraf_data::{DataFrame, Table};
 use algraf_semantics::{
-    ChartIr, FrameIr, GeometryIr, GeometryKind, ScaleIr, ScaleTargetIr, SettingValue,
+    ChartIr, FrameIr, GeometryIr, GeometryKind, PropertyKey, ScaleIr, ScaleTargetIr, SettingValue,
 };
 
 use crate::aes::{color_spec, number_spec, ColorSpec, Legend, LegendKind};
@@ -22,7 +22,7 @@ pub(super) fn collect_legends(
 ) -> Vec<Legend> {
     // Candidate legends paired with the aesthetic that produced them, so a
     // fill legend and a stroke legend over the same column can be merged below.
-    let mut candidates: Vec<(&'static str, Legend)> = Vec::new();
+    let mut candidates: Vec<(PropertyKey, Legend)> = Vec::new();
     for space in &ir.spaces {
         let guides = ir.guides.with_overrides(&space.guides);
         if !guides.legend {
@@ -31,18 +31,18 @@ pub(super) fn collect_legends(
         let scales = merged_scales(&ir.scales, &space.scales);
         let table = active_table(&space.data, primary, derived);
         for geo in &space.geometries {
-            for aesthetic in ["fill", "stroke"] {
-                if aesthetic == "fill" && !guides.fill_legend {
+            for aesthetic in [PropertyKey::Fill, PropertyKey::Stroke] {
+                if aesthetic == PropertyKey::Fill && !guides.fill_legend {
                     continue;
                 }
-                if aesthetic == "stroke" && !guides.stroke_legend {
+                if aesthetic == PropertyKey::Stroke && !guides.stroke_legend {
                     continue;
                 }
                 if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == aesthetic) {
                     let spec = color_spec(geo, aesthetic, table, &scales);
                     // A `Scale(<aesthetic>: col, label: "...")` overrides the
                     // column-derived legend title (spec §16.13).
-                    let title = scale_label(&scales, aesthetic)
+                    let title = scale_label(&scales, aesthetic.as_str())
                         .unwrap_or_else(|| crate::svg::display_label(&mapping.column.name));
                     if let Some(legend) = spec.legend(&title) {
                         if !candidates
@@ -62,9 +62,9 @@ pub(super) fn collect_legends(
                 if let Some(legend) = hexbin_count_legend(geo, &space.frame, table, &scales) {
                     if !candidates
                         .iter()
-                        .any(|(a, l)| *a == "fill" && l.title == legend.title)
+                        .any(|(a, l)| *a == PropertyKey::Fill && l.title == legend.title)
                     {
-                        candidates.push(("fill", legend));
+                        candidates.push((PropertyKey::Fill, legend));
                     }
                 }
             }
@@ -73,13 +73,13 @@ pub(super) fn collect_legends(
             // is only produced when the aesthetic maps a column (spec §19.5).
             for (aesthetic, kind, default_range, constant_default) in [
                 (
-                    "strokeWidth",
+                    PropertyKey::StrokeWidth,
                     LegendKind::Width,
                     DEFAULT_STROKE_WIDTH_RANGE,
                     theme.line_width,
                 ),
                 (
-                    "size",
+                    PropertyKey::Size,
                     LegendKind::Radius,
                     DEFAULT_SIZE_RANGE,
                     theme.point_size,
@@ -96,7 +96,7 @@ pub(super) fn collect_legends(
                     default_range,
                     constant_default,
                 );
-                let title = scale_label(&scales, aesthetic)
+                let title = scale_label(&scales, aesthetic.as_str())
                     .unwrap_or_else(|| crate::svg::display_label(&mapping.column.name));
                 if let Some(legend) = spec.legend(&title, kind) {
                     if !candidates
@@ -125,7 +125,7 @@ fn hexbin_count_legend(
     if geo
         .settings
         .iter()
-        .any(|s| s.name == "fill" && matches!(s.value, SettingValue::String(_)))
+        .any(|s| s.name == PropertyKey::Fill && matches!(s.value, SettingValue::String(_)))
     {
         return None;
     }
@@ -138,7 +138,7 @@ fn hexbin_count_legend(
     let bins = geo
         .settings
         .iter()
-        .find(|s| s.name == "bins")
+        .find(|s| s.name == PropertyKey::Bins)
         .and_then(|s| match s.value {
             SettingValue::Number(n) if n >= 1.0 => Some(n.round() as usize),
             _ => None,
@@ -173,7 +173,7 @@ fn scale_label(scales: &[ScaleIr], aesthetic: &str) -> Option<String> {
 /// compatible (identical, discrete) domains into a single legend whose swatches
 /// show both colors (spec §19.7). Non-mergeable candidates pass through
 /// unchanged, deduplicated by title with the first occurrence winning.
-fn merge_fill_stroke_legends(candidates: Vec<(&'static str, Legend)>) -> Vec<Legend> {
+fn merge_fill_stroke_legends(candidates: Vec<(PropertyKey, Legend)>) -> Vec<Legend> {
     let mut out: Vec<Legend> = Vec::new();
     for (aesthetic, legend) in candidates {
         let Some(existing) = out.iter_mut().find(|l| l.title == legend.title) else {
@@ -194,7 +194,7 @@ fn merge_fill_stroke_legends(candidates: Vec<(&'static str, Legend)>) -> Vec<Leg
                 .all(|(a, b)| a.0 == b.0);
         let new_colors: Vec<String> = legend.entries.iter().map(|(_, c)| c.clone()).collect();
         if labels_match && existing.stroke_entries.is_empty() {
-            if aesthetic == "stroke" {
+            if aesthetic == PropertyKey::Stroke {
                 // Existing is the fill base; this stroke legend adds outlines.
                 existing.stroke_entries = new_colors;
             } else {

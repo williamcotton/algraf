@@ -48,16 +48,19 @@ impl Analyzer<'_> {
             kind: GeometryKind::Rect,
             mappings: vec![
                 AestheticMapping {
-                    aesthetic: "xmin".into(),
+                    aesthetic: PropertyKey::Xmin,
                     column: bin_start.clone(),
+                    span: histogram.span,
                 },
                 AestheticMapping {
-                    aesthetic: "xmax".into(),
+                    aesthetic: PropertyKey::Xmax,
                     column: bin_end,
+                    span: histogram.span,
                 },
                 AestheticMapping {
-                    aesthetic: "ymax".into(),
+                    aesthetic: PropertyKey::Ymax,
                     column: count.clone(),
+                    span: histogram.span,
                 },
             ],
             settings: histogram_rect_settings(histogram),
@@ -191,26 +194,35 @@ impl Analyzer<'_> {
         let count = synthetic_column("count", DataType::Integer, bin2d.span);
         let mut mappings = vec![
             AestheticMapping {
-                aesthetic: "xmin".into(),
+                aesthetic: PropertyKey::Xmin,
                 column: x_start.clone(),
+                span: bin2d.span,
             },
             AestheticMapping {
-                aesthetic: "xmax".into(),
+                aesthetic: PropertyKey::Xmax,
                 column: x_end.clone(),
+                span: bin2d.span,
             },
             AestheticMapping {
-                aesthetic: "ymin".into(),
+                aesthetic: PropertyKey::Ymin,
                 column: y_start.clone(),
+                span: bin2d.span,
             },
             AestheticMapping {
-                aesthetic: "ymax".into(),
+                aesthetic: PropertyKey::Ymax,
                 column: y_end.clone(),
+                span: bin2d.span,
             },
         ];
-        if !bin2d.settings.iter().any(|setting| setting.name == "fill") {
+        if !bin2d
+            .settings
+            .iter()
+            .any(|setting| setting.name == PropertyKey::Fill)
+        {
             mappings.push(AestheticMapping {
-                aesthetic: "fill".into(),
+                aesthetic: PropertyKey::Fill,
                 column: count,
+                span: bin2d.span,
             });
         }
         let rect = GeometryIr {
@@ -343,9 +355,9 @@ impl Analyzer<'_> {
         let mut bandwidth = None;
         let mut grid_points = None;
         for setting in &density.settings {
-            match (setting.name.as_str(), &setting.value) {
-                ("bandwidth", SettingValue::Number(n)) => bandwidth = Some(*n),
-                ("n", SettingValue::Number(n)) => grid_points = Some(*n),
+            match (setting.name, &setting.value) {
+                (PropertyKey::Bandwidth, SettingValue::Number(n)) => bandwidth = Some(*n),
+                (PropertyKey::N, SettingValue::Number(n)) => grid_points = Some(*n),
                 _ => {}
             }
         }
@@ -485,7 +497,7 @@ impl Analyzer<'_> {
         let settings = bar
             .settings
             .iter()
-            .filter(|s| s.name != "stat")
+            .filter(|s| s.name != PropertyKey::Stat)
             .cloned()
             .collect();
 
@@ -519,12 +531,16 @@ impl Analyzer<'_> {
         let mut boundary = None;
         let mut closed = BinClosedIr::Left;
         for setting in &geometry.settings {
-            match (setting.name.as_str(), &setting.value) {
-                ("bins", SettingValue::Number(n)) => bins = Some(*n),
-                ("binWidth", SettingValue::Number(n)) => bin_width = Some(*n),
-                ("boundary", SettingValue::Number(n)) => boundary = Some(*n),
-                ("closed", SettingValue::String(s)) if s == "right" => closed = BinClosedIr::Right,
-                ("closed", SettingValue::String(s)) if s == "left" => closed = BinClosedIr::Left,
+            match (setting.name, &setting.value) {
+                (PropertyKey::Bins, SettingValue::Number(n)) => bins = Some(*n),
+                (PropertyKey::BinWidth, SettingValue::Number(n)) => bin_width = Some(*n),
+                (PropertyKey::Boundary, SettingValue::Number(n)) => boundary = Some(*n),
+                (PropertyKey::Closed, SettingValue::String(s)) if s == "right" => {
+                    closed = BinClosedIr::Right
+                }
+                (PropertyKey::Closed, SettingValue::String(s)) if s == "left" => {
+                    closed = BinClosedIr::Left
+                }
                 _ => {}
             }
         }
@@ -557,7 +573,7 @@ fn bin2d_bins_from_geometry(bin2d: &GeometryIr) -> Option<f64> {
         .settings
         .iter()
         .find_map(|setting| match &setting.value {
-            SettingValue::Number(n) if setting.name == "bins" => Some(*n),
+            SettingValue::Number(n) if setting.name == PropertyKey::Bins => Some(*n),
             _ => None,
         })
 }
@@ -572,30 +588,40 @@ fn synthetic_column(name: &str, dtype: DataType, span: Span) -> ColumnRef {
 
 /// Visual settings copied verbatim from a high-level geometry onto the
 /// low-level mark it lowers into (fill area / rect / line).
-const FILL_SETTINGS: &[&str] = &["fill", "stroke", "strokeWidth", "alpha"];
-const STROKE_SETTINGS: &[&str] = &["stroke", "strokeWidth", "alpha"];
+const FILL_SETTINGS: &[PropertyKey] = &[
+    PropertyKey::Fill,
+    PropertyKey::Stroke,
+    PropertyKey::StrokeWidth,
+    PropertyKey::Alpha,
+];
+const STROKE_SETTINGS: &[PropertyKey] = &[
+    PropertyKey::Stroke,
+    PropertyKey::StrokeWidth,
+    PropertyKey::Alpha,
+];
 
 /// Copy the `allow`-listed settings from `geometry` in source order, preserving
-/// their values. Used to pass a high-level geometry's visual settings through to
-/// the low-level mark it desugars into.
-fn passthrough_settings(geometry: &GeometryIr, allow: &[&str]) -> Vec<GeometrySetting> {
+/// their values and spans. Used to pass a high-level geometry's visual settings
+/// through to the low-level mark it desugars into.
+fn passthrough_settings(geometry: &GeometryIr, allow: &[PropertyKey]) -> Vec<GeometrySetting> {
     geometry
         .settings
         .iter()
-        .filter(|setting| allow.contains(&setting.name.as_str()))
+        .filter(|setting| allow.contains(&setting.name))
         .cloned()
         .collect()
 }
 
-fn fixed_setting(name: &str, value: f64) -> GeometrySetting {
+fn fixed_setting(name: PropertyKey, value: f64, span: Span) -> GeometrySetting {
     GeometrySetting {
-        name: name.into(),
+        name,
         value: SettingValue::Number(value),
+        span,
     }
 }
 
 fn histogram_rect_settings(histogram: &GeometryIr) -> Vec<GeometrySetting> {
-    let mut settings = vec![fixed_setting("ymin", 0.0)];
+    let mut settings = vec![fixed_setting(PropertyKey::Ymin, 0.0, histogram.span)];
     settings.extend(passthrough_settings(histogram, FILL_SETTINGS));
     settings
 }
@@ -611,7 +637,7 @@ fn bin2d_rect_settings(bin2d: &GeometryIr) -> Vec<GeometrySetting> {
 /// Pass the visual settings of a `Density` geometry through to the `Area` it
 /// desugars into. The KDE curve is filled to a zero baseline.
 fn density_area_settings(density: &GeometryIr) -> Vec<GeometrySetting> {
-    let mut settings = vec![fixed_setting("baseline", 0.0)];
+    let mut settings = vec![fixed_setting(PropertyKey::Baseline, 0.0, density.span)];
     settings.extend(passthrough_settings(density, FILL_SETTINGS));
     settings
 }

@@ -2,8 +2,8 @@
 
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
-    analyze_source, AxisSelectorIr, BinClosedIr, FrameIr, GeometryKind, ScaleTargetIr, ScaleTypeIr,
-    SettingValue, SpaceDataRef, StatKind, StatOptionsIr,
+    analyze_source, AxisSelectorIr, BinClosedIr, FrameIr, GeometryKind, PropertyKey, ScaleTargetIr,
+    ScaleTypeIr, SettingValue, SpaceDataRef, StatKind, StatOptionsIr,
 };
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
@@ -43,6 +43,33 @@ fn codes(source: &str) -> Vec<&'static str> {
 
 fn has(source: &str, code: &str) -> bool {
     codes(source).contains(&code)
+}
+
+/// Analyzer resilience: deeply nested algebra must analyze without panicking,
+/// recursion overflow, or hangs (spec §12.1, §13.17, §27.4). The analyzer walks
+/// the frame tree recursively, so it shares the parser's nesting risk.
+#[test]
+fn deeply_nested_algebra_analyzes_without_panic() {
+    let depth = 400;
+    let src = format!(
+        "Chart(data: \"p.csv\") {{\n  Space({}flipper_length{}) {{ Point() }}\n}}",
+        "(".repeat(depth),
+        ")".repeat(depth),
+    );
+    // Must terminate and produce an analysis result (with or without diagnostics)
+    // rather than crashing.
+    let _ = analyze_source(&src, &schema());
+}
+
+#[test]
+fn deeply_nested_cross_chain_analyzes_without_panic() {
+    let depth = 400;
+    let chain = std::iter::repeat("flipper_length")
+        .take(depth)
+        .collect::<Vec<_>>()
+        .join(" * ");
+    let src = format!("Chart(data: \"p.csv\") {{\n  Space({chain}) {{ Point() }}\n}}");
+    let _ = analyze_source(&src, &schema());
 }
 
 fn clean(source: &str) {
@@ -625,7 +652,7 @@ fn test_ir_is_produced() {
     assert!(matches!(space.frame, FrameIr::Cartesian(ref axes) if axes.len() == 2));
     assert_eq!(space.geometries.len(), 1);
     assert_eq!(space.geometries[0].kind, GeometryKind::Point);
-    assert_eq!(space.geometries[0].mappings[0].aesthetic, "fill");
+    assert_eq!(space.geometries[0].mappings[0].aesthetic, PropertyKey::Fill);
 }
 
 #[test]
@@ -654,12 +681,34 @@ fn test_text_dy_column_and_declutter_recorded() {
     assert!(text
         .mappings
         .iter()
-        .any(|m| m.aesthetic == "dy" && m.column.name == "amount"));
+        .any(|m| m.aesthetic == PropertyKey::Dy && m.column.name == "amount"));
     // `declutter: true` is a boolean setting.
     assert!(text
         .settings
         .iter()
-        .any(|s| s.name == "declutter" && matches!(s.value, SettingValue::Bool(true))));
+        .any(|s| s.name == PropertyKey::Declutter && matches!(s.value, SettingValue::Bool(true))));
+}
+
+#[test]
+fn test_mapping_and_setting_preserve_authored_spans() {
+    // Each mapping and setting carries the byte span of the user-authored
+    // argument that produced it (spec §13.6).
+    let source =
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Point(fill: species, alpha: 0.7)\n  }\n}";
+    let analysis = analyze_source(source, &schema());
+    let point = &analysis.ir.expect("ir").spaces[0].geometries[0];
+    let fill = point
+        .mappings
+        .iter()
+        .find(|m| m.aesthetic == PropertyKey::Fill)
+        .expect("fill mapping");
+    assert_eq!(&source[fill.span.start..fill.span.end], "fill: species");
+    let alpha = point
+        .settings
+        .iter()
+        .find(|s| s.name == PropertyKey::Alpha)
+        .expect("alpha setting");
+    assert_eq!(&source[alpha.span.start..alpha.span.end], "alpha: 0.7");
 }
 
 #[test]
@@ -881,7 +930,7 @@ fn test_bin2d_desugars_to_bin2d_table_and_rect_with_fill() {
     assert!(rect
         .mappings
         .iter()
-        .any(|m| m.aesthetic == "fill" && m.column.name == "count"));
+        .any(|m| m.aesthetic == PropertyKey::Fill && m.column.name == "count"));
 }
 
 #[test]
@@ -1046,16 +1095,13 @@ fn test_let_constant_resolves_in_property_value() {
         analysis.diagnostics
     );
     let geo = &analysis.ir.expect("ir").spaces[0].geometries[0];
-    assert!(
-        geo.settings
-            .iter()
-            .any(|s| s.name == "fill"
-                && matches!(&s.value, SettingValue::String(v) if v == "#3366cc"))
-    );
+    assert!(geo.settings.iter().any(|s| s.name == PropertyKey::Fill
+        && matches!(&s.value, SettingValue::String(v) if v == "#3366cc")));
     assert!(geo
         .settings
         .iter()
-        .any(|s| s.name == "alpha" && matches!(s.value, SettingValue::Number(n) if n == 0.4)));
+        .any(|s| s.name == PropertyKey::Alpha
+            && matches!(s.value, SettingValue::Number(n) if n == 0.4)));
 }
 
 #[test]
@@ -1095,12 +1141,8 @@ fn test_space_let_shadows_chart_let() {
         analysis.diagnostics
     );
     let geo = &analysis.ir.expect("ir").spaces[0].geometries[0];
-    assert!(
-        geo.settings
-            .iter()
-            .any(|s| s.name == "fill"
-                && matches!(&s.value, SettingValue::String(v) if v == "#222222"))
-    );
+    assert!(geo.settings.iter().any(|s| s.name == PropertyKey::Fill
+        && matches!(&s.value, SettingValue::String(v) if v == "#222222")));
 }
 
 #[test]
@@ -1124,7 +1166,7 @@ fn test_quoted_identifier_is_not_a_variable() {
     assert!(geo
         .mappings
         .iter()
-        .any(|m| m.aesthetic == "fill" && m.column.name == "species"));
+        .any(|m| m.aesthetic == PropertyKey::Fill && m.column.name == "species"));
 }
 
 // --- Custom theme objects (spec §20.8) ---

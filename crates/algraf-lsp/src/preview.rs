@@ -199,3 +199,27 @@ fn render_preview(source: &str, source_input: SourceInput) -> Result<String, Str
         render_with_tables(&ir, &frame, &named_frames, &theme, None).map_err(|e| e.to_string())?;
     Ok(result.svg)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn input() -> SourceInput {
+        SourceInput::Path(PathBuf::from("doc.ag"))
+    }
+
+    #[test]
+    fn parse_errors_block_preview() {
+        let err = render_preview("Chart(", input()).unwrap_err();
+        assert!(err.contains("parse errors"), "got: {err}");
+    }
+
+    #[test]
+    fn missing_data_file_surfaces_a_preview_error() {
+        // A well-formed chart whose data file does not exist must fail to
+        // prepare rather than render, and the error is reported (not panicked).
+        let source = "Chart(data: \"definitely-missing.csv\") {\n  Space(x * y) { Point() }\n}";
+        assert!(render_preview(source, input()).is_err());
+    }
+}

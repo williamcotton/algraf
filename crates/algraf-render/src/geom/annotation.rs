@@ -1,4 +1,4 @@
-use algraf_semantics::GeometryIr;
+use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting};
 use crate::helpers::{number_setting_opt, string_setting};
@@ -13,15 +13,16 @@ pub(super) fn render_hline(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRen
     let table = ctx.table;
     let theme = ctx.theme;
     let scales = ctx.scales;
-    let Some(y) = number_setting_opt(geo, "y").and_then(|value| space.map_y(value)) else {
+    let Some(y) = number_setting_opt(geo, PropertyKey::Y).and_then(|value| space.map_y(value))
+    else {
         return;
     };
-    let stroke = color_spec(geo, "stroke", table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
     let color = constant_or(&stroke, DEFAULT_STROKE);
-    let width = number_setting(geo, "strokeWidth", theme.line_width);
-    let alpha = number_setting(geo, "alpha", 1.0);
+    let width = number_setting(geo, PropertyKey::StrokeWidth, theme.line_width);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     emit_svg_line(w, plot.x, y, plot.right(), y, &color, width, alpha);
-    if let Some(label) = string_setting(geo, "label") {
+    if let Some(label) = string_setting(geo, PropertyKey::Label) {
         w.line(&format!(
             "<text x=\"{}\" y=\"{}\" text-anchor=\"end\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
             num(plot.right() - 4.0),
@@ -40,15 +41,16 @@ pub(super) fn render_vline(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRen
     let table = ctx.table;
     let theme = ctx.theme;
     let scales = ctx.scales;
-    let Some(x) = number_setting_opt(geo, "x").and_then(|value| space.map_x(value)) else {
+    let Some(x) = number_setting_opt(geo, PropertyKey::X).and_then(|value| space.map_x(value))
+    else {
         return;
     };
-    let stroke = color_spec(geo, "stroke", table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
     let color = constant_or(&stroke, DEFAULT_STROKE);
-    let width = number_setting(geo, "strokeWidth", theme.line_width);
-    let alpha = number_setting(geo, "alpha", 1.0);
+    let width = number_setting(geo, PropertyKey::StrokeWidth, theme.line_width);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     emit_svg_line(w, x, plot.y, x, plot.bottom(), &color, width, alpha);
-    if let Some(label) = string_setting(geo, "label") {
+    if let Some(label) = string_setting(geo, PropertyKey::Label) {
         w.line(&format!(
             "<text x=\"{}\" y=\"{}\" text-anchor=\"start\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
             num(x + 4.0),
@@ -68,10 +70,10 @@ pub(super) fn render_rug(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRende
     let plot = ctx.plot;
     let theme = ctx.theme;
     let scales = ctx.scales;
-    let sides = string_setting(geo, "sides").unwrap_or_else(|| "b".to_string());
-    let stroke = color_spec(geo, "stroke", table, scales);
-    let width = number_setting(geo, "strokeWidth", theme.line_width);
-    let alpha = number_setting(geo, "alpha", 0.55);
+    let sides = string_setting(geo, PropertyKey::Sides).unwrap_or_else(|| "b".to_string());
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    let width = number_setting(geo, PropertyKey::StrokeWidth, theme.line_width);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 0.55);
     let tick = 6.0;
     for row in render_rows(table, rows) {
         let color = stroke
@@ -125,16 +127,16 @@ pub(super) fn render_segment(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryR
     let table = ctx.table;
     let theme = ctx.theme;
     let scales = ctx.scales;
-    let stroke = color_spec(geo, "stroke", table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
     let color = constant_or(&stroke, DEFAULT_STROKE);
-    let width = number_setting(geo, "strokeWidth", theme.line_width);
-    let alpha = number_setting(geo, "alpha", 1.0);
+    let width = number_setting(geo, PropertyKey::StrokeWidth, theme.line_width);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
 
     let (Some(x), Some(y), Some(xend), Some(yend)) = (
-        number_setting_opt(geo, "x").and_then(|v| space.map_x(v)),
-        number_setting_opt(geo, "y").and_then(|v| space.map_y(v)),
-        number_setting_opt(geo, "xend").and_then(|v| space.map_x(v)),
-        number_setting_opt(geo, "yend").and_then(|v| space.map_y(v)),
+        number_setting_opt(geo, PropertyKey::X).and_then(|v| space.map_x(v)),
+        number_setting_opt(geo, PropertyKey::Y).and_then(|v| space.map_y(v)),
+        number_setting_opt(geo, PropertyKey::Xend).and_then(|v| space.map_x(v)),
+        number_setting_opt(geo, PropertyKey::Yend).and_then(|v| space.map_y(v)),
     ) else {
         return;
     };

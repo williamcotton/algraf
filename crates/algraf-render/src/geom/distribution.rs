@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use algraf_core::{codes, Diagnostic};
-use algraf_semantics::GeometryIr;
+use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting, ColorSpec};
 use crate::helpers::{number_array_setting, number_setting_opt};
@@ -38,10 +38,10 @@ pub(super) fn render_boxplot(
         return;
     }
 
-    let fill = color_spec(geo, "fill", table, scales);
-    let stroke = color_spec(geo, "stroke", table, scales);
-    let alpha = number_setting(geo, "alpha", 1.0);
-    let stroke_width = number_setting(geo, "strokeWidth", 1.0);
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
+    let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
     let mut groups: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
     let mut order = Vec::new();
 
@@ -89,7 +89,7 @@ pub(super) fn render_boxplot(
         ) else {
             continue;
         };
-        let width_setting = number_setting(geo, "width", bandwidth * 0.7);
+        let width_setting = number_setting(geo, PropertyKey::Width, bandwidth * 0.7);
         let box_width = width_setting.clamp(1.0, bandwidth);
         let half = box_width / 2.0;
         let (Some(y_q1), Some(y_median), Some(y_q3), Some(y_low), Some(y_high)) = (
@@ -178,11 +178,11 @@ pub(super) fn render_violin(
         return;
     }
 
-    let fill = color_spec(geo, "fill", table, scales);
-    let stroke = color_spec(geo, "stroke", table, scales);
-    let alpha = number_setting(geo, "alpha", 0.55);
-    let stroke_width = number_setting(geo, "strokeWidth", 1.0);
-    let quantiles = number_array_setting(geo, "quantiles").unwrap_or_default();
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 0.55);
+    let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
+    let quantiles = number_array_setting(geo, PropertyKey::Quantiles).unwrap_or_default();
     let mut groups: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
     let mut order = Vec::new();
     for row in render_rows(table, rows) {
@@ -199,8 +199,8 @@ pub(super) fn render_violin(
     }
 
     let options = stats::DensityOptions {
-        bandwidth: number_setting_opt(geo, "bandwidth").filter(|value| *value > 0.0),
-        grid_points: number_setting_opt(geo, "n")
+        bandwidth: number_setting_opt(geo, PropertyKey::Bandwidth).filter(|value| *value > 0.0),
+        grid_points: number_setting_opt(geo, PropertyKey::N)
             .filter(|value| *value >= 2.0)
             .map(|value| value.round() as usize)
             .unwrap_or(256),
@@ -230,7 +230,8 @@ pub(super) fn render_violin(
         ) else {
             continue;
         };
-        let half_width = number_setting(geo, "width", bandwidth * 0.9).clamp(1.0, bandwidth) / 2.0;
+        let half_width =
+            number_setting(geo, PropertyKey::Width, bandwidth * 0.9).clamp(1.0, bandwidth) / 2.0;
         let mut right = Vec::new();
         let mut left = Vec::new();
         for point in &curve {
@@ -334,17 +335,19 @@ pub(super) fn render_hexbin(
         ));
         return;
     }
-    let bins = number_setting(geo, "bins", 30.0).round().max(1.0) as usize;
+    let bins = number_setting(geo, PropertyKey::Bins, 30.0)
+        .round()
+        .max(1.0) as usize;
     let cells = stats::hexbin(table, x_col, y_col, stats::Bin2DOptions { bins });
     // Normalize fill over the count domain `[min, max]`, matching the
     // continuous legend synthesized in `collect_legends` so swatch colors and
     // hexagon colors agree.
     let min_count = cells.iter().map(|cell| cell.count).min().unwrap_or(0) as f64;
     let max_count = cells.iter().map(|cell| cell.count).max().unwrap_or(1) as f64;
-    let fill = color_spec(geo, "fill", table, scales);
-    let stroke = color_spec(geo, "stroke", table, scales);
-    let stroke_width = number_setting(geo, "strokeWidth", theme.line_width);
-    let alpha = number_setting(geo, "alpha", 0.9);
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, theme.line_width);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 0.9);
     for cell in cells {
         let Some(cx) = space.map_x(cell.x) else {
             continue;
