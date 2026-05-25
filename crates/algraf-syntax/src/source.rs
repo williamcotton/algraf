@@ -16,6 +16,8 @@ pub enum SourceFormat {
     Shapefile,
 }
 
+pub const SOURCE_FORMATS: &[SourceFormat] = &[SourceFormat::GeoJson, SourceFormat::Shapefile];
+
 impl SourceFormat {
     /// The Algraf constructor name for this explicit source format.
     pub fn constructor_name(self) -> &'static str {
@@ -32,6 +34,14 @@ impl SourceFormat {
             "Shapefile" => Some(SourceFormat::Shapefile),
             _ => None,
         }
+    }
+
+    /// All recognized source constructor names.
+    pub fn constructor_names() -> impl Iterator<Item = &'static str> {
+        SOURCE_FORMATS
+            .iter()
+            .copied()
+            .map(SourceFormat::constructor_name)
     }
 }
 

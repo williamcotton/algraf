@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.3.0
+Status: Draft 0.12.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -6940,6 +6940,10 @@ Chart(data: "examples/heatmap_data.csv") {
 
 ## 26. Diagnostics Catalog
 
+Diagnostic codes are registered centrally in `algraf-core`. Implementations
+MUST emit registered codes, and JSON/LSP diagnostics MUST serialize the code as
+its stable string form.
+
 ### 26.1 Parse Diagnostics
 
 `E0001 expected Chart block`
@@ -7118,6 +7122,20 @@ missing `=>`/stray separator in a map literal)
 `H3004 use Guide to override axis label`
 
 `H3005 choose fill or stroke; colour is not a property alias`
+
+### 26.5 Internal Render Diagnostics
+
+The renderer may emit internal `R` warnings for non-semantic rendering
+conditions. These are registered codes and may appear in CLI JSON/LSP output,
+but they are implementation-oriented rather than authoring-rule diagnostics.
+
+`R0001 geometry is not yet supported by the renderer`
+
+`R0002 geometry is incompatible with the trained render space`
+
+`R0003 space or facet could not be laid out`
+
+`R0004 scale declaration could not be applied during rendering`
 
 ## 27. Testing Strategy
 
@@ -7506,9 +7524,9 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.7.0 | [`V0_7_PLAN.md`](V0_7_PLAN.md) | Data backends | Implemented |
 | 0.8.0 | [`V0_8_PLAN.md`](V0_8_PLAN.md) | Geospatial — geometry, projection, choropleth | Implemented |
 | 0.9.0 | [`V0_9_PLAN.md`](V0_9_PLAN.md) | Pipeline unification and source-loading deduplication | Implemented |
-| 0.10.0 | [`V0_10_PLAN.md`](V0_10_PLAN.md) | Semantic analyzer modularization and typed stat IR | Planned |
-| 0.11.0 | [`V0_11_PLAN.md`](V0_11_PLAN.md) | Renderer modularization and SVG safety | Planned |
-| 0.12.0 | [`V0_12_PLAN.md`](V0_12_PLAN.md) | Tooling, diagnostics, and parser cleanup | Planned |
+| 0.10.0 | [`V0_10_PLAN.md`](V0_10_PLAN.md) | Semantic analyzer modularization and typed stat IR | Implemented |
+| 0.11.0 | [`V0_11_PLAN.md`](V0_11_PLAN.md) | Renderer modularization and SVG safety | Implemented |
+| 0.12.0 | [`V0_12_PLAN.md`](V0_12_PLAN.md) | Tooling, diagnostics, and parser cleanup | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

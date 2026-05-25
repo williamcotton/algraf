@@ -6,6 +6,93 @@
 
 use crate::ir::GeometryKind;
 
+/// Recognized `Chart(...)` arguments.
+pub const CHART_ARGS: &[&str] = &[
+    "data",
+    "width",
+    "height",
+    "title",
+    "subtitle",
+    "caption",
+    "marginTop",
+    "marginRight",
+    "marginBottom",
+    "marginLeft",
+];
+
+/// Recognized named base themes (spec §20.1).
+pub const THEME_NAMES: &[&str] = &["minimal", "classic", "light", "dark", "void"];
+
+/// Recognized `Theme(...)` override keys (spec §20.8).
+pub const THEME_OVERRIDE_KEYS: &[&str] = &[
+    "axisText",
+    "gridMajor",
+    "fontFamily",
+    "fontSize",
+    "titleSize",
+    "pointSize",
+    "lineWidth",
+    "background",
+    "plotBackground",
+    "axisColor",
+    "gridColor",
+    "textColor",
+    "grid",
+    "axes",
+];
+
+/// Scale aesthetic targets accepted in `Scale(...)` declarations.
+pub const SCALE_AESTHETIC_TARGETS: &[&str] = &["fill", "stroke", "size", "strokeWidth"];
+
+/// Named scale types accepted by `Scale(type: ...)`.
+pub const SCALE_TYPE_NAMES: &[&str] = &["linear", "log10"];
+
+/// Named categorical palettes accepted by `Scale(palette: ...)`.
+pub const PALETTE_NAMES: &[&str] = &["default", "accent"];
+
+/// The ordered argument names for a declaration keyword.
+pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
+    match decl {
+        "Layout" => &["facetColumns"],
+        "Guide" => &["axis", "label", "legend", "fill", "stroke", "grid"],
+        "Theme" => {
+            const THEME_ARGS: &[&str] = &[
+                "name",
+                "axisText",
+                "gridMajor",
+                "fontFamily",
+                "fontSize",
+                "titleSize",
+                "pointSize",
+                "lineWidth",
+                "background",
+                "plotBackground",
+                "axisColor",
+                "gridColor",
+                "textColor",
+                "grid",
+                "axes",
+            ];
+            THEME_ARGS
+        }
+        "Scale" => &[
+            "axis",
+            "type",
+            "domain",
+            "reverse",
+            "integer",
+            "fill",
+            "stroke",
+            "size",
+            "strokeWidth",
+            "palette",
+            "gradient",
+            "label",
+        ],
+        _ => &[],
+    }
+}
+
 /// A value form a property accepts (spec §13.9).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Accept {
@@ -391,5 +478,80 @@ impl GeometryDef {
 
     pub fn prop_names(&self) -> impl Iterator<Item = &'static str> + '_ {
         self.props.iter().map(|p| p.name)
+    }
+}
+
+/// Human-facing geometry documentation shared by LSP completion and hover.
+pub fn geometry_doc(name: &str) -> &'static str {
+    match name {
+        "Point" => "Draws one point per row in the inherited space.",
+        "Line" => "Draws connected line segments through row coordinates.",
+        "Path" => "Draws an ungrouped connected path through row coordinates.",
+        "Bar" => "Draws bars in the inherited categorical or Cartesian space.",
+        "Rect" => "Draws rectangles from explicit boundary properties.",
+        "Histogram" => "Bins one continuous vector and draws count bars.",
+        "FreqPoly" => "Bins one continuous vector and connects bin centers.",
+        "Bin2D" => "Bins two continuous dimensions into rectangles.",
+        "HexBin" => "Bins two continuous dimensions into hexagons.",
+        "Smooth" => "Draws a fitted smooth line over a two-dimensional space.",
+        "Boxplot" => "Draws distribution summaries for grouped values.",
+        "Violin" => "Draws mirrored KDE distributions per category.",
+        "Density" => "Draws a kernel density estimate over one continuous vector.",
+        "Ribbon" => "Draws a band between lower and upper y values.",
+        "Tile" => "Draws heatmap-style tiles in a two-dimensional space.",
+        "HLine" => "Draws a horizontal reference line.",
+        "VLine" => "Draws a vertical reference line.",
+        "Rug" => "Draws marginal tick marks for observations.",
+        "Area" => "Draws a filled area from a baseline to y values.",
+        "Text" => "Draws text labels in the inherited space.",
+        "Segment" => "Draws explicit line segments between endpoints.",
+        "Geo" => "Draws geometry values in a spatial space.",
+        _ => "Algraf geometry.",
+    }
+}
+
+/// Human-facing property documentation shared by LSP completion, hover, and
+/// signature help.
+pub fn property_doc(name: &str) -> &'static str {
+    match name {
+        "fill" => "Fill color setting or data column mapping.",
+        "stroke" => "Stroke color setting or data column mapping.",
+        "strokeWidth" => "Stroke width numeric setting.",
+        "alpha" => "Opacity setting or data column mapping.",
+        "size" => "Point or text size setting or data column mapping.",
+        "shape" => "Point shape setting or data column mapping.",
+        "group" => "Series grouping column, independent from color aesthetics.",
+        "layout" => "Bar collision layout: `\"identity\"`, `\"stack\"`, or `\"fill\"`.",
+        "stat" => "Geometry statistic option.",
+        "bins" => "Histogram bin count.",
+        "binWidth" => "Histogram bin width.",
+        "boundary" => "Histogram bin boundary.",
+        "closed" => "Histogram interval closure: `\"left\"` or `\"right\"`.",
+        "bandwidth" => "Kernel density bandwidth.",
+        "n" => "Number of kernel density grid points.",
+        "quantiles" => "Violin quantile line positions.",
+        "gradient" => "Continuous color gradient stops.",
+        "xmin" => "Rectangle minimum x boundary.",
+        "xmax" => "Rectangle maximum x boundary.",
+        "ymin" => "Lower y boundary.",
+        "ymax" => "Upper y boundary.",
+        "method" => "Smooth fitting method.",
+        "width" => "Geometry width setting.",
+        "baseline" => "Area or bar baseline.",
+        "label" => "Text label or reference-line label.",
+        "anchor" => "Text anchor: `\"start\"`, `\"middle\"`, or `\"end\"`.",
+        "dx" => "Horizontal text offset, in pixels: a number or a column mapping.",
+        "dy" => "Vertical text offset, in pixels: a number or a column mapping.",
+        "declutter" => "Spread vertically-overlapping Text labels apart (boolean).",
+        "x" => "X position.",
+        "y" => "Y position.",
+        "xend" => "Segment end x position.",
+        "yend" => "Segment end y position.",
+        "sides" => "Rug sides setting.",
+        "marginTop" => "Minimum top plot margin in pixels (floor over the computed margin).",
+        "marginRight" => "Minimum right plot margin in pixels (floor over the computed margin).",
+        "marginBottom" => "Minimum bottom plot margin in pixels (floor over the computed margin).",
+        "marginLeft" => "Minimum left plot margin in pixels (floor over the computed margin).",
+        _ => "Algraf argument.",
     }
 }

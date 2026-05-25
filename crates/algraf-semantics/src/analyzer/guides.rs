@@ -1,7 +1,7 @@
 //! Guide declaration analysis (spec §19): legend toggles, axis labels, and grid
 //! control, applied as space-local or chart-level overrides.
 
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 use algraf_syntax::ast::{Decl, LiteralKind, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
@@ -11,7 +11,7 @@ use crate::ir::{AxisSelectorIr, GuideOverridesIr};
 
 impl Analyzer<'_> {
     pub(super) fn guide_decl(&mut self, decl: &Decl, guides: &mut GuideOverridesIr) {
-        let mut dup = DupGuard::new("E1002", "Guide argument");
+        let mut dup = DupGuard::new(codes::E1002, "Guide argument");
         let mut axis: Option<AxisSelectorIr> = None;
         let mut label: Option<String> = None;
         for arg in decl.args() {
@@ -24,7 +24,7 @@ impl Analyzer<'_> {
             match key.as_str() {
                 "legend" => {
                     if let Some(b) =
-                        self.expect_bool(&arg, "E1204", "`legend` expects a boolean literal")
+                        self.expect_bool(&arg, codes::E1204, "`legend` expects a boolean literal")
                     {
                         guides.legend = Some(b);
                     }
@@ -44,7 +44,7 @@ impl Analyzer<'_> {
                         label = Some(String::new());
                     }
                     Some(value) => self.diag(Diagnostic::error(
-                        "E1204",
+                        codes::E1204,
                         "`label` expects a string literal or `null`",
                         node_span(value.syntax()),
                     )),
@@ -53,7 +53,7 @@ impl Analyzer<'_> {
                 "fill" => {
                     if self.expect_null_flag(
                         &arg,
-                        "E1204",
+                        codes::E1204,
                         "`fill` in `Guide` expects `null` to suppress the legend",
                     ) {
                         guides.fill_legend = Some(false);
@@ -62,7 +62,7 @@ impl Analyzer<'_> {
                 "stroke" => {
                     if self.expect_null_flag(
                         &arg,
-                        "E1204",
+                        codes::E1204,
                         "`stroke` in `Guide` expects `null` to suppress the legend",
                     ) {
                         guides.stroke_legend = Some(false);
@@ -70,13 +70,13 @@ impl Analyzer<'_> {
                 }
                 "grid" => {
                     if let Some(b) =
-                        self.expect_bool(&arg, "E1204", "`grid` expects a boolean literal")
+                        self.expect_bool(&arg, codes::E1204, "`grid` expects a boolean literal")
                     {
                         guides.grid = Some(b);
                     }
                 }
                 _ => self.diag(Diagnostic::warning(
-                    "W2006",
+                    codes::W2006,
                     format!("unsupported Guide argument `{key}` ignored"),
                     key_span,
                 )),
@@ -86,12 +86,12 @@ impl Analyzer<'_> {
             (Some(AxisSelectorIr::X), Some(text)) => guides.x_label = Some(text),
             (Some(AxisSelectorIr::Y), Some(text)) => guides.y_label = Some(text),
             (Some(_), None) => self.diag(Diagnostic::warning(
-                "W2006",
+                codes::W2006,
                 "`Guide(axis: ...)` without `label:` has no effect",
                 node_span(decl.syntax()),
             )),
             (None, Some(_)) => self.diag(Diagnostic::error(
-                "E1204",
+                codes::E1204,
                 "`Guide(label: ...)` requires `axis: x` or `axis: y`",
                 node_span(decl.syntax()),
             )),

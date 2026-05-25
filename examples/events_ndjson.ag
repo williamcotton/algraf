@@ -5,6 +5,6 @@ Chart(
     title: "Events by category (NDJSON source)",
 ) {
     Space(category * count) {
-        Bar(stat: "identity", fill: category, alpha: 0.85)
+        Bar(stat: "identity", fill: category, alpha: 0.85, layout: "stack")
     }
 }

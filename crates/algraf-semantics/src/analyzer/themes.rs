@@ -1,38 +1,19 @@
 //! Theme declaration analysis (spec §20.1, §20.8): named base themes plus
 //! grouped and scalar per-field overrides.
 
-use algraf_core::{Diagnostic, Span};
+use algraf_core::{codes, Diagnostic, Span};
 use algraf_syntax::ast::{Arg, Decl, LiteralKind, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
 use super::args::DupGuard;
 use super::context::{Analyzer, ValueForm};
 use crate::ir::{ThemeIr, ThemeOverrides};
+use crate::registry;
 use crate::util::closest;
-
-const THEME_NAMES: &[&str] = &["minimal", "classic", "light", "dark", "void"];
-/// Recognized `Theme(...)` override keys (spec §20.8); used for diagnostics and
-/// did-you-mean suggestions.
-const THEME_OVERRIDE_KEYS: &[&str] = &[
-    "axisText",
-    "gridMajor",
-    "fontFamily",
-    "fontSize",
-    "titleSize",
-    "pointSize",
-    "lineWidth",
-    "background",
-    "plotBackground",
-    "axisColor",
-    "gridColor",
-    "textColor",
-    "grid",
-    "axes",
-];
 
 impl Analyzer<'_> {
     pub(super) fn theme_decl(&mut self, decl: &Decl) -> Option<ThemeIr> {
-        let mut dup = DupGuard::new("E1002", "Theme argument");
+        let mut dup = DupGuard::new(codes::E1002, "Theme argument");
         let mut theme = ThemeIr::default();
         let mut saw_any = false;
         for arg in decl.args() {
@@ -47,9 +28,9 @@ impl Analyzer<'_> {
                 match arg.value() {
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
                         let name = string_value(&lit.text().unwrap_or_default());
-                        if !THEME_NAMES.contains(&name.as_str()) {
+                        if !registry::THEME_NAMES.contains(&name.as_str()) {
                             self.diag(Diagnostic::error(
-                                "E1204",
+                                codes::E1204,
                                 format!("unknown theme `{name}`"),
                                 node_span(lit.syntax()),
                             ));
@@ -58,7 +39,7 @@ impl Analyzer<'_> {
                         }
                     }
                     Some(value) => self.diag(Diagnostic::error(
-                        "E1204",
+                        codes::E1204,
                         "`name` expects a string literal",
                         node_span(value.syntax()),
                     )),
@@ -138,9 +119,14 @@ impl Analyzer<'_> {
             "grid" => overrides.grid = self.theme_scalar(key, &value, "a boolean", as_bool),
             "axes" => overrides.axes = self.theme_scalar(key, &value, "a boolean", as_bool),
             _ => {
-                let mut diag =
-                    Diagnostic::error("E1704", format!("unknown Theme property `{key}`"), key_span);
-                if let Some(suggestion) = closest(key, THEME_OVERRIDE_KEYS.iter().copied()) {
+                let mut diag = Diagnostic::error(
+                    codes::E1704,
+                    format!("unknown Theme property `{key}`"),
+                    key_span,
+                );
+                if let Some(suggestion) =
+                    closest(key, registry::THEME_OVERRIDE_KEYS.iter().copied())
+                {
                     diag = diag.with_help(format!("did you mean `{suggestion}`?"));
                 }
                 self.diag(diag);
@@ -155,7 +141,7 @@ impl Analyzer<'_> {
             ValueExpr::Call(call) if call.name().as_deref() == Some(expected) => Some(call.args()),
             other => {
                 self.diag(Diagnostic::error(
-                    "E1705",
+                    codes::E1705,
                     format!("`{key}` expects a `{expected}(...)` value"),
                     node_span(other.syntax()),
                 ));
@@ -188,7 +174,7 @@ impl Analyzer<'_> {
             Some(v) => Some(v),
             None => {
                 self.diag(Diagnostic::error(
-                    "E1705",
+                    codes::E1705,
                     format!("`{key}` expects {expected}"),
                     node_span(value.syntax()),
                 ));

@@ -1,6 +1,6 @@
 # Algraf v0.12.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_11_PLAN.md`](V0_11_PLAN.md)
@@ -88,7 +88,7 @@ lands. The current checked-in examples are still the visual regression baseline:
 
 ### 1. Diagnostic code registry
 
-Status: Not started.
+Status: Completed.
 
 Acceptance criteria:
 
@@ -109,7 +109,7 @@ Acceptance criteria:
 
 ### 2. LSP module split
 
-Status: Not started.
+Status: Completed.
 
 Acceptance criteria:
 
@@ -134,7 +134,7 @@ Acceptance criteria:
 
 ### 3. LSP docs and registry drift cleanup
 
-Status: Not started.
+Status: Completed.
 
 Acceptance criteria:
 
@@ -148,7 +148,7 @@ Acceptance criteria:
 
 ### 4. Parser recovery and contextual keyword cleanup
 
-Status: Not started.
+Status: Completed.
 
 Acceptance criteria:
 
@@ -163,7 +163,7 @@ Acceptance criteria:
 
 ### 5. VS Code extension hygiene
 
-Status: Not started.
+Status: Completed.
 
 Acceptance criteria:
 
@@ -176,7 +176,7 @@ Acceptance criteria:
 
 ### 6. Spec, version, and example hygiene
 
-Status: Not started.
+Status: Completed.
 
 Acceptance criteria:
 
@@ -190,14 +190,18 @@ Acceptance criteria:
 
 ### LSP feature tests by module
 
-Status: Not started.
+Status: Deferred.
 
 As modules split, add focused tests near the feature they cover rather than
 keeping all coverage in one integration-style test file.
 
+The semantic-token unit tests moved with the module. The broader LSP behavior
+suite remains in `crates/algraf-lsp/tests/lsp.rs` for now because it exercises
+cross-feature protocol behavior.
+
 ### VS Code generated grammar audit
 
-Status: Not started.
+Status: Completed.
 
 Review TextMate grammar and language configuration after keyword registry
 cleanup to ensure editor highlighting still matches parser behavior.

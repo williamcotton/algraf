@@ -1,4 +1,4 @@
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 use algraf_semantics::{AxisSelectorIr, FrameIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, ThemeIr};
 
 use crate::helpers::{frame_axis, vector_column};
@@ -53,7 +53,7 @@ pub(super) fn validate_scale_configs(
         if scale.scale_type == Some(ScaleTypeIr::Log10) {
             let Some(column) = vector_column(axis_frame) else {
                 diagnostics.push(Diagnostic::warning(
-                    "R0004",
+                    codes::R0004,
                     "log10 scale requires a continuous numeric axis",
                     scale.span,
                 ));
@@ -64,7 +64,7 @@ pub(super) fn validate_scale_configs(
                 algraf_data::DataType::Integer | algraf_data::DataType::Float
             ) {
                 diagnostics.push(Diagnostic::warning(
-                    "R0004",
+                    codes::R0004,
                     "log10 scale requires a continuous numeric axis",
                     column.span,
                 ));
@@ -74,7 +74,7 @@ pub(super) fn validate_scale_configs(
             if let (Some(a), Some(b)) = (a, b) {
                 if (a - b).abs() <= f64::EPSILON {
                     diagnostics.push(Diagnostic::warning(
-                        "R0004",
+                        codes::R0004,
                         "scale domain endpoints must be distinct",
                         scale.span,
                     ));
@@ -84,7 +84,7 @@ pub(super) fn validate_scale_configs(
                 && [a, b].into_iter().flatten().any(|bound| bound <= 0.0)
             {
                 diagnostics.push(Diagnostic::warning(
-                    "R0004",
+                    codes::R0004,
                     "log10 scale domain must be positive",
                     scale.span,
                 ));
@@ -96,7 +96,7 @@ pub(super) fn validate_scale_configs(
         && frame_axis(frame, AxisSelectorIr::Y).is_none()
     {
         diagnostics.push(Diagnostic::warning(
-            "R0004",
+            codes::R0004,
             "scale declarations could not be matched to this space",
             span,
         ));

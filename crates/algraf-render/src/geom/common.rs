@@ -202,6 +202,7 @@ fn categorical_bound(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn emit_svg_line(
     w: &mut SvgWriter,
     x1: f64,

@@ -5,7 +5,7 @@
 //! diagnostics with spans, and recovers locally so a single mistake does not
 //! discard later valid blocks (spec §12.1, §12.16, §12.17).
 
-use algraf_core::{Diagnostic, Span};
+use algraf_core::{codes, Diagnostic, DiagnosticCode, Span};
 use rowan::{GreenNode, GreenNodeBuilder};
 
 use crate::lexer::{tokenize, TokenKind, TokenWithSpan};
@@ -65,7 +65,11 @@ pub fn parse_algebra(source: &str) -> Parse {
     parser.eat_trivia();
     if !parser.at_eof() {
         let span = parser.current_span();
-        parser.error("E0011", "unexpected token after algebra expression", span);
+        parser.error(
+            codes::E0011,
+            "unexpected token after algebra expression",
+            span,
+        );
         parser.drain_into_error();
     }
     parser.builder.finish_node();
@@ -227,14 +231,14 @@ impl Parser {
         self.builder.finish_node();
     }
 
-    fn error(&mut self, code: &'static str, message: impl Into<String>, span: Span) {
+    fn error(&mut self, code: DiagnosticCode, message: impl Into<String>, span: Span) {
         self.diagnostics
             .push(Diagnostic::error(code, message, span));
     }
 
     /// Consume the current significant token if it matches `kind`; otherwise
     /// record a diagnostic without consuming (recovery is the caller's job).
-    fn expect(&mut self, kind: SyntaxKind, code: &'static str, message: &str) {
+    fn expect(&mut self, kind: SyntaxKind, code: DiagnosticCode, message: &str) {
         if self.at(kind) {
             self.bump();
         } else {
@@ -257,7 +261,7 @@ impl Parser {
         // block is required; later blocks render independently.
         if !self.at_chart_start() {
             let span = self.current_span();
-            self.error("E0001", "expected Chart block", span);
+            self.error(codes::E0001, "expected Chart block", span);
             if self.at_eof() {
                 return;
             }
@@ -279,7 +283,7 @@ impl Parser {
             // A misspelled keyword still parses as a chart but is flagged.
             if !self.at_kw("Chart") {
                 let span = self.current_span();
-                self.error("E0001", "expected Chart block", span);
+                self.error(codes::E0001, "expected Chart block", span);
             }
             let before = self.pos;
             self.chart_block();
@@ -291,7 +295,7 @@ impl Parser {
         self.eat_trivia();
         if !self.at_eof() {
             let span = self.current_span();
-            self.error("E0011", "unexpected token after chart block", span);
+            self.error(codes::E0011, "unexpected token after chart block", span);
             self.drain_into_error();
         }
     }
@@ -299,12 +303,16 @@ impl Parser {
     fn chart_block(&mut self) {
         self.builder.start_node(SyntaxKind::CHART_BLOCK.into());
         self.bump_as(SyntaxKind::CHART_KW);
-        self.expect(SyntaxKind::L_PAREN, "E0002", "expected '(' after Chart");
+        self.expect(
+            SyntaxKind::L_PAREN,
+            codes::E0002,
+            "expected '(' after Chart",
+        );
         self.arg_list();
-        self.expect(SyntaxKind::R_PAREN, "E0006", "expected ')'");
-        self.expect(SyntaxKind::L_BRACE, "E0007", "expected '{'");
+        self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
+        self.expect(SyntaxKind::L_BRACE, codes::E0007, "expected '{'");
         self.chart_body();
-        self.expect(SyntaxKind::R_BRACE, "E0008", "expected '}'");
+        self.expect(SyntaxKind::R_BRACE, codes::E0008, "expected '}'");
         self.builder.finish_node();
     }
 
@@ -330,7 +338,7 @@ impl Parser {
                 _ if self.recover_misspelled_chart_item() => {}
                 _ => {
                     let span = self.current_span();
-                    self.error("E0011", "unexpected token in chart body", span);
+                    self.error(codes::E0011, "unexpected token in chart body", span);
                     self.recover_item(/* in_space */ false);
                 }
             }
@@ -347,34 +355,28 @@ impl Parser {
         let span = self.current_span();
 
         if self.at_misspelled_kw("Space") && self.nth_kind(1) == SyntaxKind::L_PAREN {
-            self.error("E0011", "unexpected token in chart body", span);
+            self.error(codes::E0011, "unexpected token in chart body", span);
             self.space_block();
             return true;
         }
         if self.at_misspelled_kw("Derive") {
-            self.error("E0011", "unexpected token in chart body", span);
+            self.error(codes::E0011, "unexpected token in chart body", span);
             self.derive_decl();
             return true;
         }
-        if self.at_misspelled_kw("Scale") && self.nth_kind(1) == SyntaxKind::L_PAREN {
-            self.error("E0011", "unexpected token in chart body", span);
-            self.decl(SyntaxKind::SCALE_DECL, SyntaxKind::SCALE_KW);
-            return true;
-        }
-        if self.at_misspelled_kw("Guide") && self.nth_kind(1) == SyntaxKind::L_PAREN {
-            self.error("E0011", "unexpected token in chart body", span);
-            self.decl(SyntaxKind::GUIDE_DECL, SyntaxKind::GUIDE_KW);
-            return true;
-        }
-        if self.at_misspelled_kw("Theme") && self.nth_kind(1) == SyntaxKind::L_PAREN {
-            self.error("E0011", "unexpected token in chart body", span);
-            self.decl(SyntaxKind::THEME_DECL, SyntaxKind::THEME_KW);
-            return true;
-        }
-        if self.at_misspelled_kw("Layout") && self.nth_kind(1) == SyntaxKind::L_PAREN {
-            self.error("E0011", "unexpected token in chart body", span);
-            self.decl(SyntaxKind::LAYOUT_DECL, SyntaxKind::LAYOUT_KW);
-            return true;
+
+        const DECL_RECOVERY: &[(&str, SyntaxKind, SyntaxKind)] = &[
+            ("Scale", SyntaxKind::SCALE_DECL, SyntaxKind::SCALE_KW),
+            ("Guide", SyntaxKind::GUIDE_DECL, SyntaxKind::GUIDE_KW),
+            ("Theme", SyntaxKind::THEME_DECL, SyntaxKind::THEME_KW),
+            ("Layout", SyntaxKind::LAYOUT_DECL, SyntaxKind::LAYOUT_KW),
+        ];
+        for (name, node, keyword) in DECL_RECOVERY {
+            if self.at_misspelled_kw(name) && self.nth_kind(1) == SyntaxKind::L_PAREN {
+                self.error(codes::E0011, "unexpected token in chart body", span);
+                self.decl(*node, *keyword);
+                return true;
+            }
         }
 
         false
@@ -385,7 +387,11 @@ impl Parser {
     fn space_block(&mut self) {
         self.builder.start_node(SyntaxKind::SPACE_BLOCK.into());
         self.bump_as(SyntaxKind::SPACE_KW);
-        self.expect(SyntaxKind::L_PAREN, "E0002", "expected '(' after Space");
+        self.expect(
+            SyntaxKind::L_PAREN,
+            codes::E0002,
+            "expected '(' after Space",
+        );
         self.algebra_expr(0); // the frame
         while self.at(SyntaxKind::COMMA) {
             self.bump();
@@ -394,10 +400,10 @@ impl Parser {
             }
             self.arg();
         }
-        self.expect(SyntaxKind::R_PAREN, "E0006", "expected ')'");
-        self.expect(SyntaxKind::L_BRACE, "E0007", "expected '{'");
+        self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
+        self.expect(SyntaxKind::L_BRACE, codes::E0007, "expected '{'");
         self.space_body();
-        self.expect(SyntaxKind::R_BRACE, "E0008", "expected '}'");
+        self.expect(SyntaxKind::R_BRACE, codes::E0008, "expected '}'");
         self.builder.finish_node();
     }
 
@@ -425,7 +431,7 @@ impl Parser {
                 Some(_) if self.nth_kind(1) == SyntaxKind::L_PAREN => self.geometry_call(),
                 _ => {
                     let span = self.current_span();
-                    self.error("E0007", "unexpected token in space body", span);
+                    self.error(codes::E0007, "unexpected token in space body", span);
                     self.recover_item(/* in_space */ true);
                 }
             }
@@ -461,10 +467,14 @@ impl Parser {
     fn derive_decl(&mut self) {
         self.builder.start_node(SyntaxKind::DERIVE_DECL.into());
         self.bump_as(SyntaxKind::DERIVE_KW);
-        self.expect(SyntaxKind::IDENT, "E0010", "expected derived table name");
+        self.expect(
+            SyntaxKind::IDENT,
+            codes::E0010,
+            "expected derived table name",
+        );
         self.expect(
             SyntaxKind::EQ,
-            "E0016",
+            codes::E0016,
             "expected '=' after derived table name",
         );
         self.stat_call();
@@ -474,12 +484,16 @@ impl Parser {
     fn stat_call(&mut self) {
         if !self.at(SyntaxKind::IDENT) {
             let span = self.current_span();
-            self.error("E0017", "expected stat call after '='", span);
+            self.error(codes::E0017, "expected stat call after '='", span);
             return;
         }
         self.builder.start_node(SyntaxKind::STAT_CALL.into());
         self.bump(); // stat name
-        self.expect(SyntaxKind::L_PAREN, "E0002", "expected '(' after stat name");
+        self.expect(
+            SyntaxKind::L_PAREN,
+            codes::E0002,
+            "expected '(' after stat name",
+        );
         if !self.at(SyntaxKind::R_PAREN) && !self.at_eof() {
             if self.at_arg_start() {
                 self.arg_list();
@@ -498,7 +512,7 @@ impl Parser {
                 }
             }
         }
-        self.expect(SyntaxKind::R_PAREN, "E0006", "expected ')'");
+        self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
         self.builder.finish_node();
     }
 
@@ -509,10 +523,10 @@ impl Parser {
         self.bump_as(SyntaxKind::LET_KW);
         self.expect(
             SyntaxKind::IDENT,
-            "E0010",
+            codes::E0010,
             "expected variable name after `let`",
         );
-        self.expect(SyntaxKind::EQ, "E0021", "expected '=' in let binding");
+        self.expect(SyntaxKind::EQ, codes::E0021, "expected '=' in let binding");
         self.value();
         self.builder.finish_node();
     }
@@ -525,8 +539,12 @@ impl Parser {
     fn table_decl(&mut self) {
         self.builder.start_node(SyntaxKind::TABLE_DECL.into());
         self.bump_as(SyntaxKind::TABLE_KW);
-        self.expect(SyntaxKind::IDENT, "E0010", "expected table name");
-        self.expect(SyntaxKind::EQ, "E0016", "expected '=' after table name");
+        self.expect(SyntaxKind::IDENT, codes::E0010, "expected table name");
+        self.expect(
+            SyntaxKind::EQ,
+            codes::E0016,
+            "expected '=' after table name",
+        );
         self.value();
         self.builder.finish_node();
     }
@@ -538,11 +556,11 @@ impl Parser {
         self.bump(); // geometry name
         self.expect(
             SyntaxKind::L_PAREN,
-            "E0002",
+            codes::E0002,
             "expected '(' after geometry name",
         );
         self.arg_list();
-        self.expect(SyntaxKind::R_PAREN, "E0006", "expected ')'");
+        self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
         self.builder.finish_node();
     }
 
@@ -551,11 +569,11 @@ impl Parser {
         self.bump_as(keyword);
         self.expect(
             SyntaxKind::L_PAREN,
-            "E0002",
+            codes::E0002,
             "expected '(' after declaration",
         );
         self.arg_list();
-        self.expect(SyntaxKind::R_PAREN, "E0006", "expected ')'");
+        self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
         self.builder.finish_node();
     }
 
@@ -569,7 +587,7 @@ impl Parser {
             }
             if self.at(SyntaxKind::COMMA) {
                 let span = self.current_span();
-                self.error("E0014", "unexpected ','", span);
+                self.error(codes::E0014, "unexpected ','", span);
                 self.bump();
                 continue;
             }
@@ -584,7 +602,7 @@ impl Parser {
             }
             // Unexpected token after an argument: report and synchronize.
             let span = self.current_span();
-            self.error("E0014", "expected ',' or ')'", span);
+            self.error(codes::E0014, "expected ',' or ')'", span);
             self.recover_arg();
             if self.pos == before {
                 break;
@@ -650,7 +668,7 @@ impl Parser {
             }
             _ => {
                 let span = self.current_span();
-                self.error("E0005", "expected argument value", span);
+                self.error(codes::E0005, "expected argument value", span);
                 self.builder.start_node(SyntaxKind::ERROR.into());
                 if !self.value_terminator() && !self.at_eof() {
                     self.bump();
@@ -684,9 +702,13 @@ impl Parser {
     fn call_value(&mut self) {
         self.builder.start_node(SyntaxKind::CALL_VALUE.into());
         self.bump(); // call name
-        self.expect(SyntaxKind::L_PAREN, "E0002", "expected '(' after call name");
+        self.expect(
+            SyntaxKind::L_PAREN,
+            codes::E0002,
+            "expected '(' after call name",
+        );
         self.arg_list();
-        self.expect(SyntaxKind::R_PAREN, "E0006", "expected ')'");
+        self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
         self.builder.finish_node();
     }
 
@@ -733,7 +755,7 @@ impl Parser {
             }
             if self.at(SyntaxKind::COMMA) {
                 let span = self.current_span();
-                self.error("E0015", "unexpected ','", span);
+                self.error(codes::E0015, "unexpected ','", span);
                 self.bump();
                 continue;
             }
@@ -751,7 +773,7 @@ impl Parser {
                 break;
             }
         }
-        self.expect(SyntaxKind::R_BRACKET, "E0015", "expected ',' or ']'");
+        self.expect(SyntaxKind::R_BRACKET, codes::E0015, "expected ',' or ']'");
         self.builder.finish_node();
     }
 
@@ -766,7 +788,7 @@ impl Parser {
             }
             if self.at(SyntaxKind::COMMA) {
                 let span = self.current_span();
-                self.error("E0021", "unexpected ',' in map literal", span);
+                self.error(codes::E0021, "unexpected ',' in map literal", span);
                 self.bump();
                 continue;
             }
@@ -783,7 +805,7 @@ impl Parser {
                 break;
             }
         }
-        self.expect(SyntaxKind::R_BRACKET, "E0021", "expected ',' or ']'");
+        self.expect(SyntaxKind::R_BRACKET, codes::E0021, "expected ',' or ']'");
         self.builder.finish_node();
     }
 
@@ -792,7 +814,7 @@ impl Parser {
         self.value(); // key
         self.expect(
             SyntaxKind::FAT_ARROW,
-            "E0021",
+            codes::E0021,
             "expected '=>' in map literal entry",
         );
         self.value(); // value
@@ -841,21 +863,21 @@ impl Parser {
                 self.builder.start_node(SyntaxKind::ALGEBRA_PAREN.into());
                 self.bump(); // '('
                 self.algebra_expr(0);
-                self.expect(SyntaxKind::R_PAREN, "E0006", "expected ')'");
+                self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
                 self.builder.finish_node();
             }
             // A closing delimiter or EOF where a primary is expected: insert a
             // zero-width error node without consuming the delimiter (spec §12.6).
             TokenKind::RParen | TokenKind::RBrace | TokenKind::Comma | TokenKind::Eof => {
                 let span = self.current_span();
-                self.error("E0009", "expected algebra expression", span);
+                self.error(codes::E0009, "expected algebra expression", span);
                 self.builder.start_node(SyntaxKind::ERROR.into());
                 self.builder.finish_node();
             }
             // An unrelated token: consume it into an error node (spec §12.6).
             _ => {
                 let span = self.current_span();
-                self.error("E0009", "expected algebra expression", span);
+                self.error(codes::E0009, "expected algebra expression", span);
                 self.builder.start_node(SyntaxKind::ERROR.into());
                 self.bump();
                 self.builder.finish_node();

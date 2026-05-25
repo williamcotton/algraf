@@ -1,6 +1,6 @@
 //! Named CSV table resolution (spec §10.x): `Table name = "path.csv"`.
 
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 use algraf_syntax::ast::{ChartBlock, ChartItem, TableDecl, ValueExpr};
 use algraf_syntax::{
     is_source_constructor, node_span, source_constructor, source_expr_from_value, SourceExpr,
@@ -17,7 +17,7 @@ impl Analyzer<'_> {
     /// file is the caller's concern (E1106/E1107).
     pub(super) fn resolve_tables(&mut self, chart: &ChartBlock) -> Vec<TableDeclIr> {
         let mut out = Vec::new();
-        let mut dup = DupGuard::new("E1105", "`Table` name").related("first declared here");
+        let mut dup = DupGuard::new(codes::E1105, "`Table` name").related("first declared here");
         for item in chart.items() {
             let ChartItem::Table(decl) = item else {
                 continue;
@@ -29,7 +29,7 @@ impl Analyzer<'_> {
             }
             if self.reserved_derived_names.contains(&name) {
                 self.diag(Diagnostic::error(
-                    "E1108",
+                    codes::E1108,
                     format!("`Table` name `{name}` conflicts with a derived table"),
                     name_span,
                 ));
@@ -58,7 +58,7 @@ impl Analyzer<'_> {
                 if let Some(ValueExpr::Call(call)) = decl.source() {
                     if is_source_constructor(&call) && source_constructor(&call).is_none() {
                         self.diag(Diagnostic::error(
-                            "E1004",
+                            codes::E1004,
                             format!(
                                 "`{}` source expects a string-literal path",
                                 call.name().unwrap_or_default()
@@ -69,7 +69,7 @@ impl Analyzer<'_> {
                     }
                 }
                 self.diag(Diagnostic::error(
-                    "E1004",
+                    codes::E1004,
                     "`Table` source must be a string-literal path or a \
                      `GeoJson`/`Shapefile` source constructor",
                     span,
@@ -78,7 +78,7 @@ impl Analyzer<'_> {
             }
             SourceExpr::Stdin { span } => {
                 self.diag(Diagnostic::error(
-                    "E1004",
+                    codes::E1004,
                     "`Table` source must be a string-literal path or a \
                      `GeoJson`/`Shapefile` source constructor",
                     span,

@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 use algraf_syntax::ast::{Arg, ChartBlock, ChartItem, Decl, LetDecl, LiteralKind, ValueExpr};
 use algraf_syntax::{
     is_source_constructor, node_span, source_expr_from_arg, SourceExpr, SourceFormat,
@@ -12,21 +12,10 @@ use algraf_syntax::{
 use super::args::DupGuard;
 use super::context::{ActiveTable, Analyzer};
 use crate::ir::*;
+use crate::registry;
 
 pub(super) const DEFAULT_WIDTH: u32 = 800;
 pub(super) const DEFAULT_HEIGHT: u32 = 520;
-const CHART_ARGS: &[&str] = &[
-    "data",
-    "width",
-    "height",
-    "title",
-    "subtitle",
-    "caption",
-    "marginTop",
-    "marginRight",
-    "marginBottom",
-    "marginLeft",
-];
 
 /// Parsed `Chart(...)` header arguments (spec §13.17 phase 2).
 struct ChartArgs {
@@ -147,7 +136,7 @@ impl Analyzer<'_> {
         let span = node_span(chart.syntax());
         let args = chart.args();
 
-        let mut dup = DupGuard::new("E1002", "Chart argument");
+        let mut dup = DupGuard::new(codes::E1002, "Chart argument");
         let mut data_source = None;
         let mut width = DEFAULT_WIDTH;
         let mut height = DEFAULT_HEIGHT;
@@ -166,9 +155,9 @@ impl Analyzer<'_> {
                 continue;
             }
 
-            if !CHART_ARGS.contains(&key.as_str()) {
+            if !registry::CHART_ARGS.contains(&key.as_str()) {
                 self.diag(Diagnostic::error(
-                    "E1003",
+                    codes::E1003,
                     format!("unsupported Chart argument `{key}`"),
                     key_span,
                 ));
@@ -188,14 +177,16 @@ impl Analyzer<'_> {
                     }
                 }
                 "title" => {
-                    title = self.expect_string(arg, "E1204", "`title` expects a string literal")
+                    title =
+                        self.expect_string(arg, codes::E1204, "`title` expects a string literal")
                 }
                 "subtitle" => {
                     subtitle =
-                        self.expect_string(arg, "E1204", "`subtitle` expects a string literal")
+                        self.expect_string(arg, codes::E1204, "`subtitle` expects a string literal")
                 }
                 "caption" => {
-                    caption = self.expect_string(arg, "E1204", "`caption` expects a string literal")
+                    caption =
+                        self.expect_string(arg, codes::E1204, "`caption` expects a string literal")
                 }
                 "marginTop" => margin_top = self.arg_u32(arg),
                 "marginRight" => margin_right = self.arg_u32(arg),
@@ -207,7 +198,7 @@ impl Analyzer<'_> {
 
         let data_source = data_source.unwrap_or_else(|| {
             self.diag(Diagnostic::error(
-                "E1001",
+                codes::E1001,
                 "Chart requires a `data` argument",
                 span,
             ));
@@ -248,7 +239,7 @@ impl Analyzer<'_> {
                 if let Some(ValueExpr::Call(call)) = arg.value() {
                     if is_source_constructor(&call) {
                         self.diag(Diagnostic::error(
-                            "E1004",
+                            codes::E1004,
                             format!(
                                 "`{}` source expects a string-literal path",
                                 call.name().unwrap_or_default()
@@ -259,7 +250,7 @@ impl Analyzer<'_> {
                     }
                 }
                 self.diag(Diagnostic::error(
-                    "E1004",
+                    codes::E1004,
                     "data source must be a string literal, a `GeoJson`/`Shapefile` \
                      source constructor, or the `stdin` sentinel",
                     span,
@@ -268,7 +259,7 @@ impl Analyzer<'_> {
             }
             SourceExpr::Missing => {
                 self.diag(Diagnostic::error(
-                    "E1004",
+                    codes::E1004,
                     "data source must be a string literal, a `GeoJson`/`Shapefile` \
                      source constructor, or the `stdin` sentinel",
                     node_span(arg.syntax()),
@@ -289,7 +280,7 @@ impl Analyzer<'_> {
     }
 
     fn layout_decl(&mut self, decl: &Decl, layout: &mut LayoutIr) {
-        let mut dup = DupGuard::new("E1002", "Layout argument");
+        let mut dup = DupGuard::new(codes::E1002, "Layout argument");
         for arg in decl.args() {
             let Some(key) = arg.key() else { continue };
             let key_span = node_span(arg.syntax());
@@ -301,13 +292,13 @@ impl Analyzer<'_> {
                 "facetColumns" => match self.arg_u32(&arg) {
                     Some(columns) if columns > 0 => layout.facet_columns = Some(columns as usize),
                     _ => self.diag(Diagnostic::error(
-                        "E1204",
+                        codes::E1204,
                         "`facetColumns` expects a positive number",
                         key_span,
                     )),
                 },
                 _ => self.diag(Diagnostic::error(
-                    "E1003",
+                    codes::E1003,
                     format!("unsupported Layout argument `{key}`"),
                     key_span,
                 )),

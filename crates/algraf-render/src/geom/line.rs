@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 use algraf_semantics::GeometryIr;
 
 use crate::aes::{color_spec, number_setting, number_spec, ColorSpec, NumberSpec};
@@ -119,7 +119,7 @@ pub(super) fn render_smooth(
     let scales = ctx.scales;
     if !axis_is_continuousish(&space.x) || !space.y.as_ref().is_some_and(axis_is_continuousish) {
         diagnostics.push(Diagnostic::warning(
-            "R0002",
+            codes::R0002,
             "Smooth requires continuous x and y dimensions",
             geo.span,
         ));
@@ -139,7 +139,7 @@ pub(super) fn render_smooth(
         points.sort_by(|a, b| a.0.total_cmp(&b.0));
         let Some((x0, y0, x1, y1)) = linear_fit_segment(&points) else {
             diagnostics.push(Diagnostic::warning(
-                "R0002",
+                codes::R0002,
                 "Smooth requires at least two distinct x values",
                 geo.span,
             ));

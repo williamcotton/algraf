@@ -1,4 +1,4 @@
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 use algraf_data::Table;
 use algraf_semantics::{GeometryIr, SettingValue};
 
@@ -105,7 +105,7 @@ fn shape_spec(geo: &GeometryIr, table: &dyn Table, diagnostics: &mut Vec<Diagnos
                 "diamond" => Some(PointShape::Diamond),
                 _ => {
                     diagnostics.push(Diagnostic::warning(
-                        "W2006",
+                        codes::W2006,
                         format!("unknown point shape `{value}`; using `circle`"),
                         geo.span,
                     ));

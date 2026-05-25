@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 
-use algraf_core::{Diagnostic, Severity, Span};
+use algraf_core::{codes, Diagnostic, Severity, Span};
 use algraf_syntax::ast::{Arg, GeometryCall};
 use algraf_syntax::node_span;
 
@@ -36,7 +36,7 @@ impl Analyzer<'_> {
             Some(def) => def,
             None => {
                 let mut diag =
-                    Diagnostic::error("E1201", format!("unknown geometry `{name}`"), span);
+                    Diagnostic::error(codes::E1201, format!("unknown geometry `{name}`"), span);
                 if let Some(suggestion) = closest(&name, registry::geometry_names()) {
                     diag = diag.with_help(format!("did you mean `{suggestion}`?"));
                 }
@@ -46,7 +46,7 @@ impl Analyzer<'_> {
         };
 
         let args = call.args();
-        let mut dup = DupGuard::new("E1203", "property");
+        let mut dup = DupGuard::new(codes::E1203, "property");
         let mut seen: HashSet<String> = HashSet::new();
         let mut mappings = Vec::new();
         let mut settings = Vec::new();
@@ -78,7 +78,7 @@ impl Analyzer<'_> {
         for prop in def.props.iter().filter(|p| p.required) {
             if !seen.contains(prop.name) {
                 self.diag(Diagnostic::error(
-                    "E1205",
+                    codes::E1205,
                     format!("`{}` requires property `{}`", def.name, prop.name),
                     span,
                 ));
@@ -97,7 +97,7 @@ impl Analyzer<'_> {
 
     fn unknown_property(&mut self, def: &GeometryDef, key: &str, span: Span) {
         let mut diag = Diagnostic::error(
-            "E1202",
+            codes::E1202,
             format!("unknown property `{key}` on `{}`", def.name),
             span,
         );
@@ -130,7 +130,7 @@ impl Analyzer<'_> {
                     self.diag(
                         Diagnostic::new(
                             Severity::Hint,
-                            "H3002",
+                            codes::H3002,
                             format!("quote literal color name `{raw}` for clarity"),
                             node_span(name.syntax()),
                         )
@@ -174,7 +174,7 @@ impl Analyzer<'_> {
             let written = name.name().unwrap_or_else(|| opts[0].to_string());
             self.diag(
                 Diagnostic::error(
-                    "E1204",
+                    codes::E1204,
                     format!("`{}` expects a quoted string value", prop.name),
                     span,
                 )
@@ -182,7 +182,7 @@ impl Analyzer<'_> {
             );
         } else {
             self.diag(Diagnostic::error(
-                "E1204",
+                codes::E1204,
                 format!(
                     "`{}` expects {}, found {}",
                     prop.name,
@@ -218,7 +218,7 @@ impl Analyzer<'_> {
             self.diag(
                 Diagnostic::new(
                     Severity::Hint,
-                    "H3001",
+                    codes::H3001,
                     "use nested algebra for dodged bars",
                     span,
                 )

@@ -3,7 +3,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use algraf_core::{Diagnostic, Span};
+use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::DataType;
 use algraf_syntax::ast::{AlgebraExpr, Arg, ChartBlock, ChartItem, DeriveDecl};
 use algraf_syntax::node_span;
@@ -28,8 +28,12 @@ impl Analyzer<'_> {
             let Some(name) = derive.name() else { continue };
             if let Some(&first) = seen_names.get(&name) {
                 self.diag(
-                    Diagnostic::error("E1104", format!("duplicate derived table `{name}`"), span)
-                        .with_related(first, "first defined here"),
+                    Diagnostic::error(
+                        codes::E1104,
+                        format!("duplicate derived table `{name}`"),
+                        span,
+                    )
+                    .with_related(first, "first defined here"),
                 );
                 continue;
             }
@@ -73,7 +77,7 @@ impl Analyzer<'_> {
                 for index in pending.iter().copied() {
                     let (_, derive) = &decls[index];
                     self.diag(Diagnostic::error(
-                        "E1501",
+                        codes::E1501,
                         "cycle between derived table declarations",
                         node_span(derive.syntax()),
                     ));
@@ -91,7 +95,7 @@ impl Analyzer<'_> {
                     SpaceDataRef::Derived(decls[upstream[0]].0.clone())
                 } else {
                     self.diag(Diagnostic::error(
-                        "E1404",
+                        codes::E1404,
                         "derived stat inputs must come from one upstream table",
                         node_span(decls[index].1.syntax()),
                     ));
@@ -132,7 +136,7 @@ impl Analyzer<'_> {
             "HexBin" => StatKind::HexBin,
             _ => {
                 self.diag(Diagnostic::error(
-                    "E1403",
+                    codes::E1403,
                     format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `Bin2D`, and `HexBin`"),
                     stat_span,
                 ));
@@ -151,7 +155,7 @@ impl Analyzer<'_> {
                         | DataType::Float
                         | DataType::Unknown => {}
                         _ => self.diag(Diagnostic::error(
-                            "E1404",
+                            codes::E1404,
                             format!("Bin input column `{}` is not numeric or temporal", col.name),
                             col.span,
                         )),
@@ -174,7 +178,7 @@ impl Analyzer<'_> {
                                 DataType::Integer | DataType::Float | DataType::Unknown
                             ) {
                                 self.diag(Diagnostic::error(
-                                    "E1404",
+                                    codes::E1404,
                                     format!("Smooth input column `{}` is not numeric", col.name),
                                     col.span,
                                 ));
@@ -203,7 +207,7 @@ impl Analyzer<'_> {
                                 DataType::Integer | DataType::Float | DataType::Unknown
                             ) {
                                 self.diag(Diagnostic::error(
-                                    "E1404",
+                                    codes::E1404,
                                     format!("{label} input column `{}` is not numeric", col.name),
                                     col.span,
                                 ));
@@ -224,7 +228,7 @@ impl Analyzer<'_> {
             }
             _ => {
                 self.diag(Diagnostic::error(
-                    "E1403",
+                    codes::E1403,
                     format!("unsupported stat `{stat_name}`"),
                     stat_span,
                 ));
@@ -255,7 +259,7 @@ impl Analyzer<'_> {
     ) -> Option<FrameIr> {
         if inputs.len() != 1 {
             self.diag(Diagnostic::error(
-                "E1404",
+                codes::E1404,
                 format!("{stat_name} requires exactly one input column"),
                 stat_span,
             ));
@@ -265,7 +269,7 @@ impl Analyzer<'_> {
             AlgebraExpr::Name(n) => Some(FrameIr::Vector(self.resolve_column(n, table))),
             _ => {
                 self.diag(Diagnostic::error(
-                    "E1404",
+                    codes::E1404,
                     format!("{stat_name} requires a column input"),
                     stat_span,
                 ));
@@ -283,7 +287,7 @@ impl Analyzer<'_> {
     ) -> Option<FrameIr> {
         if inputs.len() != 2 {
             self.diag(Diagnostic::error(
-                "E1404",
+                codes::E1404,
                 format!("{stat_name} requires exactly two input columns"),
                 stat_span,
             ));
@@ -295,7 +299,7 @@ impl Analyzer<'_> {
                 AlgebraExpr::Name(n) => frames.push(FrameIr::Vector(self.resolve_column(n, table))),
                 _ => {
                     self.diag(Diagnostic::error(
-                        "E1404",
+                        codes::E1404,
                         format!("{stat_name} requires column inputs"),
                         stat_span,
                     ));
@@ -307,7 +311,7 @@ impl Analyzer<'_> {
     }
 
     fn collect_smooth_options(&mut self, args: &[Arg], stat_span: Span) -> StatOptionsIr {
-        let mut dup = DupGuard::new("E1404", "Smooth setting");
+        let mut dup = DupGuard::new(codes::E1404, "Smooth setting");
         for arg in args {
             let Some(name) = arg.key() else { continue };
             let key_span = node_span(arg.syntax());
@@ -321,14 +325,14 @@ impl Analyzer<'_> {
                         // `lm` is the only supported method (spec §15.x).
                         ValueForm::Str(s) if s == "lm" => {}
                         _ => self.diag(Diagnostic::error(
-                            "E1404",
+                            codes::E1404,
                             "`method` expects \"lm\"",
                             node_span(value.syntax()),
                         )),
                     }
                 }
                 _ => self.diag(Diagnostic::error(
-                    "E1404",
+                    codes::E1404,
                     format!("unknown Smooth setting `{name}`"),
                     key_span,
                 )),
@@ -352,7 +356,7 @@ impl Analyzer<'_> {
             ("HexBin setting", "HexBin")
         };
         let mut bins = None;
-        let mut dup = DupGuard::new("E1404", noun);
+        let mut dup = DupGuard::new(codes::E1404, noun);
         for arg in args {
             let Some(name) = arg.key() else { continue };
             let key_span = node_span(arg.syntax());
@@ -365,14 +369,14 @@ impl Analyzer<'_> {
                     match ValueForm::of(&value) {
                         ValueForm::Number(n) if n.is_finite() && n >= 1.0 => bins = Some(n),
                         _ => self.diag(Diagnostic::error(
-                            "E1404",
+                            codes::E1404,
                             "`bins` must be at least 1",
                             node_span(value.syntax()),
                         )),
                     }
                 }
                 _ => self.diag(Diagnostic::error(
-                    "E1404",
+                    codes::E1404,
                     format!("unknown {label} setting `{name}`"),
                     key_span,
                 )),
@@ -391,7 +395,7 @@ impl Analyzer<'_> {
         let mut bin_width = None;
         let mut boundary = None;
         let mut closed = BinClosedIr::Left;
-        let mut dup = DupGuard::new("E1404", "Bin setting");
+        let mut dup = DupGuard::new(codes::E1404, "Bin setting");
         for arg in args {
             let Some(name) = arg.key() else { continue };
             let key_span = node_span(arg.syntax());
@@ -409,13 +413,13 @@ impl Analyzer<'_> {
                         ValueForm::Number(n) if n.is_finite() => {
                             if name == "bins" && n < 1.0 {
                                 self.diag(Diagnostic::error(
-                                    "E1404",
+                                    codes::E1404,
                                     "`bins` must be at least 1",
                                     node_span(value.syntax()),
                                 ));
                             } else if name == "binWidth" && n <= 0.0 {
                                 self.diag(Diagnostic::error(
-                                    "E1404",
+                                    codes::E1404,
                                     "`binWidth` must be greater than 0",
                                     node_span(value.syntax()),
                                 ));
@@ -428,7 +432,7 @@ impl Analyzer<'_> {
                             }
                         }
                         form => self.diag(Diagnostic::error(
-                            "E1404",
+                            codes::E1404,
                             format!(
                                 "`{name}` expects a finite number, found {}",
                                 form.describe()
@@ -448,7 +452,7 @@ impl Analyzer<'_> {
                             let written = column.name().unwrap_or_else(|| "left".to_string());
                             self.diag(
                                 Diagnostic::error(
-                                    "E1404",
+                                    codes::E1404,
                                     "`closed` expects a quoted string value",
                                     node_span(value.syntax()),
                                 )
@@ -456,7 +460,7 @@ impl Analyzer<'_> {
                             );
                         }
                         form => self.diag(Diagnostic::error(
-                            "E1404",
+                            codes::E1404,
                             format!(
                                 "`closed` expects one of [\"left\", \"right\"], found {}",
                                 form.describe()
@@ -466,7 +470,7 @@ impl Analyzer<'_> {
                     }
                 }
                 _ => self.diag(Diagnostic::error(
-                    "E1404",
+                    codes::E1404,
                     format!("unknown Bin setting `{name}`"),
                     key_span,
                 )),
@@ -486,7 +490,7 @@ impl Analyzer<'_> {
     pub(super) fn check_bin_conflict(&mut self, has_bins: bool, has_bin_width: bool, span: Span) {
         if has_bins && has_bin_width {
             self.diag(Diagnostic::error(
-                "E1404",
+                codes::E1404,
                 "`bins` and `binWidth` must not both be provided",
                 span,
             ));

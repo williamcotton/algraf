@@ -10,7 +10,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "algraf-cli"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -28,7 +28,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-core"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "serde",
  "thiserror",
@@ -36,7 +36,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-data"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "algraf-core",
  "chrono",
@@ -51,7 +51,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-driver"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -61,7 +61,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-lsp"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -80,7 +80,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-render"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -94,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-semantics"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-syntax"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "algraf-core",
  "logos",

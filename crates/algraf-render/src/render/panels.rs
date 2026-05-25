@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 use algraf_data::{DataFrame, Table};
 use algraf_semantics::{AxisSelectorIr, ChartIr, ColumnRef, FrameIr, GeometryIr, GuideIr, ScaleIr};
 
@@ -177,7 +177,7 @@ pub(super) fn build_render_plan<'t>(
                         scales: space_scales.clone(),
                     }),
                     None => diagnostics.push(Diagnostic::warning(
-                        "R0003",
+                        codes::R0003,
                         "this faceted space could not be laid out",
                         space.span,
                     )),
@@ -208,7 +208,7 @@ pub(super) fn build_render_plan<'t>(
                     scales: space_scales,
                 }),
                 None => diagnostics.push(Diagnostic::warning(
-                    "R0003",
+                    codes::R0003,
                     "this space could not be laid out",
                     space.span,
                 )),

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Write;
 
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 use algraf_semantics::GeometryIr;
 
 use crate::aes::{color_spec, number_setting, ColorSpec};
@@ -31,7 +31,7 @@ pub(super) fn render_boxplot(
     };
     if !space.x.is_band() || !space.y.as_ref().is_some_and(axis_is_continuousish) {
         diagnostics.push(Diagnostic::warning(
-            "R0002",
+            codes::R0002,
             "Boxplot requires categorical x and continuous y dimensions",
             geo.span,
         ));
@@ -171,7 +171,7 @@ pub(super) fn render_violin(
     };
     if !space.x.is_band() || !space.y.as_ref().is_some_and(axis_is_continuousish) {
         diagnostics.push(Diagnostic::warning(
-            "R0002",
+            codes::R0002,
             "Violin requires categorical x and continuous y dimensions",
             geo.span,
         ));
@@ -320,7 +320,7 @@ pub(super) fn render_hexbin(
         space.y.as_ref().and_then(|axis| axis.data_column()),
     ) else {
         diagnostics.push(Diagnostic::warning(
-            "R0002",
+            codes::R0002,
             "HexBin requires continuous x and y dimensions",
             geo.span,
         ));
@@ -328,7 +328,7 @@ pub(super) fn render_hexbin(
     };
     if !axis_is_continuousish(&space.x) || !space.y.as_ref().is_some_and(axis_is_continuousish) {
         diagnostics.push(Diagnostic::warning(
-            "R0002",
+            codes::R0002,
             "HexBin requires continuous x and y dimensions",
             geo.span,
         ));

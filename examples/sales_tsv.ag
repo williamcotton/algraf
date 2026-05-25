@@ -5,6 +5,6 @@ Chart(
     title: "Revenue by region (TSV source)",
 ) {
     Space(region * revenue) {
-        Bar(stat: "identity", fill: region, alpha: 0.85)
+        Bar(stat: "identity", fill: region, alpha: 0.85, layout: "stack")
     }
 }

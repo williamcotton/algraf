@@ -7,7 +7,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use algraf_core::{Diagnostic, Span};
+use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::{ColumnDef, DataType};
 use algraf_syntax::ast::{AlgebraExpr, AlgebraName, LetDecl, LiteralKind, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
@@ -154,7 +154,7 @@ impl<'a> Analyzer<'a> {
             if let Some(&first) = spans.get(&name) {
                 self.diag(
                     Diagnostic::error(
-                        "E1702",
+                        codes::E1702,
                         format!("duplicate `let` binding `{name}`"),
                         name_span,
                     )
@@ -186,7 +186,7 @@ impl<'a> Analyzer<'a> {
             _ => {
                 self.diag(
                     Diagnostic::error(
-                        "E1701",
+                        codes::E1701,
                         "`let` binding value must be a constant literal or array",
                         span,
                     )

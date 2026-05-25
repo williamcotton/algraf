@@ -10,7 +10,7 @@ mod point;
 mod rect_tile;
 mod text;
 
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 use algraf_data::Table;
 use algraf_semantics::{GeometryIr, GeometryKind, ScaleIr};
 
@@ -59,7 +59,7 @@ pub(crate) fn render(
         GeometryKind::Segment => annotation::render_segment(w, geo, ctx),
         GeometryKind::Geo => geo::render(w, geo, ctx),
         other => diagnostics.push(Diagnostic::warning(
-            "R0001",
+            codes::R0001,
             format!("geometry `{other:?}` is not yet supported by the renderer"),
             geo.span,
         )),
@@ -67,7 +67,7 @@ pub(crate) fn render(
     // W2002: geometry produced no marks (spec §26.3).
     if w.byte_len() == before {
         diagnostics.push(Diagnostic::warning(
-            "W2002",
+            codes::W2002,
             "geometry produced no marks",
             geo.span,
         ));

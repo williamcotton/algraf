@@ -128,7 +128,7 @@
       "patterns": [
         {
           "name": "entity.name.function.geometry.algraf",
-          "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment|Geo)\\b(?=\\s*\\()"
+          "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Density|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment|Geo)\\b(?=\\s*\\()"
         }
       ]
     },
@@ -160,7 +160,7 @@
       "patterns": [
         {
           "name": "variable.parameter.property.algraf",
-          "match": "\\b(?:data|width|height|title|subtitle|caption|facetColumns|legend|fill|stroke|strokeWidth|alpha|size|shape|group|sort|layout|baseline|stat|xmin|xmax|ymin|ymax|bins|binWidth|boundary|closed|bandwidth|n|quantiles|gradient|method|label|anchor|dx|dy|x|y|xend|yend|sides|projection)\\b(?=\\s*:)"
+          "match": "\\b(?:data|width|height|title|subtitle|caption|marginTop|marginRight|marginBottom|marginLeft|facetColumns|axis|legend|grid|fill|stroke|strokeWidth|alpha|size|shape|group|sort|layout|baseline|stat|xmin|xmax|ymin|ymax|bins|binWidth|boundary|closed|bandwidth|n|quantiles|type|domain|range|reverse|integer|palette|gradient|labels|method|label|anchor|dx|dy|x|y|xend|yend|sides|projection|name|axisText|gridMajor|fontFamily|fontSize|titleSize|pointSize|lineWidth|background|plotBackground|axisColor|gridColor|textColor|axes)\\b(?=\\s*:)"
         },
         {
           "name": "variable.parameter.property.unknown.algraf",

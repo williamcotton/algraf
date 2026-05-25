@@ -6,5 +6,5 @@
 pub mod diagnostic;
 pub mod span;
 
-pub use diagnostic::{Diagnostic, RelatedSpan, Severity};
+pub use diagnostic::{all_codes, codes, Diagnostic, DiagnosticCode, RelatedSpan, Severity};
 pub use span::{ByteOffset, Span};

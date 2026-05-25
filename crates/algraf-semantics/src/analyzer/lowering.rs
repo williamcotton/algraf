@@ -9,7 +9,7 @@ use algraf_data::DataType;
 use super::context::Analyzer;
 use super::stats::{bin2d_output_schema, bin_boundary_dtype, bin_output_schema};
 use crate::ir::*;
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 
 impl Analyzer<'_> {
     pub(super) fn desugar_histogram(
@@ -136,7 +136,7 @@ impl Analyzer<'_> {
     ) -> Option<(DeriveIr, SpaceIr)> {
         let FrameIr::Cartesian(axes) = frame else {
             self.diag(Diagnostic::error(
-                "E1302",
+                codes::E1302,
                 "Bin2D requires a two-dimensional continuous space",
                 bin2d.span,
             ));
@@ -145,7 +145,7 @@ impl Analyzer<'_> {
         let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) = (axes.first(), axes.get(1))
         else {
             self.diag(Diagnostic::error(
-                "E1302",
+                codes::E1302,
                 "Bin2D requires two vector dimensions",
                 bin2d.span,
             ));
@@ -157,7 +157,7 @@ impl Analyzer<'_> {
                 DataType::Integer | DataType::Float | DataType::Unknown
             ) {
                 self.diag(Diagnostic::error(
-                    "E1404",
+                    codes::E1404,
                     format!("Bin2D input column `{}` is not numeric", col.name),
                     col.span,
                 ));
@@ -310,7 +310,7 @@ impl Analyzer<'_> {
     ) -> Option<&'f ColumnRef> {
         let FrameIr::Vector(input) = frame else {
             self.diag(Diagnostic::error(
-                "E1302",
+                codes::E1302,
                 format!("{label} requires a single numeric vector space"),
                 span,
             ));
@@ -329,7 +329,7 @@ impl Analyzer<'_> {
                 "numeric"
             };
             self.diag(Diagnostic::error(
-                "E1404",
+                codes::E1404,
                 format!("{label} input column `{}` is not {kinds}", input.name),
                 input.span,
             ));
@@ -351,14 +351,14 @@ impl Analyzer<'_> {
         }
         if bandwidth.is_some_and(|value| value <= 0.0) {
             self.diag(Diagnostic::error(
-                "E1404",
+                codes::E1404,
                 "`bandwidth` must be greater than 0",
                 density.span,
             ));
         }
         if grid_points.is_some_and(|value| value < 2.0) {
             self.diag(Diagnostic::error(
-                "E1404",
+                codes::E1404,
                 "`n` must be at least 2",
                 density.span,
             ));
@@ -388,7 +388,7 @@ impl Analyzer<'_> {
                 (FrameIr::Vector(o), FrameIr::Vector(i)) => vec![o, i],
                 _ => {
                     self.diag(Diagnostic::error(
-                        "E1302",
+                        codes::E1302,
                         "Bar(stat: \"count\") requires a 1D categorical space",
                         bar.span,
                     ));
@@ -397,7 +397,7 @@ impl Analyzer<'_> {
             },
             _ => {
                 self.diag(Diagnostic::error(
-                    "E1302",
+                    codes::E1302,
                     "Bar(stat: \"count\") requires a 1D categorical space",
                     bar.span,
                 ));
@@ -409,7 +409,7 @@ impl Analyzer<'_> {
         // tables are not meaningful in 0.1.
         if !matches!(data_ref, SpaceDataRef::Primary) {
             self.diag(Diagnostic::error(
-                "E1302",
+                codes::E1302,
                 "Bar(stat: \"count\") must read from the primary table",
                 bar.span,
             ));
@@ -530,14 +530,14 @@ impl Analyzer<'_> {
         }
         if bins.is_some_and(|value| value < 1.0) {
             self.diag(Diagnostic::error(
-                "E1404",
+                codes::E1404,
                 "`bins` must be at least 1",
                 geometry.span,
             ));
         }
         if bin_width.is_some_and(|value| value <= 0.0) {
             self.diag(Diagnostic::error(
-                "E1404",
+                codes::E1404,
                 "`binWidth` must be greater than 0",
                 geometry.span,
             ));

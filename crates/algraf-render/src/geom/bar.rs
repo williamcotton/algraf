@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 use algraf_data::Table;
 use algraf_semantics::GeometryIr;
 
@@ -29,7 +29,7 @@ pub(super) fn render(
     };
     if !space.x.is_band() {
         diagnostics.push(Diagnostic::warning(
-            "R0002",
+            codes::R0002,
             "Bar requires a categorical x dimension",
             geo.span,
         ));
@@ -139,6 +139,7 @@ fn fill_totals(
     totals
 }
 
+#[allow(clippy::too_many_arguments)]
 fn emit_bar(
     w: &mut SvgWriter,
     x: f64,

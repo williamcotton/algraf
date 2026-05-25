@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use algraf_core::{Diagnostic, Span};
+use algraf_core::{codes, Diagnostic, DiagnosticCode, Span};
 use algraf_syntax::ast::{AlgebraExpr, Arg, LiteralKind, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
@@ -17,7 +17,7 @@ use crate::ir::AxisSelectorIr;
 /// ad-hoc `seen: HashMap<String, Span>` blocks across the declaration parsers.
 pub(super) struct DupGuard {
     seen: HashMap<String, Span>,
-    code: &'static str,
+    code: DiagnosticCode,
     /// The noun used in the message: `duplicate {noun} \`{key}\``.
     noun: &'static str,
     related: &'static str,
@@ -26,7 +26,7 @@ pub(super) struct DupGuard {
 impl DupGuard {
     /// A guard for ordinary duplicate arguments/settings whose first occurrence
     /// is described as "first defined here".
-    pub(super) fn new(code: &'static str, noun: &'static str) -> Self {
+    pub(super) fn new(code: DiagnosticCode, noun: &'static str) -> Self {
         DupGuard {
             seen: HashMap::new(),
             code,
@@ -88,7 +88,7 @@ impl Analyzer<'_> {
     pub(super) fn expect_string(
         &mut self,
         arg: &Arg,
-        code: &'static str,
+        code: DiagnosticCode,
         message: impl Into<String>,
     ) -> Option<String> {
         match arg.value() {
@@ -108,7 +108,7 @@ impl Analyzer<'_> {
     pub(super) fn expect_bool(
         &mut self,
         arg: &Arg,
-        code: &'static str,
+        code: DiagnosticCode,
         message: impl Into<String>,
     ) -> Option<bool> {
         match arg.value() {
@@ -129,7 +129,7 @@ impl Analyzer<'_> {
     pub(super) fn expect_null_flag(
         &mut self,
         arg: &Arg,
-        code: &'static str,
+        code: DiagnosticCode,
         message: impl Into<String>,
     ) -> bool {
         match arg.value() {
@@ -156,7 +156,7 @@ impl Analyzer<'_> {
                     "y" => Some(AxisSelectorIr::Y),
                     _ => {
                         self.diag(Diagnostic::error(
-                            "E1204",
+                            codes::E1204,
                             message,
                             node_span(name.syntax()),
                         ));
@@ -166,7 +166,7 @@ impl Analyzer<'_> {
             }
             Some(value) => {
                 self.diag(Diagnostic::error(
-                    "E1204",
+                    codes::E1204,
                     message,
                     node_span(value.syntax()),
                 ));

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use algraf_core::Diagnostic;
+use algraf_core::{codes, Diagnostic};
 use algraf_data::{DataFrame, DataType, DataValueRef, Table};
 use algraf_semantics::{ChartIr, FrameIr, SpaceIr};
 
@@ -110,7 +110,7 @@ pub(super) fn build_spatial_plan(
     let agreed = effective(first);
     if spatial.iter().any(|s| effective(s) != agreed) {
         diagnostics.push(Diagnostic::error(
-            "E1803",
+            codes::E1803,
             "overlaid spaces declare conflicting projections; \
              all spatial spaces must use the same projection",
             first.span,
@@ -122,7 +122,7 @@ pub(super) fn build_spatial_plan(
         Ok(projection) => projection,
         Err(message) => {
             diagnostics.push(Diagnostic::error(
-                "E1802",
+                codes::E1802,
                 format!("invalid or unknown projection: {message}"),
                 first.span,
             ));

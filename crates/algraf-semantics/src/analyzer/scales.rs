@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 
-use algraf_core::{Diagnostic, Span};
+use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::DataType;
 use algraf_syntax::ast::{AlgebraExpr, Decl, LiteralKind, MapValue, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
@@ -12,8 +12,7 @@ use super::args::DupGuard;
 use super::context::{ActiveTable, Analyzer, ValueForm};
 use super::properties::is_color_literal;
 use crate::ir::*;
-
-const PALETTE_NAMES: &[&str] = &["default", "accent"];
+use crate::registry;
 
 /// A parsed `Scale(range: ...)` declaration before the target is known.
 enum RangeSpec {
@@ -26,7 +25,7 @@ enum RangeSpec {
 impl Analyzer<'_> {
     pub(super) fn scale_decl(&mut self, decl: &Decl, table: &ActiveTable) -> Option<ScaleIr> {
         let span = node_span(decl.syntax());
-        let mut dup = DupGuard::new("E1002", "Scale argument");
+        let mut dup = DupGuard::new(codes::E1002, "Scale argument");
         let mut target: Option<ScaleTargetIr> = None;
         let mut scale_type = None;
         let mut domain: Option<[Option<f64>; 2]> = None;
@@ -54,20 +53,20 @@ impl Analyzer<'_> {
                         self.set_scale_target(&mut target, ScaleTargetIr::Axis(axis), key_span);
                     }
                 }
-                "fill" | "stroke" | "size" | "strokeWidth" => match arg.value() {
+                key if registry::SCALE_AESTHETIC_TARGETS.contains(&key) => match arg.value() {
                     Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
                         let column = self.resolve_column(&name, table);
                         self.set_scale_target(
                             &mut target,
                             ScaleTargetIr::Aesthetic {
-                                aesthetic: key,
+                                aesthetic: key.to_string(),
                                 column: Some(column),
                             },
                             key_span,
                         );
                     }
                     Some(value) => self.diag(Diagnostic::error(
-                        "E1204",
+                        codes::E1204,
                         format!("`{key}` in `Scale` expects a column name"),
                         node_span(value.syntax()),
                     )),
@@ -80,14 +79,14 @@ impl Analyzer<'_> {
                             "linear" => scale_type = Some(ScaleTypeIr::Linear),
                             "log10" => scale_type = Some(ScaleTypeIr::Log10),
                             _ => self.diag(Diagnostic::error(
-                                "E1204",
+                                codes::E1204,
                                 format!("unknown scale type `{value}`"),
                                 node_span(lit.syntax()),
                             )),
                         }
                     }
                     Some(value) => self.diag(Diagnostic::error(
-                        "E1204",
+                        codes::E1204,
                         "`type` expects a string literal",
                         node_span(value.syntax()),
                     )),
@@ -99,7 +98,7 @@ impl Analyzer<'_> {
                         match self.numeric_bounds(&value) {
                             Some(bounds) => domain = Some(bounds),
                             None => self.diag(Diagnostic::error(
-                                "E1204",
+                                codes::E1204,
                                 "`domain` expects two numeric values (each may be `null`)",
                                 node_span(value.syntax()),
                             )),
@@ -120,7 +119,7 @@ impl Analyzer<'_> {
                                     range = Some(RangeSpec::Numeric(bounds, value_span))
                                 }
                                 None => self.diag(Diagnostic::error(
-                                    "E1603",
+                                    codes::E1603,
                                     "`range` expects two numeric values or a category map",
                                     value_span,
                                 )),
@@ -136,7 +135,7 @@ impl Analyzer<'_> {
                                 label_map = self.color_map_entries(map);
                             }
                             _ => self.diag(Diagnostic::error(
-                                "E1606",
+                                codes::E1606,
                                 "`labels` expects a category map (e.g. [\"A\" => \"Advance\"])",
                                 node_span(value.syntax()),
                             )),
@@ -145,14 +144,14 @@ impl Analyzer<'_> {
                 }
                 "reverse" => {
                     if let Some(b) =
-                        self.expect_bool(&arg, "E1204", "`reverse` expects a boolean literal")
+                        self.expect_bool(&arg, codes::E1204, "`reverse` expects a boolean literal")
                     {
                         reverse = Some(b);
                     }
                 }
                 "integer" => {
                     if let Some(b) =
-                        self.expect_bool(&arg, "E1204", "`integer` expects a boolean literal")
+                        self.expect_bool(&arg, codes::E1204, "`integer` expects a boolean literal")
                     {
                         integer = Some(b);
                     }
@@ -160,18 +159,18 @@ impl Analyzer<'_> {
                 "palette" => match arg.value() {
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
                         let value = string_value(&lit.text().unwrap_or_default());
-                        if PALETTE_NAMES.contains(&value.as_str()) {
+                        if registry::PALETTE_NAMES.contains(&value.as_str()) {
                             palette = Some(value);
                         } else {
                             self.diag(Diagnostic::error(
-                                "E1204",
+                                codes::E1204,
                                 format!("unknown palette `{value}`"),
                                 node_span(lit.syntax()),
                             ));
                         }
                     }
                     Some(value) => self.diag(Diagnostic::error(
-                        "E1204",
+                        codes::E1204,
                         "`palette` expects a string literal",
                         node_span(value.syntax()),
                     )),
@@ -188,7 +187,7 @@ impl Analyzer<'_> {
                             gradient = Some(values);
                         }
                         _ => self.diag(Diagnostic::error(
-                            "E1601",
+                            codes::E1601,
                             "`gradient` expects an array of two or more color strings",
                             node_span(value.syntax()),
                         )),
@@ -199,14 +198,14 @@ impl Analyzer<'_> {
                         label = Some(string_value(&lit.text().unwrap_or_default()));
                     }
                     Some(value) => self.diag(Diagnostic::error(
-                        "E1204",
+                        codes::E1204,
                         "`label` expects a string literal",
                         node_span(value.syntax()),
                     )),
                     None => {}
                 },
                 _ => self.diag(Diagnostic::error(
-                    "E1003",
+                    codes::E1003,
                     format!("unsupported Scale argument `{key}`"),
                     key_span,
                 )),
@@ -215,7 +214,7 @@ impl Analyzer<'_> {
 
         let Some(target) = target else {
             self.diag(Diagnostic::error(
-                "E1204",
+                codes::E1204,
                 "`Scale` requires `axis`, `fill`, `stroke`, `size`, or `strokeWidth`",
                 span,
             ));
@@ -231,14 +230,14 @@ impl Analyzer<'_> {
             ScaleTargetIr::Axis(_) => {
                 if palette.is_some() || gradient.is_some() {
                     self.diag(Diagnostic::error(
-                        "E1204",
+                        codes::E1204,
                         "`palette` and `gradient` apply only to fill or stroke scales",
                         span,
                     ));
                 }
                 if let Some(map) = labels_span {
                     self.diag(Diagnostic::error(
-                        "E1606",
+                        codes::E1606,
                         "`labels` maps apply only to categorical fill or stroke scales",
                         map,
                     ));
@@ -246,12 +245,12 @@ impl Analyzer<'_> {
                 }
                 match &range {
                     Some(RangeSpec::Numeric(_, s)) => self.diag(Diagnostic::error(
-                        "E1603",
+                        codes::E1603,
                         "`range` applies only to `size` and `strokeWidth` scales",
                         *s,
                     )),
                     Some(RangeSpec::ColorMap(_, s)) => self.diag(Diagnostic::error(
-                        "E1606",
+                        codes::E1606,
                         "a category map `range` applies only to categorical scales",
                         *s,
                     )),
@@ -269,7 +268,7 @@ impl Analyzer<'_> {
 
                 if scale_type.is_some() || reverse.is_some() || integer.is_some() {
                     self.diag(Diagnostic::error(
-                        "E1204",
+                        codes::E1204,
                         "`type`, `reverse`, and `integer` apply only to axis scales",
                         span,
                     ));
@@ -279,14 +278,14 @@ impl Analyzer<'_> {
                     let continuous = numeric_col;
                     if gradient.is_some() && !continuous {
                         self.diag(Diagnostic::error(
-                            "E1602",
+                            codes::E1602,
                             "`gradient` is valid only for continuous fill or stroke mappings",
                             gradient_span.unwrap_or(span),
                         ));
                     }
                     if let Some(s) = domain_span {
                         self.diag(Diagnostic::error(
-                            "E1204",
+                            codes::E1204,
                             "`domain` applies only to axis, `size`, or `strokeWidth` scales",
                             s,
                         ));
@@ -296,7 +295,7 @@ impl Analyzer<'_> {
                         Some(RangeSpec::ColorMap(entries, s)) => {
                             if continuous {
                                 self.diag(Diagnostic::error(
-                                    "E1606",
+                                    codes::E1606,
                                     "a category map `range` applies only to categorical scales",
                                     *s,
                                 ));
@@ -305,7 +304,7 @@ impl Analyzer<'_> {
                             }
                         }
                         Some(RangeSpec::Numeric(_, s)) => self.diag(Diagnostic::error(
-                            "E1603",
+                            codes::E1603,
                             "a numeric `range` applies only to `size` and `strokeWidth` scales",
                             *s,
                         )),
@@ -317,7 +316,7 @@ impl Analyzer<'_> {
                         let lk: HashSet<&str> = lm.iter().map(|(k, _)| k.as_str()).collect();
                         if ck != lk {
                             self.diag(Diagnostic::error(
-                                "E1604",
+                                codes::E1604,
                                 "`range` and `labels` map keys do not match",
                                 s,
                             ));
@@ -328,21 +327,21 @@ impl Analyzer<'_> {
                     if !numeric_col {
                         let s = column.as_ref().map(|c| c.span).unwrap_or(span);
                         self.diag(Diagnostic::error(
-                            "E1607",
+                            codes::E1607,
                             format!("`{aesthetic}` scale requires a numeric column"),
                             s,
                         ));
                     }
                     if palette.is_some() || gradient.is_some() {
                         self.diag(Diagnostic::error(
-                            "E1204",
+                            codes::E1204,
                             "`palette` and `gradient` apply only to fill or stroke scales",
                             span,
                         ));
                     }
                     if let Some(s) = labels_span {
                         self.diag(Diagnostic::error(
-                            "E1606",
+                            codes::E1606,
                             "`labels` maps apply only to categorical scales",
                             s,
                         ));
@@ -351,7 +350,7 @@ impl Analyzer<'_> {
                     match &range {
                         Some(RangeSpec::Numeric(bounds, _)) => range_numeric = Some(*bounds),
                         Some(RangeSpec::ColorMap(_, s)) => self.diag(Diagnostic::error(
-                            "E1606",
+                            codes::E1606,
                             "a category map `range` applies only to categorical scales",
                             *s,
                         )),
@@ -423,7 +422,7 @@ impl Analyzer<'_> {
                         .map(|v| node_span(v.syntax()))
                         .unwrap_or_else(|| node_span(map.syntax()));
                     self.diag(Diagnostic::error(
-                        "E1604",
+                        codes::E1604,
                         "map keys must be string literals",
                         s,
                     ));
@@ -439,7 +438,7 @@ impl Analyzer<'_> {
                         .map(|v| node_span(v.syntax()))
                         .unwrap_or_else(|| node_span(map.syntax()));
                     self.diag(Diagnostic::error(
-                        "E1604",
+                        codes::E1604,
                         "map values must be string literals",
                         s,
                     ));
@@ -459,7 +458,7 @@ impl Analyzer<'_> {
     ) {
         if target.is_some() {
             self.diag(Diagnostic::error(
-                "E1204",
+                codes::E1204,
                 "`Scale` accepts only one target",
                 span,
             ));

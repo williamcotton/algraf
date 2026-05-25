@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use algraf_core::{Diagnostic, Span};
+use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::DataType;
 use algraf_syntax::ast::{
     AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, LetDecl, LiteralKind, SpaceBlock,
@@ -99,7 +99,7 @@ impl Analyzer<'_> {
             }
         }
         if !saw_geometry {
-            self.diag(Diagnostic::warning("W2001", "empty Space block", span));
+            self.diag(Diagnostic::warning(codes::W2001, "empty Space block", span));
         }
         self.check_spatial_geometries(&geometries, &frame);
 
@@ -196,7 +196,7 @@ impl Analyzer<'_> {
             }
             Some(value) => {
                 self.diag(Diagnostic::error(
-                    "E1802",
+                    codes::E1802,
                     "`projection` expects a string literal (an alias or a `+proj=…` string)",
                     node_span(value.syntax()),
                 ));
@@ -218,14 +218,14 @@ impl Analyzer<'_> {
                 // confusing second diagnostic.
                 FrameIr::Vector(col) if col.dtype == DataType::Unknown => {}
                 FrameIr::Vector(_) => self.diag(Diagnostic::error(
-                    "E1801",
+                    codes::E1801,
                     "a spatial space requires a geometry column; \
                      `Geo` must be used in a `Space(geom)` over a geometry column",
                     geo.span,
                 )),
                 FrameIr::Invalid => {}
                 _ => self.diag(Diagnostic::error(
-                    "E1804",
+                    codes::E1804,
                     "`Geo` mark requires a spatial space (a `Space` over a geometry column), \
                      not a planar Cartesian space",
                     geo.span,
@@ -254,13 +254,13 @@ impl Analyzer<'_> {
                     return (SpaceDataRef::Table(table_name), table);
                 }
                 self.diag(Diagnostic::error(
-                    "E1103",
+                    codes::E1103,
                     format!("unknown table `{table_name}`"),
                     node_span(name.syntax()),
                 ));
             } else if let Some(value) = arg.value() {
                 self.diag(Diagnostic::error(
-                    "E1103",
+                    codes::E1103,
                     "space `data` must name a derived or declared table",
                     node_span(value.syntax()),
                 ));
@@ -307,7 +307,7 @@ impl Analyzer<'_> {
                 if !blend_parenthesized(binary) {
                     self.diag(
                         Diagnostic::error(
-                            "E1305",
+                            codes::E1305,
                             "blend `+` expression must be parenthesized",
                             node_span(binary.syntax()),
                         )
@@ -333,7 +333,7 @@ impl Analyzer<'_> {
             },
             None => {
                 let mut diag =
-                    Diagnostic::error("E1101", format!("unknown column `{col_name}`"), span);
+                    Diagnostic::error(codes::E1101, format!("unknown column `{col_name}`"), span);
                 if let Some(suggestion) = closest(&col_name, table.names()) {
                     diag = diag.with_help(format!("did you mean `{suggestion}`?"));
                 }
@@ -353,8 +353,12 @@ impl Analyzer<'_> {
             FrameIr::Cartesian(axes) => {
                 if axes.len() > 2 {
                     self.diag(
-                        Diagnostic::error("E1306", "3D Cartesian spaces are unsupported", span)
-                            .with_help("use nesting to facet, e.g. `(x * y) / z`"),
+                        Diagnostic::error(
+                            codes::E1306,
+                            "3D Cartesian spaces are unsupported",
+                            span,
+                        )
+                        .with_help("use nesting to facet, e.g. `(x * y) / z`"),
                     );
                 }
                 for axis in axes {
@@ -379,7 +383,7 @@ impl Analyzer<'_> {
             if panel.dtype != DataType::Unknown && !panel.dtype.is_categorical() {
                 self.diag(
                     Diagnostic::error(
-                        "E1303",
+                        codes::E1303,
                         format!("facet column `{}` must be categorical", panel.name),
                         panel.span,
                     )
@@ -395,7 +399,7 @@ impl Analyzer<'_> {
                 if direct_temporal_vector(outer) || direct_temporal_vector(inner) {
                     self.diag(
                         Diagnostic::warning(
-                            "W2008",
+                            codes::W2008,
                             "high-cardinality temporal nesting may create excessive bands or panels",
                             temporal_nesting_span(outer)
                                 .or_else(|| temporal_nesting_span(inner))

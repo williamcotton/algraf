@@ -11,7 +11,7 @@
 //! sequences (`E0018`), invalid number literals (`E0013`), and unexpected
 //! characters (`E0011`).
 
-use algraf_core::{Diagnostic, Span};
+use algraf_core::{codes, Diagnostic, Span};
 use logos::{Lexer, Logos};
 
 /// A parsed numeric literal (spec §11.12).
@@ -102,7 +102,7 @@ pub fn tokenize(source: &str) -> LexResult {
             Err(()) => {
                 // No rule matched: an unexpected character (spec §6, E0011).
                 lexer.extras.diagnostics.push(Diagnostic::error(
-                    "E0011",
+                    codes::E0011,
                     format!("unexpected character {text:?}"),
                     span,
                 ));
@@ -240,7 +240,7 @@ fn parse_number(lex: &mut Lexer<RawToken>) -> NumberLiteral {
             Err(_) => {
                 push(
                     lex,
-                    Diagnostic::error("E0013", "invalid number literal", current_span(lex)),
+                    Diagnostic::error(codes::E0013, "invalid number literal", current_span(lex)),
                 );
                 NumberLiteral::Float(f64::NAN)
             }
@@ -254,7 +254,7 @@ fn parse_number(lex: &mut Lexer<RawToken>) -> NumberLiteral {
                     push(
                         lex,
                         Diagnostic::warning(
-                            "E0013",
+                            codes::E0013,
                             "integer literal does not fit in i64; treated as float",
                             current_span(lex),
                         ),
@@ -264,7 +264,11 @@ fn parse_number(lex: &mut Lexer<RawToken>) -> NumberLiteral {
                 Err(_) => {
                     push(
                         lex,
-                        Diagnostic::error("E0013", "invalid number literal", current_span(lex)),
+                        Diagnostic::error(
+                            codes::E0013,
+                            "invalid number literal",
+                            current_span(lex),
+                        ),
                     );
                     NumberLiteral::Float(f64::NAN)
                 }
@@ -301,7 +305,7 @@ fn lex_string(lex: &mut Lexer<RawToken>) -> String {
                         push(
                             lex,
                             Diagnostic::error(
-                                "E0018",
+                                codes::E0018,
                                 format!("invalid escape sequence '\\{esc}'"),
                                 Span::new(abs, abs + 1 + esc.len_utf8()),
                             ),
@@ -324,7 +328,7 @@ fn lex_string(lex: &mut Lexer<RawToken>) -> String {
         let span = Span::new(start, lex.span().end);
         push(
             lex,
-            Diagnostic::error("E0012", "unterminated string literal", span),
+            Diagnostic::error(codes::E0012, "unterminated string literal", span),
         );
     }
 
@@ -358,7 +362,7 @@ fn lex_block_comment(lex: &mut Lexer<RawToken>) -> String {
         let span = Span::new(start, lex.span().end);
         push(
             lex,
-            Diagnostic::error("E0020", "unterminated block comment", span),
+            Diagnostic::error(codes::E0020, "unterminated block comment", span),
         );
     }
 
@@ -401,7 +405,7 @@ fn lex_quoted_ident(lex: &mut Lexer<RawToken>) -> String {
         let span = Span::new(start, lex.span().end);
         push(
             lex,
-            Diagnostic::error("E0019", "unterminated quoted identifier", span),
+            Diagnostic::error(codes::E0019, "unterminated quoted identifier", span),
         );
     }
 

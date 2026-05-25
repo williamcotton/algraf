@@ -1,0 +1,139 @@
+use algraf_syntax::ast::{ChartItem, Root, SpaceItem};
+use algraf_syntax::{node_span, SyntaxNode};
+use tower_lsp::lsp_types::{DocumentSymbol, SymbolKind};
+
+use crate::positions::span_to_range;
+
+pub(crate) fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol> {
+    let Some(root) = Root::cast(syntax.clone()) else {
+        return Vec::new();
+    };
+    let Some(chart) = root.chart() else {
+        return Vec::new();
+    };
+
+    let mut chart_symbol = symbol(
+        source,
+        "Chart",
+        SymbolKind::OBJECT,
+        chart.syntax(),
+        Vec::new(),
+    );
+    let mut children = Vec::new();
+    for item in chart.items() {
+        match item {
+            ChartItem::Derive(decl) => {
+                let name = decl.name().unwrap_or_else(|| "Derive".to_string());
+                children.push(symbol(
+                    source,
+                    &format!("Derive {name}"),
+                    SymbolKind::VARIABLE,
+                    decl.syntax(),
+                    Vec::new(),
+                ));
+            }
+            ChartItem::Let(decl) => {
+                let name = decl.name().unwrap_or_else(|| "let".to_string());
+                children.push(symbol(
+                    source,
+                    &format!("let {name}"),
+                    SymbolKind::VARIABLE,
+                    decl.syntax(),
+                    Vec::new(),
+                ));
+            }
+            ChartItem::Table(decl) => {
+                let name = decl.name().unwrap_or_else(|| "Table".to_string());
+                children.push(symbol(
+                    source,
+                    &format!("Table {name}"),
+                    SymbolKind::VARIABLE,
+                    decl.syntax(),
+                    Vec::new(),
+                ));
+            }
+            ChartItem::Space(space) => {
+                let mut space_children = Vec::new();
+                for child in space.items() {
+                    match child {
+                        SpaceItem::Geometry(geometry) => {
+                            let name = geometry.name().unwrap_or_else(|| "Geometry".to_string());
+                            space_children.push(symbol(
+                                source,
+                                &name,
+                                SymbolKind::FUNCTION,
+                                geometry.syntax(),
+                                Vec::new(),
+                            ));
+                        }
+                        SpaceItem::Scale(decl)
+                        | SpaceItem::Guide(decl)
+                        | SpaceItem::Theme(decl) => {
+                            space_children.push(symbol(
+                                source,
+                                decl.keyword(),
+                                SymbolKind::PROPERTY,
+                                decl.syntax(),
+                                Vec::new(),
+                            ));
+                        }
+                        SpaceItem::Let(decl) => {
+                            let name = decl.name().unwrap_or_else(|| "let".to_string());
+                            space_children.push(symbol(
+                                source,
+                                &format!("let {name}"),
+                                SymbolKind::VARIABLE,
+                                decl.syntax(),
+                                Vec::new(),
+                            ));
+                        }
+                        SpaceItem::Error(_) => {}
+                    }
+                }
+                children.push(symbol(
+                    source,
+                    "Space",
+                    SymbolKind::OBJECT,
+                    space.syntax(),
+                    space_children,
+                ));
+            }
+            ChartItem::Scale(decl)
+            | ChartItem::Guide(decl)
+            | ChartItem::Theme(decl)
+            | ChartItem::Layout(decl) => {
+                children.push(symbol(
+                    source,
+                    decl.keyword(),
+                    SymbolKind::PROPERTY,
+                    decl.syntax(),
+                    Vec::new(),
+                ));
+            }
+            ChartItem::Error(_) => {}
+        }
+    }
+    chart_symbol.children = Some(children);
+    vec![chart_symbol]
+}
+
+fn symbol(
+    source: &str,
+    name: &str,
+    kind: SymbolKind,
+    node: &SyntaxNode,
+    children: Vec<DocumentSymbol>,
+) -> DocumentSymbol {
+    let range = span_to_range(source, node_span(node));
+    #[allow(deprecated)]
+    DocumentSymbol {
+        name: name.to_string(),
+        detail: None,
+        kind,
+        tags: None,
+        deprecated: None,
+        range,
+        selection_range: range,
+        children: (!children.is_empty()).then_some(children),
+    }
+}
