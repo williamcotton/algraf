@@ -16,3 +16,4 @@ thiserror = { workspace = true }
 geo-types = { workspace = true }
 geojson = { workspace = true }
 shapefile = { workspace = true }
+libsqlite3-sys = { workspace = true }

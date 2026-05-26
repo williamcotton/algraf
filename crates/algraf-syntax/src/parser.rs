@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use algraf_core::{codes, Diagnostic, DiagnosticCode, Span};
 use rowan::{GreenNode, GreenNodeBuilder};
 
-use crate::ast::{LiteralKind, Root, ValueExpr};
+use crate::ast::{CallValue, LiteralKind, Root, ValueExpr};
 use crate::lexer::{tokenize, TokenKind, TokenWithSpan};
 use crate::source::{node_span, unescape_string_literal as string_value};
 use crate::syntax_kind::{SyntaxKind, SyntaxNode};
@@ -53,6 +53,7 @@ pub fn parse(source: &str) -> Parse {
     let green = parser.builder.finish();
     let root = SyntaxNode::new_root(green.clone());
     validate_source_header(&root, &mut parser.diagnostics);
+    validate_gated_source_constructors(&root, &mut parser.diagnostics);
 
     Parse {
         green,
@@ -1006,7 +1007,7 @@ fn validate_source_header(root: &SyntaxNode, diagnostics: &mut Vec<Diagnostic>) 
     if !saw_version {
         diagnostics.push(Diagnostic::error(
             codes::E0022,
-            "`Algraf(...)` requires `version: \"0.20\"`",
+            "`Algraf(...)` requires `version: \"0.21\"`",
             node_span(header.syntax()),
         ));
     }
@@ -1018,7 +1019,7 @@ fn validate_header_version(arg: &crate::ast::Arg, diagnostics: &mut Vec<Diagnost
             let raw = string_value(&lit.text().unwrap_or_default());
             let span = node_span(lit.syntax());
             match parse_language_version(&raw) {
-                Some((major, minor, _patch)) if major == 0 && minor <= 20 => {}
+                Some((major, minor, _patch)) if major == 0 && minor <= 21 => {}
                 Some(_) => diagnostics.push(Diagnostic::error(
                     codes::E0023,
                     format!("unsupported Algraf language version `{raw}`"),
@@ -1026,7 +1027,7 @@ fn validate_header_version(arg: &crate::ast::Arg, diagnostics: &mut Vec<Diagnost
                 )),
                 None => diagnostics.push(Diagnostic::error(
                     codes::E0022,
-                    "`version` expects a string like \"0.20\"",
+                    "`version` expects a string like \"0.21\"",
                     span,
                 )),
             }
@@ -1104,6 +1105,55 @@ fn validate_header_features(arg: &crate::ast::Arg, diagnostics: &mut Vec<Diagnos
             ));
         }
     }
+}
+
+fn validate_gated_source_constructors(root: &SyntaxNode, diagnostics: &mut Vec<Diagnostic>) {
+    let sql_enabled = source_version_at_least(root, 21) && source_has_feature(root, "sql");
+    for call in root.descendants().filter_map(CallValue::cast) {
+        if call.name().as_deref() == Some("Sqlite") && !sql_enabled {
+            diagnostics.push(
+                Diagnostic::error(
+                    codes::E0025,
+                    "`Sqlite(...)` requires Algraf version 0.21 and the `sql` feature gate",
+                    node_span(call.syntax()),
+                )
+                .with_help(r#"add `Algraf(version: "0.21", features: ["sql"])` before the chart"#),
+            );
+        }
+    }
+}
+
+fn source_version_at_least(root: &SyntaxNode, minor: u64) -> bool {
+    source_header_arg(root, "version")
+        .and_then(|arg| match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                let raw = string_value(&lit.text().unwrap_or_default());
+                parse_language_version(&raw)
+            }
+            _ => None,
+        })
+        .is_some_and(|(major, declared_minor, _patch)| major == 0 && declared_minor >= minor)
+}
+
+fn source_has_feature(root: &SyntaxNode, feature: &str) -> bool {
+    let Some(arg) = source_header_arg(root, "features") else {
+        return false;
+    };
+    let Some(ValueExpr::Array(array)) = arg.value() else {
+        return false;
+    };
+    array
+        .values()
+        .iter()
+        .any(|item| string_literal_value(item).as_deref() == Some(feature))
+}
+
+fn source_header_arg(root: &SyntaxNode, key: &str) -> Option<crate::ast::Arg> {
+    Root::cast(root.clone())?
+        .source_header()?
+        .args()
+        .into_iter()
+        .find(|arg| arg.key().as_deref() == Some(key))
 }
 
 fn string_literal_value(value: &ValueExpr) -> Option<String> {

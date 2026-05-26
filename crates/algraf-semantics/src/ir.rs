@@ -39,6 +39,7 @@ pub struct ChartIr {
 pub struct TableDeclIr {
     pub name: String,
     pub path: String,
+    pub query: Option<String>,
     pub span: Span,
 }
 
@@ -52,6 +53,9 @@ pub enum DataSourceIr {
     GeoJson(String),
     /// A `Shapefile("path.shp")` source constructor (spec §10.11).
     Shapefile(String),
+    /// A `Sqlite("path.db", "SELECT ... ORDER BY ...")` source constructor
+    /// (spec §10.12).
+    Sqlite { path: String, query: String },
     /// The `stdin` sentinel.
     Stdin,
     /// No valid data source was declared.

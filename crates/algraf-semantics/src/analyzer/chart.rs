@@ -234,6 +234,7 @@ impl Analyzer<'_> {
                 format: Some(SourceFormat::Shapefile),
                 ..
             } => DataSourceIr::Shapefile(path),
+            SourceExpr::Sqlite { path, query, .. } => DataSourceIr::Sqlite { path, query },
             SourceExpr::Stdin { .. } => DataSourceIr::Stdin,
             SourceExpr::Invalid { span } => {
                 if let Some(ValueExpr::Call(call)) = arg.value() {
@@ -241,7 +242,7 @@ impl Analyzer<'_> {
                         self.diag(Diagnostic::error(
                             codes::E1004,
                             format!(
-                                "`{}` source expects a string-literal path",
+                                "`{}` source expects string-literal arguments",
                                 call.name().unwrap_or_default()
                             ),
                             span,
@@ -251,7 +252,7 @@ impl Analyzer<'_> {
                 }
                 self.diag(Diagnostic::error(
                     codes::E1004,
-                    "data source must be a string literal, a `GeoJson`/`Shapefile` \
+                    "data source must be a string literal, a `GeoJson`/`Shapefile`/`Sqlite` \
                      source constructor, or the `stdin` sentinel",
                     span,
                 ));
@@ -260,7 +261,7 @@ impl Analyzer<'_> {
             SourceExpr::Missing => {
                 self.diag(Diagnostic::error(
                     codes::E1004,
-                    "data source must be a string literal, a `GeoJson`/`Shapefile` \
+                    "data source must be a string literal, a `GeoJson`/`Shapefile`/`Sqlite` \
                      source constructor, or the `stdin` sentinel",
                     node_span(arg.syntax()),
                 ));

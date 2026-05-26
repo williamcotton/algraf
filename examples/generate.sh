@@ -60,6 +60,7 @@ charts=(
     manual_colors
     minard
     sales_tsv
+    sqlite_sales
     temperatures_json
     events_ndjson
     choropleth

@@ -20,11 +20,22 @@ pub enum SourceFormat {
     Shapefile,
 }
 
-/// How a source constructor's path argument must be written (spec §10.11).
+/// The recognized source-constructor families.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SourceConstructorKind {
+    /// A file source that selects a concrete loader format.
+    PathFormat(SourceFormat),
+    /// A local SQLite database plus SQL query.
+    Sqlite,
+}
+
+/// How a source constructor's arguments must be written (spec §10.11).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathArgRule {
     /// Exactly one positional string-literal path argument.
     SingleStringLiteral,
+    /// Exactly two positional string literals: database path and SQL query.
+    SqlitePathAndQuery,
 }
 
 /// Static metadata describing a recognized source constructor (spec §10.11).
@@ -35,8 +46,8 @@ pub enum PathArgRule {
 /// entry here, not accepting arbitrary runtime strings as constructors.
 #[derive(Debug, Clone, Copy)]
 pub struct SourceConstructorMeta {
-    /// The explicit loader format this constructor selects.
-    pub format: SourceFormat,
+    /// The source kind this constructor selects.
+    pub kind: SourceConstructorKind,
     /// The constructor's authoritative source spelling (e.g. `"GeoJson"`).
     pub name: &'static str,
     /// How the path argument must be written.
@@ -50,18 +61,25 @@ pub struct SourceConstructorMeta {
 /// Every recognized source constructor, in declaration order.
 pub const SOURCE_CONSTRUCTORS: &[SourceConstructorMeta] = &[
     SourceConstructorMeta {
-        format: SourceFormat::GeoJson,
+        kind: SourceConstructorKind::PathFormat(SourceFormat::GeoJson),
         name: "GeoJson",
         path_arg: PathArgRule::SingleStringLiteral,
         doc: "Load a GeoJSON FeatureCollection as the data source.",
         completion_snippet: "GeoJson(\"$1\")",
     },
     SourceConstructorMeta {
-        format: SourceFormat::Shapefile,
+        kind: SourceConstructorKind::PathFormat(SourceFormat::Shapefile),
         name: "Shapefile",
         path_arg: PathArgRule::SingleStringLiteral,
         doc: "Load an ESRI shapefile bundle as the data source.",
         completion_snippet: "Shapefile(\"$1\")",
+    },
+    SourceConstructorMeta {
+        kind: SourceConstructorKind::Sqlite,
+        name: "Sqlite",
+        path_arg: PathArgRule::SqlitePathAndQuery,
+        doc: "Load a local SQLite database with a read-only, ORDER BY query. Requires the `sql` feature gate.",
+        completion_snippet: "Sqlite(\"$1.db\", \"SELECT $2 FROM $3 ORDER BY $4\")",
     },
 ];
 
@@ -70,7 +88,7 @@ impl SourceFormat {
     pub fn meta(self) -> &'static SourceConstructorMeta {
         SOURCE_CONSTRUCTORS
             .iter()
-            .find(|meta| meta.format == self)
+            .find(|meta| meta.kind == SourceConstructorKind::PathFormat(self))
             .expect("every SourceFormat has constructor metadata")
     }
 
@@ -84,12 +102,20 @@ impl SourceFormat {
         SOURCE_CONSTRUCTORS
             .iter()
             .find(|meta| meta.name == name)
-            .map(|meta| meta.format)
+            .and_then(|meta| match meta.kind {
+                SourceConstructorKind::PathFormat(format) => Some(format),
+                SourceConstructorKind::Sqlite => None,
+            })
     }
 
     /// All recognized source constructor names.
     pub fn constructor_names() -> impl Iterator<Item = &'static str> {
-        SOURCE_CONSTRUCTORS.iter().map(|meta| meta.name)
+        SOURCE_CONSTRUCTORS
+            .iter()
+            .filter_map(|meta| match meta.kind {
+                SourceConstructorKind::PathFormat(_) => Some(meta.name),
+                SourceConstructorKind::Sqlite => None,
+            })
     }
 }
 
@@ -108,6 +134,12 @@ pub enum SourceExpr {
         format: Option<SourceFormat>,
         span: Span,
     },
+    /// A local SQLite database source.
+    Sqlite {
+        path: String,
+        query: String,
+        span: Span,
+    },
     /// The bare `stdin` sentinel.
     Stdin { span: Span },
     /// No source expression was present.
@@ -121,6 +153,7 @@ impl SourceExpr {
     pub fn span(&self) -> Option<Span> {
         match self {
             SourceExpr::Path { span, .. }
+            | SourceExpr::Sqlite { span, .. }
             | SourceExpr::Stdin { span }
             | SourceExpr::Invalid { span } => Some(*span),
             SourceExpr::Missing => None,
@@ -129,7 +162,7 @@ impl SourceExpr {
 
     /// Whether this source is a path.
     pub fn is_path(&self) -> bool {
-        matches!(self, SourceExpr::Path { .. })
+        matches!(self, SourceExpr::Path { .. } | SourceExpr::Sqlite { .. })
     }
 
     /// Whether this source is `stdin`.
@@ -143,12 +176,19 @@ impl SourceExpr {
     }
 }
 
-/// A recognized source-constructor call with its path argument.
+/// A recognized source-constructor call with validated positional arguments.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SourceConstructor {
-    pub format: SourceFormat,
-    pub path: String,
-    pub span: Span,
+pub enum SourceConstructor {
+    Path {
+        format: SourceFormat,
+        path: String,
+        span: Span,
+    },
+    Sqlite {
+        path: String,
+        query: String,
+        span: Span,
+    },
 }
 
 /// The byte span of a syntax node's significant tokens (spec §11.2).
@@ -263,24 +303,46 @@ fn decode_unicode_escape(chars: &mut std::iter::Peekable<std::str::Chars<'_>>) -
 /// Whether a call value is a recognized source constructor by name.
 pub fn is_source_constructor(call: &CallValue) -> bool {
     call.name()
-        .and_then(|name| SourceFormat::from_constructor_name(&name))
+        .and_then(|name| source_constructor_meta(&name))
         .is_some()
 }
 
-/// Extract the path and explicit format from a recognized source constructor's
-/// first positional string-literal argument.
+/// Extract validated positional arguments from a recognized source constructor.
 pub fn source_constructor(call: &CallValue) -> Option<SourceConstructor> {
-    let format = call
+    let meta = call
         .name()
-        .and_then(|name| SourceFormat::from_constructor_name(&name))?;
-    let arg = call.args().into_iter().find(|arg| arg.key().is_none())?;
+        .and_then(|name| source_constructor_meta(&name))?;
+    let args = call.args();
+    let positional: Vec<_> = args.iter().filter(|arg| arg.key().is_none()).collect();
+    if positional.len() != args.len() {
+        return None;
+    }
+    let span = node_span(call.syntax());
+    match meta.kind {
+        SourceConstructorKind::PathFormat(format) => {
+            let [arg] = positional.as_slice() else {
+                return None;
+            };
+            let path = string_literal_arg(arg)?;
+            Some(SourceConstructor::Path { format, path, span })
+        }
+        SourceConstructorKind::Sqlite => {
+            let [path_arg, query_arg] = positional.as_slice() else {
+                return None;
+            };
+            Some(SourceConstructor::Sqlite {
+                path: string_literal_arg(path_arg)?,
+                query: string_literal_arg(query_arg)?,
+                span,
+            })
+        }
+    }
+}
+
+fn string_literal_arg(arg: &Arg) -> Option<String> {
     match arg.value() {
         Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
-            Some(SourceConstructor {
-                format,
-                path: unescape_string_literal(&lit.text().unwrap_or_default()),
-                span: node_span(call.syntax()),
-            })
+            Some(unescape_string_literal(&lit.text().unwrap_or_default()))
         }
         _ => None,
     }
@@ -288,7 +350,9 @@ pub fn source_constructor(call: &CallValue) -> Option<SourceConstructor> {
 
 /// Extract the path from a recognized source constructor.
 pub fn source_constructor_path(call: &CallValue) -> Option<String> {
-    source_constructor(call).map(|source| source.path)
+    source_constructor(call).map(|source| match source {
+        SourceConstructor::Path { path, .. } | SourceConstructor::Sqlite { path, .. } => path,
+    })
 }
 
 /// Extract the first chart's declared data source from a parsed tree.
@@ -353,11 +417,14 @@ pub fn source_expr_from_value(value: Option<ValueExpr>, allow_stdin: bool) -> So
         },
         Some(ValueExpr::Call(call)) if is_source_constructor(&call) => {
             match source_constructor(&call) {
-                Some(source) => SourceExpr::Path {
-                    path: source.path,
-                    format: Some(source.format),
-                    span: source.span,
+                Some(SourceConstructor::Path { path, format, span }) => SourceExpr::Path {
+                    path,
+                    format: Some(format),
+                    span,
                 },
+                Some(SourceConstructor::Sqlite { path, query, span }) => {
+                    SourceExpr::Sqlite { path, query, span }
+                }
                 None => SourceExpr::Invalid {
                     span: node_span(call.syntax()),
                 },
@@ -384,15 +451,13 @@ mod tests {
     #[test]
     fn source_constructor_metadata_round_trips_by_name_and_format() {
         for meta in SOURCE_CONSTRUCTORS {
-            assert_eq!(
-                SourceFormat::from_constructor_name(meta.name),
-                Some(meta.format)
-            );
-            assert_eq!(meta.format.constructor_name(), meta.name);
-            assert_eq!(meta.format.meta().name, meta.name);
             assert!(source_constructor_meta(meta.name).is_some());
+            if let SourceConstructorKind::PathFormat(format) = meta.kind {
+                assert_eq!(SourceFormat::from_constructor_name(meta.name), Some(format));
+                assert_eq!(format.constructor_name(), meta.name);
+                assert_eq!(format.meta().name, meta.name);
+            }
         }
-        assert!(SourceFormat::from_constructor_name("Sqlite").is_none());
         assert!(source_constructor_meta("Csv").is_none());
     }
 
@@ -455,6 +520,30 @@ mod tests {
     #[test]
     fn malformed_constructor_is_invalid() {
         let chart = first_chart(r#"Chart(data: GeoJson(path: "map.geojson")) {}"#);
+        assert!(matches!(
+            chart_data_source(&chart),
+            SourceExpr::Invalid { .. }
+        ));
+    }
+
+    #[test]
+    fn sqlite_constructor_extracts_path_and_query() {
+        let chart = first_chart(
+            r#"Chart(data: Sqlite("sales.db", "SELECT region FROM sales ORDER BY region")) {}"#,
+        );
+        assert!(matches!(
+            chart_data_source(&chart),
+            SourceExpr::Sqlite {
+                path,
+                query,
+                ..
+            } if path == "sales.db" && query.contains("ORDER BY")
+        ));
+    }
+
+    #[test]
+    fn malformed_sqlite_constructor_is_invalid() {
+        let chart = first_chart(r#"Chart(data: Sqlite("sales.db")) {}"#);
         assert!(matches!(
             chart_data_source(&chart),
             SourceExpr::Invalid { .. }

@@ -975,17 +975,21 @@ Trivia is not represented as typed AST children.
 
 A source file MUST contain at least one chart block.
 
-Version 0.20.0 MAY begin with a single source header before the first chart:
+Version 0.20.0 MAY begin with a single source header before the first chart.
+Version 0.21.0 uses the same header form:
 
 ```ag
-Algraf(version: "0.20", features: ["experimental"])
+Algraf(version: "0.21", features: ["sql"])
 ```
 
 If present, `version` is required and MUST be a string literal. `features` is an
 optional array of string literals. Version 0.20.0 recognizes `sql`, `network`,
 `plugins`, and `experimental` as reserved feature gates; these gates do not
 enable SQL, network access, plugins, or experimental syntax in version 0.20.0.
-Unknown or duplicate feature gates MUST emit diagnostics.
+Version 0.21.0 enables local SQLite sources only when the source header declares
+`features: ["sql"]`; `network`, `plugins`, and `experimental` remain reserved.
+Unknown or duplicate feature gates MUST emit diagnostics. A gated source used
+without the required version and feature gate is `E0025`.
 
 A source file MAY contain more than one top-level chart block. Each chart is a
 complete, independent chart: it has its own data source, scales, guides, theme,
@@ -1132,12 +1136,19 @@ Derive bins = Bin(value, bins: 25)
 ```ebnf
 TableDecl      ::= "Table" Ident "=" SourceExpr
 SourceExpr     ::= String
+                 | GeoJsonSource
+                 | ShapefileSource
+                 | SqliteSource
+GeoJsonSource  ::= "GeoJson" "(" String ")"
+ShapefileSource ::= "Shapefile" "(" String ")"
+SqliteSource   ::= "Sqlite" "(" String "," String ")"
 ```
 
 `Table` creates a chart-scoped named data table from an independent source
-(spec §10.10). The `SourceExpr` position is a *source expression*; version 0.6
-accepts only a string-literal CSV path, and reserves the position for later
-source constructors (e.g. `Sqlite(...)`).
+(spec §10.10). The `SourceExpr` position is a *source expression*: a string path
+uses extension-based format selection, geospatial constructors select their
+loader explicitly, and `Sqlite(path, query)` selects a local SQLite query
+(spec §10.12).
 
 A `Table` name MUST be unique among `Table` declarations (`E1105`) and MUST NOT
 conflict with the primary or a derived table (`E1108`). A `Table` is bound to a
@@ -1839,6 +1850,12 @@ shapefile bundle. Both MAY appear wherever a data source is accepted —
 `Chart(data: GeoJson("us.geojson"))` and `Table counties = Shapefile("us.shp")`.
 A source constructor's path is its first positional string argument.
 
+Version 0.21 adds `Sqlite("path.db", "SELECT ... ORDER BY ...")` on the same
+source-expression seam (spec §10.12). It MAY appear in `Chart(data:)` and in
+`Table name = ...` only when the source header enables `features: ["sql"]`.
+The first positional string is a local database path; the second positional
+string is the SQL query.
+
 `Chart(data: stdin)` reads CSV data from standard input.
 
 `stdin` is a bare sentinel, not a string path.
@@ -1966,6 +1983,11 @@ For LSP completion, reading only headers is sufficient.
 For LSP hover, inferred types are useful but optional.
 
 LSP type inference from sampled rows is provisional.
+
+For SQL sources, schema inference MUST execute the declared read-only query and
+inspect at most the requested sample size of result rows. A sample size of `N`
+MUST NOT step more than `N` rows, though preparing the SQLite statement is
+allowed so result-column names are available.
 
 The LSP MUST label sampled types as provisional in internal analysis state.
 
@@ -2222,15 +2244,22 @@ The CLI SHOULD provide an option to allow network sources if implemented later.
 
 Driver-level data loading MUST keep a synchronous, injectable I/O provider
 that can read resolved path bytes, stdin bytes, path metadata, and shapefile
-sidecars. The default provider uses the operating system. The synchronous
-provider MUST NOT add network access, environment-variable access, command
-execution, async operations, or caching policy.
+sidecars, and local SQLite database paths. The default provider uses the
+operating system. The synchronous provider MUST NOT add network access,
+environment-variable access, command execution, async operations, or caching
+policy.
 
 Version 0.19 adds an async-capable adapter shape with the same local-source
 surface as the synchronous provider. Async loading MUST be additive: existing
 synchronous helpers remain available, and the async boundary MUST NOT add new
 source kinds, network access, environment-variable access, command execution, or
 cache policy.
+
+SQLite sources are local file sources. They MUST open databases read-only, MUST
+reject write statements, MUST reject multiple SQL statements, MUST NOT register
+user-defined SQL functions, and MUST NOT read credentials or environment
+variables. URL-valued sources, remote SQL connections, `env("VAR")`, and
+command sources are not enabled by default and remain gated/deferred.
 
 The LSP SHOULD avoid reading very large files on the hot path.
 
@@ -2249,6 +2278,10 @@ explicit source-constructor format policy, so the same path read as inferred CSV
 and as `GeoJson(...)` occupy distinct slots. The path SHOULD be normalized
 (lexically, without consulting the filesystem) so equivalent spellings share one
 slot.
+
+For SQLite sources, `DataSourceKey` MUST also include the SQL query string. The
+same database path queried with two different `SELECT` statements MUST occupy
+distinct schema-cache slots.
 
 Cache validity is decided by a separate source fingerprint
 (`SourceFingerprint`), which SHOULD include:
@@ -2282,9 +2315,10 @@ Completion requests SHOULD NOT block for full data loading.
 ### 10.10 Named Tables
 
 A chart MAY declare named, chart-scoped data tables with `Table name = <source>`
-(spec §7.4.1). Each named table is an independent file source, loaded the same
-way as `Chart(data:)` — including format selection by extension (spec §10.2),
-path resolution, `--base-dir`, and source security in §10.8, all unchanged.
+(spec §7.4.1). Each named table is an independent source, loaded the same way as
+`Chart(data:)` — including format selection by extension (spec §10.2), explicit
+source constructors (`GeoJson`, `Shapefile`, and gated `Sqlite`), path
+resolution, `--base-dir`, and source security in §10.8, all unchanged.
 
 A `Space` binds to a named table by bare identifier in its `data:` argument,
 exactly as it binds to a derived table; the space's algebra and geometry
@@ -2340,21 +2374,71 @@ loading.
 
 Recognized source constructors MUST be described by a single shared
 constructor-metadata table in the syntax layer. The metadata records the
-constructor's authoritative name, its explicit loader-format policy, its
-path-argument rule, documentation, and editor completion text. The set of
+constructor's authoritative name, source kind, argument rule, documentation, and
+editor completion text. The set of
 recognized constructors is closed: a name absent from the table is not a
 constructor (and falls through to the usual invalid-source diagnostics). The
 driver maps a constructor's format policy into a data-loader format at one
 boundary; syntax MUST NOT depend on the data crate's runtime format type, and
 runtime strings MUST NOT be promoted to constructors outside the table. Adding a
-future constructor (e.g. `Sqlite(...)`) means adding a table entry, not widening
-accepted syntax in scattered matches.
+future constructor means adding a table entry, not widening accepted syntax in
+scattered matches.
 
 Path resolution, `--base-dir`, and source security (§10.8) apply unchanged. A
 missing source file is `E1106`; an unreadable one is `E1107`. A malformed
 document or unsupported geometry type is `E1805`.
 
-### 10.12 Runtime Cache Policy
+### 10.12 SQLite Sources
+
+Version 0.21 supports local SQLite data sources behind the `sql` feature gate:
+
+```ag
+Algraf(version: "0.21", features: ["sql"])
+
+Chart(data: Sqlite("sales.db", "SELECT region, revenue FROM sales ORDER BY region")) {
+    Space(region * revenue) {
+        Bar(stat: "identity")
+    }
+}
+```
+
+`Sqlite(path, query)` MUST take exactly two positional string literals. Keyword
+arguments, missing arguments, or non-string arguments are invalid source
+expressions (`E1004`). The constructor MAY be used anywhere `SourceExpr` is
+accepted, including `Chart(data:)` and `Table name = ...`.
+
+The database path resolves with the same source-relative and `--base-dir` rules
+as file sources. `--data <path>` remains a primary-source override and, when
+present, replaces the chart's declared `Sqlite(...)` source with the ordinary
+extension-selected file source named by `--data`.
+
+SQLite execution MUST be local and read-only. The loader MUST open the database
+read-only, MUST reject statements that SQLite reports as writable, and MUST
+reject SQL that does not start with `SELECT` or `WITH`. A SQLite source query
+MUST be exactly one statement; multiple statements are `E1012`.
+
+SQLite source queries MUST include a top-level `ORDER BY` clause. Algraf does
+not impose hidden row ordering because arbitrary SQL result ordering is backend
+dependent. Missing top-level `ORDER BY` is `E1012`. The `ORDER BY` requirement
+applies to both full render loads and schema-only LSP samples.
+
+SQLite result columns MUST appear in SQLite result-column order, and duplicate
+result column names are `E1008`. Values with SQLite storage classes `NULL`,
+`INTEGER`, `REAL`, and `TEXT` are converted to the same raw textual inference
+pipeline used by CSV/JSON (§10.3). `BLOB` values are unsupported and MUST emit
+`E1013`. SQLite text that is not valid UTF-8 is `E1011`.
+
+Malformed SQL, missing tables, missing columns, and SQLite execution failures
+are `E1011`. Error messages SHOULD include the resolved database path and the
+SQLite error message, but MUST NOT include environment variables, credentials,
+or unrelated local process state.
+
+Schema inference for SQLite MUST be bounded by the caller's sample size. CLI
+render MUST fully load the query result before rendering; LSP schema reads MUST
+sample and MUST remain cancellable/cooperative at the request boundary where
+practical.
+
+### 10.13 Runtime Cache Policy
 
 Algraf distinguishes four cache kinds:
 
@@ -6066,6 +6150,10 @@ Since version 0.16 the schema cache is the driver-owned, fingerprint-validated
 service of §10.9 rather than an LSP-local map; `DataSourceKey` and the cached
 schema/error types live in `driver`. Primary and named-table schema resolution
 both go through this one cache, so they share keying and invalidation.
+For `Sqlite(...)`, the LSP MUST include the SQL query in the schema-cache key,
+MUST use the bounded SQL schema-sampling policy from §10.12, and MUST surface
+the `E0025` gated-off diagnostic instead of loading SQL when the `sql` feature
+gate is absent.
 
 Document state:
 
@@ -6175,6 +6263,10 @@ Completion SHOULD include insert text.
 Completion SHOULD include kind.
 
 Column completions SHOULD use schema cache.
+
+`Sqlite(...)` completion and hover documentation MUST be offered only when the
+document declares `Algraf(version: "0.21", features: ["sql"])`; otherwise the
+constructor remains gated and diagnostics explain the required header.
 
 If schema unavailable, completion SHOULD return syntax keywords and optionally a loading message.
 
@@ -6506,6 +6598,10 @@ The command MUST reject using `-` for both source and CSV data in version 0.1.
 
 If the source contains `Chart(data: stdin)`, CSV data reads from stdin unless `--data <path>` overrides it.
 
+If the source contains gated `Sqlite(...)`, the CLI MUST require
+`Algraf(version: "0.21", features: ["sql"])`. No CLI flag enables network,
+environment-variable, or command sources in version 0.21.
+
 Render options:
 
 `--output <path>`
@@ -6584,6 +6680,9 @@ algraf schema chart.ag
 ```
 
 Schema command prints resolved data schema as JSON or table.
+
+For `Sqlite(...)`, `--sample-size <n>` bounds the number of result rows stepped
+for type inference; omitted sample size loads the full query result schema.
 
 Options:
 
@@ -6767,7 +6866,7 @@ by `SourceFingerprint` (spec §10.9), storing schemas and load errors rather tha
 full frames
 
 runtime cache policy documentation distinguishing schema, full-frame,
-render-result, and persistent caches (spec §10.12)
+render-result, and persistent caches (spec §10.13)
 
 chart data dependency inventory
 
@@ -6845,6 +6944,10 @@ Recommended dependencies:
 
 `indexmap` for stable ordering
 
+`geo-types`, `geojson`, and `shapefile` for geospatial sources
+
+`libsqlite3-sys` for local SQLite sources
+
 `thiserror` for errors
 
 `tower-lsp` for LSP
@@ -6893,8 +6996,9 @@ LSP logs internal errors and avoids crashing where possible.
 
 The driver SHOULD provide a single mapping from driver/data loading errors to
 stable diagnostic `(code, message)` pairs, so the CLI and LSP report
-missing-file, unreadable-file, malformed CSV/JSON, and geospatial parse
-conditions identically (codes `E1005`–`E1010`, `E1805`).
+missing-file, unreadable-file, malformed CSV/JSON, SQLite query/safety/type
+errors, and geospatial parse conditions identically (codes `E1005`–`E1013`,
+`E1805`).
 
 The driver SHOULD offer a preparation report that holds parse, load, semantic,
 data-warning, and render entries in deterministic phase order. Diagnostics that
@@ -7302,6 +7406,8 @@ missing `=>`/stray separator in a map literal)
 
 `E0024 unknown or duplicate feature gate`
 
+`E0025 required feature gate is not enabled`
+
 ### 26.2 Semantic Diagnostics
 
 `E1001 Chart requires data argument`
@@ -7318,11 +7424,17 @@ missing `=>`/stray separator in a map literal)
 
 `E1007 CSV header missing`
 
-`E1008 duplicate CSV column`
+`E1008 duplicate data column`
 
 `E1009 malformed JSON input`
 
 `E1010 JSON data must be an array of row objects`
+
+`E1011 SQLite query error`
+
+`E1012 unsafe or nondeterministic SQLite source`
+
+`E1013 unsupported SQLite result type`
 
 `E1101 unknown column`
 
@@ -7783,6 +7895,12 @@ Algraf MUST escape SVG text and attributes.
 
 Algraf SHOULD cap resource usage for LSP schema reads.
 
+SQLite sources MUST be opt-in through source syntax and the `sql` feature gate,
+MUST open only local database paths, MUST execute read-only single statements,
+and MUST require deterministic `ORDER BY` ordering. Remote SQL, URL-valued data
+sources, credential lookup (`env("VAR")`), and command sources MUST remain
+disabled unless a later version defines and tests explicit opt-in surfaces.
+
 Parsing and analysis MUST remain resilient against adversarial nesting and
 malformed input: recover and continue, never panic (spec §12.1, §27.4). This
 version does not impose an explicit nesting-depth limit and relies on the host
@@ -7796,6 +7914,9 @@ SHOULD be introduced (reserved for that purpose) rather than allowing a crash.
 Data source paths resolve relative to chart source.
 
 CLI MAY allow absolute paths.
+
+`Sqlite(...)` database paths follow the same path rules. URL schemes are not
+accepted as data sources in version 0.21.
 
 LSP SHOULD respect workspace boundaries where possible.
 
@@ -7829,17 +7950,20 @@ Render command SHOULD offer user-visible errors for files that are too large if 
 
 Released version 0.1 files have no source-level version declaration.
 
-Version 0.20.0 supports an optional source-level version declaration. Unversioned
-files remain valid and keep current behavior.
+Version 0.20.0 supports an optional source-level version declaration. Version
+0.21.0 keeps the same mechanism and uses feature gates for local SQLite sources.
+Unversioned files remain valid and keep current behavior, but gated syntax
+requires an explicit header.
 
 Files MAY include:
 
 ```ag
-Algraf(version: "0.20")
+Algraf(version: "0.21")
 ```
 
-The canonical v0.20 spelling is `"0.20"`; `"0.20.0"` is accepted. Unsupported
-future versions MUST emit a diagnostic while preserving parser recovery.
+The canonical v0.21 spelling is `"0.21"`; `"0.21.0"` is accepted. Older
+supported minor versions such as `"0.20"` remain accepted. Unsupported future
+versions MUST emit a diagnostic while preserving parser recovery.
 
 ### 30.2 Stability
 
@@ -7855,9 +7979,13 @@ Version 0.20.0 recognizes feature gate names as reserved strings. The recognized
 names are `sql`, `network`, `plugins`, and `experimental`; they do not enable
 runtime access in version 0.20.0.
 
+Version 0.21.0 enables the `sql` feature gate for local SQLite sources only
+(spec §10.12). The `network`, `plugins`, and `experimental` gates remain
+recognized but reserved; they do not enable runtime access in version 0.21.0.
+
 Future feature gates MAY enable:
 
-SQL sources
+remote SQL sources
 
 interactive SVG
 
@@ -7895,7 +8023,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.18.0 | [`V0_18_PLAN.md`](V0_18_PLAN.md) | Semantic surface hardening | Complete |
 | 0.19.0 | [`V0_19_PLAN.md`](V0_19_PLAN.md) | Data execution boundary | Complete |
 | 0.20.0 | [`V0_20_PLAN.md`](V0_20_PLAN.md) | Language versioning and reuse | Complete |
-| 0.21.0 | [`V0_21_PLAN.md`](V0_21_PLAN.md) | Data backends and source security | Planned |
+| 0.21.0 | [`V0_21_PLAN.md`](V0_21_PLAN.md) | Data backends and source security | Implemented |
 | 0.22.0 | [`V0_22_PLAN.md`](V0_22_PLAN.md) | Geospatial completion | Planned |
 | 0.23.0 | [`V0_23_PLAN.md`](V0_23_PLAN.md) | Stat and geometry polish | Planned |
 | 0.24.0 | [`V0_24_PLAN.md`](V0_24_PLAN.md) | Output backends and interactivity | Planned |

@@ -1,6 +1,6 @@
 use algraf_data::DataType;
 use algraf_semantics::registry;
-use algraf_syntax::{tokenize, unescape_string_literal};
+use algraf_syntax::{source_constructor_meta, tokenize, unescape_string_literal};
 use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
 
 use crate::document::DocumentState;
@@ -69,6 +69,12 @@ fn hover_for_ident(
             "**Geometry `{name}`**\n\n{}",
             registry::geometry_doc(name)
         ));
+    }
+    if let Some(meta) = source_constructor_meta(name) {
+        if meta.name != "Sqlite" || (state.text.contains("0.21") && state.text.contains("\"sql\""))
+        {
+            return Some(format!("**Source `{name}`**\n\n{}", meta.doc));
+        }
     }
     match name {
         "Algraf" => {
@@ -139,9 +145,12 @@ fn hover_for_string(state: &DocumentState, raw: &str) -> Option<String> {
         ));
     }
     if ["sql", "network", "plugins", "experimental"].contains(&value.as_str()) {
-        return Some(format!(
-            "**Feature gate `{value}`**\n\nReserved v0.20 feature gate; it does not enable runtime access yet."
-        ));
+        let body = if value == "sql" {
+            "Enables local `Sqlite(...)` sources in Algraf v0.21."
+        } else {
+            "Reserved feature gate; it does not enable runtime access yet."
+        };
+        return Some(format!("**Feature gate `{value}`**\n\n{body}"));
     }
     if state.data_path.is_some() {
         None

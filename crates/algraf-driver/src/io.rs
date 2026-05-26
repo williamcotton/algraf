@@ -5,7 +5,8 @@ use std::pin::Pin;
 use std::time::SystemTime;
 
 use algraf_data::{
-    read_shapefile_bundle, read_shapefile_path, DataError, LoadResult, ShapefileBundle,
+    read_shapefile_bundle, read_shapefile_path, read_sqlite_path, read_sqlite_schema_path,
+    ColumnDef, DataError, LoadResult, ShapefileBundle,
 };
 
 pub type DriverIoFuture<'a, T> = Pin<Box<dyn Future<Output = io::Result<T>> + Send + 'a>>;
@@ -82,6 +83,21 @@ pub trait DriverIo {
         let bundle = self.read_shapefile_bundle(path)?;
         read_shapefile_bundle(bundle.as_data_bundle())
     }
+
+    /// Load a local SQLite query result from a resolved database path.
+    fn load_sqlite(&self, path: &Path, query: &str) -> Result<LoadResult, DataError> {
+        read_sqlite_path(path, query)
+    }
+
+    /// Load a bounded schema sample from a local SQLite query result.
+    fn load_sqlite_schema(
+        &self,
+        path: &Path,
+        query: &str,
+        sample_size: usize,
+    ) -> Result<Vec<ColumnDef>, DataError> {
+        read_sqlite_schema_path(path, query, sample_size)
+    }
 }
 
 impl<T: DriverIo + ?Sized> DriverIo for &T {
@@ -107,6 +123,19 @@ impl<T: DriverIo + ?Sized> DriverIo for &T {
 
     fn load_shapefile(&self, path: &Path) -> Result<LoadResult, DataError> {
         (**self).load_shapefile(path)
+    }
+
+    fn load_sqlite(&self, path: &Path, query: &str) -> Result<LoadResult, DataError> {
+        (**self).load_sqlite(path, query)
+    }
+
+    fn load_sqlite_schema(
+        &self,
+        path: &Path,
+        query: &str,
+        sample_size: usize,
+    ) -> Result<Vec<ColumnDef>, DataError> {
+        (**self).load_sqlite_schema(path, query, sample_size)
     }
 }
 
@@ -162,6 +191,23 @@ pub trait AsyncDriverIo: Sync {
             read_shapefile_bundle(bundle.as_data_bundle())
         })
     }
+
+    fn load_sqlite_async<'a>(
+        &'a self,
+        path: &'a Path,
+        query: &'a str,
+    ) -> DriverDataFuture<'a, LoadResult> {
+        Box::pin(async move { read_sqlite_path(path, query) })
+    }
+
+    fn load_sqlite_schema_async<'a>(
+        &'a self,
+        path: &'a Path,
+        query: &'a str,
+        sample_size: usize,
+    ) -> DriverDataFuture<'a, Vec<ColumnDef>> {
+        Box::pin(async move { read_sqlite_schema_path(path, query, sample_size) })
+    }
 }
 
 /// Async adapter for an existing synchronous provider.
@@ -214,6 +260,27 @@ impl<I: DriverIo + Sync> AsyncDriverIo for BlockingAsyncDriverIo<I> {
     fn load_shapefile_async<'a>(&'a self, path: &'a Path) -> DriverDataFuture<'a, LoadResult> {
         let path = path.to_path_buf();
         Box::pin(async move { self.inner.load_shapefile(&path) })
+    }
+
+    fn load_sqlite_async<'a>(
+        &'a self,
+        path: &'a Path,
+        query: &'a str,
+    ) -> DriverDataFuture<'a, LoadResult> {
+        let path = path.to_path_buf();
+        let query = query.to_string();
+        Box::pin(async move { self.inner.load_sqlite(&path, &query) })
+    }
+
+    fn load_sqlite_schema_async<'a>(
+        &'a self,
+        path: &'a Path,
+        query: &'a str,
+        sample_size: usize,
+    ) -> DriverDataFuture<'a, Vec<ColumnDef>> {
+        let path = path.to_path_buf();
+        let query = query.to_string();
+        Box::pin(async move { self.inner.load_sqlite_schema(&path, &query, sample_size) })
     }
 }
 

@@ -178,7 +178,7 @@ pub(crate) fn completion_items(
         CompletionContext::TopLevel => vec![
             snippet(
                 "Algraf",
-                "Algraf(version: \"0.20\")",
+                "Algraf(version: \"0.21\")",
                 "Optional source language header",
             ),
             snippet(
@@ -196,6 +196,7 @@ pub(crate) fn completion_items(
                 items.extend(
                     SOURCE_CONSTRUCTORS
                         .iter()
+                        .filter(|meta| meta.name != "Sqlite" || sql_feature_enabled(&state.text))
                         .map(|meta| snippet(meta.name, meta.completion_snippet, meta.doc)),
                 );
                 items
@@ -399,11 +400,11 @@ fn declaration_value_items(
     active_key: &str,
 ) -> Vec<CompletionItem> {
     match (decl, active_key) {
-        ("Algraf", "version") => vec![value_item("\"0.20\"", "Algraf v0.20 source version")],
+        ("Algraf", "version") => vec![value_item("\"0.21\"", "Algraf v0.21 source version")],
         ("Algraf", "features") => {
             vec![value_item(
                 "[\"sql\", \"network\", \"plugins\", \"experimental\"]",
-                "Reserved feature gates",
+                "`sql` enables local SQLite sources; other gates are reserved",
             )]
         }
         ("Theme", "name") => registry::THEME_NAMES
@@ -479,6 +480,57 @@ fn declaration_value_items(
         ],
         _ => Vec::new(),
     }
+}
+
+fn sql_feature_enabled(text: &str) -> bool {
+    let root = parse(text).syntax();
+    let Some(header) = algraf_syntax::ast::Root::cast(root).and_then(|root| root.source_header())
+    else {
+        return false;
+    };
+    let mut version_ok = false;
+    let mut feature_ok = false;
+    for arg in header.args() {
+        match arg.key().as_deref() {
+            Some("version") => {
+                version_ok = arg
+                    .value()
+                    .and_then(|value| match value {
+                        algraf_syntax::ast::ValueExpr::Literal(lit)
+                            if lit.kind() == Some(algraf_syntax::ast::LiteralKind::String) =>
+                        {
+                            Some(algraf_syntax::unescape_string_literal(
+                                &lit.text().unwrap_or_default(),
+                            ))
+                        }
+                        _ => None,
+                    })
+                    .is_some_and(|version| version == "0.21" || version == "0.21.0");
+            }
+            Some("features") => {
+                feature_ok = arg
+                    .value()
+                    .and_then(|value| match value {
+                        algraf_syntax::ast::ValueExpr::Array(array) => Some(array),
+                        _ => None,
+                    })
+                    .is_some_and(|array| {
+                        array.values().iter().any(|value| match value {
+                            algraf_syntax::ast::ValueExpr::Literal(lit)
+                                if lit.kind() == Some(algraf_syntax::ast::LiteralKind::String) =>
+                            {
+                                algraf_syntax::unescape_string_literal(
+                                    &lit.text().unwrap_or_default(),
+                                ) == "sql"
+                            }
+                            _ => false,
+                        })
+                    });
+            }
+            _ => {}
+        }
+    }
+    version_ok && feature_ok
 }
 
 fn all_property_items() -> Vec<CompletionItem> {
@@ -685,7 +737,21 @@ mod tests {
         let labels = labels(&items);
         assert!(labels.contains(&"GeoJson"));
         assert!(labels.contains(&"Shapefile"));
+        assert!(!labels.contains(&"Sqlite"));
         assert!(labels.contains(&"stdin"));
+    }
+
+    #[test]
+    fn data_arg_completion_offers_sqlite_when_sql_gate_is_enabled() {
+        let mut state = empty_state();
+        state.text = "Algraf(version: \"0.21\", features: [\"sql\"])\nChart(data: )".to_string();
+        let items = completion_items(
+            &state,
+            CompletionContext::ChartArgs {
+                active_key: Some("data".to_string()),
+            },
+        );
+        assert!(labels(&items).contains(&"Sqlite"));
     }
 
     #[test]

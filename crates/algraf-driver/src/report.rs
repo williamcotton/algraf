@@ -177,6 +177,10 @@ pub fn data_error_code_message(path: &Path, err: &DataError) -> (DiagnosticCode,
             codes::E1008,
             format!("duplicate CSV column `{name}` in {}", path.display()),
         ),
+        DataError::DuplicateColumn(name) => (
+            codes::E1008,
+            format!("duplicate data column `{name}` in {}", path.display()),
+        ),
         DataError::Json(err) => (
             codes::E1009,
             format!("malformed JSON in {}: {err}", path.display()),
@@ -206,6 +210,21 @@ pub fn data_error_code_message(path: &Path, err: &DataError) -> (DiagnosticCode,
         DataError::Geo(message) => (
             codes::E1805,
             format!("geospatial parse error in {}: {message}", path.display()),
+        ),
+        DataError::SqliteQuery(message) => (
+            codes::E1011,
+            format!("SQLite query error in {}: {message}", path.display()),
+        ),
+        DataError::SqliteSafety(message) => (
+            codes::E1012,
+            format!("unsafe SQLite source in {}: {message}", path.display()),
+        ),
+        DataError::SqliteUnsupportedType { column, type_name } => (
+            codes::E1013,
+            format!(
+                "unsupported SQLite type `{type_name}` in column `{column}` from {}",
+                path.display()
+            ),
         ),
     }
 }

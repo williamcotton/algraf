@@ -1227,12 +1227,33 @@ Chart(
     title: "Revenue by region (TSV source)",
 ) {
     Space(region * revenue) {
-        Bar(stat: "identity", fill: region, alpha: 0.85)
+        Bar(stat: "identity", fill: region, alpha: 0.85, layout: "stack")
     }
 }
 ```
 
 ![sales_tsv](examples/sales_tsv.svg)
+
+SQLite sources use an explicit constructor with a database path and a read-only
+query. The `sql` feature gate is required, and the query includes `ORDER BY` so
+row order is deterministic:
+
+```algraf
+Algraf(version: "0.21", features: ["sql"])
+
+Chart(
+    data: Sqlite("sales.db", "SELECT region, revenue FROM sales ORDER BY region"),
+    width: 640,
+    height: 420,
+    title: "Revenue by region (SQLite source)",
+) {
+    Space(region * revenue) {
+        Bar(stat: "identity", fill: region, alpha: 0.85)
+    }
+}
+```
+
+![sqlite_sales](examples/sqlite_sales.svg)
 
 A `.json` source is an array of row objects. Each object is a row; keys become
 columns (in first-seen order). JSON values are inferred exactly as their CSV

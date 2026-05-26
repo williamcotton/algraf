@@ -144,7 +144,7 @@
       "patterns": [
         {
           "name": "entity.name.function.source.algraf",
-          "match": "\\b(?:GeoJson|Shapefile|Style|Stop)\\b(?=\\s*\\()"
+          "match": "\\b(?:GeoJson|Shapefile|Sqlite|Style|Stop)\\b(?=\\s*\\()"
         }
       ]
     },

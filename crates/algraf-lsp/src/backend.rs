@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use algraf_core::Diagnostic as CoreDiagnostic;
+use algraf_core::{codes, Diagnostic as CoreDiagnostic};
 use algraf_data::{ColumnDef, DEFAULT_SCHEMA_SAMPLE};
 use algraf_driver::{
     resolve_named_table_sources, resolve_schema_cached, CachedSchema, InMemorySchemaCache,
@@ -108,10 +108,21 @@ fn analyze_document_blocking(
     let syntax = parsed.syntax();
     let parse_diagnostics = parsed.diagnostics().to_vec();
     let data_source = algraf_driver::extract_data_source(&syntax);
-    let schema = resolve_schema(schema_cache, uri, &data_source);
+    let sql_gated_off = parse_diagnostics
+        .iter()
+        .any(|d| d.code == codes::E0025.as_str());
+    let schema = if sql_gated_off {
+        SchemaResolution::MissingOrInvalid
+    } else {
+        resolve_schema(schema_cache, uri, &data_source)
+    };
     // Resolve chart-scoped named-table schemas so column references inside
     // `Space(..., data: tableName)` resolve in the editor (spec §10.x).
-    let table_schemas = resolve_table_schemas(schema_cache, uri, &syntax);
+    let table_schemas = if sql_gated_off {
+        HashMap::new()
+    } else {
+        resolve_table_schemas(schema_cache, uri, &syntax)
+    };
 
     let mut diagnostics = parse_diagnostics.clone();
     let analysis;
@@ -169,8 +180,13 @@ fn resolve_schema(
     uri: &Url,
     data_source: &SourceExpr,
 ) -> SchemaResolution {
-    let SourceExpr::Path { span, .. } = data_source else {
-        return SchemaResolution::MissingOrInvalid;
+    let span = match data_source {
+        SourceExpr::Path { span, .. } | SourceExpr::Sqlite { span, .. } => *span,
+        _ => return SchemaResolution::MissingOrInvalid,
+    };
+    let query = match data_source {
+        SourceExpr::Sqlite { query, .. } => Some(query.as_str()),
+        _ => None,
     };
     let source_input = source_input_for_uri(uri);
     let Some(resolved) = algraf_driver::resolve_source_expr_path(data_source, &source_input, None)
@@ -179,20 +195,32 @@ fn resolve_schema(
     };
     let path = resolved.path;
 
-    match resolve_schema_cached(
-        schema_cache,
-        &OsDriverIo,
-        &path,
-        resolved.format,
-        DEFAULT_SCHEMA_SAMPLE,
-        LoadContext::Primary,
-    ) {
+    let cached = match query {
+        Some(query) => algraf_driver::resolve_sqlite_schema_cached(
+            schema_cache,
+            &OsDriverIo,
+            &path,
+            query,
+            DEFAULT_SCHEMA_SAMPLE,
+            LoadContext::Primary,
+        ),
+        None => resolve_schema_cached(
+            schema_cache,
+            &OsDriverIo,
+            &path,
+            resolved.format,
+            DEFAULT_SCHEMA_SAMPLE,
+            LoadContext::Primary,
+        ),
+    };
+
+    match cached {
         CachedSchema::Ready(schema) => SchemaResolution::Ready {
             schema,
             path: Some(path),
         },
         CachedSchema::Error { code, message } => SchemaResolution::Unavailable {
-            diagnostic: CoreDiagnostic::error(code, message, *span),
+            diagnostic: CoreDiagnostic::error(code, message, span),
         },
     }
 }
@@ -213,16 +241,28 @@ fn resolve_table_schemas(
     };
     let source_input = source_input_for_uri(uri);
     for resolved in resolve_named_table_sources(&chart, &source_input, None) {
-        if let CachedSchema::Ready(schema) = resolve_schema_cached(
-            schema_cache,
-            &OsDriverIo,
-            &resolved.path,
-            resolved.format,
-            DEFAULT_SCHEMA_SAMPLE,
-            LoadContext::Table {
-                name: resolved.name.clone(),
-            },
-        ) {
+        let context = LoadContext::Table {
+            name: resolved.name.clone(),
+        };
+        let cached = match resolved.query.as_deref() {
+            Some(query) => algraf_driver::resolve_sqlite_schema_cached(
+                schema_cache,
+                &OsDriverIo,
+                &resolved.path,
+                query,
+                DEFAULT_SCHEMA_SAMPLE,
+                context,
+            ),
+            None => resolve_schema_cached(
+                schema_cache,
+                &OsDriverIo,
+                &resolved.path,
+                resolved.format,
+                DEFAULT_SCHEMA_SAMPLE,
+                context,
+            ),
+        };
+        if let CachedSchema::Ready(schema) = cached {
             out.insert(resolved.name, schema);
         }
     }

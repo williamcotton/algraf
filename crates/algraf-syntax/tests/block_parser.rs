@@ -372,6 +372,17 @@ fn test_source_header_diagnostics() {
     assert!(parsed.diagnostics().iter().any(|d| d.code == "E0024"));
 }
 
+#[test]
+fn test_sqlite_requires_sql_feature_gate() {
+    let parsed = parse(
+        "Algraf(version: \"0.21\")\nChart(data: Sqlite(\"sales.db\", \"SELECT region FROM sales ORDER BY region\")) {}",
+    );
+    assert!(parsed.diagnostics().iter().any(|d| d.code == "E0025"));
+
+    let source = "Algraf(version: \"0.21\", features: [\"sql\"])\nChart(data: Sqlite(\"sales.db\", \"SELECT region FROM sales ORDER BY region\")) {}";
+    no_errors(source);
+}
+
 // --- v0.6.0: Table declarations and map literals (spec §7.4, §7.8) ---
 
 use algraf_syntax::ast::{MapValue, TableDecl};

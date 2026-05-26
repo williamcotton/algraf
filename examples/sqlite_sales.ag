@@ -1,0 +1,12 @@
+Algraf(version: "0.21", features: ["sql"])
+
+Chart(
+    data: Sqlite("sales.db", "SELECT region, revenue FROM sales ORDER BY region"),
+    width: 640,
+    height: 420,
+    title: "Revenue by region (SQLite source)",
+) {
+    Space(region * revenue) {
+        Bar(stat: "identity", fill: region, alpha: 0.85, layout: "stack")
+    }
+}

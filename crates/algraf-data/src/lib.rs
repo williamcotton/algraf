@@ -13,6 +13,7 @@ pub mod infer;
 pub mod json;
 pub mod schema;
 pub mod shapefile;
+pub mod sqlite;
 pub mod temporal;
 pub mod value;
 
@@ -34,5 +35,6 @@ pub use geojson::{read_geojson, read_geojson_str, GEOMETRY_COLUMN};
 pub use json::{read_json, read_json_str, read_ndjson, read_ndjson_str};
 pub use schema::{ColumnDef, DataType};
 pub use shapefile::{read_shapefile_bundle, read_shapefile_path, ShapefileBundle};
+pub use sqlite::{read_sqlite_path, read_sqlite_schema_path};
 pub use temporal::{parse_temporal, ParsedTemporal};
 pub use value::{DataValue, DataValueRef, DateTimeValue, TemporalPrecision};

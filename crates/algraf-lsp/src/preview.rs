@@ -41,14 +41,16 @@ impl Backend {
                 ));
             };
             match algraf_syntax::chart_data_source(&chart) {
-                SourceExpr::Path { .. } => data_dependencies(&chart, &source_input, None, None)
-                    .map(|dependencies| {
-                        dependencies
-                            .into_iter()
-                            .map(|dependency| dependency.path.display().to_string())
-                            .collect()
-                    })
-                    .map_err(|err| err.to_string()),
+                SourceExpr::Path { .. } | SourceExpr::Sqlite { .. } => {
+                    data_dependencies(&chart, &source_input, None, None)
+                        .map(|dependencies| {
+                            dependencies
+                                .into_iter()
+                                .map(|dependency| dependency.path.display().to_string())
+                                .collect()
+                        })
+                        .map_err(|err| err.to_string())
+                }
                 SourceExpr::Stdin { .. } => {
                     Err("preview does not support `stdin` data; use a CSV path".to_string())
                 }

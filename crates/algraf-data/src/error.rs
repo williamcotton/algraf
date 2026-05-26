@@ -17,6 +17,10 @@ pub enum DataError {
     #[error("duplicate column header: {0:?}")]
     DuplicateHeader(String),
 
+    /// Two data-source columns shared the same name.
+    #[error("duplicate column name: {0:?}")]
+    DuplicateColumn(String),
+
     /// A JSON document failed to parse (spec §10.2).
     #[error("JSON parse error: {0}")]
     Json(#[from] serde_json::Error),
@@ -44,6 +48,21 @@ pub enum DataError {
     /// type the loader does not support (spec §10.11; diagnostic `E1805`).
     #[error("geospatial parse error: {0}")]
     Geo(String),
+
+    /// A SQLite statement failed to parse or execute (spec §10.12).
+    #[error("SQLite query error: {0}")]
+    SqliteQuery(String),
+
+    /// A SQLite statement violates Algraf's read-only/deterministic policy.
+    #[error("SQLite safety error: {0}")]
+    SqliteSafety(String),
+
+    /// A SQLite result column used a storage type Algraf does not support.
+    #[error("unsupported SQLite type in column {column:?}: {type_name}")]
+    SqliteUnsupportedType {
+        column: String,
+        type_name: &'static str,
+    },
 }
 
 /// A non-fatal data inference warning (spec §10.3).

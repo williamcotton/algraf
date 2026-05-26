@@ -1535,6 +1535,25 @@ fn test_named_table_geojson_source_is_accepted() {
 }
 
 #[test]
+fn test_sqlite_source_constructor_is_accepted_with_gate() {
+    let primary = vec![
+        col("region", DataType::String),
+        col("revenue", DataType::Integer),
+    ];
+    let analysis = analyze_source(
+        "Algraf(version: \"0.21\", features: [\"sql\"])\n\
+         Chart(data: Sqlite(\"sales.db\", \"SELECT region, revenue FROM sales ORDER BY region\")) {\n  \
+         Space(region * revenue) { Bar(stat: \"identity\") }\n}",
+        &primary,
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+}
+
+#[test]
 fn test_geo_in_spatial_space_is_clean() {
     clean("Chart(data: GeoJson(\"us.geojson\")) {\n  Space(geom, projection: \"albers_usa\") { Geo(fill: value) }\n}");
 }

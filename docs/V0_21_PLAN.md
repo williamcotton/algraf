@@ -1,6 +1,6 @@
 # Algraf v0.21.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_20_PLAN.md`](V0_20_PLAN.md)
@@ -57,6 +57,8 @@ The plan/spec audit found:
 The capstone is a checked-in SQLite example whose output is deterministic:
 
 ```ag
+Algraf(version: "0.21", features: ["sql"])
+
 Chart(data: Sqlite("sales.db", "SELECT region, revenue FROM sales ORDER BY region")) {
     Space(region * revenue) {
         Bar(stat: "identity")
@@ -89,7 +91,7 @@ git diff -- examples
 
 ### 1. SQLite source constructor
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -105,7 +107,7 @@ Acceptance criteria:
 
 ### 2. SQL determinism and safety rules
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -118,7 +120,7 @@ Acceptance criteria:
 
 ### 3. SQL feature gate
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -131,7 +133,7 @@ Acceptance criteria:
 
 ### 4. Larger-data schema and loading policy
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -142,7 +144,8 @@ Acceptance criteria:
 
 ### 5. Opt-in remote source security model
 
-Status: Planned.
+Status: Implemented as spec/security design. Network, credentials, and command
+sources remain disabled by default.
 
 Acceptance criteria:
 
@@ -156,7 +159,7 @@ Acceptance criteria:
 
 ### 6. Spec, plan, and example hygiene
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -171,14 +174,16 @@ Acceptance criteria:
 
 ### Postgres/PostGIS prototype
 
-Status: Planned.
+Status: Deferred past v0.21. The security model is specified, but no remote SQL
+source ships in this release.
 
 Prototype a gated `Postgres(...)` or design note for networked SQL, including
 ordinary columns and PostGIS geometry columns decoded into `geo_types`.
 
 ### Polars-backed file adapter
 
-Status: Planned.
+Status: Deferred past v0.21. The SQLite path did not require changing the file
+adapter backend.
 
 If v0.19's Polars spike is favorable, add an optional feature-gated adapter for
 one file format and prove snapshots and diagnostics stay stable.

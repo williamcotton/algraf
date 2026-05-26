@@ -78,6 +78,7 @@ fn load_location(
 ) -> Result<LoadResult, DriverError> {
     match location {
         DataLocation::Path { path, format } => load_path_with_io(&path, format, context, io),
+        DataLocation::Sqlite { path, query } => load_sqlite_with_io(&path, &query, context, io),
         DataLocation::Stdin => read_stdin_csv(io),
     }
 }
@@ -90,6 +91,9 @@ async fn load_location_async(
     match location {
         DataLocation::Path { path, format } => {
             load_path_with_async_io(&path, format, context, io).await
+        }
+        DataLocation::Sqlite { path, query } => {
+            load_sqlite_with_async_io(&path, &query, context, io).await
         }
         DataLocation::Stdin => read_stdin_csv_async(io).await,
     }
@@ -126,6 +130,20 @@ pub fn load_path_with_io(
     })
 }
 
+pub(crate) fn load_sqlite_with_io(
+    path: &Path,
+    query: &str,
+    context: LoadContext,
+    io: &dyn DriverIo,
+) -> Result<LoadResult, DriverError> {
+    io.load_sqlite(path, query)
+        .map_err(|source| DriverError::Data {
+            context,
+            path: path.to_path_buf(),
+            source,
+        })
+}
+
 /// Load a full data source from a path through an async-capable I/O provider.
 pub async fn load_path_with_async_io(
     path: &Path,
@@ -147,6 +165,21 @@ pub async fn load_path_with_async_io(
         path: path.to_path_buf(),
         source,
     })
+}
+
+async fn load_sqlite_with_async_io(
+    path: &Path,
+    query: &str,
+    context: LoadContext,
+    io: &dyn AsyncDriverIo,
+) -> Result<LoadResult, DriverError> {
+    io.load_sqlite_async(path, query)
+        .await
+        .map_err(|source| DriverError::Data {
+            context,
+            path: path.to_path_buf(),
+            source,
+        })
 }
 
 /// Load only a data schema, optionally sampling rows for delimited formats.
@@ -221,6 +254,9 @@ fn load_schema_location(
         DataLocation::Path { path, format } => {
             load_schema_path_with_io(&path, format, sample_size, LoadContext::Primary, io)
         }
+        DataLocation::Sqlite { path, query } => {
+            load_sqlite_schema_with_io(&path, &query, sample_size, LoadContext::Primary, io)
+        }
         DataLocation::Stdin => read_stdin_csv_schema(sample_size, io),
     }
 }
@@ -233,6 +269,10 @@ async fn load_schema_location_async(
     match location {
         DataLocation::Path { path, format } => {
             load_schema_path_with_async_io(&path, format, sample_size, LoadContext::Primary, io)
+                .await
+        }
+        DataLocation::Sqlite { path, query } => {
+            load_sqlite_schema_with_async_io(&path, &query, sample_size, LoadContext::Primary, io)
                 .await
         }
         DataLocation::Stdin => read_stdin_csv_schema_async(sample_size, io).await,
@@ -274,6 +314,21 @@ pub fn load_schema_path_with_io(
     })
 }
 
+pub(crate) fn load_sqlite_schema_with_io(
+    path: &Path,
+    query: &str,
+    sample_size: usize,
+    context: LoadContext,
+    io: &dyn DriverIo,
+) -> Result<Vec<ColumnDef>, DriverError> {
+    io.load_sqlite_schema(path, query, sample_size)
+        .map_err(|source| DriverError::Data {
+            context,
+            path: path.to_path_buf(),
+            source,
+        })
+}
+
 /// Load only a data schema from a path through an async-capable I/O provider.
 pub async fn load_schema_path_with_async_io(
     path: &Path,
@@ -299,6 +354,22 @@ pub async fn load_schema_path_with_async_io(
         path: path.to_path_buf(),
         source,
     })
+}
+
+async fn load_sqlite_schema_with_async_io(
+    path: &Path,
+    query: &str,
+    sample_size: usize,
+    context: LoadContext,
+    io: &dyn AsyncDriverIo,
+) -> Result<Vec<ColumnDef>, DriverError> {
+    io.load_sqlite_schema_async(path, query, sample_size)
+        .await
+        .map_err(|source| DriverError::Data {
+            context,
+            path: path.to_path_buf(),
+            source,
+        })
 }
 
 /// Load every valid named table in a chart.
@@ -329,14 +400,13 @@ pub(crate) fn load_resolved_named_tables_with_io(
 ) -> Result<Vec<NamedTable>, DriverError> {
     let mut out = Vec::new();
     for resolved in resolved_tables {
-        let loaded = load_path_with_io(
-            &resolved.path,
-            resolved.format,
-            LoadContext::Table {
-                name: resolved.name.clone(),
-            },
-            io,
-        )?;
+        let context = LoadContext::Table {
+            name: resolved.name.clone(),
+        };
+        let loaded = match resolved.query.as_deref() {
+            Some(query) => load_sqlite_with_io(&resolved.path, query, context, io)?,
+            None => load_path_with_io(&resolved.path, resolved.format, context, io)?,
+        };
         out.push(NamedTable {
             name: resolved.name,
             path: resolved.path,
@@ -378,15 +448,17 @@ fn load_resolved_named_table_schemas_with_io(
 ) -> Result<Vec<NamedTableSchema>, DriverError> {
     let mut out = Vec::new();
     for resolved in resolved_tables {
-        let schema = load_schema_path_with_io(
-            &resolved.path,
-            resolved.format,
-            sample_size,
-            LoadContext::Table {
-                name: resolved.name.clone(),
-            },
-            io,
-        )?;
+        let context = LoadContext::Table {
+            name: resolved.name.clone(),
+        };
+        let schema = match resolved.query.as_deref() {
+            Some(query) => {
+                load_sqlite_schema_with_io(&resolved.path, query, sample_size, context, io)?
+            }
+            None => {
+                load_schema_path_with_io(&resolved.path, resolved.format, sample_size, context, io)?
+            }
+        };
         out.push(NamedTableSchema {
             name: resolved.name,
             path: resolved.path,

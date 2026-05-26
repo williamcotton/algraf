@@ -12,8 +12,9 @@ use std::process::ExitCode;
 
 use algraf_data::DataType;
 use algraf_driver::{
-    document_charts, extract_data_source, load_schema, prepare_chart, DriverError, LoadContext,
-    PreparationReport, PrepareOptions, ReportPhase, SourceInput,
+    document_charts, driver_error_diagnostic, extract_data_source, load_schema, prepare_chart,
+    prepare_chart_partial, DriverError, LoadContext, PreparationReport, PrepareOptions,
+    ReportPhase, SourceInput,
 };
 use algraf_render::{render_with_tables, svg_num, Layout, Rect, Theme};
 use algraf_semantics::{
@@ -274,7 +275,7 @@ fn render_chart_svg(
         named_tables,
         analysis,
         ..
-    } = prepare_chart(
+    } = match prepare_chart(
         chart,
         PrepareOptions {
             source_input: input,
@@ -282,8 +283,26 @@ fn render_chart_svg(
             data_override: args.data.as_deref(),
             multi_chart: multi,
         },
-    )
-    .map_err(driver_error)?;
+    ) {
+        Ok(prepared) => prepared,
+        Err(
+            err @ (DriverError::Data { .. }
+            | DriverError::StdinRead(_)
+            | DriverError::StdinParse(_)),
+        ) => {
+            let source_expr = algraf_driver::extract_chart_data_source(chart);
+            let span = source_expr
+                .span()
+                .unwrap_or_else(|| algraf_core::Span::new(0, 0));
+            let diagnostic = driver_error_diagnostic(&err, span);
+            eprint!(
+                "{}",
+                diagnostics::render_human(source, label, &[diagnostic])
+            );
+            return Err(CliError::Diagnostics);
+        }
+        Err(err) => return Err(driver_error(err)),
+    };
     let diags = analysis.diagnostics;
     if diagnostics::has_blocking(&diags, args.strict) {
         eprint!("{}", diagnostics::render_human(source, label, &diags));
@@ -420,15 +439,14 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
     }
 
     // Validate every chart in the document independently (spec §7.1),
-    // assembling parse and semantic diagnostics plus data warnings into one
-    // shared report (spec §23.4). Load failures still abort with a process
-    // error here, preserving the pre-0.15 strict-check behavior.
+    // assembling parse, load, and semantic diagnostics plus data warnings into
+    // one shared report (spec §23.4).
     let charts = document_charts(&root);
     let multi = charts.len() > 1;
     let mut report = PreparationReport::new();
     report.extend(ReportPhase::Parse, parsed.diagnostics().iter().cloned());
     for chart in &charts {
-        let prepared = prepare_chart(
+        let prepared = prepare_chart_partial(
             chart,
             PrepareOptions {
                 source_input: &input,
@@ -436,20 +454,12 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
                 data_override: args.data.as_deref(),
                 multi_chart: multi,
             },
-        )
-        .map_err(driver_error)?;
-        report.extend(ReportPhase::Semantic, prepared.analysis.diagnostics);
-        if let Some(loaded) = &prepared.primary {
-            report.push_data_warnings(&LoadContext::Primary, None, &loaded.warnings);
+        );
+        for (phase, diagnostic) in prepared.report.entries() {
+            report.push(*phase, diagnostic.clone());
         }
-        for table in &prepared.named_tables {
-            report.push_data_warnings(
-                &LoadContext::Table {
-                    name: table.name.clone(),
-                },
-                Some(table.path.as_path()),
-                &table.warnings,
-            );
+        for warning in prepared.report.data_warnings() {
+            report.push_data_warning(warning.clone());
         }
     }
 
@@ -520,14 +530,31 @@ fn schema_cmd(args: SchemaArgs) -> Result<(), CliError> {
         return Err(CliError::Diagnostics);
     }
 
-    let schema = load_schema(
+    let schema = match load_schema(
         &ast_data,
         &input,
         args.base_dir.as_deref(),
         args.data.as_deref(),
         args.sample_size,
-    )
-    .map_err(driver_error)?;
+    ) {
+        Ok(schema) => schema,
+        Err(
+            err @ (DriverError::Data { .. }
+            | DriverError::StdinRead(_)
+            | DriverError::StdinParse(_)),
+        ) => {
+            let span = ast_data
+                .span()
+                .unwrap_or_else(|| algraf_core::Span::new(0, 0));
+            let diagnostic = driver_error_diagnostic(&err, span);
+            eprint!(
+                "{}",
+                diagnostics::render_human(&source, &label, &[diagnostic])
+            );
+            return Err(CliError::Diagnostics);
+        }
+        Err(err) => return Err(driver_error(err)),
+    };
 
     if args.json {
         let cols: Vec<Value> = schema
@@ -728,6 +755,7 @@ fn ir_to_json(ir: &ChartIr) -> Value {
         "tables": ir.tables.iter().map(|t| json!({
             "name": t.name,
             "path": t.path,
+            "query": t.query.as_deref(),
             "span": span_json(t.span),
         })).collect::<Vec<_>>(),
         "derivedTables": ir.derived_tables.iter().map(derive_json).collect::<Vec<_>>(),
@@ -740,6 +768,9 @@ fn data_source_json(data_source: &DataSourceIr) -> Value {
         DataSourceIr::Path(path) => json!({ "kind": "path", "path": path }),
         DataSourceIr::GeoJson(path) => json!({ "kind": "geojson", "path": path }),
         DataSourceIr::Shapefile(path) => json!({ "kind": "shapefile", "path": path }),
+        DataSourceIr::Sqlite { path, query } => {
+            json!({ "kind": "sqlite", "path": path, "query": query })
+        }
         DataSourceIr::Stdin => json!({ "kind": "stdin" }),
         DataSourceIr::Missing => json!({ "kind": "missing" }),
     }

@@ -37,30 +37,32 @@ impl Analyzer<'_> {
             }
             dup.record(&name, name_span);
 
-            let Some(path) = self.table_source_path(&decl) else {
+            let Some((path, query)) = self.table_source(&decl) else {
                 continue;
             };
             self.table_names.insert(name.clone());
             out.push(TableDeclIr {
                 name,
                 path,
+                query,
                 span: node_span(decl.syntax()),
             });
         }
         out
     }
 
-    /// The path from a `Table` declaration's source expression.
-    fn table_source_path(&mut self, decl: &TableDecl) -> Option<String> {
+    /// The source path and optional query from a `Table` declaration.
+    fn table_source(&mut self, decl: &TableDecl) -> Option<(String, Option<String>)> {
         match source_expr_from_value(decl.source(), false) {
-            SourceExpr::Path { path, .. } => Some(path),
+            SourceExpr::Path { path, .. } => Some((path, None)),
+            SourceExpr::Sqlite { path, query, .. } => Some((path, Some(query))),
             SourceExpr::Invalid { span } => {
                 if let Some(ValueExpr::Call(call)) = decl.source() {
                     if is_source_constructor(&call) && source_constructor(&call).is_none() {
                         self.diag(Diagnostic::error(
                             codes::E1004,
                             format!(
-                                "`{}` source expects a string-literal path",
+                                "`{}` source expects string-literal arguments",
                                 call.name().unwrap_or_default()
                             ),
                             span,
@@ -71,7 +73,7 @@ impl Analyzer<'_> {
                 self.diag(Diagnostic::error(
                     codes::E1004,
                     "`Table` source must be a string-literal path or a \
-                     `GeoJson`/`Shapefile` source constructor",
+                     `GeoJson`/`Shapefile`/`Sqlite` source constructor",
                     span,
                 ));
                 None
@@ -80,7 +82,7 @@ impl Analyzer<'_> {
                 self.diag(Diagnostic::error(
                     codes::E1004,
                     "`Table` source must be a string-literal path or a \
-                     `GeoJson`/`Shapefile` source constructor",
+                     `GeoJson`/`Shapefile`/`Sqlite` source constructor",
                     span,
                 ));
                 None

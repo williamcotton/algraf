@@ -10,7 +10,8 @@ use algraf_syntax::SourceExpr;
 use crate::error::{DriverError, LoadContext};
 use crate::io::{DriverIo, OsDriverIo};
 use crate::loading::{
-    load_path_with_io, load_primary_with_io, load_resolved_named_tables_with_io, NamedTable,
+    load_path_with_io, load_primary_with_io, load_resolved_named_tables_with_io,
+    load_sqlite_with_io, NamedTable,
 };
 use crate::report::{driver_error_diagnostic, PreparationReport, ReportPhase};
 use crate::resolution::{resolve_chart_inputs, DataLocation, DriverEnv, SourceInput};
@@ -160,6 +161,7 @@ pub fn prepare_chart_partial_with_io(
         Some(location) => {
             let path = match &location {
                 DataLocation::Path { path, .. } => Some(path.clone()),
+                DataLocation::Sqlite { path, .. } => Some(path.clone()),
                 DataLocation::Stdin => None,
             };
             match load_primary_with_io(location, io) {
@@ -188,12 +190,16 @@ pub fn prepare_chart_partial_with_io(
         let context = LoadContext::Table {
             name: resolved_table.name.clone(),
         };
-        match load_path_with_io(
-            &resolved_table.path,
-            resolved_table.format,
-            context.clone(),
-            io,
-        ) {
+        let loaded = match resolved_table.query.as_deref() {
+            Some(query) => load_sqlite_with_io(&resolved_table.path, query, context.clone(), io),
+            None => load_path_with_io(
+                &resolved_table.path,
+                resolved_table.format,
+                context.clone(),
+                io,
+            ),
+        };
+        match loaded {
             Ok(loaded) => {
                 report.push_data_warnings(
                     &context,

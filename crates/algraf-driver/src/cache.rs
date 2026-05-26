@@ -18,7 +18,7 @@ use algraf_data::{ColumnDef, Format};
 
 use crate::error::LoadContext;
 use crate::io::{DriverIo, DriverPathMetadata};
-use crate::loading::load_schema_path_with_io;
+use crate::loading::{load_schema_path_with_io, load_sqlite_schema_with_io};
 use crate::report::driver_error_code_message;
 
 /// Schema cache key: a normalized source path plus any explicit
@@ -30,6 +30,7 @@ use crate::report::driver_error_code_message;
 pub struct DataSourceKey {
     path: PathBuf,
     format: Option<Format>,
+    query: Option<String>,
 }
 
 impl DataSourceKey {
@@ -38,6 +39,16 @@ impl DataSourceKey {
         DataSourceKey {
             path: normalize_path(&path.into()),
             format,
+            query: None,
+        }
+    }
+
+    /// Build a key for a SQLite database path plus query.
+    pub fn sqlite(path: impl Into<PathBuf>, query: impl Into<String>) -> DataSourceKey {
+        DataSourceKey {
+            path: normalize_path(&path.into()),
+            format: None,
+            query: Some(query.into()),
         }
     }
 
@@ -49,6 +60,11 @@ impl DataSourceKey {
     /// The explicit format policy, if a source constructor named one.
     pub fn format(&self) -> Option<Format> {
         self.format
+    }
+
+    /// The SQL query for SQLite sources, if any.
+    pub fn query(&self) -> Option<&str> {
+        self.query.as_deref()
     }
 }
 
@@ -253,6 +269,33 @@ pub fn resolve_schema_cached(
     }
 
     let schema = match load_schema_path_with_io(path, format, sample_size, context, io) {
+        Ok(schema) => CachedSchema::Ready(schema),
+        Err(err) => {
+            let (code, message) = driver_error_code_message(&err);
+            CachedSchema::Error { code, message }
+        }
+    };
+    cache.put(key, fingerprint, schema.clone());
+    schema
+}
+
+/// Resolve a SQLite query schema through a cache.
+pub fn resolve_sqlite_schema_cached(
+    cache: &dyn SchemaCache,
+    io: &dyn DriverIo,
+    path: &Path,
+    query: &str,
+    sample_size: usize,
+    context: LoadContext,
+) -> CachedSchema {
+    let key = DataSourceKey::sqlite(path, query);
+    let fingerprint = fingerprint_path(io, path);
+
+    if let Some(cached) = cache.get(&key, fingerprint.as_ref()) {
+        return cached;
+    }
+
+    let schema = match load_sqlite_schema_with_io(path, query, sample_size, context, io) {
         Ok(schema) => CachedSchema::Ready(schema),
         Err(err) => {
             let (code, message) = driver_error_code_message(&err);

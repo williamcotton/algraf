@@ -12,8 +12,8 @@ mod report;
 mod resolution;
 
 pub use cache::{
-    fingerprint_path, resolve_schema_cached, CachedSchema, DataSourceKey, InMemorySchemaCache,
-    NoSchemaCache, SchemaCache, SourceFingerprint,
+    fingerprint_path, resolve_schema_cached, resolve_sqlite_schema_cached, CachedSchema,
+    DataSourceKey, InMemorySchemaCache, NoSchemaCache, SchemaCache, SourceFingerprint,
 };
 pub use error::{DriverError, LoadContext};
 pub use io::{
@@ -315,6 +315,33 @@ mod tests {
         assert_eq!(primary.path, base.join("primary.csv"));
         assert_eq!(tables[0].path, base.join("cities.geojson"));
         assert_eq!(tables[0].format, Some(Format::GeoJson));
+    }
+
+    #[test]
+    fn resolves_sqlite_sources_with_queries() {
+        let dir = temp_dir("sqlite-resolution");
+        let source = SourceInput::Path(dir.join("charts/chart.ag"));
+        let chart = parse_chart(
+            r#"Algraf(version: "0.21", features: ["sql"])
+            Chart(data: Sqlite("sales.db", "SELECT region FROM sales ORDER BY region")) {
+                Table totals = Sqlite("totals.db", "SELECT region, total FROM totals ORDER BY region")
+                Space(region * total, data: totals) { Bar(stat: "identity") }
+            }"#,
+        );
+
+        let primary = resolve_chart_data_path(&chart, &source, None).unwrap();
+        let tables = resolve_named_table_sources(&chart, &source, None);
+
+        assert_eq!(primary.path, dir.join("charts/sales.db"));
+        assert_eq!(
+            primary.query.as_deref(),
+            Some("SELECT region FROM sales ORDER BY region")
+        );
+        assert_eq!(tables[0].path, dir.join("charts/totals.db"));
+        assert_eq!(
+            tables[0].query.as_deref(),
+            Some("SELECT region, total FROM totals ORDER BY region")
+        );
     }
 
     #[test]
@@ -942,6 +969,19 @@ Chart(data: "b.csv") { Space(x * y) { Line() } }"#,
 
         assert_ne!(inferred, explicit);
         assert_eq!(explicit.format(), Some(Format::GeoJson));
+    }
+
+    #[test]
+    fn data_source_key_distinguishes_sqlite_queries() {
+        let first = DataSourceKey::sqlite("a/sales.db", "SELECT region FROM sales ORDER BY region");
+        let second =
+            DataSourceKey::sqlite("a/sales.db", "SELECT revenue FROM sales ORDER BY revenue");
+
+        assert_ne!(first, second);
+        assert_eq!(
+            first.query(),
+            Some("SELECT region FROM sales ORDER BY region")
+        );
     }
 
     #[test]

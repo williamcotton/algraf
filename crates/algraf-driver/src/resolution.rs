@@ -37,6 +37,8 @@ pub struct ResolvedSource {
     pub path: PathBuf,
     /// `None` means select format by extension.
     pub format: Option<Format>,
+    /// SQL query for `Sqlite(...)` sources.
+    pub query: Option<String>,
     pub span: Option<Span>,
 }
 
@@ -47,6 +49,8 @@ pub struct ResolvedTableSource {
     pub path: PathBuf,
     /// `None` means select format by extension.
     pub format: Option<Format>,
+    /// SQL query for `Sqlite(...)` sources.
+    pub query: Option<String>,
     pub span: Option<Span>,
 }
 
@@ -64,6 +68,8 @@ pub struct DataDependency {
     pub path: PathBuf,
     /// `None` means select format by extension.
     pub format: Option<Format>,
+    /// SQL query for `Sqlite(...)` sources.
+    pub query: Option<String>,
 }
 
 /// A data location after source-relative path resolution and `--data` override
@@ -74,6 +80,10 @@ pub enum DataLocation {
         path: PathBuf,
         /// `None` means select format by extension.
         format: Option<Format>,
+    },
+    Sqlite {
+        path: PathBuf,
+        query: String,
     },
     Stdin,
 }
@@ -142,6 +152,13 @@ impl SourceResolver<'_> {
             SourceExpr::Path { path, format, span } => Some(ResolvedSource {
                 path: self.resolve_path(path),
                 format: data_format(*format),
+                query: None,
+                span: Some(*span),
+            }),
+            SourceExpr::Sqlite { path, query, span } => Some(ResolvedSource {
+                path: self.resolve_path(path),
+                format: None,
+                query: Some(query.clone()),
                 span: Some(*span),
             }),
             _ => None,
@@ -168,6 +185,7 @@ impl SourceResolver<'_> {
                         name,
                         path: resolved.path,
                         format: resolved.format,
+                        query: resolved.query,
                         span: resolved.span,
                     })
             })
@@ -210,6 +228,15 @@ impl SourceResolver<'_> {
                 Ok(DataLocation::Path {
                     path: resolved.path,
                     format: resolved.format,
+                })
+            }
+            SourceExpr::Sqlite { .. } => {
+                let resolved = self
+                    .resolve_source_expr_path(source_expr)
+                    .expect("sqlite source should resolve");
+                Ok(DataLocation::Sqlite {
+                    path: resolved.path,
+                    query: resolved.query.expect("sqlite source should carry query"),
                 })
             }
             SourceExpr::Missing | SourceExpr::Invalid { .. } => Err(DriverError::Usage(
@@ -333,6 +360,13 @@ impl ChartDataPlan {
                 kind: DataDependencyKind::Primary,
                 path: path.clone(),
                 format: *format,
+                query: None,
+            }),
+            DataLocation::Sqlite { path, query } => Some(DataDependency {
+                kind: DataDependencyKind::Primary,
+                path: path.clone(),
+                format: None,
+                query: Some(query.clone()),
             }),
             DataLocation::Stdin => None,
         });
@@ -342,6 +376,7 @@ impl ChartDataPlan {
             },
             path: table.path.clone(),
             format: table.format,
+            query: table.query.clone(),
         });
         primary.chain(tables).collect()
     }
