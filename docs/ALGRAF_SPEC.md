@@ -4844,6 +4844,10 @@ closed
 
 `boundary` sets an anchor value that bin boundaries align to.
 
+When `binWidth` is provided without `boundary`, numeric bins MUST default to a
+boundary of `binWidth / 2`. This centers width-1 bins for integer-valued data on
+integer tick marks: value `34` belongs to `[33.5, 34.5)`.
+
 Default `closed` is `"left"`.
 
 `closed: "left"` means bins are `[start, end)`.

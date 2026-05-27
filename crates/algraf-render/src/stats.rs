@@ -1275,7 +1275,7 @@ fn local_linear(points: &[(f64, f64)], x0: f64, q: usize) -> Option<(f64, f64)> 
 fn bin_layout(min: f64, max: f64, bins: usize, options: BinOptions) -> (f64, f64, usize) {
     if let Some(bin_width) = options.bin_width {
         if bin_width.is_finite() && bin_width > f64::EPSILON {
-            let boundary = options.boundary.unwrap_or(0.0);
+            let boundary = options.boundary.unwrap_or(bin_width / 2.0);
             let min_offset = (min - boundary) / bin_width;
             let max_offset = (max - boundary) / bin_width;
             let start_index = match options.closed {
@@ -1627,5 +1627,32 @@ mod blended_bin_tests {
             out.value("count", 1),
             Some(algraf_data::DataValueRef::Int(1))
         );
+    }
+
+    #[test]
+    fn bin_width_without_boundary_centers_integer_values() {
+        let df = frame(&[Some(34.0)], &[Some(44.0)]);
+        let out = bin_blended(
+            &df,
+            &["a", "b"],
+            BinOptions {
+                bin_width: Some(1.0),
+                ..opts()
+            },
+        );
+        assert_eq!(cell_f64(&out, "bin_start", 0), Some(33.5));
+        assert_eq!(cell_f64(&out, "bin_end", 0), Some(34.5));
+        assert_eq!(cell_f64(&out, "bin_center", 0), Some(34.0));
+        // Explicit `boundary` continues to anchor bin edges exactly as requested.
+        let explicit = bin_blended(
+            &df,
+            &["a", "b"],
+            BinOptions {
+                bin_width: Some(1.0),
+                boundary: Some(0.0),
+                ..opts()
+            },
+        );
+        assert_eq!(cell_f64(&explicit, "bin_start", 0), Some(34.0));
     }
 }

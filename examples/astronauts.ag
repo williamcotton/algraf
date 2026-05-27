@@ -23,8 +23,8 @@ Chart(
 
     Space((mission_age + selection_age)) {
         Histogram(binWidth: 1, alpha: 0.8, stroke: "#000000")
-        VLine(x: 34.5, stroke: "#000000", strokeWidth: 1, dash: "dotted")
-        VLine(x: 44.5, stroke: "#000000", strokeWidth: 1, dash: "dotted")
+        VLine(x: 34, stroke: "#000000", strokeWidth: 1, dash: "dotted")
+        VLine(x: 44, stroke: "#000000", strokeWidth: 1, dash: "dotted")
         Text(x: 34, y: 66, label: "Mean age at selection = 34", anchor: "start", dx: 15, dy: 10, size: 14)
         Text(x: 44, y: 49, label: "Mean age at mission = 44", anchor: "start", dx: 15, dy: 10, size: 14)
         Text(
