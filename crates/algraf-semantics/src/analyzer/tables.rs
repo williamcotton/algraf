@@ -56,6 +56,9 @@ impl Analyzer<'_> {
         match source_expr_from_value(decl.source(), false) {
             SourceExpr::Path { path, .. } => Some((path, None)),
             SourceExpr::Sqlite { path, query, .. } => Some((path, Some(query))),
+            // The TopoJSON object is re-extracted from the AST by the driver at
+            // load time; the table IR only records the table's existence and path.
+            SourceExpr::TopoJson { path, .. } => Some((path, None)),
             SourceExpr::Invalid { span } => {
                 if let Some(ValueExpr::Call(call)) = decl.source() {
                     if is_source_constructor(&call) && source_constructor(&call).is_none() {
@@ -73,7 +76,7 @@ impl Analyzer<'_> {
                 self.diag(Diagnostic::error(
                     codes::E1004,
                     "`Table` source must be a string-literal path or a \
-                     `GeoJson`/`Shapefile`/`Sqlite` source constructor",
+                     `GeoJson`/`Shapefile`/`Sqlite`/`TopoJson` source constructor",
                     span,
                 ));
                 None
@@ -82,7 +85,7 @@ impl Analyzer<'_> {
                 self.diag(Diagnostic::error(
                     codes::E1004,
                     "`Table` source must be a string-literal path or a \
-                     `GeoJson`/`Shapefile`/`Sqlite` source constructor",
+                     `GeoJson`/`Shapefile`/`Sqlite`/`TopoJson` source constructor",
                     span,
                 ));
                 None

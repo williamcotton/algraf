@@ -67,6 +67,9 @@ impl Bbox {
 pub(super) struct SpatialPlan {
     proj_name: Option<String>,
     bbox: (f64, f64, f64, f64),
+    /// The shared geographic bounding box `(lon_min, lat_min, lon_max, lat_max)`,
+    /// used by the `Graticule` mark.
+    geo_bbox: Option<(f64, f64, f64, f64)>,
 }
 
 impl SpatialPlan {
@@ -83,6 +86,9 @@ impl SpatialPlan {
         if let Some((lon, lat)) = lonlat_columns(&space.frame) {
             spatial.lon_col = Some(lon);
             spatial.lat_col = Some(lat);
+        }
+        if let Some(geo) = self.geo_bbox {
+            spatial.set_geo_bounds(geo);
         }
         Some(ScaledSpace::spatial(spatial))
     }
@@ -131,13 +137,15 @@ pub(super) fn build_spatial_plan(
     };
 
     let mut bbox = Bbox::default();
+    let mut geo_bbox = Bbox::default();
     for space in &spatial {
         let table = active_table(&space.data, primary, derived);
-        accumulate_space_bbox(space, table, &projection, &mut bbox);
+        accumulate_space_bbox(space, table, &projection, &mut bbox, &mut geo_bbox);
     }
     Some(SpatialPlan {
         proj_name,
         bbox: bbox.finish()?,
+        geo_bbox: geo_bbox.finish(),
     })
 }
 
@@ -148,12 +156,14 @@ fn accumulate_space_bbox(
     table: &dyn Table,
     projection: &Projection,
     bbox: &mut Bbox,
+    geo_bbox: &mut Bbox,
 ) {
     if let FrameIr::Vector(col) = &space.frame {
         if col.dtype == DataType::Geometry {
             for row in 0..table.row_count() {
                 if let Some(DataValueRef::Geometry(geometry)) = table.value(&col.name, row) {
                     for_each_coord(geometry, &mut |lon, lat| {
+                        geo_bbox.add(lon, lat);
                         if let Some((x, y)) = projection.project(lon, lat) {
                             bbox.add(x, y);
                         }
@@ -169,6 +179,7 @@ fn accumulate_space_bbox(
                 cell_f64(table, &lon_col, row),
                 cell_f64(table, &lat_col, row),
             ) {
+                geo_bbox.add(lon, lat);
                 if let Some((x, y)) = projection.project(lon, lat) {
                     bbox.add(x, y);
                 }

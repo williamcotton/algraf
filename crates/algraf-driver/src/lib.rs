@@ -645,6 +645,45 @@ mod tests {
     }
 
     #[test]
+    fn loads_topojson_constructor_with_object() {
+        let source = SourceInput::Path(PathBuf::from("chart.ag"));
+        let chart = parse_chart(&format!(
+            r#"Chart(data: TopoJson("{}", object: "regions")) {{ Space(geom) {{ Geo() }} }}"#,
+            fixture("tiny.topojson").display()
+        ));
+        let prepared = prepare_chart(
+            &chart,
+            PrepareOptions {
+                source_input: &source,
+                base_dir: None,
+                data_override: None,
+                multi_chart: false,
+            },
+        )
+        .unwrap();
+        let frame = prepared.primary.unwrap().frame;
+        assert_eq!(frame.row_count(), 2);
+        assert!(frame.column("geom").is_some());
+        assert!(frame.column("population").is_some());
+    }
+
+    #[test]
+    fn topojson_missing_object_reports_load_error() {
+        let source = SourceInput::Path(PathBuf::from("chart.ag"));
+        let chart = parse_chart(&format!(
+            r#"Chart(data: TopoJson("{}", object: "nope")) {{ Space(geom) {{ Geo() }} }}"#,
+            fixture("tiny.topojson").display()
+        ));
+        let prepared = prepare_chart_partial(&chart, partial_options(&source));
+        assert!(prepared.primary.is_none());
+        assert!(prepared
+            .report
+            .entries()
+            .iter()
+            .any(|(phase, d)| *phase == ReportPhase::Load && d.code == codes::E1805.as_str()));
+    }
+
+    #[test]
     fn loads_inferred_and_explicit_schema_formats() {
         let dir = temp_dir("schema-formats");
         fs::write(dir.join("data.csv"), "x,y\n1,2\n").unwrap();

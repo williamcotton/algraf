@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use algraf_data::{
-    read_bytes_as, read_csv, read_csv_schema, read_schema_bytes_as, ColumnDef, DataError,
-    DataFrame, DataWarning, Format, LoadResult, Table,
+    read_bytes_as, read_csv, read_csv_schema, read_schema_bytes_as, read_topojson, ColumnDef,
+    DataError, DataFrame, DataWarning, Format, LoadResult, Table,
 };
 use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::SourceExpr;
@@ -79,8 +79,38 @@ fn load_location(
     match location {
         DataLocation::Path { path, format } => load_path_with_io(&path, format, context, io),
         DataLocation::Sqlite { path, query } => load_sqlite_with_io(&path, &query, context, io),
+        DataLocation::TopoJson { path, object } => {
+            load_topojson_with_io(&path, object.as_deref(), context, io)
+        }
         DataLocation::Stdin => read_stdin_csv(io),
     }
+}
+
+/// Load a TopoJSON source by reading its bytes and decoding the named object.
+fn load_topojson_with_io(
+    path: &Path,
+    object: Option<&str>,
+    context: LoadContext,
+    io: &dyn DriverIo,
+) -> Result<LoadResult, DriverError> {
+    io.read_path(path)
+        .map_err(DataError::Io)
+        .and_then(|bytes| read_topojson(bytes.as_slice(), object))
+        .map_err(|source| DriverError::Data {
+            context,
+            path: path.to_path_buf(),
+            source,
+        })
+}
+
+/// Load only the schema of a TopoJSON source.
+fn load_topojson_schema_with_io(
+    path: &Path,
+    object: Option<&str>,
+    context: LoadContext,
+    io: &dyn DriverIo,
+) -> Result<Vec<ColumnDef>, DriverError> {
+    load_topojson_with_io(path, object, context, io).map(|loaded| loaded.frame.schema().to_vec())
 }
 
 async fn load_location_async(
@@ -95,6 +125,16 @@ async fn load_location_async(
         DataLocation::Sqlite { path, query } => {
             load_sqlite_with_async_io(&path, &query, context, io).await
         }
+        DataLocation::TopoJson { path, object } => io
+            .read_path_async(&path)
+            .await
+            .map_err(DataError::Io)
+            .and_then(|bytes| read_topojson(bytes.as_slice(), object.as_deref()))
+            .map_err(|source| DriverError::Data {
+                context,
+                path: path.clone(),
+                source,
+            }),
         DataLocation::Stdin => read_stdin_csv_async(io).await,
     }
 }
@@ -257,6 +297,9 @@ fn load_schema_location(
         DataLocation::Sqlite { path, query } => {
             load_sqlite_schema_with_io(&path, &query, sample_size, LoadContext::Primary, io)
         }
+        DataLocation::TopoJson { path, object } => {
+            load_topojson_schema_with_io(&path, object.as_deref(), LoadContext::Primary, io)
+        }
         DataLocation::Stdin => read_stdin_csv_schema(sample_size, io),
     }
 }
@@ -275,6 +318,17 @@ async fn load_schema_location_async(
             load_sqlite_schema_with_async_io(&path, &query, sample_size, LoadContext::Primary, io)
                 .await
         }
+        DataLocation::TopoJson { path, object } => io
+            .read_path_async(&path)
+            .await
+            .map_err(DataError::Io)
+            .and_then(|bytes| read_topojson(bytes.as_slice(), object.as_deref()))
+            .map(|loaded| loaded.frame.schema().to_vec())
+            .map_err(|source| DriverError::Data {
+                context: LoadContext::Primary,
+                path: path.clone(),
+                source,
+            }),
         DataLocation::Stdin => read_stdin_csv_schema_async(sample_size, io).await,
     }
 }
@@ -403,9 +457,12 @@ pub(crate) fn load_resolved_named_tables_with_io(
         let context = LoadContext::Table {
             name: resolved.name.clone(),
         };
-        let loaded = match resolved.query.as_deref() {
-            Some(query) => load_sqlite_with_io(&resolved.path, query, context, io)?,
-            None => load_path_with_io(&resolved.path, resolved.format, context, io)?,
+        let loaded = if resolved.format == Some(Format::TopoJson) {
+            load_topojson_with_io(&resolved.path, resolved.object.as_deref(), context, io)?
+        } else if let Some(query) = resolved.query.as_deref() {
+            load_sqlite_with_io(&resolved.path, query, context, io)?
+        } else {
+            load_path_with_io(&resolved.path, resolved.format, context, io)?
         };
         out.push(NamedTable {
             name: resolved.name,
@@ -451,13 +508,12 @@ fn load_resolved_named_table_schemas_with_io(
         let context = LoadContext::Table {
             name: resolved.name.clone(),
         };
-        let schema = match resolved.query.as_deref() {
-            Some(query) => {
-                load_sqlite_schema_with_io(&resolved.path, query, sample_size, context, io)?
-            }
-            None => {
-                load_schema_path_with_io(&resolved.path, resolved.format, sample_size, context, io)?
-            }
+        let schema = if resolved.format == Some(Format::TopoJson) {
+            load_topojson_schema_with_io(&resolved.path, resolved.object.as_deref(), context, io)?
+        } else if let Some(query) = resolved.query.as_deref() {
+            load_sqlite_schema_with_io(&resolved.path, query, sample_size, context, io)?
+        } else {
+            load_schema_path_with_io(&resolved.path, resolved.format, sample_size, context, io)?
         };
         out.push(NamedTableSchema {
             name: resolved.name,

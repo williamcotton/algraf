@@ -56,6 +56,12 @@ pub enum DataSourceIr {
     /// A `Sqlite("path.db", "SELECT ... ORDER BY ...")` source constructor
     /// (spec §10.12).
     Sqlite { path: String, query: String },
+    /// A `TopoJson("path.topojson", object: "name")` source constructor; `object`
+    /// is `None` when the topology's sole object is used (spec §10.11).
+    TopoJson {
+        path: String,
+        object: Option<String>,
+    },
     /// The `stdin` sentinel.
     Stdin,
     /// No valid data source was declared.
@@ -302,6 +308,12 @@ pub enum StatKind {
     Smooth,
     Boxplot,
     Density,
+    /// Geometry-producing centroid stat (spec §15.13).
+    Centroid,
+    /// Geometry-producing Douglas–Peucker simplification (spec §15.13).
+    Simplify,
+    /// Spatial join of point geometries against a polygon table (spec §15.14).
+    SpatialJoin,
 }
 
 impl StatKind {
@@ -316,6 +328,9 @@ impl StatKind {
             StatKind::Smooth => "Smooth",
             StatKind::Boxplot => "Boxplot",
             StatKind::Density => "Density",
+            StatKind::Centroid => "Centroid",
+            StatKind::Simplify => "Simplify",
+            StatKind::SpatialJoin => "SpatialJoin",
         }
     }
 }
@@ -346,6 +361,26 @@ pub enum StatOptionsIr {
         grid_points: Option<f64>,
     },
     Count,
+    /// Centroid takes no options.
+    Centroid,
+    /// Simplification tolerance in the geometry's coordinate units (degrees for
+    /// WGS84); `None` uses the renderer default.
+    Simplify {
+        tolerance: Option<f64>,
+    },
+    /// Spatial join: append a named polygon table's attributes to each point by
+    /// spatial predicate (spec §15.14).
+    SpatialJoin {
+        table: String,
+        predicate: SpatialPredicateIr,
+    },
+}
+
+/// The spatial predicate a [`StatKind::SpatialJoin`] matches on (spec §15.14).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpatialPredicateIr {
+    /// The point lies within the polygon.
+    Within,
 }
 
 /// Calendar-aware bin interval units.
@@ -500,6 +535,9 @@ pub enum GeometryKind {
     /// (Point→circle, LineString→polyline, Polygon/MultiPolygon→path),
     /// projecting coordinates through the spatial scale (spec §14.x).
     Geo,
+    /// Spatial-only guide mark: draws longitude/latitude grid lines projected
+    /// through the active spatial scale (spec §14.24).
+    Graticule,
 }
 
 impl GeometryKind {
@@ -529,6 +567,7 @@ impl GeometryKind {
             GeometryKind::Text => "Text",
             GeometryKind::Segment => "Segment",
             GeometryKind::Geo => "Geo",
+            GeometryKind::Graticule => "Graticule",
         }
     }
 
@@ -557,6 +596,7 @@ impl GeometryKind {
             GeometryKind::Text => "text",
             GeometryKind::Segment => "segment",
             GeometryKind::Geo => "geo",
+            GeometryKind::Graticule => "graticule",
         }
     }
 }
@@ -603,6 +643,7 @@ pub enum PropertyKey {
     Ymax,
     Xend,
     Yend,
+    Step,
 }
 
 /// Every [`PropertyKey`] variant, in declaration order. Used by registry
@@ -642,6 +683,7 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::Ymax,
     PropertyKey::Xend,
     PropertyKey::Yend,
+    PropertyKey::Step,
 ];
 
 impl PropertyKey {
@@ -682,6 +724,7 @@ impl PropertyKey {
             PropertyKey::Ymax => "ymax",
             PropertyKey::Xend => "xend",
             PropertyKey::Yend => "yend",
+            PropertyKey::Step => "step",
         }
     }
 

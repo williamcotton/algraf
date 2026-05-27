@@ -162,6 +162,7 @@ pub fn prepare_chart_partial_with_io(
             let path = match &location {
                 DataLocation::Path { path, .. } => Some(path.clone()),
                 DataLocation::Sqlite { path, .. } => Some(path.clone()),
+                DataLocation::TopoJson { path, .. } => Some(path.clone()),
                 DataLocation::Stdin => None,
             };
             match load_primary_with_io(location, io) {

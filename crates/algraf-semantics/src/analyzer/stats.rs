@@ -135,10 +135,13 @@ impl Analyzer<'_> {
             "Smooth" => StatKind::Smooth,
             "Bin2D" => StatKind::Bin2D,
             "HexBin" => StatKind::HexBin,
+            "Centroid" => StatKind::Centroid,
+            "Simplify" => StatKind::Simplify,
+            "SpatialJoin" => StatKind::SpatialJoin,
             _ => {
                 self.diag(Diagnostic::error(
                     codes::E1403,
-                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `Bin2D`, and `HexBin`"),
+                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `Bin2D`, `HexBin`, `Centroid`, `Simplify`, and `SpatialJoin`"),
                     stat_span,
                 ));
                 return None;
@@ -219,6 +222,27 @@ impl Analyzer<'_> {
                 let output_schema = stat_output_schema(kind, &input_frame);
                 (input_frame, options, output_schema)
             }
+            StatKind::Centroid => {
+                let input_frame =
+                    self.single_geometry_input(&inputs, table, stat_span, "Centroid")?;
+                self.reject_stat_args(&stat.args(), "Centroid");
+                let output_schema = geometry_stat_output_schema(table);
+                (input_frame, StatOptionsIr::Centroid, output_schema)
+            }
+            StatKind::Simplify => {
+                let input_frame =
+                    self.single_geometry_input(&inputs, table, stat_span, "Simplify")?;
+                let options = self.collect_simplify_options(&stat.args());
+                let output_schema = geometry_stat_output_schema(table);
+                (input_frame, options, output_schema)
+            }
+            StatKind::SpatialJoin => {
+                let input_frame =
+                    self.single_geometry_input(&inputs, table, stat_span, "SpatialJoin")?;
+                let (options, output_schema) =
+                    self.spatial_join_options(&stat.args(), table, stat_span)?;
+                (input_frame, options, output_schema)
+            }
             _ => {
                 self.diag(Diagnostic::error(
                     codes::E1403,
@@ -269,6 +293,176 @@ impl Analyzer<'_> {
                 Some(FrameIr::Invalid)
             }
         }
+    }
+
+    /// A single geometry-column stat input (`Centroid`/`Simplify`). Reports a
+    /// non-geometry input as `E1404`.
+    fn single_geometry_input(
+        &mut self,
+        inputs: &[AlgebraExpr],
+        table: &ActiveTable,
+        stat_span: Span,
+        stat_name: &str,
+    ) -> Option<FrameIr> {
+        let frame = self.single_stat_input(inputs, table, stat_span, stat_name)?;
+        if let FrameIr::Vector(col) = &frame {
+            if !matches!(col.dtype, DataType::Geometry | DataType::Unknown) {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!(
+                        "{stat_name} input column `{}` is not a geometry column",
+                        col.name
+                    ),
+                    col.span,
+                ));
+            }
+        }
+        Some(frame)
+    }
+
+    /// Reject any arguments on a stat that takes none (e.g. `Centroid`).
+    fn reject_stat_args(&mut self, args: &[Arg], stat_name: &str) {
+        for arg in args {
+            if let Some(name) = arg.key() {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("{stat_name} takes no settings; unknown setting `{name}`"),
+                    node_span(arg.syntax()),
+                ));
+            }
+        }
+    }
+
+    /// Parse `Simplify(geom, tolerance: n)` settings. `tolerance` must be a
+    /// non-negative finite number.
+    fn collect_simplify_options(&mut self, args: &[Arg]) -> StatOptionsIr {
+        let mut tolerance = None;
+        let mut dup = DupGuard::new(codes::E1404, "Simplify setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "tolerance" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Number(n) if n.is_finite() && n >= 0.0 => tolerance = Some(n),
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`tolerance` expects a non-negative number",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown Simplify setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        StatOptionsIr::Simplify { tolerance }
+    }
+
+    /// Parse and validate `SpatialJoin(geom, table: "name", predicate: "within")`
+    /// (spec §15.14), returning its options and the joined output schema. The
+    /// `table:` argument MUST name a chart-scoped `Table` with a geometry column.
+    fn spatial_join_options(
+        &mut self,
+        args: &[Arg],
+        point_table: &ActiveTable,
+        stat_span: Span,
+    ) -> Option<(StatOptionsIr, Vec<ColumnDefIr>)> {
+        let mut table_name = None;
+        let mut predicate = SpatialPredicateIr::Within;
+        let mut dup = DupGuard::new(codes::E1404, "SpatialJoin setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "table" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        // The polygon table is named by a bare identifier, like a
+                        // `Space(data: name)` reference.
+                        ValueForm::Column(column) => table_name = column.name(),
+                        ValueForm::Str(s) => table_name = Some(s),
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`table` expects a chart-scoped table name",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                "predicate" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Str(s) if s == "within" => {
+                            predicate = SpatialPredicateIr::Within
+                        }
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`predicate` expects \"within\" (the only supported predicate)",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown SpatialJoin setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+
+        let Some(table_name) = table_name else {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                "SpatialJoin requires a `table:` naming the polygon table to join against",
+                stat_span,
+            ));
+            return None;
+        };
+        if !self.table_names.contains(&table_name) {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                format!("SpatialJoin `table` `{table_name}` is not a chart-scoped `Table`"),
+                stat_span,
+            ));
+            return None;
+        }
+        let polygon = self.table_active(&table_name);
+        let polygon_pairs: Vec<(String, DataType)> = polygon.columns.clone();
+        if !polygon_pairs.iter().any(|(_, d)| *d == DataType::Geometry) {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                format!("SpatialJoin target table `{table_name}` has no geometry column"),
+                stat_span,
+            ));
+            return None;
+        }
+
+        // Output = point-side columns, then appended polygon scalar columns.
+        let mut output = geometry_stat_output_schema(point_table);
+        let point_names: Vec<&str> = point_table.names().collect();
+        let appended = crate::planning::spatial_join_appended_columns(
+            point_names,
+            polygon_pairs.iter().map(|(n, d)| (n.as_str(), *d)),
+        );
+        output.extend(appended);
+
+        Some((
+            StatOptionsIr::SpatialJoin {
+                table: table_name,
+                predicate,
+            },
+            output,
+        ))
     }
 
     fn two_stat_inputs(
@@ -562,6 +756,19 @@ impl Analyzer<'_> {
             ));
         }
     }
+}
+
+/// Output schema for a geometry-producing stat (`Centroid`/`Simplify`): every
+/// upstream column passes through (the geometry column carries the computed
+/// geometry, scalar columns are unchanged) (spec §15.13).
+fn geometry_stat_output_schema(table: &ActiveTable) -> Vec<ColumnDefIr> {
+    table
+        .names()
+        .map(|name| ColumnDefIr {
+            name: name.to_string(),
+            dtype: table.get(name).unwrap_or(DataType::Unknown),
+        })
+        .collect()
 }
 
 pub(super) fn parse_bin_interval(value: &str) -> Option<BinIntervalIr> {

@@ -157,6 +157,34 @@ pub(super) fn compute_derived(
                         None
                     }
                 }
+                StatOptionsIr::Centroid => {
+                    if let FrameIr::Vector(col) = &d.stat.input {
+                        Some(crate::geo_stats::centroid(source, &col.name))
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::Simplify { tolerance } => {
+                    if let FrameIr::Vector(col) = &d.stat.input {
+                        // Default tolerance: a small fraction of a degree, fine
+                        // enough to keep shapes recognizable (spec §15.13).
+                        let tol = tolerance.filter(|t| *t >= 0.0).unwrap_or(0.01);
+                        Some(crate::geo_stats::simplify(source, &col.name, tol))
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::SpatialJoin { table, .. } => {
+                    if let FrameIr::Vector(col) = &d.stat.input {
+                        // The polygon table is a chart-scoped named table, so it
+                        // is already materialized in `derived` (spec §15.14).
+                        derived.get(table).map(|polygon| {
+                            crate::geo_stats::spatial_join_within(source, &col.name, polygon)
+                        })
+                    } else {
+                        None
+                    }
+                }
             }
         };
         if let Some(frame) = frame {

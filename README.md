@@ -1375,6 +1375,99 @@ Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
 
 ![spatial_overlay](examples/spatial_overlay.svg)
 
+## Maps: a graticule over the `albers_usa` composite
+
+`projection: "albers_usa"` is the conventional `albersUsa` composite: it routes
+Alaska and Hawaii through their own equal-area insets while leaving the lower-48
+unchanged. A `Graticule` mark draws the projected longitude/latitude grid
+through the active spatial scale; `step` sets the spacing in degrees.
+
+```algraf
+Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
+      title: "US Population by County",
+      subtitle: "albers_usa composite with a longitude/latitude graticule") {
+    Theme(name: "void")
+    Scale(fill: population, gradient: ["#f7fbff", "#08306b"], label: "Population")
+
+    Space(geom, projection: "albers_usa") {
+        Graticule(stroke: "#cccccc", strokeWidth: 0.5, step: 10)
+        Geo(fill: population, stroke: "#ffffff", strokeWidth: 0.25)
+    }
+}
+```
+
+![choropleth_graticule](examples/choropleth_graticule.svg)
+
+## Maps: geometry-producing stats with `Centroid`
+
+`Centroid(geom)` is a derived stat that reduces each geometry to a point,
+passing every scalar column through. The result is an ordinary derived table, so
+a `Geo` mark draws the centroids as a point layer — here colored by the
+county's population.
+
+```algraf
+Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
+      title: "County Population Centroids") {
+    Theme(name: "void")
+    Scale(fill: population, gradient: ["#fee5d9", "#a50f15"], label: "Population")
+
+    Derive centers = Centroid(geom)
+
+    Space(geom, data: centers, projection: "albers_usa") {
+        Geo(fill: population, stroke: "#333333", strokeWidth: 0.1)
+    }
+}
+```
+
+![county_centroids](examples/county_centroids.svg)
+
+## Maps: TopoJSON input
+
+`TopoJson(...)` decodes a TopoJSON topology — shared boundaries stored once as
+arcs — into the same `geom` column as GeoJSON. `object:` names the topology
+object to load.
+
+```algraf
+Chart(data: TopoJson("grid.topojson", object: "grid"), width: 400, height: 400,
+      title: "TopoJSON Grid") {
+    Theme(name: "void")
+    Scale(fill: value, gradient: ["#edf8e9", "#006d2c"], label: "Value")
+
+    Space(geom, projection: "equirectangular") {
+        Geo(fill: value, stroke: "#ffffff", strokeWidth: 1)
+        Graticule(stroke: "#bbbbbb", strokeWidth: 0.5, step: 1)
+    }
+}
+```
+
+![topojson_grid](examples/topojson_grid.svg)
+
+## Maps: spatial join with `SpatialJoin`
+
+`SpatialJoin(geom, table: zones, predicate: "within")` tags each point with the
+attributes of the polygon that contains it. The polygon outlines are drawn in
+one space; the joined points, colored by their matched zone, in another.
+
+```algraf
+Chart(data: GeoJson("sensors.geojson"), width: 500, height: 360,
+      title: "Sensors Tagged by Zone") {
+    Theme(name: "void")
+
+    Table zones = GeoJson("zones.geojson")
+    Derive tagged = SpatialJoin(geom, table: zones, predicate: "within")
+
+    Space(geom, data: zones, projection: "equirectangular") {
+        Geo(stroke: "#999999", strokeWidth: 1)
+    }
+    Space(geom, data: tagged, projection: "equirectangular") {
+        Scale(fill: zone, palette: "accent", label: "Zone")
+        Geo(fill: zone, stroke: "#222222", strokeWidth: 0.5)
+    }
+}
+```
+
+![spatial_join](examples/spatial_join.svg)
+
 ---
 
 ## Multiple charts in one document

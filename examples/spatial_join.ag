@@ -1,0 +1,16 @@
+Chart(data: GeoJson("sensors.geojson"), width: 500, height: 360,
+      title: "Sensors Tagged by Zone",
+      subtitle: "SpatialJoin assigns each point the zone polygon that contains it") {
+    Theme(name: "void")
+
+    Table zones = GeoJson("zones.geojson")
+    Derive tagged = SpatialJoin(geom, table: zones, predicate: "within")
+
+    Space(geom, data: zones, projection: "equirectangular") {
+        Geo(stroke: "#999999", strokeWidth: 1)
+    }
+    Space(geom, data: tagged, projection: "equirectangular") {
+        Scale(fill: zone, palette: "accent", label: "Zone")
+        Geo(fill: zone, stroke: "#222222", strokeWidth: 0.5)
+    }
+}

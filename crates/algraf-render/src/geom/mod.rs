@@ -5,6 +5,7 @@ mod bar;
 mod common;
 mod distribution;
 mod geo;
+mod graticule;
 mod line;
 mod point;
 mod rect_tile;
@@ -60,6 +61,7 @@ pub(crate) fn render(
         GeometryKind::Text => text::render(w, geo, ctx),
         GeometryKind::Segment => annotation::render_segment(w, geo, ctx),
         GeometryKind::Geo => geo::render(w, geo, ctx),
+        GeometryKind::Graticule => graticule::render(w, geo, ctx),
         other => diagnostics.push(Diagnostic::warning(
             codes::R0001,
             format!("geometry `{other:?}` is not yet supported by the renderer"),

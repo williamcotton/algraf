@@ -66,6 +66,10 @@ charts=(
     events_ndjson
     choropleth
     choropleth_shapefile
+    choropleth_graticule
+    county_centroids
+    topojson_grid
+    spatial_join
     spatial_overlay
     weather_forecast
     candlestick

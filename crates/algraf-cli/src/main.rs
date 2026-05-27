@@ -771,6 +771,9 @@ fn data_source_json(data_source: &DataSourceIr) -> Value {
         DataSourceIr::Sqlite { path, query } => {
             json!({ "kind": "sqlite", "path": path, "query": query })
         }
+        DataSourceIr::TopoJson { path, object } => {
+            json!({ "kind": "topojson", "path": path, "object": object })
+        }
         DataSourceIr::Stdin => json!({ "kind": "stdin" }),
         DataSourceIr::Missing => json!({ "kind": "missing" }),
     }
@@ -956,6 +959,17 @@ fn stat_options_json(options: &StatOptionsIr) -> Value {
             "gridPoints": grid_points,
         }),
         StatOptionsIr::Count => json!({ "kind": "count" }),
+        StatOptionsIr::Centroid => json!({ "kind": "centroid" }),
+        StatOptionsIr::Simplify { tolerance } => {
+            json!({ "kind": "simplify", "tolerance": tolerance })
+        }
+        StatOptionsIr::SpatialJoin { table, predicate } => json!({
+            "kind": "spatialJoin",
+            "table": table,
+            "predicate": match predicate {
+                algraf_semantics::SpatialPredicateIr::Within => "within",
+            },
+        }),
     }
 }
 

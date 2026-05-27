@@ -110,7 +110,7 @@ pub(crate) fn completion_context(text: &str, offset: usize) -> CompletionContext
         },
         Some(
             "Algraf" | "Scale" | "Guide" | "Theme" | "Layout" | "Style" | "Stop" | "Bin" | "Smooth"
-            | "Bin2D" | "HexBin",
+            | "Bin2D" | "HexBin" | "Simplify" | "SpatialJoin",
         ) => CompletionContext::DeclArgs {
             decl: call_name_stack
                 .last()
@@ -737,6 +737,7 @@ mod tests {
         let labels = labels(&items);
         assert!(labels.contains(&"GeoJson"));
         assert!(labels.contains(&"Shapefile"));
+        assert!(labels.contains(&"TopoJson"));
         assert!(!labels.contains(&"Sqlite"));
         assert!(labels.contains(&"stdin"));
     }

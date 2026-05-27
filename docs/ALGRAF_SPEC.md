@@ -2350,9 +2350,9 @@ model). Geometry is its own data type, distinct from continuous and categorical:
   unchanged, so parser, semantics, LSP, and render see geometry only through
   `DataValueRef::Geometry`.
 
-Two geometry **source constructors** decode to this representation; both are
+Three geometry **source constructors** decode to this representation; all are
 pure-Rust and offline, preserving the single-binary (spec §2) and
-no-network-by-default (§10.8) guarantees. They differ only in ingestion — both
+no-network-by-default (§10.8) guarantees. They differ only in ingestion — all
 produce a `geom` geometry column plus scalar attribute columns — so they share
 the spatial scale, projection, and `Geo` render path identically:
 
@@ -2366,6 +2366,19 @@ the spatial scale, projection, and `Geo` render path identically:
   type normalizes to `MultiPolygon`. Attributes run through the same inference
   pipeline, so a shapefile and an equivalent GeoJSON produce the same dataframe
   shape.
+- **`TopoJson("path.topojson", object: "name")`** parses a TopoJSON `Topology`.
+  TopoJSON shares boundaries as **arcs** referenced by index; the loader stitches
+  arcs (negative indices reference an arc reversed; consecutive arcs share an
+  endpoint), applies the optional quantization `transform` (`q = position ·
+  scale + translate`), and produces the same `geom` + attribute columns as
+  GeoJSON. The optional `object:` argument names the entry in the topology's
+  `objects` map; it MAY be omitted when the topology defines exactly one object.
+  A selected `GeometryCollection` object yields one row per member geometry (like
+  a `FeatureCollection`); any other object is a single feature. The `.topojson`
+  file extension also selects this loader, decoding the topology's sole object. A
+  named object absent from the topology, an ambiguous omitted `object:` when the
+  topology defines several, malformed topology, and unsupported geometry types
+  are `E1805`.
 
 The implementation MAY load shapefiles from a resolved in-memory sidecar bundle
 instead of a filesystem path. When using the default operating-system provider,
@@ -4520,6 +4533,36 @@ source order. A `Geo` mark outside a spatial space is a semantic error — `E180
 when the space frames a single non-geometry column, `E1804` when the space is a
 planar Cartesian space.
 
+### 14.24 Graticule
+
+> Since version 0.22.
+
+Syntax:
+
+```ag
+Graticule(stroke: "#cccccc", strokeWidth: 0.5, step: 10)
+```
+
+Supported spaces:
+
+Spatial (a geometry-column space, or a `long * lat` space with a declared
+`projection:`, spec §16.15)
+
+`Graticule` is a **guide mark**: it draws the projected longitude/latitude grid
+rather than data. It MUST sample each meridian and parallel in geographic space
+and project every sample through the active spatial scale (§16.15), so curved
+projections render as smooth curves. Lines MUST be emitted in a deterministic
+order (meridians west→east, then parallels south→north).
+
+Properties are constants: `stroke` (a color, defaulting to the theme's major
+grid color), `strokeWidth` (defaulting to the theme's grid width), `alpha`, and
+`step` (the grid spacing in degrees). When `step` is omitted, the renderer
+chooses a deterministic "nice" spacing from the map's geographic extent. The
+grid covers the rendered data's geographic bounding box.
+
+A `Graticule` outside a spatial space — a planar Cartesian space with no
+`projection:` — is `E1804`.
+
 ## 15. Statistics
 
 ### 15.1 Stat Model
@@ -4873,6 +4916,61 @@ count
 density
 
 Both stats accept `bins`, which MUST be at least 1 and defaults to 30.
+
+### 15.13 Geometry-Producing Stats
+
+> Since version 0.22.
+
+Two derived stats consume a geometry column and produce a geometry column,
+bridging spatial data into the derived-table model (§15.3):
+
+- **`Centroid(geom)`** replaces each row's geometry with its centroid `Point`:
+  the area-weighted centroid for areal geometries (the shoelace centroid of the
+  exterior ring, weighted across a `MultiPolygon`'s parts), and the mean vertex
+  otherwise. An empty geometry produces a missing cell.
+- **`Simplify(geom, tolerance: t)`** applies Douglas–Peucker simplification to
+  each line and polygon ring at `tolerance` `t`, expressed in the geometry's own
+  coordinate units (degrees for WGS84 sources). `tolerance` MUST be a
+  non-negative number and defaults to a small value. A ring that would simplify
+  below a valid four-point ring is kept unchanged. Points are returned
+  unchanged.
+
+Both stats are pure and deterministic and read no external resources. Their
+output schema passes every scalar column through unchanged and carries the
+computed geometry in the original geometry column, so the result renders through
+the `Geo` mark (§14.23) like any other geometry source. The stat input MUST be a
+single geometry column; a non-geometry input is `E1404`. `Centroid` takes no
+settings; an unknown `Simplify` setting or a negative `tolerance` is `E1404`.
+
+### 15.14 Spatial Join
+
+> Since version 0.22.
+
+`SpatialJoin(geom, table: regions, predicate: "within")` joins a point geometry
+column against a chart-scoped polygon `Table` by spatial predicate, appending the
+polygon table's attributes to each point row:
+
+```ag
+Chart(data: GeoJson("stations.geojson")) {
+    Table regions = GeoJson("regions.geojson")
+    Derive tagged = SpatialJoin(geom, table: regions, predicate: "within")
+    Space(geom, data: tagged) { Geo(fill: region_name) }
+}
+```
+
+- The positional input MUST be a single geometry column (the point side); a
+  point is represented by its centroid (§15.13) for the predicate test.
+- `table:` MUST name a chart-scoped `Table` declaration (a named table, not a
+  derived table) that has a geometry column. A missing `table:`, an unknown
+  table, or a table without a geometry column is `E1404`.
+- `predicate:` defaults to `"within"`, the only predicate supported in this
+  release; any other value is `E1404`.
+- The output is a named derived table behind the dataframe boundary (§10.5): the
+  point side passes through unchanged, then every non-geometry polygon column
+  whose name does not collide with a point-side column is appended. A point that
+  matches several polygons takes the **first** in polygon-row order; a point with
+  no geometry or no match gets missing cells for the appended columns. Behavior
+  is deterministic.
 
 ## 16. Scale Training
 
@@ -5323,7 +5421,17 @@ maps over [`proj4rs`]:
 | `mercator` | Web-style Mercator |
 | `robinson` | Robinson |
 | `albers` | continental-US Albers equal-area (lower-48) |
-| `albers_usa` | `albersUsa`-style composite; the conventional Alaska/Hawaii insets are deferred, so it currently resolves to the continental Albers (lower-48) |
+| `albers_usa` | `albersUsa`-style composite: lower-48 Albers plus conventional Alaska and Hawaii insets |
+
+The `albers_usa` composite routes each coordinate to one of three conic
+equal-area sub-projections by geographic region — Hawaii (latitude 16°–26°N,
+longitude 165°–150°W), Alaska (latitude ≥ 50°N, including the Aleutians), and
+the lower-48 (everything else) — then scales and translates the Alaska
+(≈0.35×) and Hawaii insets into the lower-48 frame following d3-geo's
+`albersUsa` offsets. Region routing and inset placement are deterministic and
+data-independent (the offsets are fixed fractions of the projection scale), so
+lower-48-only maps keep the same appearance as the `albers` alias. Coordinates a
+sub-projection cannot represent are dropped, as for any projection.
 
 A raw `+proj=…` string passes through to `proj4rs` unchanged. A non-string
 `projection:` is `E1802` (the analyzer); an unknown alias or malformed PROJ
@@ -5349,9 +5457,22 @@ position scales. The renderer MUST:
    (letterbox), so equal-area maps are never stretched,
 4. map geographic → projected → pixel for every rendered coordinate.
 
-A spatial space MUST draw no latitude/longitude axes or grid lines (a graticule
-is deferred). Output MUST stay deterministic (§18.12): `proj4rs` floating-point
-trig is absorbed by the 3-decimal SVG coordinate formatter.
+A spatial space MUST draw no automatic latitude/longitude axes or grid lines; a
+longitude/latitude grid is drawn only by an explicit `Graticule` mark (§14.24).
+Output MUST stay deterministic (§18.12): `proj4rs` floating-point trig is
+absorbed by the 3-decimal SVG coordinate formatter.
+
+When projecting `Geo` line and polygon rings, the renderer MUST:
+
+- **Resample long segments.** A segment whose longitude or latitude span exceeds
+  a fixed threshold (5°) is subdivided into equal sub-segments no larger than the
+  threshold before projection, so a long edge follows the projection's curvature
+  instead of a straight pixel chord. A shorter segment is projected
+  vertex-for-vertex, so existing detailed-boundary maps render unchanged. The
+  threshold is fixed and deterministic.
+- **Break antimeridian crossings.** When the longitude step between consecutive
+  vertices exceeds 180°, the connecting chord is broken (a new subpath begins)
+  rather than drawn across the whole map.
 
 A spatial frame whose column is not a geometry column is `E1801`.
 

@@ -15,6 +15,7 @@ use crate::geojson::read_geojson;
 use crate::json::{read_json, read_ndjson};
 use crate::schema::ColumnDef;
 use crate::shapefile::read_shapefile_path;
+use crate::topojson::read_topojson;
 
 /// A supported data source format (spec §10.2, §10.11).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -33,6 +34,10 @@ pub enum Format {
     /// An ESRI shapefile bundle (`.shp` + `.dbf`/`.shx` sidecars), also selected
     /// by the `Shapefile` source constructor (spec §10.11).
     Shapefile,
+    /// A TopoJSON `Topology` (`.topojson`), also selected by the `TopoJson`
+    /// source constructor (spec §10.11). The extension form decodes the topology's
+    /// sole object; the constructor's `object:` argument names one explicitly.
+    TopoJson,
 }
 
 impl Format {
@@ -52,6 +57,7 @@ impl Format {
             "json" => Format::Json,
             "ndjson" | "jsonl" => Format::NdJson,
             "geojson" => Format::GeoJson,
+            "topojson" => Format::TopoJson,
             "shp" => Format::Shapefile,
             _ => Format::Csv,
         }
@@ -108,6 +114,7 @@ pub fn read_format<R: Read>(reader: R, format: Format) -> Result<LoadResult, Dat
         Format::Json => read_json(reader),
         Format::NdJson => read_ndjson(reader),
         Format::GeoJson => read_geojson(reader),
+        Format::TopoJson => read_topojson(reader, None),
         Format::Shapefile => Err(DataError::Geo(
             "a shapefile must be loaded from a path, not a stream".to_string(),
         )),
@@ -174,6 +181,7 @@ pub fn read_schema_format<R: Read>(
         Format::Json => Ok(read_json(reader)?.frame.schema().to_vec()),
         Format::NdJson => Ok(read_ndjson(reader)?.frame.schema().to_vec()),
         Format::GeoJson => Ok(read_geojson(reader)?.frame.schema().to_vec()),
+        Format::TopoJson => Ok(read_topojson(reader, None)?.frame.schema().to_vec()),
         Format::Shapefile => Err(DataError::Geo(
             "a shapefile must be loaded from a path, not a stream".to_string(),
         )),

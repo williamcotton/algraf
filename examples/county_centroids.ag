@@ -1,0 +1,12 @@
+Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
+      title: "County Population Centroids",
+      subtitle: "Centroid(geom) reduces each county polygon to a single point") {
+    Theme(name: "void")
+    Scale(fill: population, gradient: ["#fee5d9", "#a50f15"], label: "Population")
+
+    Derive centers = Centroid(geom)
+
+    Space(geom, data: centers, projection: "albers_usa") {
+        Geo(fill: population, stroke: "#333333", strokeWidth: 0.1)
+    }
+}

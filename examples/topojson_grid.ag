@@ -1,0 +1,11 @@
+Chart(data: TopoJson("grid.topojson", object: "grid"), width: 400, height: 400,
+      title: "TopoJSON Grid",
+      subtitle: "Arcs decode to the same geometry column as GeoJSON") {
+    Theme(name: "void")
+    Scale(fill: value, gradient: ["#edf8e9", "#006d2c"], label: "Value")
+
+    Space(geom, projection: "equirectangular") {
+        Geo(fill: value, stroke: "#ffffff", strokeWidth: 1)
+        Graticule(stroke: "#bbbbbb", strokeWidth: 0.5, step: 1)
+    }
+}

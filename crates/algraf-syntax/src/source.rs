@@ -27,6 +27,8 @@ pub enum SourceConstructorKind {
     PathFormat(SourceFormat),
     /// A local SQLite database plus SQL query.
     Sqlite,
+    /// A TopoJSON topology plus an optional named object.
+    TopoJson,
 }
 
 /// How a source constructor's arguments must be written (spec §10.11).
@@ -36,6 +38,8 @@ pub enum PathArgRule {
     SingleStringLiteral,
     /// Exactly two positional string literals: database path and SQL query.
     SqlitePathAndQuery,
+    /// One positional string-literal path plus an optional `object:` string.
+    TopoJsonPathAndObject,
 }
 
 /// Static metadata describing a recognized source constructor (spec §10.11).
@@ -81,6 +85,13 @@ pub const SOURCE_CONSTRUCTORS: &[SourceConstructorMeta] = &[
         doc: "Load a local SQLite database with a read-only, ORDER BY query. Requires the `sql` feature gate.",
         completion_snippet: "Sqlite(\"$1.db\", \"SELECT $2 FROM $3 ORDER BY $4\")",
     },
+    SourceConstructorMeta {
+        kind: SourceConstructorKind::TopoJson,
+        name: "TopoJson",
+        path_arg: PathArgRule::TopoJsonPathAndObject,
+        doc: "Load a TopoJSON topology as the data source. `object:` names the topology object to decode (defaults to the sole object).",
+        completion_snippet: "TopoJson(\"$1.topojson\", object: \"$2\")",
+    },
 ];
 
 impl SourceFormat {
@@ -104,7 +115,7 @@ impl SourceFormat {
             .find(|meta| meta.name == name)
             .and_then(|meta| match meta.kind {
                 SourceConstructorKind::PathFormat(format) => Some(format),
-                SourceConstructorKind::Sqlite => None,
+                SourceConstructorKind::Sqlite | SourceConstructorKind::TopoJson => None,
             })
     }
 
@@ -114,7 +125,7 @@ impl SourceFormat {
             .iter()
             .filter_map(|meta| match meta.kind {
                 SourceConstructorKind::PathFormat(_) => Some(meta.name),
-                SourceConstructorKind::Sqlite => None,
+                SourceConstructorKind::Sqlite | SourceConstructorKind::TopoJson => None,
             })
     }
 }
@@ -140,6 +151,12 @@ pub enum SourceExpr {
         query: String,
         span: Span,
     },
+    /// A TopoJSON topology source with an optional named object.
+    TopoJson {
+        path: String,
+        object: Option<String>,
+        span: Span,
+    },
     /// The bare `stdin` sentinel.
     Stdin { span: Span },
     /// No source expression was present.
@@ -154,6 +171,7 @@ impl SourceExpr {
         match self {
             SourceExpr::Path { span, .. }
             | SourceExpr::Sqlite { span, .. }
+            | SourceExpr::TopoJson { span, .. }
             | SourceExpr::Stdin { span }
             | SourceExpr::Invalid { span } => Some(*span),
             SourceExpr::Missing => None,
@@ -162,7 +180,10 @@ impl SourceExpr {
 
     /// Whether this source is a path.
     pub fn is_path(&self) -> bool {
-        matches!(self, SourceExpr::Path { .. } | SourceExpr::Sqlite { .. })
+        matches!(
+            self,
+            SourceExpr::Path { .. } | SourceExpr::Sqlite { .. } | SourceExpr::TopoJson { .. }
+        )
     }
 
     /// Whether this source is `stdin`.
@@ -187,6 +208,11 @@ pub enum SourceConstructor {
     Sqlite {
         path: String,
         query: String,
+        span: Span,
+    },
+    TopoJson {
+        path: String,
+        object: Option<String>,
         span: Span,
     },
 }
@@ -313,11 +339,31 @@ pub fn source_constructor(call: &CallValue) -> Option<SourceConstructor> {
         .name()
         .and_then(|name| source_constructor_meta(&name))?;
     let args = call.args();
+    let span = node_span(call.syntax());
+
+    // `TopoJson` accepts an optional named `object:`, so it parses by keyword
+    // rather than requiring all-positional arguments like the other families.
+    if meta.kind == SourceConstructorKind::TopoJson {
+        let mut path = None;
+        let mut object = None;
+        for arg in &args {
+            match arg.key().as_deref() {
+                None if path.is_none() => path = Some(string_literal_arg(arg)?),
+                Some("object") if object.is_none() => object = Some(string_literal_arg(arg)?),
+                _ => return None,
+            }
+        }
+        return Some(SourceConstructor::TopoJson {
+            path: path?,
+            object,
+            span,
+        });
+    }
+
     let positional: Vec<_> = args.iter().filter(|arg| arg.key().is_none()).collect();
     if positional.len() != args.len() {
         return None;
     }
-    let span = node_span(call.syntax());
     match meta.kind {
         SourceConstructorKind::PathFormat(format) => {
             let [arg] = positional.as_slice() else {
@@ -336,6 +382,7 @@ pub fn source_constructor(call: &CallValue) -> Option<SourceConstructor> {
                 span,
             })
         }
+        SourceConstructorKind::TopoJson => unreachable!("handled above"),
     }
 }
 
@@ -351,7 +398,9 @@ fn string_literal_arg(arg: &Arg) -> Option<String> {
 /// Extract the path from a recognized source constructor.
 pub fn source_constructor_path(call: &CallValue) -> Option<String> {
     source_constructor(call).map(|source| match source {
-        SourceConstructor::Path { path, .. } | SourceConstructor::Sqlite { path, .. } => path,
+        SourceConstructor::Path { path, .. }
+        | SourceConstructor::Sqlite { path, .. }
+        | SourceConstructor::TopoJson { path, .. } => path,
     })
 }
 
@@ -424,6 +473,9 @@ pub fn source_expr_from_value(value: Option<ValueExpr>, allow_stdin: bool) -> So
                 },
                 Some(SourceConstructor::Sqlite { path, query, span }) => {
                     SourceExpr::Sqlite { path, query, span }
+                }
+                Some(SourceConstructor::TopoJson { path, object, span }) => {
+                    SourceExpr::TopoJson { path, object, span }
                 }
                 None => SourceExpr::Invalid {
                     span: node_span(call.syntax()),
@@ -538,6 +590,34 @@ mod tests {
                 query,
                 ..
             } if path == "sales.db" && query.contains("ORDER BY")
+        ));
+    }
+
+    #[test]
+    fn topojson_constructor_extracts_path_and_object() {
+        let chart = first_chart(r#"Chart(data: TopoJson("us.topojson", object: "counties")) {}"#);
+        assert!(matches!(
+            chart_data_source(&chart),
+            SourceExpr::TopoJson { path, object, .. }
+                if path == "us.topojson" && object.as_deref() == Some("counties")
+        ));
+    }
+
+    #[test]
+    fn topojson_constructor_object_is_optional() {
+        let chart = first_chart(r#"Chart(data: TopoJson("us.topojson")) {}"#);
+        assert!(matches!(
+            chart_data_source(&chart),
+            SourceExpr::TopoJson { path, object: None, .. } if path == "us.topojson"
+        ));
+    }
+
+    #[test]
+    fn topojson_constructor_rejects_unknown_named_arg() {
+        let chart = first_chart(r#"Chart(data: TopoJson("us.topojson", layer: "x")) {}"#);
+        assert!(matches!(
+            chart_data_source(&chart),
+            SourceExpr::Invalid { .. }
         ));
     }
 

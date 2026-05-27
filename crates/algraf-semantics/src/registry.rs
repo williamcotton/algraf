@@ -114,6 +114,8 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
         ],
         "Stop" => &["value", "color"],
         "Bin" => &["bins", "binWidth", "boundary", "closed", "interval"],
+        "Simplify" => &["tolerance"],
+        "SpatialJoin" => &["table", "predicate"],
         _ => &[],
     }
 }
@@ -389,6 +391,13 @@ const GEO: &[PropSpec] = &[
     opt(PropertyKey::Alpha, ALPHA),
 ];
 
+const GRATICULE: &[PropSpec] = &[
+    opt(PropertyKey::Stroke, &[Accept::Color]),
+    opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Step, &[Accept::Number]),
+];
+
 const SEGMENT: &[PropSpec] = &[
     req(PropertyKey::X, &[Accept::Number]),
     req(PropertyKey::Y, &[Accept::Number]),
@@ -422,6 +431,7 @@ const GEOMETRIES: &[GeometryDef] = &[
     geo(GeometryKind::Text, TEXT),
     geo(GeometryKind::Segment, SEGMENT),
     geo(GeometryKind::Geo, GEO),
+    geo(GeometryKind::Graticule, GRATICULE),
 ];
 
 /// Look up a geometry definition by exact (case-sensitive) name.
@@ -469,6 +479,7 @@ pub fn geometry_doc(name: &str) -> &'static str {
         "Text" => "Draws text labels in the inherited space.",
         "Segment" => "Draws explicit line segments between endpoints.",
         "Geo" => "Draws geometry values in a spatial space.",
+        "Graticule" => "Draws projected longitude/latitude grid lines in a spatial space.",
         _ => "Algraf geometry.",
     }
 }
@@ -516,6 +527,9 @@ pub fn property_doc(name: &str) -> &'static str {
         "xend" => "Segment end x position.",
         "yend" => "Segment end y position.",
         "sides" => "Rug sides setting.",
+        "step" => {
+            "Graticule line spacing in degrees (defaults to a value chosen from the map extent)."
+        }
         "marginTop" => "Minimum top plot margin in pixels (floor over the computed margin).",
         "marginRight" => "Minimum right plot margin in pixels (floor over the computed margin).",
         "marginBottom" => "Minimum bottom plot margin in pixels (floor over the computed margin).",

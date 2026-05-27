@@ -101,7 +101,7 @@ impl Analyzer<'_> {
         if !saw_geometry {
             self.diag(Diagnostic::warning(codes::W2001, "empty Space block", span));
         }
-        self.check_spatial_geometries(&geometries, &frame);
+        self.check_spatial_geometries(&geometries, &frame, projection.is_some());
 
         let mut analysis = SpaceAnalysis::default();
         for histogram in histograms {
@@ -210,27 +210,66 @@ impl Analyzer<'_> {
     /// `Geo` mark requires a spatial space: its frame must be a single geometry
     /// column. A single non-geometry column is `E1801`; a planar (multi-axis)
     /// frame is `E1804`.
-    fn check_spatial_geometries(&mut self, geometries: &[GeometryIr], frame: &FrameIr) {
-        for geo in geometries.iter().filter(|g| g.kind == GeometryKind::Geo) {
-            match frame {
-                FrameIr::Vector(col) if col.dtype == DataType::Geometry => {}
-                // The column was already reported as unknown (E1101); avoid a
-                // confusing second diagnostic.
-                FrameIr::Vector(col) if col.dtype == DataType::Unknown => {}
-                FrameIr::Vector(_) => self.diag(Diagnostic::error(
-                    codes::E1801,
-                    "a spatial space requires a geometry column; \
-                     `Geo` must be used in a `Space(geom)` over a geometry column",
-                    geo.span,
-                )),
-                FrameIr::Invalid => {}
-                _ => self.diag(Diagnostic::error(
-                    codes::E1804,
-                    "`Geo` mark requires a spatial space (a `Space` over a geometry column), \
-                     not a planar Cartesian space",
-                    geo.span,
-                )),
+    fn check_spatial_geometries(
+        &mut self,
+        geometries: &[GeometryIr],
+        frame: &FrameIr,
+        has_projection: bool,
+    ) {
+        for geo in geometries {
+            match geo.kind {
+                GeometryKind::Geo => self.check_geo_mark(frame, geo.span),
+                GeometryKind::Graticule => {
+                    self.check_graticule_mark(frame, has_projection, geo.span)
+                }
+                _ => {}
             }
+        }
+    }
+
+    /// A `Geo` mark requires a single geometry column (spec §14.23).
+    fn check_geo_mark(&mut self, frame: &FrameIr, span: algraf_core::Span) {
+        match frame {
+            FrameIr::Vector(col) if col.dtype == DataType::Geometry => {}
+            // The column was already reported as unknown (E1101); avoid a
+            // confusing second diagnostic.
+            FrameIr::Vector(col) if col.dtype == DataType::Unknown => {}
+            FrameIr::Vector(_) => self.diag(Diagnostic::error(
+                codes::E1801,
+                "a spatial space requires a geometry column; \
+                 `Geo` must be used in a `Space(geom)` over a geometry column",
+                span,
+            )),
+            FrameIr::Invalid => {}
+            _ => self.diag(Diagnostic::error(
+                codes::E1804,
+                "`Geo` mark requires a spatial space (a `Space` over a geometry column), \
+                 not a planar Cartesian space",
+                span,
+            )),
+        }
+    }
+
+    /// A `Graticule` mark requires a spatial space: a geometry-column frame, or a
+    /// planar frame with a declared `projection:` (spec §14.24).
+    fn check_graticule_mark(
+        &mut self,
+        frame: &FrameIr,
+        has_projection: bool,
+        span: algraf_core::Span,
+    ) {
+        let spatial = has_projection
+            || matches!(frame, FrameIr::Vector(col) if col.dtype == DataType::Geometry);
+        // Unknown columns / invalid frames already produced their own diagnostic.
+        let suppressed = matches!(frame, FrameIr::Invalid)
+            || matches!(frame, FrameIr::Vector(col) if col.dtype == DataType::Unknown);
+        if !spatial && !suppressed {
+            self.diag(Diagnostic::error(
+                codes::E1804,
+                "`Graticule` mark requires a spatial space (a geometry column \
+                 or a space with a declared `projection:`)",
+                span,
+            ));
         }
     }
 

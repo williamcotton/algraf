@@ -24,6 +24,7 @@
 mod aes;
 mod domains;
 mod error;
+mod geo_stats;
 mod geom;
 mod guide;
 mod helpers;

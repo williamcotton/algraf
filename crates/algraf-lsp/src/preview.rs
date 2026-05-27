@@ -41,7 +41,9 @@ impl Backend {
                 ));
             };
             match algraf_syntax::chart_data_source(&chart) {
-                SourceExpr::Path { .. } | SourceExpr::Sqlite { .. } => {
+                SourceExpr::Path { .. }
+                | SourceExpr::Sqlite { .. }
+                | SourceExpr::TopoJson { .. } => {
                     data_dependencies(&chart, &source_input, None, None)
                         .map(|dependencies| {
                             dependencies

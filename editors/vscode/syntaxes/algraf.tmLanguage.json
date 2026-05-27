@@ -128,7 +128,7 @@
       "patterns": [
         {
           "name": "entity.name.function.geometry.algraf",
-          "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Density|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment|Geo)\\b(?=\\s*\\()"
+          "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Density|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment|Geo|Graticule)\\b(?=\\s*\\()"
         }
       ]
     },
@@ -136,7 +136,7 @@
       "patterns": [
         {
           "name": "entity.name.function.stat.algraf",
-          "match": "\\b(?:Bin|Bin2D|HexBin|Count|Smooth|Boxplot|Density)\\b(?=\\s*\\()"
+          "match": "\\b(?:Bin|Bin2D|HexBin|Count|Smooth|Boxplot|Density|Centroid|Simplify|SpatialJoin)\\b(?=\\s*\\()"
         }
       ]
     },
@@ -144,7 +144,7 @@
       "patterns": [
         {
           "name": "entity.name.function.source.algraf",
-          "match": "\\b(?:GeoJson|Shapefile|Sqlite|Style|Stop)\\b(?=\\s*\\()"
+          "match": "\\b(?:GeoJson|Shapefile|Sqlite|TopoJson|Style|Stop)\\b(?=\\s*\\()"
         }
       ]
     },

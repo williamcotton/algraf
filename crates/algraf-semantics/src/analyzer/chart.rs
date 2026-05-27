@@ -235,6 +235,7 @@ impl Analyzer<'_> {
                 ..
             } => DataSourceIr::Shapefile(path),
             SourceExpr::Sqlite { path, query, .. } => DataSourceIr::Sqlite { path, query },
+            SourceExpr::TopoJson { path, object, .. } => DataSourceIr::TopoJson { path, object },
             SourceExpr::Stdin { .. } => DataSourceIr::Stdin,
             SourceExpr::Invalid { span } => {
                 if let Some(ValueExpr::Call(call)) = arg.value() {

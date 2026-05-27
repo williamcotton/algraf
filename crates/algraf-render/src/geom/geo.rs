@@ -130,6 +130,9 @@ fn path_from_rings<'a>(
     d
 }
 
+/// Append a projected ring/line subpath, resampling long segments so curved
+/// projections follow the projection and breaking the line at antimeridian
+/// crossings instead of drawing a chord across the map (spec §16.15).
 fn append_ring(
     spatial: &crate::projection::SpatialScale,
     ring: &LineString<f64>,
@@ -137,16 +140,39 @@ fn append_ring(
     d: &mut String,
 ) {
     let mut started = false;
-    for c in &ring.0 {
-        let Some((x, y)) = spatial.project_ll(c.x, c.y) else {
-            continue;
-        };
-        if started {
-            let _ = write!(d, "L{} {}", num(x), num(y));
-        } else {
-            let _ = write!(d, "M{} {}", num(x), num(y));
-            started = true;
+    let mut samples: Vec<(f64, f64)> = Vec::new();
+    let mut prev: Option<(f64, f64)> = None;
+    let emit = |lon: f64, lat: f64, started: &mut bool, d: &mut String| {
+        match spatial.project_ll(lon, lat) {
+            Some((x, y)) if *started => {
+                let _ = write!(d, "L{} {}", num(x), num(y));
+            }
+            Some((x, y)) => {
+                let _ = write!(d, "M{} {}", num(x), num(y));
+                *started = true;
+            }
+            // An unprojectable point breaks the line; the next point restarts it.
+            None => *started = false,
         }
+    };
+    for c in &ring.0 {
+        let cur = (c.x, c.y);
+        match prev {
+            None => emit(cur.0, cur.1, &mut started, d),
+            Some(p) if crate::projection::is_antimeridian_jump(p.0, cur.0) => {
+                // Break the chord across the antimeridian: start a fresh subpath.
+                started = false;
+                emit(cur.0, cur.1, &mut started, d);
+            }
+            Some(p) => {
+                samples.clear();
+                crate::projection::resample_segment(p, cur, &mut samples);
+                for &(lon, lat) in &samples {
+                    emit(lon, lat, &mut started, d);
+                }
+            }
+        }
+        prev = Some(cur);
     }
     if started && close {
         d.push('Z');

@@ -1,0 +1,11 @@
+Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
+      title: "US Population by County",
+      subtitle: "albers_usa composite with a longitude/latitude graticule") {
+    Theme(name: "void")
+    Scale(fill: population, gradient: ["#f7fbff", "#08306b"], label: "Population")
+
+    Space(geom, projection: "albers_usa") {
+        Graticule(stroke: "#cccccc", strokeWidth: 0.5, step: 10)
+        Geo(fill: population, stroke: "#ffffff", strokeWidth: 0.25)
+    }
+}

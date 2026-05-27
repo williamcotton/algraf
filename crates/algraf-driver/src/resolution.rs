@@ -39,6 +39,8 @@ pub struct ResolvedSource {
     pub format: Option<Format>,
     /// SQL query for `Sqlite(...)` sources.
     pub query: Option<String>,
+    /// The named object for `TopoJson(...)` sources, when one is given.
+    pub object: Option<String>,
     pub span: Option<Span>,
 }
 
@@ -51,6 +53,8 @@ pub struct ResolvedTableSource {
     pub format: Option<Format>,
     /// SQL query for `Sqlite(...)` sources.
     pub query: Option<String>,
+    /// The named object for `TopoJson(...)` sources, when one is given.
+    pub object: Option<String>,
     pub span: Option<Span>,
 }
 
@@ -70,6 +74,8 @@ pub struct DataDependency {
     pub format: Option<Format>,
     /// SQL query for `Sqlite(...)` sources.
     pub query: Option<String>,
+    /// The named object for `TopoJson(...)` sources, when one is given.
+    pub object: Option<String>,
 }
 
 /// A data location after source-relative path resolution and `--data` override
@@ -84,6 +90,12 @@ pub enum DataLocation {
     Sqlite {
         path: PathBuf,
         query: String,
+    },
+    /// A TopoJSON source; `object` names the topology object, or `None` for the
+    /// topology's sole object.
+    TopoJson {
+        path: PathBuf,
+        object: Option<String>,
     },
     Stdin,
 }
@@ -153,12 +165,21 @@ impl SourceResolver<'_> {
                 path: self.resolve_path(path),
                 format: data_format(*format),
                 query: None,
+                object: None,
                 span: Some(*span),
             }),
             SourceExpr::Sqlite { path, query, span } => Some(ResolvedSource {
                 path: self.resolve_path(path),
                 format: None,
                 query: Some(query.clone()),
+                object: None,
+                span: Some(*span),
+            }),
+            SourceExpr::TopoJson { path, object, span } => Some(ResolvedSource {
+                path: self.resolve_path(path),
+                format: Some(Format::TopoJson),
+                query: None,
+                object: object.clone(),
                 span: Some(*span),
             }),
             _ => None,
@@ -186,6 +207,7 @@ impl SourceResolver<'_> {
                         path: resolved.path,
                         format: resolved.format,
                         query: resolved.query,
+                        object: resolved.object,
                         span: resolved.span,
                     })
             })
@@ -237,6 +259,15 @@ impl SourceResolver<'_> {
                 Ok(DataLocation::Sqlite {
                     path: resolved.path,
                     query: resolved.query.expect("sqlite source should carry query"),
+                })
+            }
+            SourceExpr::TopoJson { object, .. } => {
+                let resolved = self
+                    .resolve_source_expr_path(source_expr)
+                    .expect("topojson source should resolve");
+                Ok(DataLocation::TopoJson {
+                    path: resolved.path,
+                    object: object.clone(),
                 })
             }
             SourceExpr::Missing | SourceExpr::Invalid { .. } => Err(DriverError::Usage(
@@ -361,12 +392,21 @@ impl ChartDataPlan {
                 path: path.clone(),
                 format: *format,
                 query: None,
+                object: None,
             }),
             DataLocation::Sqlite { path, query } => Some(DataDependency {
                 kind: DataDependencyKind::Primary,
                 path: path.clone(),
                 format: None,
                 query: Some(query.clone()),
+                object: None,
+            }),
+            DataLocation::TopoJson { path, object } => Some(DataDependency {
+                kind: DataDependencyKind::Primary,
+                path: path.clone(),
+                format: Some(Format::TopoJson),
+                query: None,
+                object: object.clone(),
             }),
             DataLocation::Stdin => None,
         });
@@ -377,6 +417,7 @@ impl ChartDataPlan {
             path: table.path.clone(),
             format: table.format,
             query: table.query.clone(),
+            object: table.object.clone(),
         });
         primary.chain(tables).collect()
     }

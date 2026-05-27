@@ -15,6 +15,7 @@ pub mod schema;
 pub mod shapefile;
 pub mod sqlite;
 pub mod temporal;
+pub mod topojson;
 pub mod value;
 
 /// Re-export the geometry vocabulary so downstream crates share one
@@ -37,4 +38,5 @@ pub use schema::{ColumnDef, DataType};
 pub use shapefile::{read_shapefile_bundle, read_shapefile_path, ShapefileBundle};
 pub use sqlite::{read_sqlite_path, read_sqlite_schema_path};
 pub use temporal::{parse_temporal, ParsedTemporal};
+pub use topojson::{read_topojson, read_topojson_str};
 pub use value::{DataValue, DataValueRef, DateTimeValue, TemporalPrecision};

@@ -22,6 +22,16 @@ pub fn stat_output_schema(kind: StatKind, input: &FrameIr) -> Vec<ColumnDefIr> {
         StatKind::Density => density_output_schema(),
         StatKind::Count => count_output_schema(&frame_group_columns(input)),
         StatKind::Boxplot => Vec::new(),
+        // Geometry-producing stats pass scalar columns through, so their real
+        // schema is built from the upstream table in the analyzer (spec §15.13).
+        // Here only the produced geometry column is known from the input frame.
+        StatKind::Centroid | StatKind::Simplify | StatKind::SpatialJoin => match input {
+            FrameIr::Vector(column) => vec![ColumnDefIr {
+                name: column.name.clone(),
+                dtype: DataType::Geometry,
+            }],
+            _ => Vec::new(),
+        },
     }
 }
 
@@ -33,6 +43,11 @@ pub(crate) fn stat_output_names_for_source(stat_name: &str) -> Vec<String> {
         "Smooth" => smooth_output_schema(),
         "Bin2D" => bin2d_output_schema(),
         "HexBin" => hexbin_output_schema(),
+        // Geometry stats keep the upstream `geom` column name.
+        "Centroid" | "Simplify" | "SpatialJoin" => vec![ColumnDefIr {
+            name: "geom".into(),
+            dtype: DataType::Geometry,
+        }],
         _ => Vec::new(),
     }
     .into_iter()
@@ -182,6 +197,36 @@ pub fn count_output_schema(group_columns: &[ColumnRef]) -> Vec<ColumnDefIr> {
         dtype: DataType::Integer,
     });
     output
+}
+
+/// The name of the first geometry column in a `(name, dtype)` schema, if any.
+/// Used by spatial joins to locate the polygon side's geometry (spec §15.14).
+pub fn geometry_column_name<'a>(
+    schema: impl IntoIterator<Item = (&'a str, DataType)>,
+) -> Option<String> {
+    schema
+        .into_iter()
+        .find(|(_, dtype)| *dtype == DataType::Geometry)
+        .map(|(name, _)| name.to_string())
+}
+
+/// The polygon-side columns a spatial join appends to each point row (spec
+/// §15.14): every non-geometry polygon column whose name does not already exist
+/// on the point side. The rule is shared by the analyzer (schema planning) and
+/// the renderer (execution) so both agree on the output columns.
+pub fn spatial_join_appended_columns<'a>(
+    point_names: impl IntoIterator<Item = &'a str>,
+    polygon: impl IntoIterator<Item = (&'a str, DataType)>,
+) -> Vec<ColumnDefIr> {
+    let existing: std::collections::HashSet<&str> = point_names.into_iter().collect();
+    polygon
+        .into_iter()
+        .filter(|(name, dtype)| *dtype != DataType::Geometry && !existing.contains(name))
+        .map(|(name, dtype)| ColumnDefIr {
+            name: name.to_string(),
+            dtype,
+        })
+        .collect()
 }
 
 fn frame_group_columns(input: &FrameIr) -> Vec<ColumnRef> {

@@ -1,6 +1,6 @@
 # Algraf v0.22.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_21_PLAN.md`](V0_21_PLAN.md)
@@ -84,7 +84,7 @@ The release must pass workspace tests and example regeneration.
 
 ### 1. Full `albers_usa` composite projection
 
-Status: Planned.
+Status: Implemented (spec §16.14).
 
 Acceptance criteria:
 
@@ -98,7 +98,8 @@ Acceptance criteria:
 
 ### 2. TopoJSON source constructor
 
-Status: Planned.
+Status: Implemented (spec §10.11). `TopoJson("path.topojson", object: "name")`,
+arc stitching + quantization, LSP completion, and `E1805` diagnostics.
 
 Acceptance criteria:
 
@@ -112,7 +113,8 @@ Acceptance criteria:
 
 ### 3. Graticule guide/mark
 
-Status: Planned.
+Status: Implemented (spec §14.24). `Graticule(...)` spatial mark with
+`stroke`/`strokeWidth`/`alpha`/`step`; non-spatial use is `E1804`.
 
 Acceptance criteria:
 
@@ -127,7 +129,8 @@ Acceptance criteria:
 
 ### 4. Antimeridian and great-circle resampling
 
-Status: Planned.
+Status: Implemented (spec §16.15). Segments over 5° are resampled; longitude
+jumps over 180° break the chord. Existing maps render byte-identically.
 
 Acceptance criteria:
 
@@ -140,7 +143,8 @@ Acceptance criteria:
 
 ### 5. Geometry-producing spatial stats
 
-Status: Planned.
+Status: Implemented (spec §15.13). `Centroid(geom)` and
+`Simplify(geom, tolerance: …)` produce geometry columns with scalar passthrough.
 
 Acceptance criteria:
 
@@ -153,7 +157,8 @@ Acceptance criteria:
 
 ### 6. Spatial joins
 
-Status: Planned.
+Status: Implemented (spec §15.14). `SpatialJoin(geom, table: …, predicate:
+"within")` appends polygon attributes to points; first match wins; deterministic.
 
 Acceptance criteria:
 
@@ -166,7 +171,10 @@ Acceptance criteria:
 
 ### 7. Spec, plan, and example hygiene
 
-Status: Planned.
+Status: Implemented. Workspace + VS Code bumped to `0.22.0`; spec §10.11, §14.23,
+§14.24, §15.13, §15.14, §16.14, §16.15 updated; README and examples
+(`choropleth_graticule`, `county_centroids`, `topojson_grid`, `spatial_join`)
+added with checked-in fixtures and regenerated via `./examples/generate.sh`.
 
 Acceptance criteria:
 

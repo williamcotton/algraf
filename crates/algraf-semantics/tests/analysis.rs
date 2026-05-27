@@ -1575,6 +1575,74 @@ fn test_geo_in_planar_space_reports_e1804() {
 }
 
 #[test]
+fn test_graticule_in_spatial_space_is_clean() {
+    clean("Chart(data: GeoJson(\"us.geojson\")) {\n  Space(geom, projection: \"albers_usa\") { Geo(fill: value) Graticule(step: 10) }\n}");
+}
+
+#[test]
+fn test_graticule_in_projected_lonlat_space_is_clean() {
+    clean("Chart(data: \"p.csv\") {\n  Space(value * amount, projection: \"mercator\") { Graticule() }\n}");
+}
+
+#[test]
+fn test_graticule_in_planar_space_reports_e1804() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(value * amount) { Graticule() }\n}",
+        "E1804"
+    ));
+}
+
+#[test]
+fn test_centroid_derive_is_clean_and_renders_geometry() {
+    clean("Chart(data: GeoJson(\"us.geojson\")) {\n  Derive c = Centroid(geom)\n  Space(geom, data: c) { Geo() }\n}");
+}
+
+#[test]
+fn test_simplify_derive_with_tolerance_is_clean() {
+    clean("Chart(data: GeoJson(\"us.geojson\")) {\n  Derive s = Simplify(geom, tolerance: 0.1)\n  Space(geom, data: s) { Geo() }\n}");
+}
+
+#[test]
+fn test_centroid_on_non_geometry_column_reports_e1404() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Derive c = Centroid(value)\n}",
+        "E1404"
+    ));
+}
+
+#[test]
+fn test_simplify_rejects_negative_tolerance() {
+    assert!(has(
+        "Chart(data: GeoJson(\"us.geojson\")) {\n  Derive s = Simplify(geom, tolerance: -1)\n}",
+        "E1404"
+    ));
+}
+
+#[test]
+fn test_spatial_join_unknown_table_reports_e1404() {
+    assert!(has(
+        "Chart(data: GeoJson(\"pts.geojson\")) {\n  Derive j = SpatialJoin(geom, table: missing)\n}",
+        "E1404"
+    ));
+}
+
+#[test]
+fn test_spatial_join_requires_table_argument() {
+    assert!(has(
+        "Chart(data: GeoJson(\"pts.geojson\")) {\n  Derive j = SpatialJoin(geom)\n}",
+        "E1404"
+    ));
+}
+
+#[test]
+fn test_spatial_join_rejects_unsupported_predicate() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Table regions = \"r.csv\"\n  Derive j = SpatialJoin(geom, table: regions, predicate: \"touches\")\n}",
+        "E1404"
+    ));
+}
+
+#[test]
 fn test_non_string_projection_reports_e1802() {
     assert!(has(
         "Chart(data: GeoJson(\"us.geojson\")) {\n  Space(geom, projection: 42) { Geo(fill: value) }\n}",
