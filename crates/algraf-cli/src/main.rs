@@ -747,6 +747,8 @@ fn ir_to_json(ir: &ChartIr) -> Value {
             "yLabel": ir.guides.y_label.as_deref(),
             "xTimeFormat": ir.guides.x_time_format.map(|format| format.as_str()),
             "yTimeFormat": ir.guides.y_time_format.map(|format| format.as_str()),
+            "xTickLabelAngle": ir.guides.x_tick_label_angle,
+            "yTickLabelAngle": ir.guides.y_tick_label_angle,
         },
         "scales": ir.scales.iter().map(scale_json).collect::<Vec<_>>(),
         "title": ir.title.as_deref(),
@@ -816,6 +818,8 @@ fn guide_overrides_json(guides: &GuideOverridesIr) -> Value {
         "yLabel": guides.y_label.as_deref(),
         "xTimeFormat": guides.x_time_format.map(|format| format.as_str()),
         "yTimeFormat": guides.y_time_format.map(|format| format.as_str()),
+        "xTickLabelAngle": guides.x_tick_label_angle,
+        "yTickLabelAngle": guides.y_tick_label_angle,
     })
 }
 

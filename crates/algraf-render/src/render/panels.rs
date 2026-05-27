@@ -7,7 +7,7 @@ use algraf_semantics::{AxisSelectorIr, ChartIr, ColumnRef, FrameIr, GeometryIr, 
 use crate::domains::train_space_domains;
 use crate::guide;
 use crate::helpers::frame_axis;
-use crate::layout::{Layout, Margins, Rect, MARGIN_LEFT};
+use crate::layout::{Layout, Margins, Rect, MARGIN_BOTTOM, MARGIN_LEFT};
 use crate::scale::{categorical_domain, cell_category, numeric_domain, temporal_domain};
 use crate::space::ScaledSpace;
 use crate::theme::Theme;
@@ -62,7 +62,7 @@ pub(super) fn build_render_plan<'t>(
         bottom: ir.margin_bottom.map(f64::from),
         left: ir.margin_left.map(f64::from),
     };
-    let (top_extra, bottom_extra) = chart_text_reserve(ir, theme);
+    let (top_extra, chart_bottom_extra) = chart_text_reserve(ir, theme);
     // A first pass with a provisional layout to discover legends.
     let provisional = Layout::compute_with_text(
         width,
@@ -70,10 +70,16 @@ pub(super) fn build_render_plan<'t>(
         false,
         has_axes,
         top_extra,
-        bottom_extra,
+        chart_bottom_extra,
         0.0,
         margins,
     );
+    let guide_bottom_extra = if has_axes {
+        x_label_bottom_extra(ir, primary, derived, &provisional, theme)
+    } else {
+        0.0
+    };
+    let bottom_extra = chart_bottom_extra + guide_bottom_extra;
     let legends = collect_legends(ir, primary, derived, theme);
     let left_extra = if has_axes {
         y_label_left_extra(ir, primary, derived, &provisional, theme)
@@ -251,6 +257,46 @@ pub(super) fn panel_slots<'a>(layout: &'a Layout, panels: &'a [Panel<'a>]) -> Ve
         .collect()
 }
 
+/// Extra bottom margin needed so rotated x tick labels and the x-axis title fit
+/// (spec §17.3). Tick label text depends on the domain, not the pixel range, so
+/// a provisional layout is enough to measure it. Returns 0 when labels fit the
+/// default margin.
+fn x_label_bottom_extra(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    derived: &HashMap<String, DataFrame>,
+    provisional: &Layout,
+    theme: &Theme,
+) -> f64 {
+    let x_range = (provisional.plot.x, provisional.plot.right());
+    let y_range = (provisional.plot.bottom(), provisional.plot.y);
+    let mut max_label_height = 0.0_f64;
+    for space in &ir.spaces {
+        let table = active_table(&space.data, primary, derived);
+        let space_scales = merged_scales(&ir.scales, &space.scales);
+        let frame = match facet_frame(&space.frame) {
+            Some((plane, _)) => plane,
+            None => &space.frame,
+        };
+        let hints = train_space_domains(frame, table, &space.geometries);
+        if let Some(scaled) =
+            ScaledSpace::build(frame, table, x_range, y_range, &hints, &space_scales)
+        {
+            let guides = ir.guides.with_overrides(&space.guides);
+            max_label_height = max_label_height.max(guide::max_x_tick_label_height(
+                &scaled,
+                theme.font_size,
+                guides.x_time_format,
+                guides.x_tick_label_angle,
+            ));
+        }
+    }
+    if max_label_height <= 0.0 {
+        return 0.0;
+    }
+    (guide::x_axis_bottom_margin(max_label_height, theme.font_size) - MARGIN_BOTTOM).max(0.0)
+}
+
 /// Extra left margin needed so the widest y tick label and the rotated y-axis
 /// title both fit (spec §17.3). Tick label *text* depends on the domain, not
 /// the pixel range, so a provisional layout is enough to measure it. Returns 0
@@ -281,6 +327,7 @@ fn y_label_left_extra(
                 &scaled,
                 theme.font_size,
                 guides.y_time_format,
+                guides.y_tick_label_angle,
             ));
         }
     }

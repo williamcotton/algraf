@@ -419,6 +419,7 @@ fn declaration_value_items(
             value_item("\"iso-minute\"", "YYYY-MM-DD HH:MM labels"),
             value_item("\"iso-date\"", "YYYY-MM-DD labels"),
         ],
+        ("Guide", "tickLabelAngle") => vec![value_item("-45", "Tick label rotation in degrees")],
         ("Guide", "legend") | ("Guide", "grid") | ("Scale", "reverse") | ("Scale", "integer") => {
             vec![
                 value_item("true", "Boolean literal"),

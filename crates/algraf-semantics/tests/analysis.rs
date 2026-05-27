@@ -1114,6 +1114,38 @@ fn test_guide_axis_label_overrides_are_recorded() {
 }
 
 #[test]
+fn test_guide_tick_label_angles_are_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: x, tickLabelAngle: -45)\n  Guide(axis: y, tickLabelAngle: 30)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.guides.x_tick_label_angle, Some(-45.0));
+    assert_eq!(ir.guides.y_tick_label_angle, Some(30.0));
+}
+
+#[test]
+fn test_guide_tick_label_angle_requires_axis_and_numeric_range() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Guide(tickLabelAngle: -45)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "E1204",
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: x, tickLabelAngle: \"steep\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "E1204",
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: x, tickLabelAngle: 120)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "E1204",
+    ));
+}
+
+#[test]
 fn test_guide_fill_null_suppresses_legend() {
     let analysis = analyze_source(
         "Chart(data: \"p.csv\") {\n  Guide(fill: null)\n  Space(flipper_length * body_mass) { Point(fill: species) }\n}",

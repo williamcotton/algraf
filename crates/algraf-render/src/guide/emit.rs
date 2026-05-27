@@ -9,13 +9,17 @@ use crate::space::ScaledSpace;
 use crate::svg::{escape_attr, escape_text, num, SvgWriter};
 use crate::theme::Theme;
 
-use super::plan::{max_y_tick_label_width, y_axis_title_x};
+use super::plan::{
+    max_x_tick_label_height, max_y_tick_label_width, x_axis_title_y, y_axis_title_x,
+};
 
 pub(crate) struct AxisRenderOptions<'a> {
     pub(crate) x_label_override: Option<&'a str>,
     pub(crate) y_label_override: Option<&'a str>,
     pub(crate) x_time_format: Option<TemporalFormatIr>,
     pub(crate) y_time_format: Option<TemporalFormatIr>,
+    pub(crate) x_tick_label_angle: Option<f64>,
+    pub(crate) y_tick_label_angle: Option<f64>,
 }
 
 /// Draw grid lines behind the data marks (spec §17.6). Only continuous and
@@ -85,7 +89,22 @@ pub(crate) fn render_axes(
             &theme.axis_color,
             1.0,
         ));
-        w.line(&text(x, plot.bottom() + 18.0, "middle", &label, theme));
+        let angle = options.x_tick_label_angle.unwrap_or(0.0);
+        let anchor = if angle < 0.0 {
+            "end"
+        } else if angle > 0.0 {
+            "start"
+        } else {
+            "middle"
+        };
+        w.line(&tick_text(
+            x,
+            plot.bottom() + super::plan::X_TICK_BASELINE,
+            anchor,
+            &label,
+            theme,
+            angle,
+        ));
     }
     // An override of "" suppresses the axis title (`Guide(axis: x, label: null)`,
     // spec §19.x); ticks and grid are unaffected.
@@ -94,9 +113,15 @@ pub(crate) fn render_axes(
         .map(str::to_string)
         .unwrap_or_else(|| space.x.label());
     if options.x_label_override != Some("") {
+        let max_label_height = max_x_tick_label_height(
+            space,
+            theme.font_size,
+            options.x_time_format,
+            options.x_tick_label_angle,
+        );
         w.line(&text(
             plot.x + plot.width / 2.0,
-            plot.bottom() + 38.0,
+            x_axis_title_y(plot.bottom(), max_label_height, theme.font_size),
             "middle",
             &x_label,
             theme,
@@ -122,10 +147,22 @@ pub(crate) fn render_axes(
                 &theme.axis_color,
                 1.0,
             ));
-            w.line(&text(plot.x - 8.0, yp + 4.0, "end", &label, theme));
+            w.line(&tick_text(
+                plot.x - 8.0,
+                yp + 4.0,
+                "end",
+                &label,
+                theme,
+                options.y_tick_label_angle.unwrap_or(0.0),
+            ));
         }
         let cy = plot.y + plot.height / 2.0;
-        let max_label_width = max_y_tick_label_width(space, theme.font_size, options.y_time_format);
+        let max_label_width = max_y_tick_label_width(
+            space,
+            theme.font_size,
+            options.y_time_format,
+            options.y_tick_label_angle,
+        );
         let label_x = y_axis_title_x(plot.x, max_label_width, theme.font_size);
         let y_label = options
             .y_label_override
@@ -180,6 +217,30 @@ fn text(x: f64, y: f64, anchor: &str, content: &str, theme: &Theme) -> String {
         num(x),
         num(y),
         anchor,
+        escape_attr(&theme.font_family),
+        num(theme.font_size),
+        escape_attr(&theme.text_color),
+        escape_text(content),
+    )
+}
+
+fn tick_text(x: f64, y: f64, anchor: &str, content: &str, theme: &Theme, angle: f64) -> String {
+    let transform = if angle == 0.0 {
+        String::new()
+    } else {
+        format!(
+            " transform=\"rotate({} {} {})\"",
+            num(angle),
+            num(x),
+            num(y)
+        )
+    };
+    format!(
+        "<text x=\"{}\" y=\"{}\" text-anchor=\"{}\"{} font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
+        num(x),
+        num(y),
+        anchor,
+        transform,
         escape_attr(&theme.font_family),
         num(theme.font_size),
         escape_attr(&theme.text_color),

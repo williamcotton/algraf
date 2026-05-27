@@ -165,7 +165,21 @@ Acceptance criteria:
 - Existing `linear` and `log10` behavior remains unchanged.
 - LSP completion/hover and diagnostics document supported transform values.
 
-### 8. Spec, plan, and example hygiene
+### 8. Manual tick label rotation
+
+Status: Implemented.
+
+Acceptance criteria:
+
+- `Guide(axis: ..., tickLabelAngle: number)` accepts finite numeric angles in
+  degrees for x and y axes.
+- Angles outside `[-90, 90]`, non-numeric values, and missing axis selectors
+  produce targeted diagnostics.
+- Rotated tick labels render deterministically in SVG and guide planning
+  reserves sufficient bottom/left margin.
+- LSP completion/hover, CLI IR JSON, tests, and an example document the option.
+
+### 9. Spec, plan, and example hygiene
 
 Status: Planned.
 

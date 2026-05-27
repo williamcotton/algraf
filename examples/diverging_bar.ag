@@ -1,7 +1,7 @@
 Chart(data: "monthly_profit.csv", width: 720, height: 420, title: "Monthly Profit / Loss Analysis") {
     Theme(name: "minimal")
     Scale(fill: status, range: ["Profit" => "#2ca02c", "Loss" => "#d62728"])
-    Guide(axis: x, label: "Month")
+    Guide(axis: x, label: "Month", tickLabelAngle: -45)
     Guide(axis: y, label: "Profit / Loss ($)")
 
     Space(month * profit) {

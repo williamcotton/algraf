@@ -114,7 +114,7 @@ pub struct LayoutIr {
 }
 
 /// Chart-level guide configuration (spec §19).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GuideIr {
     pub legend: bool,
     /// Whether the fill legend is suppressed (e.g. `Guide(fill: null)`).
@@ -131,6 +131,10 @@ pub struct GuideIr {
     pub x_time_format: Option<TemporalFormatIr>,
     /// Optional temporal label format for the y axis.
     pub y_time_format: Option<TemporalFormatIr>,
+    /// Optional x tick label rotation in degrees (spec §19.4).
+    pub x_tick_label_angle: Option<f64>,
+    /// Optional y tick label rotation in degrees (spec §19.4).
+    pub y_tick_label_angle: Option<f64>,
 }
 
 impl Default for GuideIr {
@@ -144,6 +148,8 @@ impl Default for GuideIr {
             y_label: None,
             x_time_format: None,
             y_time_format: None,
+            x_tick_label_angle: None,
+            y_tick_label_angle: None,
         }
     }
 }
@@ -159,12 +165,14 @@ impl GuideIr {
             y_label: overrides.y_label.clone().or_else(|| self.y_label.clone()),
             x_time_format: overrides.x_time_format.or(self.x_time_format),
             y_time_format: overrides.y_time_format.or(self.y_time_format),
+            x_tick_label_angle: overrides.x_tick_label_angle.or(self.x_tick_label_angle),
+            y_tick_label_angle: overrides.y_tick_label_angle.or(self.y_tick_label_angle),
         }
     }
 }
 
 /// Space-local guide overrides. `None` means inherit chart-level behavior.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct GuideOverridesIr {
     pub legend: Option<bool>,
     pub fill_legend: Option<bool>,
@@ -174,6 +182,8 @@ pub struct GuideOverridesIr {
     pub y_label: Option<String>,
     pub x_time_format: Option<TemporalFormatIr>,
     pub y_time_format: Option<TemporalFormatIr>,
+    pub x_tick_label_angle: Option<f64>,
+    pub y_tick_label_angle: Option<f64>,
 }
 
 /// Named temporal label formats accepted by `Guide(timeFormat: ...)`.

@@ -5973,6 +5973,15 @@ portion as `YYYY-MM-DD`. `timeFormat` without `axis: x` or `axis: y`, unknown
 format names, and non-temporal application contexts MUST produce targeted
 diagnostics or be ignored with diagnostics during semantic analysis.
 
+Version 0.23.0 MUST support `Guide(axis: x, tickLabelAngle: -45)` and
+`Guide(axis: y, tickLabelAngle: 30)` to rotate tick labels by an explicit angle
+in degrees. `tickLabelAngle` MUST accept only finite numeric literals in the
+inclusive range `[-90, 90]`; non-numeric, non-finite, or out-of-range values
+MUST emit `E1204`. `tickLabelAngle` without `axis: x` or `axis: y` MUST emit
+`E1204`. The default angle is `0`, preserving existing horizontal tick labels.
+The renderer MUST rotate each tick label around its own anchor point and reserve
+enough guide margin using deterministic approximate text measurements.
+
 ### 19.5 Legend Generation
 
 Legends are generated for mapped aesthetics by default.

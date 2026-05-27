@@ -47,7 +47,7 @@ pub struct Margins {
 
 const MARGIN_TOP: f64 = 40.0;
 const MARGIN_RIGHT: f64 = 30.0;
-const MARGIN_BOTTOM: f64 = 50.0;
+pub(crate) const MARGIN_BOTTOM: f64 = 50.0;
 pub(crate) const MARGIN_LEFT: f64 = 60.0;
 const LEGEND_WIDTH: f64 = 120.0;
 const FACET_GAP_X: f64 = 24.0;

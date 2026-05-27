@@ -1146,3 +1146,37 @@ fn test_wide_y_tick_labels_reserve_more_left_margin() {
         "wide y tick labels should reserve more left margin: wide={wide}, narrow={narrow}"
     );
 }
+
+#[test]
+fn test_tick_label_angle_rotates_axis_labels() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: x, tickLabelAngle: -45)\n  Guide(axis: y, tickLabelAngle: 30)\n  Space(category * value) { Bar(stat: \"identity\") }\n}",
+        "category,value\nVery long category,10\nAnother long category,20\n",
+    );
+    assert!(text_element(&svg, "Very long category").contains("transform=\"rotate(-45 "));
+    assert!(text_element(&svg, "10").contains("transform=\"rotate(30 "));
+}
+
+#[test]
+fn test_rotated_x_tick_labels_reserve_more_bottom_margin() {
+    let csv =
+        "category,value\nLong Category Alpha,10\nLong Category Beta,20\nLong Category Gamma,30\n";
+    let horizontal = render_result(
+        "Chart(data: \"p.csv\", width: 640, height: 420) { Space(category * value) { Bar(stat: \"identity\") } }",
+        csv,
+    )
+    .layout
+    .plot
+    .bottom();
+    let rotated = render_result(
+        "Chart(data: \"p.csv\", width: 640, height: 420) { Guide(axis: x, tickLabelAngle: -45) Space(category * value) { Bar(stat: \"identity\") } }",
+        csv,
+    )
+    .layout
+    .plot
+    .bottom();
+    assert!(
+        rotated < horizontal,
+        "rotated x labels should reserve more bottom margin: rotated={rotated}, horizontal={horizontal}"
+    );
+}

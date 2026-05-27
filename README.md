@@ -237,13 +237,13 @@ Chart(
 
 ## Diverging bars around a baseline
 
-Bars can extend in both positive and negative directions. Custom color scales let you highlight positive vs negative values, and `HLine` provides a reference line at the zero baseline.
+Bars can extend in both positive and negative directions. Custom color scales let you highlight positive vs negative values, and `HLine` provides a reference line at the zero baseline. Tick labels can be rotated by specifying `tickLabelAngle: number`.
 
 ```algraf
 Chart(data: "monthly_profit.csv", width: 720, height: 420, title: "Monthly Profit / Loss Analysis") {
     Theme(name: "minimal")
     Scale(fill: status, range: ["Profit" => "#2ca02c", "Loss" => "#d62728"])
-    Guide(axis: x, label: "Month")
+    Guide(axis: x, label: "Month", tickLabelAngle: -45)
     Guide(axis: y, label: "Profit / Loss ($)")
 
     Space(month * profit) {

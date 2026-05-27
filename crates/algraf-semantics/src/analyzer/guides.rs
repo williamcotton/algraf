@@ -6,7 +6,7 @@ use algraf_syntax::ast::{Decl, LiteralKind, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
 use super::args::DupGuard;
-use super::context::Analyzer;
+use super::context::{Analyzer, ValueForm};
 use crate::ir::{AxisSelectorIr, GuideOverridesIr, TemporalFormatIr};
 
 impl Analyzer<'_> {
@@ -15,6 +15,7 @@ impl Analyzer<'_> {
         let mut axis: Option<AxisSelectorIr> = None;
         let mut label: Option<String> = None;
         let mut time_format: Option<TemporalFormatIr> = None;
+        let mut tick_label_angle: Option<f64> = None;
         for arg in decl.args() {
             let Some(key) = arg.key() else { continue };
             let key_span = node_span(arg.syntax());
@@ -71,6 +72,22 @@ impl Analyzer<'_> {
                     )),
                     None => {}
                 },
+                "tickLabelAngle" => {
+                    if let Some(value) = arg.value() {
+                        match ValueForm::of(&value) {
+                            ValueForm::Number(n)
+                                if n.is_finite() && (-90.0..=90.0).contains(&n) =>
+                            {
+                                tick_label_angle = Some(n);
+                            }
+                            _ => self.diag(Diagnostic::error(
+                                codes::E1204,
+                                "`tickLabelAngle` expects a finite number between -90 and 90",
+                                node_span(value.syntax()),
+                            )),
+                        }
+                    }
+                }
                 "fill" => {
                     if self.expect_null_flag(
                         &arg,
@@ -105,6 +122,7 @@ impl Analyzer<'_> {
         }
         let has_label = label.is_some();
         let has_time_format = time_format.is_some();
+        let has_tick_label_angle = tick_label_angle.is_some();
         match axis {
             Some(AxisSelectorIr::X) => {
                 if let Some(text) = label.take() {
@@ -112,6 +130,9 @@ impl Analyzer<'_> {
                 }
                 if let Some(format) = time_format.take() {
                     guides.x_time_format = Some(format);
+                }
+                if let Some(angle) = tick_label_angle.take() {
+                    guides.x_tick_label_angle = Some(angle);
                 }
             }
             Some(AxisSelectorIr::Y) => {
@@ -121,20 +142,23 @@ impl Analyzer<'_> {
                 if let Some(format) = time_format.take() {
                     guides.y_time_format = Some(format);
                 }
+                if let Some(angle) = tick_label_angle.take() {
+                    guides.y_tick_label_angle = Some(angle);
+                }
             }
-            None if has_label || has_time_format => {
+            None if has_label || has_time_format || has_tick_label_angle => {
                 self.diag(Diagnostic::error(
                     codes::E1204,
-                    "`Guide(label: ...)` and `Guide(timeFormat: ...)` require `axis: x` or `axis: y`",
+                    "`Guide(label: ...)`, `Guide(timeFormat: ...)`, and `Guide(tickLabelAngle: ...)` require `axis: x` or `axis: y`",
                     node_span(decl.syntax()),
                 ));
             }
             None => {}
         }
-        if axis.is_some() && !has_label && !has_time_format {
+        if axis.is_some() && !has_label && !has_time_format && !has_tick_label_angle {
             self.diag(Diagnostic::warning(
                 codes::W2006,
-                "`Guide(axis: ...)` without `label:` or `timeFormat:` has no effect",
+                "`Guide(axis: ...)` without `label:`, `timeFormat:`, or `tickLabelAngle:` has no effect",
                 node_span(decl.syntax()),
             ));
         }
