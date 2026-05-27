@@ -862,6 +862,24 @@ Chart(data: "penguins.csv", width: 720, height: 480) {
 
 ![labels](examples/labels.svg)
 
+## Multiline text labels from JSON
+
+JSON string values can contain newline characters. `Text` renders those as
+separate SVG text lines, so longer annotations can stay attached to their data
+position without pre-splitting the source table.
+
+```algraf
+Chart(data: "text.json",) {
+    Scale(axis: x, domain: [0, 80])
+    Scale(axis: y, domain: [0, 100])
+    Space(x * y) {
+        Text(label: label)
+    }
+}
+```
+
+![text](examples/text.svg)
+
 ## Slopegraph with text labels
 
 A slopegraph compares values at two points in time/categories (e.g. 2024 vs 2026) for different groups, drawing a line between the two states. In Algraf, you can do this by using a continuous or categorical x-axis, using `Line` grouped and colored by group, `Point` markers, and `Text` labels. By leaving the label column blank for the starting year, text labels are rendered only at the end points to cleanly name the series.

@@ -26,6 +26,7 @@ charts=(
     bar_count
     area
     labels
+    text
     segment
     guide_labels
     clean_canvas

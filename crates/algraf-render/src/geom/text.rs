@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write;
 
 use algraf_semantics::{GeometryIr, PropertyKey};
 
@@ -82,18 +83,51 @@ pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderCon
 
     // Phase 3: emit in collection (row) order for deterministic output.
     for label in &labels {
+        emit_label(w, label, &anchor, &theme.font_family, alpha);
+    }
+}
+
+fn emit_label(w: &mut SvgWriter, label: &PlacedLabel, anchor: &str, font_family: &str, alpha: f64) {
+    let x = num(label.x);
+    let y = num(label.y);
+    let size = num(label.size);
+    let alpha = num(alpha);
+    let anchor = escape_attr(anchor);
+    let font_family = escape_attr(font_family);
+    let color = escape_attr(&label.color);
+
+    if !label.text.contains('\n') {
         w.line(&format!(
             "<text x=\"{}\" y=\"{}\" text-anchor=\"{}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\" opacity=\"{}\">{}</text>",
-            num(label.x),
-            num(label.y),
-            escape_attr(&anchor),
-            escape_attr(&theme.font_family),
-            num(label.size),
-            escape_attr(&label.color),
-            num(alpha),
+            x,
+            y,
+            anchor,
+            font_family,
+            size,
+            color,
+            alpha,
             escape_text(&label.text),
         ));
+        return;
     }
+
+    let mut tspans = String::new();
+    for (i, line) in label.text.split('\n').enumerate() {
+        let line = line.strip_suffix('\r').unwrap_or(line);
+        let dy = if i == 0 { "0" } else { "1.2em" };
+        write!(
+            tspans,
+            "<tspan x=\"{}\" dy=\"{}\">{}</tspan>",
+            x,
+            dy,
+            escape_text(line),
+        )
+        .expect("writing to String cannot fail");
+    }
+    w.line(&format!(
+        "<text x=\"{}\" y=\"{}\" text-anchor=\"{}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\" opacity=\"{}\">{}</text>",
+        x, y, anchor, font_family, size, color, alpha, tspans,
+    ));
 }
 
 /// Spread labels that overlap vertically apart, grouped by shared x column

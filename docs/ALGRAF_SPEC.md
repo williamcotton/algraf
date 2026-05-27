@@ -4366,6 +4366,10 @@ Text renders SVG `text`.
 
 Text MUST escape text content for SVG.
 
+Text labels containing newline characters MUST render each line separately
+inside one SVG `text` element. The renderer MUST preserve row order and MUST
+escape each line before emission.
+
 Text supports the following alignment properties:
 
 `anchor` — string literal `"start"`, `"middle"`, or `"end"`, selecting the

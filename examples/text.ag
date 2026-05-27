@@ -1,0 +1,7 @@
+Chart(data: "text.json",) {
+    Scale(axis: x, domain: [0, 80])
+    Scale(axis: y, domain: [0, 100])
+    Space(x * y) {
+        Text(label: label)
+    }
+}

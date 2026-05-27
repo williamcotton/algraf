@@ -791,6 +791,18 @@ fn test_text_geometry_renders_labels() {
 }
 
 #[test]
+fn test_text_geometry_renders_multiline_labels_as_tspans() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Text(label: name)\n  }\n}",
+        "x,y,name\n1,2,\"Alpha &\nBeta <tag>\"\n",
+    );
+    assert!(svg.contains("<tspan "));
+    assert!(svg.contains("dy=\"1.2em\""));
+    assert!(svg.contains(">Alpha &amp;</tspan>"));
+    assert!(svg.contains(">Beta &lt;tag&gt;</tspan>"));
+}
+
+#[test]
 fn test_segment_renders_line_between_literal_endpoints() {
     let svg = render_svg(
         "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Segment(x: 1, y: 1, xend: 3, yend: 4)\n  }\n}",
