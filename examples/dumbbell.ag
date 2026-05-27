@@ -1,0 +1,10 @@
+Chart(data: "temperature_range.csv", width: 720, height: 420, title: "Annual temperature range by city") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Temperature (°C)")
+    Guide(axis: y, label: "City")
+
+    Space(low * city) {
+        Segment(x: low, y: city, xend: high, yend: city, stroke: "#bbbbbb", strokeWidth: 4)
+        Point(fill: "#1f77b4", size: 6)
+    }
+}

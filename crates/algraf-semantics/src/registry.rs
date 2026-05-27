@@ -45,7 +45,7 @@ pub const THEME_OVERRIDE_KEYS: &[&str] = &[
 pub const SCALE_AESTHETIC_TARGETS: &[&str] = &["fill", "stroke", "size", "strokeWidth"];
 
 /// Named scale types accepted by `Scale(type: ...)`.
-pub const SCALE_TYPE_NAMES: &[&str] = &["linear", "log10"];
+pub const SCALE_TYPE_NAMES: &[&str] = &["linear", "log10", "sqrt"];
 
 /// Named categorical palettes accepted by `Scale(palette: ...)`.
 pub const PALETTE_NAMES: &[&str] = &["default", "accent"];
@@ -115,6 +115,7 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
         ],
         "Stop" => &["value", "color"],
         "Bin" => &["bins", "binWidth", "boundary", "closed", "interval"],
+        "Smooth" => &["method", "span", "se"],
         "Simplify" => &["tolerance"],
         "SpatialJoin" => &["table", "predicate"],
         _ => &[],
@@ -216,6 +217,7 @@ const LINE: &[PropSpec] = &[
     opt(PropertyKey::StrokeWidth, LINE_STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Group, GROUP),
+    opt(PropertyKey::Taper, &[Accept::Bool]),
 ];
 
 const PATH: &[PropSpec] = &[
@@ -223,6 +225,7 @@ const PATH: &[PropSpec] = &[
     opt(PropertyKey::StrokeWidth, LINE_STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Group, GROUP),
+    opt(PropertyKey::Taper, &[Accept::Bool]),
 ];
 
 const BAR: &[PropSpec] = &[
@@ -254,10 +257,13 @@ const HISTOGRAM: &[PropSpec] = &[
     opt(PropertyKey::Boundary, &[Accept::Number]),
     opt(PropertyKey::Closed, &[Accept::Enum(&["left", "right"])]),
     opt(PropertyKey::Interval, BIN_INTERVAL),
-    opt(PropertyKey::Fill, &[Accept::Color]),
+    // A `fill` column groups the histogram (stacked); a color fills a single
+    // series (spec §15.6).
+    opt(PropertyKey::Fill, FILL),
     opt(PropertyKey::Stroke, &[Accept::Color]),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Group, GROUP),
 ];
 
 const FREQ_POLY: &[PropSpec] = &[
@@ -289,7 +295,10 @@ const HEXBIN: &[PropSpec] = &[
 ];
 
 const SMOOTH: &[PropSpec] = &[
-    opt(PropertyKey::Method, &[Accept::Enum(&["lm"])]),
+    opt(PropertyKey::Method, &[Accept::Enum(&["lm", "loess"])]),
+    opt(PropertyKey::Span, &[Accept::Number]),
+    opt(PropertyKey::Se, &[Accept::Bool]),
+    opt(PropertyKey::Fill, &[Accept::Color]),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
@@ -311,6 +320,7 @@ const BOXPLOT: &[PropSpec] = &[
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Width, &[Accept::Number]),
+    opt(PropertyKey::Outliers, &[Accept::Bool]),
 ];
 
 const VIOLIN: &[PropSpec] = &[
@@ -400,10 +410,10 @@ const GRATICULE: &[PropSpec] = &[
 ];
 
 const SEGMENT: &[PropSpec] = &[
-    req(PropertyKey::X, &[Accept::Number]),
-    req(PropertyKey::Y, &[Accept::Number]),
-    req(PropertyKey::Xend, &[Accept::Number]),
-    req(PropertyKey::Yend, &[Accept::Number]),
+    req(PropertyKey::X, POS),
+    req(PropertyKey::Y, POS),
+    req(PropertyKey::Xend, POS),
+    req(PropertyKey::Yend, POS),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
@@ -506,6 +516,7 @@ pub fn property_doc(name: &str) -> &'static str {
         "bandwidth" => "Kernel density bandwidth.",
         "n" => "Number of kernel density grid points.",
         "quantiles" => "Violin quantile line positions.",
+        "outliers" => "Render Boxplot points beyond the 1.5·IQR whiskers (boolean, default true).",
         "gradient" => "Continuous color gradient stops.",
         "style" => "Reusable `Style(...)` fragment applied at this argument position.",
         "timeFormat" => "Temporal axis label format: `\"iso-date\"` or `\"iso-minute\"`.",
@@ -516,7 +527,9 @@ pub fn property_doc(name: &str) -> &'static str {
         "xmax" => "Rectangle maximum x boundary.",
         "ymin" => "Lower y boundary.",
         "ymax" => "Upper y boundary.",
-        "method" => "Smooth fitting method.",
+        "method" => "Smooth fitting method: `\"lm\"` (linear) or `\"loess\"` (local regression).",
+        "span" => "Loess neighborhood fraction in (0, 1]; larger values are smoother.",
+        "se" => "Draw a confidence band around the smooth (boolean).",
         "width" => "Geometry width setting.",
         "baseline" => "Area or bar baseline.",
         "label" => "Text label or reference-line label.",
@@ -524,6 +537,9 @@ pub fn property_doc(name: &str) -> &'static str {
         "dx" => "Horizontal text offset, in pixels: a number or a column mapping.",
         "dy" => "Vertical text offset, in pixels: a number or a column mapping.",
         "declutter" => "Spread vertically-overlapping Text labels apart (boolean).",
+        "taper" => {
+            "Render a Line/Path with mapped strokeWidth as a filled tapered ribbon (boolean)."
+        }
         "x" => "X position.",
         "y" => "Y position.",
         "xend" => "Segment end x position.",

@@ -1,0 +1,8 @@
+Chart(data: "exam_scores.csv", width: 720, height: 460, title: "Exam scores by cohort (stacked)") {
+    Guide(axis: x, label: "Score")
+    Guide(axis: y, label: "Count")
+
+    Space(score) {
+        Histogram(fill: cohort, bins: 16, alpha: 0.9)
+    }
+}

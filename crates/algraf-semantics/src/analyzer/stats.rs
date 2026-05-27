@@ -192,7 +192,8 @@ impl Analyzer<'_> {
                     }
                 }
                 let options = self.collect_smooth_options(&stat.args(), stat_span);
-                let output_schema = stat_output_schema(kind, &input_frame);
+                let se = matches!(&options, StatOptionsIr::Smooth { se: true, .. });
+                let output_schema = crate::planning::smooth_output_schema(se);
                 (input_frame, options, output_schema)
             }
             StatKind::Bin2D | StatKind::HexBin => {
@@ -498,6 +499,10 @@ impl Analyzer<'_> {
     }
 
     fn collect_smooth_options(&mut self, args: &[Arg], stat_span: Span) -> StatOptionsIr {
+        let mut method = SmoothMethodIr::Lm;
+        let mut span = None;
+        let mut span_span = None;
+        let mut se = false;
         let mut dup = DupGuard::new(codes::E1404, "Smooth setting");
         for arg in args {
             let Some(name) = arg.key() else { continue };
@@ -509,11 +514,36 @@ impl Analyzer<'_> {
                 "method" => {
                     let Some(value) = arg.value() else { continue };
                     match ValueForm::of(&value) {
-                        // `lm` is the only supported method (spec §15.x).
-                        ValueForm::Str(s) if s == "lm" => {}
+                        ValueForm::Str(s) if s == "lm" => method = SmoothMethodIr::Lm,
+                        ValueForm::Str(s) if s == "loess" => method = SmoothMethodIr::Loess,
                         _ => self.diag(Diagnostic::error(
                             codes::E1404,
-                            "`method` expects \"lm\"",
+                            "`method` expects \"lm\" or \"loess\"",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                "span" => {
+                    let Some(value) = arg.value() else { continue };
+                    span_span = Some(node_span(value.syntax()));
+                    match ValueForm::of(&value) {
+                        ValueForm::Number(n) if n.is_finite() && n > 0.0 && n <= 1.0 => {
+                            span = Some(n)
+                        }
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`span` expects a number in (0, 1]",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                "se" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Bool(b) => se = b,
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`se` expects a boolean",
                             node_span(value.syntax()),
                         )),
                     }
@@ -525,10 +555,15 @@ impl Analyzer<'_> {
                 )),
             }
         }
-        let _ = stat_span;
-        StatOptionsIr::Smooth {
-            method: SmoothMethodIr::Lm,
+        // `span` only governs the loess neighborhood; reject it for `lm`.
+        if span.is_some() && method != SmoothMethodIr::Loess {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                "`span` applies only to `method: \"loess\"`",
+                span_span.unwrap_or(stat_span),
+            ));
         }
+        StatOptionsIr::Smooth { method, span, se }
     }
 
     fn collect_bin2d_options(

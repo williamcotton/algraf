@@ -50,11 +50,15 @@ pub(super) fn validate_scale_configs(
         let Some(axis_frame) = frame_axis(frame, *axis) else {
             continue;
         };
-        if scale.scale_type == Some(ScaleTypeIr::Log10) {
+        if matches!(
+            scale.scale_type,
+            Some(ScaleTypeIr::Log10) | Some(ScaleTypeIr::Sqrt)
+        ) {
+            let type_name = scale.scale_type.map(|t| t.as_str()).unwrap_or("");
             let Some(column) = vector_column(axis_frame) else {
                 diagnostics.push(Diagnostic::warning(
                     codes::R0004,
-                    "log10 scale requires a continuous numeric axis",
+                    format!("{type_name} scale requires a continuous numeric axis"),
                     scale.span,
                 ));
                 continue;
@@ -65,7 +69,7 @@ pub(super) fn validate_scale_configs(
             ) {
                 diagnostics.push(Diagnostic::warning(
                     codes::R0004,
-                    "log10 scale requires a continuous numeric axis",
+                    format!("{type_name} scale requires a continuous numeric axis"),
                     column.span,
                 ));
             }
@@ -86,6 +90,15 @@ pub(super) fn validate_scale_configs(
                 diagnostics.push(Diagnostic::warning(
                     codes::R0004,
                     "log10 scale domain must be positive",
+                    scale.span,
+                ));
+            }
+            if scale.scale_type == Some(ScaleTypeIr::Sqrt)
+                && [a, b].into_iter().flatten().any(|bound| bound < 0.0)
+            {
+                diagnostics.push(Diagnostic::warning(
+                    codes::R0004,
+                    "sqrt scale domain must be non-negative",
                     scale.span,
                 ));
             }

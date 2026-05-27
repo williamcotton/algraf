@@ -224,6 +224,44 @@ async fn geometry_property_completion_uses_column_schema() {
 }
 
 #[tokio::test]
+async fn scale_type_completion_offers_sqrt() {
+    let dir = temp_project("scale-type-completion");
+    let source_path = dir.join("chart.ag");
+    let data_path = dir.join("data.csv");
+    std::fs::write(&data_path, "x,y\n1,2\n").unwrap();
+
+    let source =
+        "Chart(data: \"data.csv\") {\n    Scale(axis: x, type: )\n    Space(x * y) { Point() }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let offset = source.find("type: ").unwrap() + "type: ".len();
+    let params = CompletionParams {
+        text_document_position: request_position(uri, source, offset),
+        work_done_progress_params: Default::default(),
+        partial_result_params: Default::default(),
+        context: None,
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/completion")
+            .params(serde_json::to_value(params).unwrap())
+            .id(2)
+            .finish(),
+    )
+    .await
+    .unwrap();
+
+    let result: Option<CompletionResponse> = response_result(response);
+    let labels = labels(result);
+    assert!(labels.iter().any(|(label, _)| label == "\"sqrt\""));
+    assert!(labels.iter().any(|(label, _)| label == "\"log10\""));
+}
+
+#[tokio::test]
 async fn schema_resolution_uses_geojson_constructor_format() {
     let dir = temp_project("geojson-constructor-schema");
     let source_path = dir.join("chart.ag");

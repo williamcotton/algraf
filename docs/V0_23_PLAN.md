@@ -1,6 +1,6 @@
 # Algraf v0.23.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_22_PLAN.md`](V0_22_PLAN.md)
@@ -75,7 +75,7 @@ git diff -- examples
 
 ### 1. Loess smoothing
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -89,7 +89,7 @@ Acceptance criteria:
 
 ### 2. Smooth standard-error output
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -102,7 +102,7 @@ Acceptance criteria:
 
 ### 3. Grouped histograms
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -115,7 +115,7 @@ Acceptance criteria:
 
 ### 4. Tapered ribbons for variable-width paths
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -127,7 +127,7 @@ Acceptance criteria:
 
 ### 5. Segment column mappings
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -139,7 +139,7 @@ Acceptance criteria:
 
 ### 6. Boxplot outlier rendering
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -151,7 +151,7 @@ Acceptance criteria:
 
 ### 7. Additional scale transforms
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 

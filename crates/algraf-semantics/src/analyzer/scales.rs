@@ -78,6 +78,7 @@ impl Analyzer<'_> {
                         match value.as_str() {
                             "linear" => scale_type = Some(ScaleTypeIr::Linear),
                             "log10" => scale_type = Some(ScaleTypeIr::Log10),
+                            "sqrt" => scale_type = Some(ScaleTypeIr::Sqrt),
                             _ => self.diag(Diagnostic::error(
                                 codes::E1204,
                                 format!("unknown scale type `{value}`"),

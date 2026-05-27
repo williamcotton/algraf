@@ -102,6 +102,31 @@ impl AxisScale {
         self.map_value(value)
     }
 
+    /// Resolve a row's value in `column` to a pixel position on this axis, using
+    /// the band center for categorical axes (spec §14.19). Used for segment
+    /// endpoints mapped to a column that may differ from the axis's own column.
+    pub(crate) fn resolve_column(
+        &self,
+        table: &dyn Table,
+        column: &str,
+        row: usize,
+    ) -> Option<f64> {
+        match self {
+            AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => {
+                cell_f64(table, column, row).map(|v| scale.map(v))
+            }
+            AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
+                cell_micros(table, column, row).map(|v| scale.map(v))
+            }
+            AxisScale::Band { scale, .. } => {
+                cell_category(table, column, row).and_then(|c| scale.center(&c))
+            }
+            AxisScale::NestedBand { scale, .. } => {
+                cell_category(table, column, row).and_then(|c| scale.outer.center(&c))
+            }
+        }
+    }
+
     /// The axis title (column name or joined union member names).
     pub fn label(&self) -> String {
         let raw = match self {
@@ -401,6 +426,16 @@ impl ScaledSpace {
     pub fn map_y(&self, value: f64) -> Option<f64> {
         self.y.as_ref()?.map_value(value)
     }
+
+    /// The x axis scale (for resolving mapped geometry endpoints, spec §14.19).
+    pub fn x_axis(&self) -> &AxisScale {
+        &self.x
+    }
+
+    /// The y axis scale, when present.
+    pub fn y_axis(&self) -> Option<&AxisScale> {
+        self.y.as_ref()
+    }
 }
 
 /// Build a single axis scale from a frame sub-expression.
@@ -623,6 +658,8 @@ fn continuous_scale(
 ) -> ContinuousScale {
     let mut scale = if config.scale_type == Some(ScaleTypeIr::Log10) && min > 0.0 && max > 0.0 {
         ContinuousScale::log10(min, max, range)
+    } else if config.scale_type == Some(ScaleTypeIr::Sqrt) && min >= 0.0 && max >= 0.0 {
+        ContinuousScale::sqrt(min, max, range)
     } else {
         ContinuousScale::new(min, max, range)
     };

@@ -1,0 +1,10 @@
+Chart(data: "squares.csv", width: 640, height: 420, title: "Area on a square-root axis") {
+    Scale(axis: y, type: "sqrt", domain: [0, 100])
+    Guide(axis: y, label: "Area (sqrt scale)")
+    Guide(axis: x, label: "Side length")
+
+    Space(side * area) {
+        Line(stroke: "#3366cc", strokeWidth: 2)
+        Point(fill: "#cc3333", size: 5)
+    }
+}

@@ -200,17 +200,27 @@ pub fn train_space_domains(
                 hints.x.set_band_padding(0.0, 0.0);
                 hints.y.set_band_padding(0.0, 0.0);
             }
-            // Segment endpoints are literal data values; include them so the
-            // segment stays inside the plot rect (spec §14.19).
+            // Segment endpoints (literal values or column mappings) must stay
+            // inside the plot rect (spec §14.19). Numeric/temporal endpoints
+            // extend the continuous domain; categorical endpoints are already
+            // covered by the frame's band domain.
             GeometryKind::Segment => {
-                for property in [PropertyKey::X, PropertyKey::Xend] {
-                    if let Some(value) = number_setting_opt(geometry, property) {
-                        hints.x.add_numeric(value);
+                for row in 0..table.row_count().max(1) {
+                    for property in [PropertyKey::X, PropertyKey::Xend] {
+                        if let Some(value) = positional_value(geometry, property, table, row) {
+                            hints.x.add_numeric(value);
+                        }
+                        if let Some(micros) = positional_temporal(geometry, property, table, row) {
+                            hints.x.add_temporal(micros);
+                        }
                     }
-                }
-                for property in [PropertyKey::Y, PropertyKey::Yend] {
-                    if let Some(value) = number_setting_opt(geometry, property) {
-                        hints.y.add_numeric(value);
+                    for property in [PropertyKey::Y, PropertyKey::Yend] {
+                        if let Some(value) = positional_value(geometry, property, table, row) {
+                            hints.y.add_numeric(value);
+                        }
+                        if let Some(micros) = positional_temporal(geometry, property, table, row) {
+                            hints.y.add_temporal(micros);
+                        }
                     }
                 }
             }

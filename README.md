@@ -165,6 +165,37 @@ Chart(data: "penguins.csv", width: 760, height: 500) {
 
 ![smooth](examples/smooth.svg)
 
+## Loess smoothing with a confidence band
+
+`Smooth(method: "loess")` fits a locally weighted curve instead of a straight
+line; `span` sets how much of the data each local fit sees, and `se: true` draws
+a confidence band (filled with `fill`, behind the line).
+
+```algraf
+Chart(data: "penguins.csv", width: 760, height: 500, title: "Loess fit with confidence band") {
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.55, size: 3)
+        Smooth(method: "loess", span: 0.6, se: true, stroke: "#222222", fill: "#999999", strokeWidth: 2)
+    }
+}
+```
+
+![loess_smooth](examples/loess_smooth.svg)
+
+A loess fit follows the `stroke`/`group` aesthetics, so mapping `stroke` to a
+category draws one curve per group:
+
+```algraf
+Chart(data: "penguins.csv", width: 760, height: 500, title: "Per-species loess fits") {
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.4, size: 3)
+        Smooth(method: "loess", span: 0.75, stroke: species, strokeWidth: 2)
+    }
+}
+```
+
+![grouped_loess](examples/grouped_loess.svg)
+
 ## Grouped bars via the `/` (nest) operator
 
 `/` is *nest*: `quarter / type` makes `type` a sub-band inside each
@@ -324,6 +355,25 @@ Chart(data: "distribution.csv", width: 760, height: 460) {
 ```
 
 ![histogram_direct](examples/histogram_direct.svg)
+
+## Grouped histograms
+
+Mapping `fill` to a categorical column groups the histogram: every group is
+binned over the same shared edges and the per-group counts are stacked within
+each bin, colored by the group with a fill legend.
+
+```algraf
+Chart(data: "exam_scores.csv", width: 720, height: 460, title: "Exam scores by cohort (stacked)") {
+    Guide(axis: x, label: "Score")
+    Guide(axis: y, label: "Count")
+
+    Space(score) {
+        Histogram(fill: cohort, bins: 16, alpha: 0.9)
+    }
+}
+```
+
+![grouped_histogram](examples/grouped_histogram.svg)
 
 ## Frequency polygon
 
@@ -520,6 +570,24 @@ Chart(data: "demographics.csv", width: 700, height: 460) {
 ```
 
 ![boxplot](examples/boxplot.svg)
+
+## Boxplot outliers
+
+Observations beyond the `1.5 · IQR` whiskers render as small circles by default.
+Set `outliers: false` to suppress them.
+
+```algraf
+Chart(data: "sensor_readings.csv", width: 700, height: 460, title: "Sensor readings with outliers") {
+    Guide(axis: x, label: "Sensor")
+    Guide(axis: y, label: "Reading")
+
+    Space(sensor * reading) {
+        Boxplot(fill: sensor, alpha: 0.78, outliers: true)
+    }
+}
+```
+
+![boxplot_outliers](examples/boxplot_outliers.svg)
 
 ## Violin distributions
 
@@ -846,6 +914,27 @@ Chart(data: "penguins.csv", width: 720, height: 480) {
 
 ![segment](examples/segment.svg)
 
+## Dumbbell ranges with mapped `Segment` endpoints
+
+`Segment` endpoints can be column mappings, not just literals. When any of `x`,
+`y`, `xend`, or `yend` maps a column, one segment is drawn per row — ideal for
+dumbbell and slope charts. A categorical endpoint resolves to its band center.
+
+```algraf
+Chart(data: "temperature_range.csv", width: 720, height: 420, title: "Annual temperature range by city") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Temperature (°C)")
+    Guide(axis: y, label: "City")
+
+    Space(low * city) {
+        Segment(x: low, y: city, xend: high, yend: city, stroke: "#bbbbbb", strokeWidth: 4)
+        Point(fill: "#1f77b4", size: 6)
+    }
+}
+```
+
+![dumbbell](examples/dumbbell.svg)
+
 ## Text labels per row
 
 `Text` places one label per data row at its (`x`, `y`) position, using
@@ -1004,6 +1093,26 @@ Chart(data: "cities.csv", width: 720, height: 460, title: "Population across set
 ```
 
 ![log_scale](examples/log_scale.svg)
+
+## Square-root axes
+
+`Scale(axis: y, type: "sqrt")` positions values by their square root, so a
+squared relationship plots as a straight line. Ticks stay at nice data values.
+
+```algraf
+Chart(data: "squares.csv", width: 640, height: 420, title: "Area on a square-root axis") {
+    Scale(axis: y, type: "sqrt", domain: [0, 100])
+    Guide(axis: y, label: "Area (sqrt scale)")
+    Guide(axis: x, label: "Side length")
+
+    Space(side * area) {
+        Line(stroke: "#3366cc", strokeWidth: 2)
+        Point(fill: "#cc3333", size: 5)
+    }
+}
+```
+
+![sqrt_scale](examples/sqrt_scale.svg)
 
 ## Pinning a domain
 
@@ -1226,6 +1335,27 @@ Chart(
 ```
 
 ![minard](examples/minard.svg)
+
+## Tapered ribbons with `taper`
+
+By default a mapped `strokeWidth` draws one stroke per segment. Adding
+`taper: true` instead renders the series as a single filled polygon whose
+half-width follows the scaled `strokeWidth` at each vertex — a smooth tapered
+ribbon, as in the Minard troop flow.
+
+```algraf
+Chart(data: "tapered_flow.csv", width: 720, height: 420, title: "Tapered flow ribbon") {
+    Scale(strokeWidth: volume, domain: [0, null], range: [0, 28], label: "Volume")
+    Guide(axis: x, label: "Distance")
+    Guide(axis: y, label: "Elevation")
+
+    Space(distance * elevation) {
+        Path(strokeWidth: volume, taper: true, stroke: "#8b5a2b")
+    }
+}
+```
+
+![tapered_flow](examples/tapered_flow.svg)
 
 ## Data formats: TSV, JSON, and NDJSON
 

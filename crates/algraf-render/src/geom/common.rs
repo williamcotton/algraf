@@ -180,6 +180,33 @@ fn bound_is_upper(name: PropertyKey) -> bool {
     matches!(name, PropertyKey::Xmax | PropertyKey::Ymax)
 }
 
+/// Resolve a segment endpoint property (`x`/`y`/`xend`/`yend`) to a pixel
+/// position on `axis`. A column mapping uses the band center for categorical
+/// axes; a literal number maps through a continuous/temporal axis (spec §14.19).
+pub(super) fn pos_center(
+    geo: &GeometryIr,
+    name: PropertyKey,
+    axis: &AxisScale,
+    table: &dyn Table,
+    row: usize,
+) -> Option<f64> {
+    if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == name) {
+        return axis.resolve_column(table, &mapping.column.name, row);
+    }
+    geo.settings
+        .iter()
+        .find(|s| s.name == name)
+        .and_then(|s| match s.value {
+            SettingValue::Number(n) => axis.map_value_public(n),
+            _ => None,
+        })
+}
+
+/// Whether the geometry maps any of the given properties to a data column.
+pub(super) fn any_mapped(geo: &GeometryIr, names: &[PropertyKey]) -> bool {
+    geo.mappings.iter().any(|m| names.contains(&m.aesthetic))
+}
+
 fn categorical_bound(
     axis: &AxisScale,
     column: &str,

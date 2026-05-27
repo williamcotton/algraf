@@ -276,15 +276,17 @@ impl AxisSelectorIr {
 pub enum ScaleTypeIr {
     Linear,
     Log10,
+    Sqrt,
 }
 
 impl ScaleTypeIr {
-    /// The authoritative source spelling (`"linear"` / `"log10"`), matching
-    /// [`crate::registry::SCALE_TYPE_NAMES`].
+    /// The authoritative source spelling (`"linear"` / `"log10"` / `"sqrt"`),
+    /// matching [`crate::registry::SCALE_TYPE_NAMES`].
     pub fn as_str(self) -> &'static str {
         match self {
             ScaleTypeIr::Linear => "linear",
             ScaleTypeIr::Log10 => "log10",
+            ScaleTypeIr::Sqrt => "sqrt",
         }
     }
 }
@@ -365,6 +367,11 @@ pub enum StatOptionsIr {
     },
     Smooth {
         method: SmoothMethodIr,
+        /// Loess neighborhood fraction in `(0, 1]`; `None` uses the renderer
+        /// default. Only meaningful for `loess`.
+        span: Option<f64>,
+        /// Emit `ymin`/`ymax`/`se` confidence-band columns (spec §15.x).
+        se: bool,
     },
     Density {
         bandwidth: Option<f64>,
@@ -437,19 +444,21 @@ impl BinClosedIr {
     }
 }
 
-/// The smoothing method for a `Smooth` stat (spec §15.x). Only linear-model
-/// fitting is supported in this version; `loess` remains deferred.
+/// The smoothing method for a `Smooth` stat (spec §15.x): ordinary
+/// linear-model fitting or locally weighted regression (loess).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SmoothMethodIr {
     #[default]
     Lm,
+    Loess,
 }
 
 impl SmoothMethodIr {
-    /// The authoritative source spelling (`"lm"`).
+    /// The authoritative source spelling (`"lm"` / `"loess"`).
     pub fn as_str(self) -> &'static str {
         match self {
             SmoothMethodIr::Lm => "lm",
+            SmoothMethodIr::Loess => "loess",
         }
     }
 }
@@ -634,9 +643,12 @@ pub enum PropertyKey {
     Closed,
     Interval,
     Method,
+    Span,
+    Se,
     Bandwidth,
     N,
     Quantiles,
+    Outliers,
     Width,
     Baseline,
     Label,
@@ -644,6 +656,7 @@ pub enum PropertyKey {
     Dx,
     Dy,
     Declutter,
+    Taper,
     Sides,
     X,
     Y,
@@ -674,9 +687,12 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::Closed,
     PropertyKey::Interval,
     PropertyKey::Method,
+    PropertyKey::Span,
+    PropertyKey::Se,
     PropertyKey::Bandwidth,
     PropertyKey::N,
     PropertyKey::Quantiles,
+    PropertyKey::Outliers,
     PropertyKey::Width,
     PropertyKey::Baseline,
     PropertyKey::Label,
@@ -684,6 +700,7 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::Dx,
     PropertyKey::Dy,
     PropertyKey::Declutter,
+    PropertyKey::Taper,
     PropertyKey::Sides,
     PropertyKey::X,
     PropertyKey::Y,
@@ -715,9 +732,12 @@ impl PropertyKey {
             PropertyKey::Closed => "closed",
             PropertyKey::Interval => "interval",
             PropertyKey::Method => "method",
+            PropertyKey::Span => "span",
+            PropertyKey::Se => "se",
             PropertyKey::Bandwidth => "bandwidth",
             PropertyKey::N => "n",
             PropertyKey::Quantiles => "quantiles",
+            PropertyKey::Outliers => "outliers",
             PropertyKey::Width => "width",
             PropertyKey::Baseline => "baseline",
             PropertyKey::Label => "label",
@@ -725,6 +745,7 @@ impl PropertyKey {
             PropertyKey::Dx => "dx",
             PropertyKey::Dy => "dy",
             PropertyKey::Declutter => "declutter",
+            PropertyKey::Taper => "taper",
             PropertyKey::Sides => "sides",
             PropertyKey::X => "x",
             PropertyKey::Y => "y",

@@ -950,9 +950,11 @@ fn stat_options_json(options: &StatOptionsIr) -> Value {
         }),
         StatOptionsIr::Bin2D { bins } => json!({ "kind": "bin2d", "bins": bins }),
         StatOptionsIr::HexBin { bins } => json!({ "kind": "hexbin", "bins": bins }),
-        StatOptionsIr::Smooth { method } => json!({
+        StatOptionsIr::Smooth { method, span, se } => json!({
             "kind": "smooth",
             "method": method.as_str(),
+            "span": span,
+            "se": se,
         }),
         StatOptionsIr::Density {
             bandwidth,

@@ -5,7 +5,7 @@ use algraf_core::{codes, Diagnostic};
 use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting, ColorSpec};
-use crate::helpers::{number_array_setting, number_setting_opt};
+use crate::helpers::{bool_setting, number_array_setting, number_setting_opt};
 use crate::scale::cell_f64;
 use crate::stats;
 use crate::svg::{escape_attr, num, SvgWriter};
@@ -42,6 +42,9 @@ pub(super) fn render_boxplot(
     let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
+    // Points beyond the 1.5·IQR whiskers render as small circles by default
+    // (spec §14.11); `outliers: false` suppresses them.
+    let show_outliers = bool_setting(geo, PropertyKey::Outliers, true);
     let mut groups: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
     let mut order = Vec::new();
 
@@ -153,6 +156,28 @@ pub(super) fn render_boxplot(
             stroke_width,
             alpha,
         );
+
+        // Outliers: observations beyond the 1.5·IQR fences, drawn as small open
+        // circles centered on the box (spec §14.11). Order follows the sorted
+        // group, so output stays deterministic.
+        if show_outliers {
+            let radius = (stroke_width * 1.5).max(2.0);
+            for (_, value) in group.iter() {
+                if *value < lower_bound || *value > upper_bound {
+                    if let Some(cy) = space.map_y(*value) {
+                        w.line(&format!(
+                            "<circle cx=\"{}\" cy=\"{}\" r=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\" />",
+                            num(cx),
+                            num(cy),
+                            num(radius),
+                            escape_attr(&stroke_color),
+                            num(stroke_width),
+                            num(alpha),
+                        ));
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -13,6 +13,7 @@ charts=(
     heatmap
     histogram
     histogram_direct
+    grouped_histogram
     facet
     connected_scatter
     barcode
@@ -20,8 +21,12 @@ charts=(
     gantt
     fill_bar
     smooth
+    loess_smooth
+    grouped_loess
     boxplot
+    boxplot_outliers
     ribbon
+    tapered_flow
     reference
     bar_count
     area
@@ -31,6 +36,7 @@ charts=(
     guide_labels
     clean_canvas
     log_scale
+    sqrt_scale
     scale_domain
     reversed_axis
     temporal_histogram
@@ -47,6 +53,7 @@ charts=(
     legend_merge
     scale_label
     satisfaction_slope
+    dumbbell
     labeled_points
     flight_dumbbell
     violin_boxplot

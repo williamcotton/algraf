@@ -1,10 +1,14 @@
+use algraf_core::{codes, Diagnostic};
+use algraf_data::Table;
 use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting};
 use crate::helpers::{number_setting_opt, string_setting};
 use crate::svg::{escape_attr, escape_text, num, SvgWriter};
 
-use super::common::{constant_or, emit_svg_line, render_rows, DEFAULT_STROKE};
+use super::common::{
+    any_mapped, constant_or, emit_svg_line, pos_center, render_rows, DEFAULT_STROKE,
+};
 use super::GeometryRenderContext;
 
 pub(super) fn render_hline(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
@@ -120,26 +124,66 @@ pub(super) fn render_rug(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRende
     }
 }
 
-/// Render a `Segment` geometry: a straight line between literal endpoints
-/// (spec §14.19).
-pub(super) fn render_segment(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
+/// Render `Segment` marks (spec §14.19). Endpoints `x`/`y`/`xend`/`yend` may be
+/// literal data values (a single annotation segment) or column mappings (one
+/// segment per row, for slope/dumbbell charts). Mapped categorical endpoints
+/// resolve to band centers; rows missing any endpoint are skipped and reported.
+pub(super) fn render_segment(
+    w: &mut SvgWriter,
+    geo: &GeometryIr,
+    ctx: GeometryRenderContext<'_>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     let space = ctx.space;
     let table = ctx.table;
     let theme = ctx.theme;
     let scales = ctx.scales;
     let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
-    let color = constant_or(&stroke, DEFAULT_STROKE);
     let width = number_setting(geo, PropertyKey::StrokeWidth, theme.line_width);
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
 
-    let (Some(x), Some(y), Some(xend), Some(yend)) = (
-        number_setting_opt(geo, PropertyKey::X).and_then(|v| space.map_x(v)),
-        number_setting_opt(geo, PropertyKey::Y).and_then(|v| space.map_y(v)),
-        number_setting_opt(geo, PropertyKey::Xend).and_then(|v| space.map_x(v)),
-        number_setting_opt(geo, PropertyKey::Yend).and_then(|v| space.map_y(v)),
-    ) else {
+    let x_axis = space.x_axis();
+    let Some(y_axis) = space.y_axis() else {
         return;
     };
+    let endpoints = [
+        PropertyKey::X,
+        PropertyKey::Y,
+        PropertyKey::Xend,
+        PropertyKey::Yend,
+    ];
 
-    emit_svg_line(w, x, y, xend, yend, &color, width, alpha);
+    let resolve = |table: &dyn Table, row: usize| {
+        Some((
+            pos_center(geo, PropertyKey::X, x_axis, table, row)?,
+            pos_center(geo, PropertyKey::Y, y_axis, table, row)?,
+            pos_center(geo, PropertyKey::Xend, x_axis, table, row)?,
+            pos_center(geo, PropertyKey::Yend, y_axis, table, row)?,
+        ))
+    };
+
+    if any_mapped(geo, &endpoints) {
+        let mut skipped = 0usize;
+        for row in render_rows(table, ctx.rows) {
+            let Some((x, y, xend, yend)) = resolve(table, row) else {
+                skipped += 1;
+                continue;
+            };
+            let color = stroke
+                .resolve(table, row)
+                .unwrap_or_else(|| DEFAULT_STROKE.to_string());
+            emit_svg_line(w, x, y, xend, yend, &color, width, alpha);
+        }
+        if skipped > 0 {
+            diagnostics.push(Diagnostic::warning(
+                codes::R0002,
+                format!("Segment skipped {skipped} row(s) with a missing endpoint value"),
+                geo.span,
+            ));
+        }
+    } else if let Some((x, y, xend, yend)) = resolve(table, 0) {
+        // Literal endpoints: a single annotation segment.
+        let color = constant_or(&stroke, DEFAULT_STROKE);
+        emit_svg_line(w, x, y, xend, yend, &color, width, alpha);
+    }
 }

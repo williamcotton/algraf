@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="500" viewBox="0 0 760 500" role="img" aria-label="Loess fit with confidence band">
+<title>Loess fit with confidence band</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="500" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Loess fit with confidence band</text>
+<rect class="algraf-plot-area" x="60" y="66" width="550" height="384" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="86.078" y1="66" x2="86.078" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="204.612" y1="66" x2="204.612" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="323.147" y1="66" x2="323.147" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="441.681" y1="66" x2="441.681" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="560.216" y1="66" x2="560.216" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="415.635" x2="610" y2="415.635" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="336.818" x2="610" y2="336.818" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="258" x2="610" y2="258" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="179.182" x2="610" y2="179.182" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="100.365" x2="610" y2="100.365" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="97.931" cy="376.227" r="3" fill="#4E79A7" opacity="0.55" />
+  <circle cx="157.198" cy="368.345" r="3" fill="#4E79A7" opacity="0.55" />
+  <circle cx="263.879" cy="273.764" r="3" fill="#4E79A7" opacity="0.55" />
+  <circle cx="240.172" cy="423.517" r="3" fill="#F28E2B" opacity="0.55" />
+  <circle cx="287.586" cy="388.049" r="3" fill="#F28E2B" opacity="0.55" />
+  <circle cx="335" cy="289.527" r="3" fill="#F28E2B" opacity="0.55" />
+  <circle cx="441.681" cy="226.473" r="3" fill="#E15759" opacity="0.55" />
+  <circle cx="512.802" cy="179.182" r="3" fill="#E15759" opacity="0.55" />
+  <circle cx="572.069" cy="92.483" r="3" fill="#E15759" opacity="0.55" />
+</g>
+<g class="algraf-layer algraf-geom-smooth">
+  <path d="M97.931 305.398 L103.933 308.016 L109.935 310.53 L115.936 312.933 L121.938 315.219 L127.94 317.378 L133.942 319.401 L139.943 321.272 L145.945 322.977 L151.947 324.494 L157.948 325.8 L163.95 326.863 L169.952 327.65 L175.954 328.115 L181.955 328.198 L187.957 327.806 L193.959 326.802 L199.961 325.03 L205.962 322.641 L211.964 321.075 L217.966 321.572 L223.968 321.884 L229.969 321.698 L235.971 320.986 L241.973 319.792 L247.975 318.124 L253.976 315.949 L259.978 313.238 L265.98 309.97 L271.982 306.359 L277.983 302.507 L283.985 297.808 L289.987 291.783 L295.989 284.089 L301.99 275.655 L307.992 270.756 L313.994 270.15 L319.996 269.242 L325.997 266.781 L331.999 263.122 L338.001 258.214 L344.003 252.605 L350.004 246.883 L356.006 241.044 L362.008 235.078 L368.01 228.993 L374.011 222.808 L380.013 217.007 L386.015 213.545 L392.017 211.668 L398.018 209.573 L404.02 206.725 L410.022 201.459 L416.024 194.268 L422.025 189.578 L428.027 185.973 L434.029 182.087 L440.031 177.953 L446.032 173.596 L452.034 169.039 L458.036 164.298 L464.038 159.379 L470.039 154.279 L476.041 148.996 L482.043 143.526 L488.045 137.863 L494.046 132.004 L500.048 125.946 L506.05 119.687 L512.052 113.228 L518.053 106.569 L524.055 99.711 L530.057 92.655 L536.058 85.405 L542.06 77.964 L548.062 70.335 L554.064 62.524 L560.065 54.535 L566.067 46.373 L572.069 38.044 L572.069 175.047 L566.067 177.933 L560.065 180.917 L554.064 184.003 L548.062 187.202 L542.06 190.519 L536.058 193.965 L530.057 197.546 L524.055 201.271 L518.053 205.147 L512.052 209.183 L506.05 213.384 L500.048 217.752 L494.046 222.29 L488.045 226.994 L482.043 231.865 L476.041 236.899 L470.039 242.095 L464.038 247.452 L458.036 252.975 L452.034 258.675 L446.032 264.565 L440.031 270.648 L434.029 276.854 L428.027 282.915 L422.025 288.361 L416.024 292.989 L410.022 296.515 L404.02 300.059 L398.018 305.451 L392.017 311.482 L386.015 317.707 L380.013 322.656 L374.011 325.44 L368.01 327.379 L362.008 329.641 L356.006 332.191 L350.004 334.985 L344.003 338.019 L338.001 341.302 L331.999 345.099 L325.997 349.689 L319.996 355.173 L313.994 361.858 L307.992 368.935 L301.99 373.214 L295.989 375.528 L289.987 378.787 L283.985 381.886 L277.983 384.161 L271.982 385.906 L265.98 388.368 L259.978 391.487 L253.976 394.761 L247.975 398.12 L241.973 401.487 L235.971 404.777 L229.969 407.896 L223.968 410.842 L217.966 413.913 L211.964 415.974 L205.962 414.92 L199.961 412.957 L193.959 411.911 L187.957 411.886 L181.955 412.613 L175.954 413.872 L169.952 415.523 L163.95 417.475 L157.948 419.667 L151.947 422.055 L145.945 424.606 L139.943 427.296 L133.942 430.107 L127.94 433.025 L121.938 436.04 L115.936 439.143 L109.935 442.328 L103.933 445.592 L97.931 448.933 Z" fill="#999999" stroke="none" opacity="0.2" />
+  <path d="M97.931 377.165 L103.933 376.804 L109.935 376.429 L115.936 376.038 L121.938 375.629 L127.94 375.202 L133.942 374.754 L139.943 374.284 L145.945 373.791 L151.947 373.274 L157.948 372.733 L163.95 372.169 L169.952 371.587 L175.954 370.994 L181.955 370.405 L187.957 369.846 L193.959 369.357 L199.961 368.993 L205.962 368.781 L211.964 368.525 L217.966 367.742 L223.968 366.363 L229.969 364.797 L235.971 362.882 L241.973 360.64 L247.975 358.122 L253.976 355.355 L259.978 352.362 L265.98 349.169 L271.982 346.132 L277.983 343.334 L283.985 339.847 L289.987 335.285 L295.989 329.809 L301.99 324.434 L307.992 319.846 L313.994 316.004 L319.996 312.207 L325.997 308.235 L331.999 304.111 L338.001 299.758 L344.003 295.312 L350.004 290.934 L356.006 286.618 L362.008 282.359 L368.01 278.186 L374.011 274.124 L380.013 269.832 L386.015 265.626 L392.017 261.575 L398.018 257.512 L404.02 253.392 L410.022 248.987 L416.024 243.628 L422.025 238.969 L428.027 234.444 L434.029 229.471 L440.031 224.301 L446.032 219.08 L452.034 213.857 L458.036 208.637 L464.038 203.415 L470.039 198.187 L476.041 192.948 L482.043 187.696 L488.045 182.429 L494.046 177.147 L500.048 171.849 L506.05 166.535 L512.052 161.205 L518.053 155.858 L524.055 150.491 L530.057 145.101 L536.058 139.685 L542.06 134.242 L548.062 128.768 L554.064 123.264 L560.065 117.726 L566.067 112.153 L572.069 106.545" fill="none" stroke="#222222" stroke-width="2" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="450" x2="610" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="86.078" y1="450" x2="86.078" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="86.078" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">180</text>
+  <line x1="204.612" y1="450" x2="204.612" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="204.612" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">190</text>
+  <line x1="323.147" y1="450" x2="323.147" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="323.147" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">200</text>
+  <line x1="441.681" y1="450" x2="441.681" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="441.681" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">210</text>
+  <line x1="560.216" y1="450" x2="560.216" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="560.216" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">220</text>
+  <text x="335" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">flipper length</text>
+  <line x1="60" y1="66" x2="60" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="415.635" x2="60" y2="415.635" stroke="#333333" stroke-width="1" />
+  <text x="52" y="419.635" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3500</text>
+  <line x1="55" y1="336.818" x2="60" y2="336.818" stroke="#333333" stroke-width="1" />
+  <text x="52" y="340.818" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4000</text>
+  <line x1="55" y1="258" x2="60" y2="258" stroke="#333333" stroke-width="1" />
+  <text x="52" y="262" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4500</text>
+  <line x1="55" y1="179.182" x2="60" y2="179.182" stroke="#333333" stroke-width="1" />
+  <text x="52" y="183.182" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5000</text>
+  <line x1="55" y1="100.365" x2="60" y2="100.365" stroke="#333333" stroke-width="1" />
+  <text x="52" y="104.365" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5500</text>
+  <text x="17.2" y="258" text-anchor="middle" transform="rotate(-90 17.2 258)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">body mass</text>
+</g>
+<g class="algraf-legends">
+  <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">species</text>
+  <rect x="626" y="78" width="12" height="12" fill="#4E79A7" />
+  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Adelie</text>
+  <rect x="626" y="96" width="12" height="12" fill="#F28E2B" />
+  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Chinstrap</text>
+  <rect x="626" y="114" width="12" height="12" fill="#E15759" />
+  <text x="644" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Gentoo</text>
+</g>
+</svg>

@@ -18,7 +18,9 @@ pub fn stat_output_schema(kind: StatKind, input: &FrameIr) -> Vec<ColumnDefIr> {
         },
         StatKind::Bin2D => bin2d_output_schema(),
         StatKind::HexBin => hexbin_output_schema(),
-        StatKind::Smooth => smooth_output_schema(),
+        // The plain (no-`se`) schema; the analyzer rebuilds with bands when the
+        // `se` option is set (spec §15.x).
+        StatKind::Smooth => smooth_output_schema(false),
         StatKind::Density => density_output_schema(),
         StatKind::Count => count_output_schema(&frame_group_columns(input)),
         StatKind::Boxplot => Vec::new(),
@@ -40,7 +42,7 @@ pub fn stat_output_schema(kind: StatKind, input: &FrameIr) -> Vec<ColumnDefIr> {
 pub(crate) fn stat_output_names_for_source(stat_name: &str) -> Vec<String> {
     match stat_name {
         "Bin" => bin_output_schema(DataType::Float),
-        "Smooth" => smooth_output_schema(),
+        "Smooth" => smooth_output_schema(false),
         "Bin2D" => bin2d_output_schema(),
         "HexBin" => hexbin_output_schema(),
         // Geometry stats keep the upstream `geom` column name.
@@ -82,6 +84,45 @@ pub fn bin_output_schema(input_dtype: DataType) -> Vec<ColumnDefIr> {
     ]
 }
 
+/// Output schema for a grouped histogram bin (spec §15.6): the per-bin columns,
+/// the group key column (preserving its name), and the pre-stacked y-bounds.
+pub fn grouped_bin_output_schema(group_name: &str) -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "bin_start".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "bin_end".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "bin_center".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "count".into(),
+            dtype: DataType::Integer,
+        },
+        ColumnDefIr {
+            name: "density".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: group_name.into(),
+            dtype: DataType::String,
+        },
+        ColumnDefIr {
+            name: "stack_lower".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "stack_upper".into(),
+            dtype: DataType::Float,
+        },
+    ]
+}
+
 /// Boundary columns stay temporal only when the source column is temporal.
 pub fn bin_boundary_dtype(input_dtype: DataType) -> DataType {
     if input_dtype == DataType::Temporal {
@@ -91,9 +132,10 @@ pub fn bin_boundary_dtype(input_dtype: DataType) -> DataType {
     }
 }
 
-/// Output schema for linear smoothing.
-pub fn smooth_output_schema() -> Vec<ColumnDefIr> {
-    vec![
+/// Output schema for smoothing. With `se`, confidence-band columns `ymin`,
+/// `ymax`, and `se` follow the fitted `x`/`y` (spec §15.x).
+pub fn smooth_output_schema(se: bool) -> Vec<ColumnDefIr> {
+    let mut schema = vec![
         ColumnDefIr {
             name: "x".into(),
             dtype: DataType::Float,
@@ -102,7 +144,24 @@ pub fn smooth_output_schema() -> Vec<ColumnDefIr> {
             name: "y".into(),
             dtype: DataType::Float,
         },
-    ]
+    ];
+    if se {
+        schema.extend([
+            ColumnDefIr {
+                name: "ymin".into(),
+                dtype: DataType::Float,
+            },
+            ColumnDefIr {
+                name: "ymax".into(),
+                dtype: DataType::Float,
+            },
+            ColumnDefIr {
+                name: "se".into(),
+                dtype: DataType::Float,
+            },
+        ]);
+    }
+    schema
 }
 
 /// Output schema for rectangular two-dimensional bins.

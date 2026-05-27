@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420" role="img" aria-label="Area on a square-root axis">
+<title>Area on a square-root axis</title>
+<rect class="algraf-background" x="0" y="0" width="640" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Area on a square-root axis</text>
+<rect class="algraf-plot-area" x="60" y="66" width="550" height="304" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="97.931" y1="66" x2="97.931" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="192.759" y1="66" x2="192.759" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="287.586" y1="66" x2="287.586" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="382.414" y1="66" x2="382.414" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="477.241" y1="66" x2="477.241" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="572.069" y1="66" x2="572.069" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="370" x2="610" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="234.047" x2="610" y2="234.047" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="177.734" x2="610" y2="177.734" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="134.523" x2="610" y2="134.523" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="98.094" x2="610" y2="98.094" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="66" x2="610" y2="66" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M97.931 370 L145.345 339.6 L192.759 309.2 L240.172 278.8 L287.586 248.4 L335 218 L382.414 187.6 L429.828 157.2 L477.241 126.8 L524.655 96.4 L572.069 66" fill="none" stroke="#3366cc" stroke-width="2" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="97.931" cy="370" r="5" fill="#cc3333" opacity="1" />
+  <circle cx="145.345" cy="339.6" r="5" fill="#cc3333" opacity="1" />
+  <circle cx="192.759" cy="309.2" r="5" fill="#cc3333" opacity="1" />
+  <circle cx="240.172" cy="278.8" r="5" fill="#cc3333" opacity="1" />
+  <circle cx="287.586" cy="248.4" r="5" fill="#cc3333" opacity="1" />
+  <circle cx="335" cy="218" r="5" fill="#cc3333" opacity="1" />
+  <circle cx="382.414" cy="187.6" r="5" fill="#cc3333" opacity="1" />
+  <circle cx="429.828" cy="157.2" r="5" fill="#cc3333" opacity="1" />
+  <circle cx="477.241" cy="126.8" r="5" fill="#cc3333" opacity="1" />
+  <circle cx="524.655" cy="96.4" r="5" fill="#cc3333" opacity="1" />
+  <circle cx="572.069" cy="66" r="5" fill="#cc3333" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="370" x2="610" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="97.931" y1="370" x2="97.931" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="97.931" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="192.759" y1="370" x2="192.759" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="192.759" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="287.586" y1="370" x2="287.586" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="287.586" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="382.414" y1="370" x2="382.414" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="382.414" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <line x1="477.241" y1="370" x2="477.241" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="477.241" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
+  <line x1="572.069" y1="370" x2="572.069" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="572.069" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <text x="335" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Side length</text>
+  <line x1="60" y1="66" x2="60" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="370" x2="60" y2="370" stroke="#333333" stroke-width="1" />
+  <text x="52" y="374" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="234.047" x2="60" y2="234.047" stroke="#333333" stroke-width="1" />
+  <text x="52" y="238.047" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55" y1="177.734" x2="60" y2="177.734" stroke="#333333" stroke-width="1" />
+  <text x="52" y="181.734" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <line x1="55" y1="134.523" x2="60" y2="134.523" stroke="#333333" stroke-width="1" />
+  <text x="52" y="138.523" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
+  <line x1="55" y1="98.094" x2="60" y2="98.094" stroke="#333333" stroke-width="1" />
+  <text x="52" y="102.094" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
+  <line x1="55" y1="66" x2="60" y2="66" stroke="#333333" stroke-width="1" />
+  <text x="52" y="70" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100</text>
+  <text x="24.4" y="218" text-anchor="middle" transform="rotate(-90 24.4 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Area (sqrt scale)</text>
+</g>
+</svg>

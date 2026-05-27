@@ -3314,14 +3314,14 @@ pub enum StatOptionsIr {
     Bin { bins: Option<f64>, bin_width: Option<f64>, boundary: Option<f64>, closed: BinClosedIr },
     Bin2D { bins: Option<f64> },
     HexBin { bins: Option<f64> },
-    Smooth { method: SmoothMethodIr },
+    Smooth { method: SmoothMethodIr, span: Option<f64>, se: bool },
     Density { bandwidth: Option<f64>, grid_points: Option<f64> },
     Count,
 }
 
 pub enum BinClosedIr { Left, Right }
 
-pub enum SmoothMethodIr { Lm }
+pub enum SmoothMethodIr { Lm, Loess }
 ```
 
 The explicit `Derive` stat-option parser and high-level geometry lowering MUST produce `StatOptionsIr` through the same defaulting path, so invalid settings keep identical diagnostic codes and spans regardless of which surface produced them. The renderer MUST read `StatOptionsIr` directly rather than looking up string keys.
@@ -3499,8 +3499,9 @@ Examples:
 
 `Rect.xmin`, `Rect.xmax`, `Rect.ymin`, and `Rect.ymax` accept column mappings or numeric/temporal literals.
 
-`Smooth.method` accepts string literal `"lm"`. The registry currently accepts
-only `"lm"`; `"loess"` is reserved and deferred (see §14.10 and §15.7).
+`Smooth.method` accepts string literals `"lm"` and `"loess"` (see §14.10 and
+§15.7). `Smooth.span` accepts a number in `(0, 1]` and `Smooth.se` accepts a
+boolean.
 
 Before a property value is checked against its accepted forms, an unquoted
 bare-identifier value MUST be resolved against in-scope `let` variables (spec
@@ -3855,7 +3856,17 @@ as a geographic route) uses `Path`.
 
 When `strokeWidth` is a column mapping, `Path` (and `Line`) MUST emit a separate
 segment per adjacent pair of points, each with a width derived from its
-endpoints' scaled values (spec §16.8). Tapered-polygon ribbons are deferred.
+endpoints' scaled values (spec §16.8).
+
+Version 0.23.0 MUST support `taper: true` on `Line`/`Path`, which renders a
+mapped-`strokeWidth` series as a single filled polygon (a "tapered ribbon")
+instead of per-segment strokes. The polygon offsets the polyline by ±½ the
+scaled `strokeWidth` at each vertex along the per-vertex miter normal; miter
+length MUST be capped so sharp turns do not spike. The ribbon is filled with the
+series' `stroke` color. `taper` defaults to `false`, preserving per-segment
+rendering. `taper` has no effect when `strokeWidth` is constant (the series
+falls back to a plain stroked line). Grouping, missing values, and group
+boundaries follow the same rules as the per-segment path.
 
 ### 14.4 Step
 
@@ -4074,7 +4085,15 @@ Histogram produces an internal Cartesian frame of bin position by count.
 
 Histogram SHOULD expose computed y label as `count`.
 
-Histogram SHOULD support grouping by fill mapping in later versions.
+Version 0.23.0 MUST support grouping a Histogram by a categorical column, given
+either as a `fill` column mapping or an explicit `group` mapping (an explicit
+`group` takes precedence; a literal `fill: "color"` is not a grouping). A
+grouped Histogram bins each group over the same shared edges (computed from the
+global value domain) so bars align, and renders the per-group counts as a
+**stacked** bar in each bin, colored by the group column with a categorical
+`fill` legend. Counts MUST be pre-stacked deterministically in group
+first-appearance order. A grouped Histogram requires a numeric input column; a
+temporal input with grouping MUST emit `E1404`.
 
 Histogram is a high-level geometry.
 
@@ -4119,6 +4138,26 @@ The generated y-axis label defaults to `count`.
 The generated `count` column is a synthetic stat output column.
 
 The implementation MAY keep `Histogram` as a direct IR node internally, but its visual output MUST match the derived-table plus `Rect` model.
+
+A grouped Histogram desugars to a grouped `Bin` (a two-column `(value, group)`
+input) plus stacked `Rect`s. The grouped `Bin` emits `bin_start`, `bin_end`,
+`bin_center`, `count`, `density`, the group key column, and the pre-stacked
+`stack_lower`/`stack_upper` y-bounds. For example:
+
+```ag
+Chart(data: "penguins.csv") {
+    Space(body_mass) {
+        Histogram(fill: species, bins: 16)
+    }
+}
+```
+
+MUST be visually equivalent to a `Bin` over `(body_mass, species)` whose stacked
+rows feed:
+
+```ag
+Rect(xmin: bin_start, xmax: bin_end, ymin: stack_lower, ymax: stack_upper, fill: species)
+```
 
 ### 14.8 Frequency Polygon
 
@@ -4192,7 +4231,7 @@ Supported methods:
 
 `lm`
 
-`loess` MAY be later
+`loess` MUST be implemented in version 0.23
 
 Default method:
 
@@ -4201,6 +4240,20 @@ Default method:
 Smooth computes predicted values.
 
 Smooth renders a line.
+
+Version 0.23.0 MUST support `method: "loess"`, locally weighted degree-1
+regression with tricube weights. The neighborhood fraction is set by
+`span: number` in `(0, 1]` (default `0.75`); larger spans are smoother. `span`
+applies only to `loess`; pairing it with `method: "lm"` MUST emit `E1404`. Loess
+output MUST be deterministic and independent of platform locale or any
+randomization.
+
+Version 0.23.0 MUST support `se: true`, which draws a confidence band around the
+fitted line (a filled polygon, drawn beneath the line, using the `fill` color
+when given or the stroke color otherwise). The band half-width is `1.96` times
+the standard error of the fit under a normal approximation (≈ 95%). The band is
+sampled across the x-range; an `lm` band narrows toward the mean of x and widens
+toward the extremes. `se` defaults to `false`.
 
 Smooth grouping MUST follow the `group` aesthetic when present.
 
@@ -4234,7 +4287,13 @@ third quartile
 
 maximum whisker
 
-outliers MAY be rendered by default.
+Whiskers extend to the most extreme observation within `1.5 · IQR` of the
+quartiles.
+
+Version 0.23.0: observations beyond the `1.5 · IQR` fences MUST render as small
+open circles centered on the box ("outliers"). `outliers: true` is the default;
+`outliers: false` suppresses them. Outlier order MUST follow the sorted group so
+output stays deterministic.
 
 Properties:
 
@@ -4246,7 +4305,7 @@ alpha
 
 width
 
-outliers
+outliers (boolean, default true)
 
 Boxplot MUST group by x coordinate and nested coordinate.
 
@@ -4444,6 +4503,7 @@ Syntax:
 
 ```ag
 Segment(x: 160, y: 55, xend: 185, yend: 85)
+Segment(x: low, y: city, xend: high, yend: city, stroke: "#bbbbbb")
 ```
 
 Supported spaces:
@@ -4452,7 +4512,16 @@ Supported spaces:
 
 Segment maps literal endpoints through scales.
 
-Segment MAY support column mappings later.
+Version 0.23.0 MUST support column mappings for `x`, `y`, `xend`, and `yend` in
+addition to literals. When any endpoint is a column mapping, Segment draws one
+segment per data row from `(x, y)` to `(xend, yend)`; when all four are literals
+it draws a single annotation segment. Mapped numeric and temporal endpoints map
+through the continuous/temporal axis and extend its trained domain; a mapped
+categorical endpoint resolves to the band center. The `stroke` aesthetic MAY be
+a column mapping, colored per segment. Rows missing any endpoint value MUST be
+skipped, with a single aggregated `R0002` warning reporting the skipped count.
+This makes Segment suitable for slope and dumbbell charts where `Line` is not a
+natural fit.
 
 ### 14.20 Rug
 
@@ -4747,6 +4816,13 @@ Bin stat MUST output `bin_start`, `bin_end`, `bin_center`, and `count`.
 
 Bin stat SHOULD output `density`.
 
+Version 0.23.0: when the Bin stat receives a second, categorical group column
+(the grouped-`Histogram` desugaring, spec §14.5), it MUST bin every group over
+the same shared edges and emit one row per `(bin, group)`, adding the group key
+column plus pre-stacked `stack_lower`/`stack_upper` y-bounds. Stacking order
+follows group first-appearance, and row order is bin-major, group-minor, for
+determinism.
+
 `bin_start`, `bin_end`, and `bin_center` have the same domain type as the input column.
 
 For numeric inputs, bin boundary columns are numeric.
@@ -4778,7 +4854,10 @@ Smooth stat computes fitted y values.
 
 Method `lm` fits linear regression.
 
-Method `loess` may be implemented later.
+Version 0.23.0: method `loess` fits locally weighted degree-1 regression with
+tricube weights and a neighborhood fraction set by `span` in `(0, 1]` (default
+`0.75`). The result MUST be deterministic. `span` paired with `lm` MUST emit
+`E1404`.
 
 Output columns:
 
@@ -4788,7 +4867,12 @@ y
 
 group
 
-se MAY be later.
+Version 0.23.0: when `se: true`, the Smooth stat MUST append `ymin`, `ymax`, and
+`se` columns, where `se` is the standard error of the fitted `y` and
+`ymin`/`ymax` are `y ∓ 1.96 · se` (a ≈95% band under a normal approximation).
+Without `se`, only `x` and `y` (and `group` when grouped) are emitted. A
+downstream `Ribbon(ymin: ymin, ymax: ymax)` over the derived table draws the
+band explicitly.
 
 Smooth stat MUST handle insufficient data with diagnostics.
 
@@ -5008,9 +5092,9 @@ categorical band
 
 temporal linear MUST be implemented in version 0.1
 
-log10 SHOULD be later
+log10 MUST be implemented in version 0.2
 
-sqrt SHOULD be later
+sqrt MUST be implemented in version 0.23
 
 reverse SHOULD be later
 
@@ -5289,6 +5373,14 @@ with no target MUST emit `E1204`.
 Axis scale targets use `Scale(axis: x, ...)` or `Scale(axis: y, ...)`; axis selectors MUST be bare `x` and `y`, not string literals.
 
 Version 0.2.0 MUST support continuous position scale types `"linear"` and `"log10"`.
+
+Version 0.23.0 MUST support the continuous position scale type `"sqrt"`, a
+square-root transform for non-negative continuous axes. Tick values are nice
+data values (as for `"linear"`), positioned along the axis by their square root.
+A `"sqrt"` scale on a non-numeric axis MUST emit `R0004`, as MUST a `"sqrt"`
+scale whose declared `domain` contains a negative bound. When the trained domain
+or declared bound is negative the renderer falls back to a linear axis rather
+than producing `NaN` positions.
 
 Version 0.2.0 MUST support numeric position domains with `domain: [min, max]`.
 
@@ -8841,7 +8933,7 @@ suggest `"identity"`, `"stack"`, `"fill"`.
 
 After `method:` in `Smooth`:
 
-suggest `"lm"`, `"loess"` if implemented.
+suggest `"lm"`, `"loess"`.
 
 ## 38. Appendix F: Implementation Checklist
 

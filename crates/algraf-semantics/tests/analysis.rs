@@ -520,11 +520,38 @@ fn test_stacked_bar_has_no_dodge_hint() {
 }
 
 #[test]
-fn test_smooth_loess_is_deferred_in_version_0_1() {
+fn test_smooth_loess_is_accepted() {
+    clean(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Smooth(method: \"loess\", span: 0.6, se: true)\n  }\n}",
+    );
+}
+
+#[test]
+fn test_smooth_span_rejected_for_lm() {
     assert!(has(
-        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Smooth(method: \"loess\")\n  }\n}",
-        "E1204"
+        "Chart(data: \"d.csv\") {\n  Derive fit = Smooth(value, amount, method: \"lm\", span: 0.5)\n  Space(x * y, data: fit) { Line() }\n}",
+        "E1404"
     ));
+}
+
+#[test]
+fn test_smooth_se_extends_derived_schema() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Derive fit = Smooth(value, amount, se: true)\n  Space(x * y, data: fit) { Line() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let cols: Vec<&str> = ir.derived_tables[0]
+        .output_schema
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(cols, vec!["x", "y", "ymin", "ymax", "se"]);
 }
 
 #[test]
@@ -592,6 +619,61 @@ fn test_direct_histogram_desugars_to_bin_and_rect() {
     assert!(matches!(ir.spaces[0].frame, FrameIr::Cartesian(ref axes) if axes.len() == 2));
     assert_eq!(ir.spaces[0].geometries.len(), 1);
     assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Rect);
+}
+
+#[test]
+fn test_grouped_histogram_desugars_to_grouped_bin_and_stacked_rect() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Space(value) {\n    Histogram(fill: species, bins: 4)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let derived = &ir.derived_tables[0];
+    // The grouped Bin takes a two-column (value, group) input and emits the
+    // group key plus pre-stacked y-bounds.
+    assert!(matches!(derived.stat.input, FrameIr::Cartesian(ref axes) if axes.len() == 2));
+    let cols: Vec<&str> = derived
+        .output_schema
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(
+        cols,
+        vec![
+            "bin_start",
+            "bin_end",
+            "bin_center",
+            "count",
+            "density",
+            "species",
+            "stack_lower",
+            "stack_upper"
+        ]
+    );
+    // The Rect stacks via ymin/ymax and colors by the group column.
+    let rect = &ir.spaces[0].geometries[0];
+    assert_eq!(rect.kind, GeometryKind::Rect);
+    assert!(rect
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == PropertyKey::Fill && m.column.name == "species"));
+    assert!(rect
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == PropertyKey::Ymin));
+}
+
+#[test]
+fn test_grouped_histogram_temporal_input_is_rejected() {
+    assert!(has(
+        "Chart(data: \"d.csv\") {\n  Space(time) {\n    Histogram(fill: species)\n  }\n}",
+        "E1404"
+    ));
 }
 
 #[test]
@@ -1211,6 +1293,11 @@ fn test_text_missing_label_is_rejected() {
 #[test]
 fn test_segment_geometry_is_registered() {
     clean("Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Segment(x: 160, y: 55, xend: 185, yend: 85)\n  }\n}");
+}
+
+#[test]
+fn test_segment_accepts_column_endpoints() {
+    clean("Chart(data: \"p.csv\") {\n  Space(value * species) {\n    Segment(x: value, y: species, xend: amount, yend: species, stroke: species)\n  }\n}");
 }
 
 // --- Diagnostic hints ---

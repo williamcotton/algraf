@@ -256,6 +256,37 @@ fn test_smooth_lm_renders_fit_line() {
 }
 
 #[test]
+fn test_smooth_loess_renders_curved_polyline() {
+    // A loess fit is sampled across the range, so its path has many vertices
+    // (one M plus several L commands), unlike the two-point lm line.
+    let result = render_result(
+        "Chart(data: \"s.csv\") { Space(x * y) { Smooth(method: \"loess\", span: 0.6, stroke: \"#333333\") } }",
+        "x,y\n0,0\n1,1\n2,4\n3,9\n4,16\n5,25\n6,16\n7,9\n8,4\n9,1\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-smooth"));
+    let line = result
+        .svg
+        .lines()
+        .find(|l| l.contains("<path") && l.contains("#333333"))
+        .unwrap();
+    assert!(line.matches('L').count() > 5, "loess path: {line}");
+}
+
+#[test]
+fn test_smooth_se_renders_confidence_band() {
+    // With se: true a filled band path is drawn behind the fitted line, so two
+    // paths appear per smooth.
+    let result = render_result(
+        "Chart(data: \"s.csv\") { Space(x * y) { Smooth(method: \"lm\", se: true, stroke: \"#333333\", fill: \"#cccccc\") } }",
+        "x,y\n1,2\n2,2.5\n3,5\n4,6\n5,9\n6,9.5\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("fill=\"#cccccc\""));
+    assert_eq!(result.svg.matches("<path").count(), 2);
+}
+
+#[test]
 fn test_temporal_axis() {
     let svg = render_svg(
         "Chart(data: \"t.csv\") { Space(day * value) { Line() } }",
@@ -402,6 +433,27 @@ fn test_boxplot_renders_summary_marks() {
     assert!(result.svg.contains("algraf-geom-boxplot"));
     assert!(result.svg.contains("<line"));
     assert!(result.svg.contains("<rect x="));
+}
+
+#[test]
+fn test_boxplot_renders_outliers_by_default() {
+    // Group `a` is 1..9 plus a far outlier at 100; it lies beyond the
+    // 1.5·IQR fence and renders as a circle.
+    let result = render_result(
+        "Chart(data: \"b.csv\") { Space(group * value) { Boxplot() } }",
+        "group,value\na,1\na,2\na,3\na,4\na,5\na,6\na,7\na,8\na,9\na,100\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.svg.matches("<circle").count(), 1);
+}
+
+#[test]
+fn test_boxplot_outliers_false_suppresses_circles() {
+    let result = render_result(
+        "Chart(data: \"b.csv\") { Space(group * value) { Boxplot(outliers: false) } }",
+        "group,value\na,1\na,2\na,3\na,4\na,5\na,6\na,7\na,8\na,9\na,100\n",
+    );
+    assert_eq!(result.svg.matches("<circle").count(), 0);
 }
 
 #[test]
@@ -723,6 +775,21 @@ fn test_scale_domain_reverse_and_log_render() {
 }
 
 #[test]
+fn test_sqrt_scale_renders_and_positions_by_square_root() {
+    // On a sqrt axis with domain [0, 100], the value 25 sits at the pixel
+    // midpoint (sqrt(25)/sqrt(100) = 0.5), unlike a linear axis where 50 would.
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, type: \"sqrt\", domain: [0, 100])\n  Space(x * y) { Point() }\n}",
+        "x,y\n0,1\n25,2\n100,3\n",
+    );
+    assert!(svg.contains("algraf-axes"));
+    // Nice data-value ticks are still emitted (not log decades): a linearly
+    // spaced 0,20,…,100 set, with 100 at the far end.
+    assert!(svg.contains(">40</text>"));
+    assert!(svg.contains(">100</text>"));
+}
+
+#[test]
 fn test_scale_integer_constrains_axis_ticks_to_whole_numbers() {
     // A small integer-valued domain would otherwise pick a 0.5 tick step once
     // the 8% padding makes the bounds fractional.
@@ -744,6 +811,27 @@ fn test_scale_accent_palette_changes_categorical_colors() {
     );
     assert!(svg.contains("fill=\"#006BA4\""));
     assert!(svg.contains("fill=\"#FF800E\""));
+}
+
+#[test]
+fn test_grouped_histogram_stacks_and_legends() {
+    // Two species across two bins: bars stack within each bin, and a fill
+    // legend is emitted from the group column.
+    let result = render_result(
+        "Chart(data: \"d.csv\") { Space(v) { Histogram(fill: g, bins: 2) } }",
+        "v,g\n1,a\n1,b\n2,a\n2,a\n2,b\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    // A grouped histogram desugars to stacked Rects with a categorical fill.
+    assert!(result.svg.contains("algraf-geom-rect"));
+    assert!(result.svg.contains("algraf-legends"));
+    // Each (bin, group) cell with a nonzero count is a stacked rect; the two
+    // species give distinct fills.
+    let data_layer = result
+        .svg
+        .split_once("algraf-legends")
+        .map_or(result.svg.as_str(), |(before, _)| before);
+    assert!(data_layer.matches("<rect").count() >= 4);
 }
 
 #[test]
@@ -813,6 +901,30 @@ fn test_segment_renders_line_between_literal_endpoints() {
     );
     assert!(svg.contains("algraf-geom-segment"));
     assert!(svg.contains("<line "));
+}
+
+#[test]
+fn test_segment_renders_one_line_per_row_for_mapped_endpoints() {
+    // A dumbbell: one horizontal segment per category, from `low` to `high`.
+    let result = render_result(
+        "Chart(data: \"p.csv\") {\n  Space(low * city) {\n    Segment(x: low, y: city, xend: high, yend: city, stroke: \"#abcdef\")\n  }\n}",
+        "city,low,high\nA,1,5\nB,2,8\nC,0,3\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.svg.matches("stroke=\"#abcdef\"").count(), 3);
+}
+
+#[test]
+fn test_segment_skips_rows_with_missing_endpoints() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") {\n  Space(low * city) {\n    Segment(x: low, y: city, xend: high, yend: city, stroke: \"#abcdef\")\n  }\n}",
+        "city,low,high\nA,1,5\nB,2,\nC,0,3\n",
+    );
+    assert_eq!(result.svg.matches("stroke=\"#abcdef\"").count(), 2);
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.message.contains("Segment skipped")));
 }
 
 // --- Diagnostics ---
@@ -1020,6 +1132,36 @@ fn test_mapped_strokewidth_emits_per_segment_lines() {
             .len()
             > 1
     );
+}
+
+#[test]
+fn test_taper_renders_single_filled_ribbon() {
+    // With taper, a mapped-strokeWidth Path becomes one filled polygon instead
+    // of per-segment round-capped lines.
+    let csv = "x,y,w\n1,1,1\n2,2,50\n3,1,100\n";
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Scale(strokeWidth: w, domain: [0, null], range: [0, 20]) Space(x * y) { Path(strokeWidth: w, taper: true, stroke: \"#8b5a2b\") } }",
+        csv,
+    );
+    let data_layer = svg
+        .split_once("algraf-legends")
+        .map_or(svg.as_str(), |(before, _)| before);
+    // No per-segment lines; a single filled ribbon path instead.
+    assert_eq!(data_layer.matches("stroke-linecap=\"round\"").count(), 0);
+    assert_eq!(data_layer.matches("fill=\"#8b5a2b\"").count(), 1);
+    // A closed polygon: the path ends with Z.
+    assert!(data_layer.contains("Z\""));
+}
+
+#[test]
+fn test_taper_without_mapped_width_falls_back_to_plain_line() {
+    // taper only applies to a mapped strokeWidth; a constant width is unaffected.
+    let csv = "x,y\n1,1\n2,2\n3,1\n";
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Space(x * y) { Line(taper: true, strokeWidth: 2, stroke: \"#123456\") } }",
+        csv,
+    );
+    assert!(svg.contains("fill=\"none\" stroke=\"#123456\""));
 }
 
 #[test]

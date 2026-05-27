@@ -28,6 +28,33 @@ impl Analyzer<'_> {
             .require_numeric_vector(frame, histogram.span, "Histogram", true)?
             .clone();
 
+        // Grouping column: an explicit `group` mapping, else a `fill` column
+        // mapping (spec §15.6). A literal `fill: "color"` is a setting, not a
+        // mapping, so it does not trigger grouping.
+        let group = histogram
+            .mappings
+            .iter()
+            .find(|m| m.aesthetic == PropertyKey::Group)
+            .or_else(|| {
+                histogram
+                    .mappings
+                    .iter()
+                    .find(|m| m.aesthetic == PropertyKey::Fill)
+            })
+            .map(|m| m.column.clone());
+
+        if let Some(group) = group {
+            if input.dtype == DataType::Temporal {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    "grouped Histogram requires a numeric input column",
+                    histogram.span,
+                ));
+                return None;
+            }
+            return Some(self.grouped_histogram(histogram, input, group, theme, guides, scales));
+        }
+
         let name = self.next_synthetic("histogram");
         let options = self.bin_options_from_geometry(histogram, input.dtype);
         let output_schema = bin_output_schema(input.dtype);
@@ -81,6 +108,96 @@ impl Analyzer<'_> {
             span: histogram.span,
         };
         Some((derive, space))
+    }
+
+    /// Desugar a grouped `Histogram` into a grouped `Bin` plus stacked `Rect`s
+    /// colored by the group column (spec §15.6). The `Bin` stat receives a
+    /// two-column `(value, group)` input and emits pre-stacked y-bounds, which
+    /// the `Rect` reads as `ymin`/`ymax`. The group column drives a categorical
+    /// `fill` scale and its legend.
+    fn grouped_histogram(
+        &mut self,
+        histogram: &GeometryIr,
+        value: ColumnRef,
+        group: ColumnRef,
+        theme: Option<ThemeIr>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+    ) -> (DeriveIr, SpaceIr) {
+        let span = histogram.span;
+        let name = self.next_synthetic("histogram");
+        let options = self.bin_options_from_geometry(histogram, value.dtype);
+        let output_schema = crate::planning::grouped_bin_output_schema(&group.name);
+        let derive = DeriveIr {
+            name: name.clone(),
+            data: SpaceDataRef::Primary,
+            stat: StatCallIr {
+                kind: StatKind::Bin,
+                input: FrameIr::Cartesian(vec![
+                    FrameIr::Vector(value),
+                    FrameIr::Vector(group.clone()),
+                ]),
+                options,
+                span,
+            },
+            output_schema,
+            span,
+        };
+
+        let bin_start = synthetic_column("bin_start", DataType::Float, span);
+        let bin_end = synthetic_column("bin_end", DataType::Float, span);
+        let count = synthetic_column("count", DataType::Integer, span);
+        let stack_lower = synthetic_column("stack_lower", DataType::Float, span);
+        let stack_upper = synthetic_column("stack_upper", DataType::Float, span);
+        let group_col = ColumnRef {
+            name: group.name.clone(),
+            dtype: DataType::String,
+            span,
+        };
+        let rect = GeometryIr {
+            kind: GeometryKind::Rect,
+            mappings: vec![
+                AestheticMapping {
+                    aesthetic: PropertyKey::Xmin,
+                    column: bin_start.clone(),
+                    span,
+                },
+                AestheticMapping {
+                    aesthetic: PropertyKey::Xmax,
+                    column: bin_end,
+                    span,
+                },
+                AestheticMapping {
+                    aesthetic: PropertyKey::Ymin,
+                    column: stack_lower,
+                    span,
+                },
+                AestheticMapping {
+                    aesthetic: PropertyKey::Ymax,
+                    column: stack_upper,
+                    span,
+                },
+                AestheticMapping {
+                    aesthetic: PropertyKey::Fill,
+                    column: group_col,
+                    span,
+                },
+            ],
+            // Pass through stroke/strokeWidth/alpha; `fill` is now a mapping.
+            settings: passthrough_settings(histogram, GROUPED_RECT_SETTINGS),
+            span,
+        };
+        let space = SpaceIr {
+            data: SpaceDataRef::Derived(name),
+            frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
+            geometries: vec![rect],
+            guides,
+            scales,
+            theme,
+            projection: None,
+            span,
+        };
+        (derive, space)
     }
 
     pub(super) fn desugar_freq_poly(
@@ -601,6 +718,14 @@ fn synthetic_column(name: &str, dtype: DataType, span: Span) -> ColumnRef {
 /// low-level mark it lowers into (fill area / rect / line).
 const FILL_SETTINGS: &[PropertyKey] = &[
     PropertyKey::Fill,
+    PropertyKey::Stroke,
+    PropertyKey::StrokeWidth,
+    PropertyKey::Alpha,
+];
+
+/// Settings passed through to a grouped histogram's `Rect`, where `fill` is a
+/// group-column mapping rather than a literal color (spec §15.6).
+const GROUPED_RECT_SETTINGS: &[PropertyKey] = &[
     PropertyKey::Stroke,
     PropertyKey::StrokeWidth,
     PropertyKey::Alpha,

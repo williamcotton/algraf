@@ -59,7 +59,7 @@ pub(crate) fn render(
         GeometryKind::Rug => annotation::render_rug(w, geo, ctx),
         GeometryKind::Area => line::render_area(w, geo, ctx),
         GeometryKind::Text => text::render(w, geo, ctx),
-        GeometryKind::Segment => annotation::render_segment(w, geo, ctx),
+        GeometryKind::Segment => annotation::render_segment(w, geo, ctx, diagnostics),
         GeometryKind::Geo => geo::render(w, geo, ctx),
         GeometryKind::Graticule => graticule::render(w, geo, ctx),
         other => diagnostics.push(Diagnostic::warning(

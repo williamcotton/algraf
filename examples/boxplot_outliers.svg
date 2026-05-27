@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="460" viewBox="0 0 700 460" role="img" aria-label="Sensor readings with outliers">
+<title>Sensor readings with outliers</title>
+<rect class="algraf-background" x="0" y="0" width="700" height="460" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Sensor readings with outliers</text>
+<rect class="algraf-plot-area" x="60" y="66" width="490" height="344" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="60" y1="358.299" x2="550" y2="358.299" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="302.346" x2="550" y2="302.346" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="246.393" x2="550" y2="246.393" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="190.44" x2="550" y2="190.44" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="134.487" x2="550" y2="134.487" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="78.534" x2="550" y2="78.534" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-boxplot">
+  <line x1="141.667" y1="302.346" x2="141.667" y2="268.774" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <line x1="123.373" y1="302.346" x2="159.96" y2="302.346" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <line x1="123.373" y1="268.774" x2="159.96" y2="268.774" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <rect x="95.933" y="272.971" width="91.467" height="19.584" fill="#4E79A7" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <line x1="95.933" y1="282.763" x2="187.4" y2="282.763" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <circle cx="141.667" cy="145.677" r="2" fill="none" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <line x1="305" y1="246.393" x2="305" y2="212.821" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <line x1="286.707" y1="246.393" x2="323.293" y2="246.393" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <line x1="286.707" y1="212.821" x2="323.293" y2="212.821" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <rect x="259.267" y="218.416" width="91.467" height="22.381" fill="#F28E2B" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <line x1="259.267" y1="229.607" x2="350.733" y2="229.607" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <circle cx="305" cy="386.276" r="2" fill="none" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <circle cx="305" cy="89.724" r="2" fill="none" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <line x1="468.333" y1="190.44" x2="468.333" y2="156.868" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <line x1="450.04" y1="190.44" x2="486.627" y2="190.44" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <line x1="450.04" y1="156.868" x2="486.627" y2="156.868" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <rect x="422.6" y="166.66" width="91.467" height="19.584" fill="#E15759" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <line x1="422.6" y1="176.452" x2="514.067" y2="176.452" stroke="#333333" stroke-width="1" opacity="0.78" />
+  <circle cx="468.333" cy="347.109" r="2" fill="none" stroke="#333333" stroke-width="1" opacity="0.78" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="410" x2="550" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="141.667" y1="410" x2="141.667" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="141.667" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">North</text>
+  <line x1="305" y1="410" x2="305" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="305" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">South</text>
+  <line x1="468.333" y1="410" x2="468.333" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="468.333" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">East</text>
+  <text x="305" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sensor</text>
+  <line x1="60" y1="66" x2="60" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="358.299" x2="60" y2="358.299" stroke="#333333" stroke-width="1" />
+  <text x="52" y="362.299" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="55" y1="302.346" x2="60" y2="302.346" stroke="#333333" stroke-width="1" />
+  <text x="52" y="306.346" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55" y1="246.393" x2="60" y2="246.393" stroke="#333333" stroke-width="1" />
+  <text x="52" y="250.393" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <line x1="55" y1="190.44" x2="60" y2="190.44" stroke="#333333" stroke-width="1" />
+  <text x="52" y="194.44" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <line x1="55" y1="134.487" x2="60" y2="134.487" stroke="#333333" stroke-width="1" />
+  <text x="52" y="138.487" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
+  <line x1="55" y1="78.534" x2="60" y2="78.534" stroke="#333333" stroke-width="1" />
+  <text x="52" y="82.534" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
+  <text x="31.6" y="238" text-anchor="middle" transform="rotate(-90 31.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Reading</text>
+</g>
+<g class="algraf-legends">
+  <text x="566" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">sensor</text>
+  <rect x="566" y="78" width="12" height="12" fill="#4E79A7" />
+  <text x="584" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">North</text>
+  <rect x="566" y="96" width="12" height="12" fill="#F28E2B" />
+  <text x="584" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">South</text>
+  <rect x="566" y="114" width="12" height="12" fill="#E15759" />
+  <text x="584" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">East</text>
+</g>
+</svg>

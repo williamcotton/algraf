@@ -1,0 +1,8 @@
+Chart(data: "sensor_readings.csv", width: 700, height: 460, title: "Sensor readings with outliers") {
+    Guide(axis: x, label: "Sensor")
+    Guide(axis: y, label: "Reading")
+
+    Space(sensor * reading) {
+        Boxplot(fill: sensor, alpha: 0.78, outliers: true)
+    }
+}

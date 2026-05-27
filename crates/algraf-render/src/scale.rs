@@ -18,6 +18,9 @@ pub struct ContinuousScale {
 pub enum ContinuousTransform {
     Linear,
     Log10,
+    /// Square-root transform for non-negative continuous position axes
+    /// (spec §16.2). Ticks are nice data values positioned by `sqrt`.
+    Sqrt,
 }
 
 impl ContinuousScale {
@@ -27,6 +30,10 @@ impl ContinuousScale {
 
     pub fn log10(min: f64, max: f64, range: (f64, f64)) -> Self {
         Self::with_transform(min, max, range, ContinuousTransform::Log10)
+    }
+
+    pub fn sqrt(min: f64, max: f64, range: (f64, f64)) -> Self {
+        Self::with_transform(min, max, range, ContinuousTransform::Sqrt)
     }
 
     fn with_transform(
@@ -62,6 +69,11 @@ impl ContinuousScale {
                 let max = self.max.log10();
                 (value.log10() - min) / (max - min)
             }
+            ContinuousTransform::Sqrt => {
+                let min = self.min.max(0.0).sqrt();
+                let max = self.max.max(0.0).sqrt();
+                (value.max(0.0).sqrt() - min) / (max - min)
+            }
         };
         self.range.0 + t * (self.range.1 - self.range.0)
     }
@@ -73,6 +85,9 @@ impl ContinuousScale {
             }
             ContinuousTransform::Linear => nice_ticks(self.min, self.max, target),
             ContinuousTransform::Log10 => log_ticks(self.min, self.max),
+            // Sqrt ticks are nice data values; the `map` above positions them on
+            // the square-root axis (spec §16.2).
+            ContinuousTransform::Sqrt => nice_ticks(self.min, self.max, target),
         }
     }
 }
@@ -384,5 +399,34 @@ fn log_ticks(min: f64, max: f64) -> Vec<f64> {
         vec![min, max]
     } else {
         ticks
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sqrt_scale_positions_by_square_root() {
+        let scale = ContinuousScale::sqrt(0.0, 100.0, (0.0, 100.0));
+        // 25 → sqrt(25)/sqrt(100) = 0.5 of the range.
+        assert!((scale.map(25.0) - 50.0).abs() < 1e-9);
+        assert!((scale.map(0.0) - 0.0).abs() < 1e-9);
+        assert!((scale.map(100.0) - 100.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn sqrt_scale_uses_nice_data_value_ticks() {
+        let scale = ContinuousScale::sqrt(0.0, 100.0, (0.0, 1.0));
+        let ticks = scale.ticks(5);
+        assert!(ticks.contains(&100.0));
+        // Ticks are evenly spaced data values, not log decades.
+        assert!(ticks.windows(2).all(|w| (w[1] - w[0] - 20.0).abs() < 1e-9));
+    }
+
+    #[test]
+    fn sqrt_scale_clamps_negative_input() {
+        let scale = ContinuousScale::sqrt(0.0, 100.0, (0.0, 100.0));
+        assert!(scale.map(-4.0).is_finite());
     }
 }

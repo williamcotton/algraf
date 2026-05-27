@@ -1,0 +1,6 @@
+Chart(data: "penguins.csv", width: 760, height: 500, title: "Per-species loess fits") {
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.4, size: 3)
+        Smooth(method: "loess", span: 0.75, stroke: species, strokeWidth: 2)
+    }
+}

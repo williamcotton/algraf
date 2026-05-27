@@ -12,9 +12,30 @@
 use std::collections::HashMap;
 
 use algraf_data::{DataFrame, Table};
-use algraf_semantics::{BinClosedIr, BinIntervalIr, ChartIr, FrameIr, SpaceDataRef, StatOptionsIr};
+use algraf_semantics::{
+    BinClosedIr, BinIntervalIr, ChartIr, FrameIr, SmoothMethodIr, SpaceDataRef, StatOptionsIr,
+};
 
 use crate::stats;
+
+/// Translate IR smooth options into renderer [`stats::SmoothOptions`], applying
+/// the loess-span default (spec §15.x).
+pub(super) fn smooth_options(
+    method: SmoothMethodIr,
+    span: Option<f64>,
+    se: bool,
+) -> stats::SmoothOptions {
+    let defaults = stats::SmoothOptions::default();
+    stats::SmoothOptions {
+        method: match method {
+            SmoothMethodIr::Lm => stats::SmoothMethod::Lm,
+            SmoothMethodIr::Loess => stats::SmoothMethod::Loess,
+        },
+        span: span.unwrap_or(defaults.span),
+        se,
+        ..defaults
+    }
+}
 
 pub(super) fn active_table<'t>(
     data: &SpaceDataRef,
@@ -51,20 +72,38 @@ pub(super) fn compute_derived(
                     closed,
                     interval,
                 } => {
-                    if let FrameIr::Vector(col) = &d.stat.input {
-                        let options = stats::BinOptions {
-                            bins: bins_or_default(*bins),
-                            bin_width: bin_width.filter(|n| *n > 0.0),
-                            boundary: *boundary,
-                            closed: match closed {
-                                BinClosedIr::Left => stats::BinClosed::Left,
-                                BinClosedIr::Right => stats::BinClosed::Right,
-                            },
-                            interval: interval.map(render_bin_interval),
-                        };
-                        Some(stats::bin_with_options(source, &col.name, options))
-                    } else {
-                        None
+                    let options = stats::BinOptions {
+                        bins: bins_or_default(*bins),
+                        bin_width: bin_width.filter(|n| *n > 0.0),
+                        boundary: *boundary,
+                        closed: match closed {
+                            BinClosedIr::Left => stats::BinClosed::Left,
+                            BinClosedIr::Right => stats::BinClosed::Right,
+                        },
+                        interval: interval.map(render_bin_interval),
+                    };
+                    match &d.stat.input {
+                        FrameIr::Vector(col) => {
+                            Some(stats::bin_with_options(source, &col.name, options))
+                        }
+                        // A grouped histogram desugars to a two-column Bin input
+                        // `(value, group)`, producing pre-stacked per-group bins
+                        // (spec §15.6).
+                        FrameIr::Cartesian(cols) => {
+                            if let (Some(FrameIr::Vector(value)), Some(FrameIr::Vector(group))) =
+                                (cols.first(), cols.get(1))
+                            {
+                                Some(stats::bin_grouped(
+                                    source,
+                                    &value.name,
+                                    &group.name,
+                                    options,
+                                ))
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
                     }
                 }
                 StatOptionsIr::Bin2D { bins } => {
@@ -144,12 +183,13 @@ pub(super) fn compute_derived(
                         None
                     }
                 }
-                StatOptionsIr::Smooth { .. } => {
+                StatOptionsIr::Smooth { method, span, se } => {
                     if let FrameIr::Cartesian(cols) = &d.stat.input {
                         if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
                             (cols.first(), cols.get(1))
                         {
-                            Some(stats::smooth_lm(source, &x.name, &y.name))
+                            let options = smooth_options(*method, *span, *se);
+                            Some(stats::smooth(source, &x.name, &y.name, options))
                         } else {
                             None
                         }

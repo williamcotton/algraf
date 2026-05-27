@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420" role="img" aria-label="Annual temperature range by city">
+<title>Annual temperature range by city</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="420" fill="#ffffff" />
+<text class="algraf-title" x="90.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Annual temperature range by city</text>
+<rect class="algraf-plot-area" x="90.8" y="66" width="599.2" height="304" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="151.256" y1="66" x2="151.256" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="246.913" y1="66" x2="246.913" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="342.571" y1="66" x2="342.571" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="438.229" y1="66" x2="438.229" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="533.887" y1="66" x2="533.887" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="629.544" y1="66" x2="629.544" y2="370" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-segment">
+  <line x1="390.4" y1="344.667" x2="648.676" y2="344.667" stroke="#bbbbbb" stroke-width="4" opacity="1" />
+  <line x1="199.085" y1="294" x2="562.584" y2="294" stroke="#bbbbbb" stroke-width="4" opacity="1" />
+  <line x1="275.611" y1="243.333" x2="495.623" y2="243.333" stroke="#bbbbbb" stroke-width="4" opacity="1" />
+  <line x1="170.387" y1="192.667" x2="543.452" y2="192.667" stroke="#bbbbbb" stroke-width="4" opacity="1" />
+  <line x1="419.097" y1="142" x2="572.15" y2="142" stroke="#bbbbbb" stroke-width="4" opacity="1" />
+  <line x1="132.124" y1="91.333" x2="447.795" y2="91.333" stroke="#bbbbbb" stroke-width="4" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="390.4" cy="344.667" r="6" fill="#1f77b4" opacity="1" />
+  <circle cx="199.085" cy="294" r="6" fill="#1f77b4" opacity="1" />
+  <circle cx="275.611" cy="243.333" r="6" fill="#1f77b4" opacity="1" />
+  <circle cx="170.387" cy="192.667" r="6" fill="#1f77b4" opacity="1" />
+  <circle cx="419.097" cy="142" r="6" fill="#1f77b4" opacity="1" />
+  <circle cx="132.124" cy="91.333" r="6" fill="#1f77b4" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="90.8" y1="370" x2="690" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="151.256" y1="370" x2="151.256" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="151.256" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">-10</text>
+  <line x1="246.913" y1="370" x2="246.913" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="246.913" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="342.571" y1="370" x2="342.571" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="342.571" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="438.229" y1="370" x2="438.229" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="438.229" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="533.887" y1="370" x2="533.887" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="533.887" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <line x1="629.544" y1="370" x2="629.544" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="629.544" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <text x="390.4" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Temperature (°C)</text>
+  <line x1="90.8" y1="66" x2="90.8" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="85.8" y1="344.667" x2="90.8" y2="344.667" stroke="#333333" stroke-width="1" />
+  <text x="82.8" y="348.667" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Phoenix</text>
+  <line x1="85.8" y1="294" x2="90.8" y2="294" stroke="#333333" stroke-width="1" />
+  <text x="82.8" y="298" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Denver</text>
+  <line x1="85.8" y1="243.333" x2="90.8" y2="243.333" stroke="#333333" stroke-width="1" />
+  <text x="82.8" y="247.333" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Seattle</text>
+  <line x1="85.8" y1="192.667" x2="90.8" y2="192.667" stroke="#333333" stroke-width="1" />
+  <text x="82.8" y="196.667" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Chicago</text>
+  <line x1="85.8" y1="142" x2="90.8" y2="142" stroke="#333333" stroke-width="1" />
+  <text x="82.8" y="146" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Miami</text>
+  <line x1="85.8" y1="91.333" x2="90.8" y2="91.333" stroke="#333333" stroke-width="1" />
+  <text x="82.8" y="95.333" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Anchorage</text>
+  <text x="12" y="218" text-anchor="middle" transform="rotate(-90 12 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">City</text>
+</g>
+</svg>
