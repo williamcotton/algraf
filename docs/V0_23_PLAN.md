@@ -37,7 +37,6 @@ The plan/spec audit found:
 - `Segment` column mappings are mentioned as future support.
 - Boxplot outlier behavior is optional and not a clear Must in current plans.
 - `sqrt` scales remain listed as later in the scale section.
-- 3D Cartesian rendering remains explicitly unsupported.
 
 ## Scope Rules
 
@@ -47,8 +46,6 @@ The plan/spec audit found:
 - High-level geometry additions should document primitive desugarings where
   practical.
 - Existing examples should render unchanged unless a new example is added.
-- Keep 3D Cartesian rendering out of Must scope unless the design becomes clear
-  enough to avoid a partial implementation.
 
 ## Capstone Acceptance Target
 
@@ -73,8 +70,6 @@ git diff -- examples
    do not read external resources.
 3. **Tapered paths are rendering, not scale training.** The existing
    strokeWidth scale remains the data-to-width mapping.
-4. **3D rendering needs a separate design.** This release may document it, but
-   it should not rush a partial renderer.
 
 ## v0.23.0 Must
 
@@ -193,14 +188,6 @@ Acceptance criteria:
 
 ## v0.23.0 Should
 
-### 3D Cartesian rendering design
-
-Status: Planned.
-
-Write a concrete design for whether Algraf should ever render `x * y * z`
-directly, and if so whether the target is facets, depth projection, or a
-separate 3D backend. Do not implement direct 3D rendering without that design.
-
 ### Text label connectors and horizontal declutter
 
 Status: Planned.
@@ -213,7 +200,6 @@ horizontal overlap handling if it can stay deterministic.
 - New data backends.
 - Plugin/custom stat execution.
 - New output backends or interactivity.
-- Direct 3D Cartesian rendering unless promoted from the design note.
 
 ## Optional-Item Audit
 
@@ -230,12 +216,11 @@ horizontal overlap handling if it can stay deterministic.
 
 ### Consider If Capacity Allows (Should)
 
-- 3D Cartesian rendering design.
 - Text label connectors and horizontal declutter.
 
 ### Keep Deferred
 
-- Backend, plugin, and direct 3D implementation work.
+- Backend and plugin implementation work.
 
 ## Promotion Workflow
 
