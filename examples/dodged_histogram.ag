@@ -1,8 +1,12 @@
-Chart(data: "exam_scores.csv", width: 760, height: 460, title: "Exam scores by cohort (dodged)") {
+Chart(
+    data: "exam_scores.csv",
+    width: 760,
+    height: 460,
+    title: "Exam scores by cohort (dodged)"
+) {
     Guide(axis: x, label: "Score")
     Guide(axis: y, label: "Count")
-
     Space(score / cohort) {
-        Histogram(fill: cohort, bins: 14)
+        Histogram(fill: cohort, binWidth: 5, boundary: 45)
     }
 }
