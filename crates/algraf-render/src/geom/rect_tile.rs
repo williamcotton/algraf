@@ -30,18 +30,12 @@ pub(super) fn render_rect(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
         ) else {
             continue;
         };
-        let mut x = xmin.min(xmax);
-        let mut y = ymin.min(ymax);
-        let mut width = (xmax - xmin).abs();
-        let mut height = (ymax - ymin).abs();
-        let marker = stroke_width.max(1.0);
-        if width <= f64::EPSILON {
-            x -= marker / 2.0;
-            width = marker;
-        }
-        if height <= f64::EPSILON {
-            y -= marker / 2.0;
-            height = marker;
+        let x = xmin.min(xmax);
+        let y = ymin.min(ymax);
+        let width = (xmax - xmin).abs();
+        let height = (ymax - ymin).abs();
+        if width <= f64::EPSILON || height <= f64::EPSILON {
+            continue;
         }
         let color = fill
             .resolve(table, row)

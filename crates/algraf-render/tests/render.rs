@@ -597,12 +597,17 @@ fn test_rect_supports_temporal_union_and_categorical_bounds() {
 }
 
 #[test]
-fn test_rect_zero_extent_renders_as_marker() {
+fn test_rect_zero_extent_is_skipped() {
     let svg = render_svg(
         "Chart(data: \"r.csv\") { Space(x * y) { Rect(xmin: x, xmax: x, ymin: 0, ymax: y, strokeWidth: 3) } }",
         "x,y\n1,5\n",
     );
-    assert!(svg.contains("width=\"3\""));
+    let data_layer = svg
+        .split_once("algraf-geom-rect")
+        .and_then(|(_, after)| after.split_once("</g>"))
+        .map(|(layer, _)| layer)
+        .unwrap_or("");
+    assert!(!data_layer.contains("<rect"));
 }
 
 #[test]
@@ -884,6 +889,10 @@ fn test_blended_histogram_overlays_full_width_series_and_annotations() {
         .svg
         .split_once("algraf-legends")
         .map_or(result.svg.as_str(), |(before, _)| before);
+    assert!(
+        !data_layer.contains("height=\"1\""),
+        "zero-count overlaid bins should not render stroked 1px rectangles"
+    );
     let xs: Vec<&str> = data_layer
         .match_indices("<rect x=\"")
         .map(|(i, _)| {

@@ -21,10 +21,8 @@
 <g class="algraf-layer algraf-geom-rect">
   <rect x="60" y="387.249" width="31.875" height="22.751" fill="#4E79A7" opacity="0.9" />
   <rect x="60" y="375.873" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
-  <rect x="60" y="375.373" width="31.875" height="1" fill="#E15759" opacity="0.9" />
   <rect x="91.875" y="387.249" width="31.875" height="22.751" fill="#4E79A7" opacity="0.9" />
   <rect x="91.875" y="375.873" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
-  <rect x="91.875" y="375.373" width="31.875" height="1" fill="#E15759" opacity="0.9" />
   <rect x="123.75" y="318.995" width="31.875" height="91.005" fill="#4E79A7" opacity="0.9" />
   <rect x="123.75" y="284.868" width="31.875" height="34.127" fill="#F28E2B" opacity="0.9" />
   <rect x="123.75" y="250.741" width="31.875" height="34.127" fill="#E15759" opacity="0.9" />
@@ -53,19 +51,13 @@
   <rect x="378.75" y="341.746" width="31.875" height="45.503" fill="#F28E2B" opacity="0.9" />
   <rect x="378.75" y="227.989" width="31.875" height="113.757" fill="#E15759" opacity="0.9" />
   <rect x="410.625" y="398.624" width="31.875" height="11.376" fill="#4E79A7" opacity="0.9" />
-  <rect x="410.625" y="398.124" width="31.875" height="1" fill="#F28E2B" opacity="0.9" />
   <rect x="410.625" y="341.746" width="31.875" height="56.878" fill="#E15759" opacity="0.9" />
   <rect x="442.5" y="398.624" width="31.875" height="11.376" fill="#4E79A7" opacity="0.9" />
   <rect x="442.5" y="387.249" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
   <rect x="442.5" y="341.746" width="31.875" height="45.503" fill="#E15759" opacity="0.9" />
-  <rect x="474.375" y="409.5" width="31.875" height="1" fill="#4E79A7" opacity="0.9" />
   <rect x="474.375" y="398.624" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
   <rect x="474.375" y="387.249" width="31.875" height="11.376" fill="#E15759" opacity="0.9" />
-  <rect x="506.25" y="409.5" width="31.875" height="1" fill="#4E79A7" opacity="0.9" />
-  <rect x="506.25" y="409.5" width="31.875" height="1" fill="#F28E2B" opacity="0.9" />
   <rect x="506.25" y="387.249" width="31.875" height="22.751" fill="#E15759" opacity="0.9" />
-  <rect x="538.125" y="409.5" width="31.875" height="1" fill="#4E79A7" opacity="0.9" />
-  <rect x="538.125" y="409.5" width="31.875" height="1" fill="#F28E2B" opacity="0.9" />
   <rect x="538.125" y="375.873" width="31.875" height="34.127" fill="#E15759" opacity="0.9" />
 </g>
 <g class="algraf-axes">

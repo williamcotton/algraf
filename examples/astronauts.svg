@@ -22,11 +22,8 @@
   <line x1="60" y1="124.783" x2="610" y2="124.783" stroke="#FFFFFF" stroke-width="1" />
 </g>
 <g class="algraf-layer algraf-geom-rect">
-  <rect x="87.5" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="87.5" y="395.739" width="9.167" height="14.261" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="96.667" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="96.667" y="395.739" width="9.167" height="14.261" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="105.833" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="105.833" y="357.71" width="9.167" height="52.29" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="115" y="400.493" width="9.167" height="9.507" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="115" y="324.435" width="9.167" height="85.565" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
@@ -75,7 +72,6 @@
   <rect x="316.667" y="286.406" width="9.167" height="123.594" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="316.667" y="405.246" width="9.167" height="4.754" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="325.833" y="295.913" width="9.167" height="114.087" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="325.833" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="335" y="310.174" width="9.167" height="99.826" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="335" y="405.246" width="9.167" height="4.754" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="344.167" y="324.435" width="9.167" height="85.565" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
@@ -85,13 +81,10 @@
   <rect x="362.5" y="310.174" width="9.167" height="99.826" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="362.5" y="405.246" width="9.167" height="4.754" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="371.667" y="348.203" width="9.167" height="61.797" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="371.667" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="380.833" y="367.217" width="9.167" height="42.783" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="380.833" y="405.246" width="9.167" height="4.754" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="390" y="381.478" width="9.167" height="28.522" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="390" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="399.167" y="395.739" width="9.167" height="14.261" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="399.167" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="408.333" y="395.739" width="9.167" height="14.261" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="408.333" y="405.246" width="9.167" height="4.754" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="417.5" y="390.986" width="9.167" height="19.014" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
@@ -99,45 +92,13 @@
   <rect x="426.667" y="395.739" width="9.167" height="14.261" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="426.667" y="405.246" width="9.167" height="4.754" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="435.833" y="395.739" width="9.167" height="14.261" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="435.833" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="445" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="445" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="454.167" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="454.167" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="463.333" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="463.333" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="472.5" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="472.5" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="481.667" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="481.667" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="490.833" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="490.833" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="500" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="500" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="509.167" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="509.167" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="518.333" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="518.333" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="527.5" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="527.5" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="536.667" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="536.667" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="545.833" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="545.833" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="555" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="555" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="564.167" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="564.167" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="573.333" y="409.5" width="9.167" height="1" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="573.333" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
   <rect x="582.5" y="405.246" width="9.167" height="4.754" fill="#7fc97f" stroke="#000000" stroke-width="1" opacity="0.8" />
-  <rect x="582.5" y="409.5" width="9.167" height="1" fill="#beaed4" stroke="#000000" stroke-width="1" opacity="0.8" />
 </g>
 <g class="algraf-layer algraf-geom-vline">
-  <line x1="188.333" y1="82" x2="188.333" y2="410" stroke="#000000" stroke-width="1" opacity="1" stroke-dasharray="1 2" />
+  <line x1="192.917" y1="82" x2="192.917" y2="410" stroke="#000000" stroke-width="1" opacity="1" stroke-dasharray="1 2" />
 </g>
 <g class="algraf-layer algraf-geom-vline">
-  <line x1="280" y1="82" x2="280" y2="410" stroke="#000000" stroke-width="1" opacity="1" stroke-dasharray="1 2" />
+  <line x1="284.583" y1="82" x2="284.583" y2="410" stroke="#000000" stroke-width="1" opacity="1" stroke-dasharray="1 2" />
 </g>
 <g class="algraf-layer algraf-geom-text">
   <text x="203.333" y="106.261" text-anchor="start" font-family="system-ui, sans-serif" font-size="14" fill="#222222" opacity="1">Mean age at selection = 34</text>

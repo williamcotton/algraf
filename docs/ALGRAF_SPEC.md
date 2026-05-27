@@ -3947,9 +3947,9 @@ use the lower edge and `xmax`/`ymax` use the upper edge.
 For nested bands, a bound mapped to the inner category column MUST use the
 row's outer and inner category values to resolve the nested sub-band.
 
-When a mapped rectangle has zero width or zero height, the renderer MUST draw
-a thin marker at least as wide as the effective `strokeWidth` rather than
-emitting a zero-extent SVG rectangle.
+When a mapped rectangle has zero width or zero height, the renderer MUST skip
+the rectangle rather than emitting a stroked marker. A histogram bin with count
+zero is therefore invisible at the baseline.
 
 `Rect` is the primitive mark used by histogram desugaring.
 
