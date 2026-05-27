@@ -14,6 +14,7 @@ pub fn stat_output_schema(kind: StatKind, input: &FrameIr) -> Vec<ColumnDefIr> {
     match kind {
         StatKind::Bin => match input {
             FrameIr::Vector(column) => bin_output_schema(column.dtype),
+            FrameIr::Union(_) => blended_bin_output_schema(),
             _ => bin_output_schema(DataType::Float),
         },
         StatKind::Bin2D => bin2d_output_schema(),
@@ -127,6 +128,37 @@ pub fn grouped_bin_output_schema(group_name: &str) -> Vec<ColumnDefIr> {
         ColumnDefIr {
             name: "dodge_end".into(),
             dtype: DataType::Float,
+        },
+    ]
+}
+
+/// Output schema for a blended histogram bin (spec §15.6): the per-bin columns
+/// plus a synthetic `series` key naming the source column for each member.
+pub fn blended_bin_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "bin_start".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "bin_end".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "bin_center".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "count".into(),
+            dtype: DataType::Integer,
+        },
+        ColumnDefIr {
+            name: "density".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "series".into(),
+            dtype: DataType::String,
         },
     ]
 }

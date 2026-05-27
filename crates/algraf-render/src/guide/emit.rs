@@ -256,10 +256,14 @@ pub(crate) fn render_legends(w: &mut SvgWriter, legends: &[Legend], area: Rect, 
     w.open_group("class=\"algraf-legends\"");
     let mut y = area.y + 4.0;
     for legend in legends {
-        w.line(&text(area.x, y, "start", &legend.title, theme));
+        if !legend.title.is_empty() {
+            w.line(&text(area.x, y, "start", &legend.title, theme));
+        }
         match legend.kind {
             LegendKind::Discrete => {
-                y += 18.0;
+                if !legend.title.is_empty() {
+                    y += 18.0;
+                }
                 for (index, (label, color)) in legend.entries.iter().enumerate() {
                     // A merged fill+stroke legend draws each swatch with the
                     // fill color and a stroke outline (spec §19.7).

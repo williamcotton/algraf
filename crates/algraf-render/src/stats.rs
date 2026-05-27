@@ -146,6 +146,86 @@ pub fn bin_grouped(
     )
 }
 
+/// Compute a blended histogram-bin derived table over several numeric columns
+/// (spec §15.6). All series share bin edges computed from the combined domain,
+/// and each output row carries a synthetic `series` value naming the source
+/// column. Rows are emitted bin-major, series-minor for deterministic output.
+pub fn bin_blended(table: &dyn Table, value_columns: &[&str], options: BinOptions) -> DataFrame {
+    let bins = options.bins.max(1);
+    let mut min = f64::INFINITY;
+    let mut max = f64::NEG_INFINITY;
+    for column in value_columns {
+        if let Some((lo, hi)) = numeric_domain(table, column) {
+            min = min.min(lo);
+            max = max.max(hi);
+        }
+    }
+    if !min.is_finite() || !max.is_finite() {
+        min = 0.0;
+        max = 1.0;
+    }
+    let (start, width, bin_count) = bin_layout(min, max, bins, options);
+
+    let series_count = value_columns.len();
+    let mut counts = vec![0i64; bin_count * series_count.max(1)];
+    let mut totals = vec![0i64; series_count];
+    for row in 0..table.row_count() {
+        for (si, column) in value_columns.iter().enumerate() {
+            if let Some(v) = cell_f64(table, column, row) {
+                let bi = bin_index(v, start, width, bin_count, options.closed);
+                counts[bi * series_count + si] += 1;
+                totals[si] += 1;
+            }
+        }
+    }
+
+    let mut bin_starts = Vec::new();
+    let mut bin_ends = Vec::new();
+    let mut bin_centers = Vec::new();
+    let mut row_counts = Vec::new();
+    let mut densities = Vec::new();
+    let mut series = Vec::new();
+    for bi in 0..bin_count {
+        let bin_start = start + bi as f64 * width;
+        let bin_end = bin_start + width;
+        for (si, column) in value_columns.iter().enumerate() {
+            let count = counts[bi * series_count + si];
+            bin_starts.push(Some(bin_start));
+            bin_ends.push(Some(bin_end));
+            bin_centers.push(Some((bin_start + bin_end) / 2.0));
+            row_counts.push(Some(count));
+            let total = totals[si] as f64;
+            let density = if total > 0.0 && width.abs() > f64::EPSILON {
+                count as f64 / (total * width.abs())
+            } else {
+                0.0
+            };
+            densities.push(Some(density));
+            series.push(Some((*column).to_string()));
+        }
+    }
+
+    let schema = vec![
+        col_def("bin_start", DataType::Float),
+        col_def("bin_end", DataType::Float),
+        col_def("bin_center", DataType::Float),
+        col_def("count", DataType::Integer),
+        col_def("density", DataType::Float),
+        col_def("series", DataType::String),
+    ];
+    DataFrame::new(
+        schema,
+        vec![
+            Column::Float(bin_starts),
+            Column::Float(bin_ends),
+            Column::Float(bin_centers),
+            Column::Int(row_counts),
+            Column::Float(densities),
+            Column::String(series),
+        ],
+    )
+}
+
 /// Compute a histogram-bin derived table over a numeric input column.
 pub fn bin_with_options(table: &dyn Table, input_column: &str, options: BinOptions) -> DataFrame {
     if table
@@ -1495,5 +1575,57 @@ mod grouped_bin_tests {
         // Adjacent, non-overlapping, equal halves.
         assert!((e0 - s1).abs() < 1e-9);
         assert!((e0 - (bin_start + bin_end) / 2.0).abs() < 1e-9);
+    }
+}
+
+#[cfg(test)]
+mod blended_bin_tests {
+    use super::*;
+
+    fn frame(a: &[Option<f64>], b: &[Option<f64>]) -> DataFrame {
+        DataFrame::new(
+            vec![col_def("a", DataType::Float), col_def("b", DataType::Float)],
+            vec![Column::Float(a.to_vec()), Column::Float(b.to_vec())],
+        )
+    }
+
+    fn opts() -> BinOptions {
+        BinOptions {
+            bins: 2,
+            bin_width: None,
+            boundary: None,
+            closed: BinClosed::Left,
+            interval: None,
+        }
+    }
+
+    #[test]
+    fn shares_edges_across_all_series_and_preserves_order() {
+        let df = frame(
+            &[Some(0.0), Some(1.0), Some(2.0)],
+            &[Some(8.0), Some(9.0), Some(10.0)],
+        );
+        let out = bin_blended(&df, &["a", "b"], opts());
+        assert_eq!(out.row_count(), 4);
+        assert_eq!(cell_f64(&out, "bin_start", 0), Some(0.0));
+        assert_eq!(cell_f64(&out, "bin_start", 1), Some(0.0));
+        assert_eq!(cell_f64(&out, "bin_start", 2), Some(5.0));
+        assert_eq!(cell_category(&out, "series", 0).as_deref(), Some("a"));
+        assert_eq!(cell_category(&out, "series", 1).as_deref(), Some("b"));
+    }
+
+    #[test]
+    fn skips_null_cells_per_series() {
+        let df = frame(&[Some(0.0), None], &[None, Some(1.0)]);
+        let out = bin_blended(&df, &["a", "b"], BinOptions { bins: 1, ..opts() });
+        assert_eq!(out.row_count(), 2);
+        assert_eq!(
+            out.value("count", 0),
+            Some(algraf_data::DataValueRef::Int(1))
+        );
+        assert_eq!(
+            out.value("count", 1),
+            Some(algraf_data::DataValueRef::Int(1))
+        );
     }
 }

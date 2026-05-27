@@ -15,6 +15,7 @@ charts=(
     histogram_direct
     grouped_histogram
     dodged_histogram
+    astronauts
     facet
     connected_scatter
     barcode

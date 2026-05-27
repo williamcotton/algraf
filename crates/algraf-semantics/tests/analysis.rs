@@ -27,6 +27,8 @@ fn schema() -> Vec<ColumnDef> {
         col("type", DataType::String),
         col("amount", DataType::Float),
         col("value", DataType::Float),
+        col("selection_age", DataType::Float),
+        col("mission_age", DataType::Float),
         col("time", DataType::Temporal),
         col("lower", DataType::Float),
         col("upper", DataType::Float),
@@ -700,6 +702,55 @@ fn test_dodged_histogram_nests_value_over_group() {
         .any(|m| m.aesthetic == PropertyKey::Ymax && m.column.name == "count"));
     // Zero baseline as a fixed setting, not a mapping.
     assert!(rect.settings.iter().any(|s| s.name == PropertyKey::Ymin));
+}
+
+#[test]
+fn test_blended_histogram_desugars_to_union_bin_and_series_rect() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Scale(fill: series, range: [\"selection_age\" => \"#beaed4\", \"mission_age\" => \"#7fc97f\"])\n  Space((selection_age + mission_age)) {\n    Histogram(binWidth: 1, alpha: 0.8)\n    VLine(x: 34)\n    Text(x: 44, y: 10, label: \"Mean\")\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let derived = &ir.derived_tables[0];
+    assert!(matches!(derived.stat.input, FrameIr::Union(ref members) if members.len() == 2));
+    let cols: Vec<&str> = derived
+        .output_schema
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(
+        cols,
+        vec![
+            "bin_start",
+            "bin_end",
+            "bin_center",
+            "count",
+            "density",
+            "series"
+        ]
+    );
+
+    assert_eq!(ir.spaces.len(), 1);
+    let space = &ir.spaces[0];
+    assert_eq!(space.geometries.len(), 3);
+    let rect = &space.geometries[0];
+    assert_eq!(rect.kind, GeometryKind::Rect);
+    assert!(rect
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == PropertyKey::Fill && m.column.name == "series"));
+    assert!(rect
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == PropertyKey::Xmin && m.column.name == "bin_start"));
+    assert!(rect.settings.iter().any(|s| s.name == PropertyKey::Ymin));
+    assert_eq!(space.geometries[1].kind, GeometryKind::VLine);
+    assert_eq!(space.geometries[2].kind, GeometryKind::Text);
 }
 
 #[test]

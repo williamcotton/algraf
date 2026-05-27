@@ -102,6 +102,17 @@ impl Analyzer<'_> {
             self.diag(Diagnostic::warning(codes::W2001, "empty Space block", span));
         }
         self.check_spatial_geometries(&geometries, &frame, projection.is_some());
+        let histogram_annotations = if histograms.len() == 1
+            && freq_polys.is_empty()
+            && bin2ds.is_empty()
+            && densities.is_empty()
+            && count_bars.is_empty()
+            && geometries.iter().all(is_histogram_annotation)
+        {
+            std::mem::take(&mut geometries)
+        } else {
+            Vec::new()
+        };
 
         let mut analysis = SpaceAnalysis::default();
         for histogram in histograms {
@@ -111,6 +122,7 @@ impl Analyzer<'_> {
                 theme.clone(),
                 guides.clone(),
                 scales.clone(),
+                histogram_annotations.clone(),
             ) {
                 analysis.derived.push(derive);
                 analysis.spaces.push(histogram_space);
@@ -481,6 +493,13 @@ fn has_count_stat(geo: &GeometryIr) -> bool {
         setting.name == PropertyKey::Stat
             && matches!(&setting.value, SettingValue::String(v) if v == "count")
     })
+}
+
+fn is_histogram_annotation(geo: &GeometryIr) -> bool {
+    matches!(
+        geo.kind,
+        GeometryKind::HLine | GeometryKind::VLine | GeometryKind::Text | GeometryKind::Segment
+    )
 }
 
 pub(super) fn contains_nested(frame: &FrameIr) -> bool {

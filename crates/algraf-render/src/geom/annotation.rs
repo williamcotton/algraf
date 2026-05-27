@@ -7,7 +7,8 @@ use crate::helpers::{number_setting_opt, string_setting};
 use crate::svg::{escape_attr, escape_text, num, SvgWriter};
 
 use super::common::{
-    any_mapped, constant_or, emit_svg_line, pos_center, render_rows, DEFAULT_STROKE,
+    any_mapped, constant_or, emit_svg_line, emit_svg_line_with_dash, pos_center, render_rows,
+    DEFAULT_STROKE,
 };
 use super::GeometryRenderContext;
 
@@ -25,7 +26,18 @@ pub(super) fn render_hline(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRen
     let color = constant_or(&stroke, DEFAULT_STROKE);
     let width = number_setting(geo, PropertyKey::StrokeWidth, theme.line_width);
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
-    emit_svg_line(w, plot.x, y, plot.right(), y, &color, width, alpha);
+    let dash = string_setting(geo, PropertyKey::Dash);
+    emit_svg_line_with_dash(
+        w,
+        plot.x,
+        y,
+        plot.right(),
+        y,
+        &color,
+        width,
+        alpha,
+        dash.as_deref(),
+    );
     if let Some(label) = string_setting(geo, PropertyKey::Label) {
         w.line(&format!(
             "<text x=\"{}\" y=\"{}\" text-anchor=\"end\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
@@ -53,7 +65,18 @@ pub(super) fn render_vline(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRen
     let color = constant_or(&stroke, DEFAULT_STROKE);
     let width = number_setting(geo, PropertyKey::StrokeWidth, theme.line_width);
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
-    emit_svg_line(w, x, plot.y, x, plot.bottom(), &color, width, alpha);
+    let dash = string_setting(geo, PropertyKey::Dash);
+    emit_svg_line_with_dash(
+        w,
+        x,
+        plot.y,
+        x,
+        plot.bottom(),
+        &color,
+        width,
+        alpha,
+        dash.as_deref(),
+    );
     if let Some(label) = string_setting(geo, PropertyKey::Label) {
         w.line(&format!(
             "<text x=\"{}\" y=\"{}\" text-anchor=\"start\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",

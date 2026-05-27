@@ -245,8 +245,28 @@ pub(super) fn emit_svg_line(
     width: f64,
     alpha: f64,
 ) {
+    emit_svg_line_with_dash(w, x1, y1, x2, y2, stroke, width, alpha, None);
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn emit_svg_line_with_dash(
+    w: &mut SvgWriter,
+    x1: f64,
+    y1: f64,
+    x2: f64,
+    y2: f64,
+    stroke: &str,
+    width: f64,
+    alpha: f64,
+    dash: Option<&str>,
+) {
+    let dash_attr = match dash {
+        Some("dotted") => " stroke-dasharray=\"1 2\"",
+        Some("dashed") => " stroke-dasharray=\"4 4\"",
+        _ => "",
+    };
     w.line(&format!(
-        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\" />",
+        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\"{} />",
         num(x1),
         num(y1),
         num(x2),
@@ -254,6 +274,7 @@ pub(super) fn emit_svg_line(
         escape_attr(stroke),
         num(width.max(0.0)),
         num(alpha),
+        dash_attr,
     ));
 }
 

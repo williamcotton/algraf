@@ -23,7 +23,42 @@ impl Analyzer<'_> {
         theme: Option<ThemeIr>,
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
+        annotations: Vec<GeometryIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
+        // Overlay: `Space((a + b)) { Histogram(...) }` blends multiple numeric
+        // columns onto one shared bin axis and draws full-width, alpha-blended
+        // bars colored by a synthetic `series` column (spec §14.7).
+        if let FrameIr::Union(members) = frame {
+            if members.len() < 2 {
+                self.diag(Diagnostic::error(
+                    codes::E1302,
+                    "blended Histogram requires at least two numeric columns",
+                    histogram.span,
+                ));
+                return None;
+            }
+            let mut columns = Vec::new();
+            for member in members {
+                columns.push(
+                    self.require_numeric_vector(
+                        member,
+                        histogram.span,
+                        "blended Histogram",
+                        false,
+                    )?
+                    .clone(),
+                );
+            }
+            return Some(self.blended_histogram(
+                histogram,
+                columns,
+                theme,
+                guides,
+                scales,
+                annotations,
+            ));
+        }
+
         // Dodge: `Space(value / group)` nests the group inside the binned value
         // axis, so each bin is split into side-by-side per-group sub-bars
         // (spec §14.5). The nest is the trigger — no `layout` keyword.
@@ -47,6 +82,7 @@ impl Analyzer<'_> {
                 theme,
                 guides,
                 scales,
+                annotations,
             ));
         }
 
@@ -78,9 +114,16 @@ impl Analyzer<'_> {
                 ));
                 return None;
             }
-            return Some(
-                self.grouped_histogram(histogram, input, group, false, theme, guides, scales),
-            );
+            return Some(self.grouped_histogram(
+                histogram,
+                input,
+                group,
+                false,
+                theme,
+                guides,
+                scales,
+                annotations,
+            ));
         }
 
         let name = self.next_synthetic("histogram");
@@ -128,7 +171,11 @@ impl Analyzer<'_> {
         let space = SpaceIr {
             data: SpaceDataRef::Derived(name),
             frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
-            geometries: vec![rect],
+            geometries: {
+                let mut geometries = vec![rect];
+                geometries.extend(annotations);
+                geometries
+            },
             guides,
             scales,
             theme,
@@ -136,6 +183,74 @@ impl Analyzer<'_> {
             span: histogram.span,
         };
         Some((derive, space))
+    }
+
+    /// Desugar a blended `Histogram` into a `Bin` over a union of numeric
+    /// columns plus overlaid `Rect`s colored by synthetic `series`.
+    #[allow(clippy::too_many_arguments)]
+    fn blended_histogram(
+        &mut self,
+        histogram: &GeometryIr,
+        values: Vec<ColumnRef>,
+        theme: Option<ThemeIr>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+        annotations: Vec<GeometryIr>,
+    ) -> (DeriveIr, SpaceIr) {
+        let span = histogram.span;
+        let name = self.next_synthetic("histogram");
+        let options = self.bin_options_from_geometry(histogram, DataType::Float);
+        let derive = DeriveIr {
+            name: name.clone(),
+            data: SpaceDataRef::Primary,
+            stat: StatCallIr {
+                kind: StatKind::Bin,
+                input: FrameIr::Union(values.into_iter().map(FrameIr::Vector).collect()),
+                options,
+                span,
+            },
+            output_schema: crate::planning::blended_bin_output_schema(),
+            span,
+        };
+
+        let bin_start = synthetic_column("bin_start", DataType::Float, span);
+        let count = synthetic_column("count", DataType::Integer, span);
+        let series = synthetic_column("series", DataType::String, span);
+        let mapping = |aesthetic: PropertyKey, name: &str, dtype: DataType| AestheticMapping {
+            aesthetic,
+            column: synthetic_column(name, dtype, span),
+            span,
+        };
+        let mut settings = vec![fixed_setting(PropertyKey::Ymin, 0.0, span)];
+        settings.extend(passthrough_settings(histogram, GROUPED_RECT_SETTINGS));
+        let rect = GeometryIr {
+            kind: GeometryKind::Rect,
+            mappings: vec![
+                mapping(PropertyKey::Xmin, "bin_start", DataType::Float),
+                mapping(PropertyKey::Xmax, "bin_end", DataType::Float),
+                mapping(PropertyKey::Ymax, "count", DataType::Integer),
+                AestheticMapping {
+                    aesthetic: PropertyKey::Fill,
+                    column: series,
+                    span,
+                },
+            ],
+            settings,
+            span,
+        };
+        let mut geometries = vec![rect];
+        geometries.extend(annotations);
+        let space = SpaceIr {
+            data: SpaceDataRef::Derived(name),
+            frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
+            geometries,
+            guides,
+            scales,
+            theme,
+            projection: None,
+            span,
+        };
+        (derive, space)
     }
 
     /// Desugar a grouped `Histogram` into a grouped `Bin` plus `Rect`s colored by
@@ -156,6 +271,7 @@ impl Analyzer<'_> {
         theme: Option<ThemeIr>,
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
+        annotations: Vec<GeometryIr>,
     ) -> (DeriveIr, SpaceIr) {
         let span = histogram.span;
         let name = self.next_synthetic("histogram");
@@ -233,7 +349,11 @@ impl Analyzer<'_> {
         let space = SpaceIr {
             data: SpaceDataRef::Derived(name),
             frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
-            geometries: vec![rect],
+            geometries: {
+                let mut geometries = vec![rect];
+                geometries.extend(annotations);
+                geometries
+            },
             guides,
             scales,
             theme,

@@ -471,7 +471,7 @@ fn test_ribbon_renders_closed_path() {
 #[test]
 fn test_reference_lines_and_rug_render() {
     let result = render_result(
-        "Chart(data: \"r.csv\") { Space(x * y) { Point() HLine(y: 2, stroke: \"red\", label: \"Target\") VLine(x: 2, stroke: \"gray\", label: \"Marker\") Rug(sides: \"bl\") } }",
+        "Chart(data: \"r.csv\") { Space(x * y) { Point() HLine(y: 2, stroke: \"red\", dash: \"dashed\", label: \"Target\") VLine(x: 2, stroke: \"gray\", dash: \"dotted\", label: \"Marker\") Rug(sides: \"bl\") } }",
         "x,y\n1,1\n2,2\n3,3\n",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -480,6 +480,8 @@ fn test_reference_lines_and_rug_render() {
     assert!(result.svg.contains("algraf-geom-rug"));
     assert!(result.svg.contains(">Target</text>"));
     assert!(result.svg.contains(">Marker</text>"));
+    assert!(result.svg.contains("stroke-dasharray=\"4 4\""));
+    assert!(result.svg.contains("stroke-dasharray=\"1 2\""));
 }
 
 #[test]
@@ -862,6 +864,37 @@ fn test_dodged_histogram_splits_bins_into_subbars() {
     assert!(
         unique.len() >= 4,
         "expected distinct sub-slot x positions: {xs:?}"
+    );
+}
+
+#[test]
+fn test_blended_histogram_overlays_full_width_series_and_annotations() {
+    let result = render_result(
+        "Chart(data: \"d.csv\") { Scale(fill: series, range: [\"a\" => \"#beaed4\", \"b\" => \"#7fc97f\"], labels: [\"a\" => \"A\", \"b\" => \"B\"], label: \"\") Space((a + b)) { Histogram(binWidth: 1, alpha: 0.8, stroke: \"#000000\") VLine(x: 1) Text(x: 2, y: 2, label: \"Mean\") } }",
+        "a,b\n0,1\n0,1\n1,2\n1,2\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-rect"));
+    assert!(result.svg.contains("algraf-legends"));
+    assert!(result.svg.contains(">A</text>"));
+    assert!(result.svg.contains(">B</text>"));
+    assert!(result.svg.contains(">Mean</text>"));
+    assert_eq!(result.svg.matches(">Mean</text>").count(), 1);
+    let data_layer = result
+        .svg
+        .split_once("algraf-legends")
+        .map_or(result.svg.as_str(), |(before, _)| before);
+    let xs: Vec<&str> = data_layer
+        .match_indices("<rect x=\"")
+        .map(|(i, _)| {
+            let s = &data_layer[i + 9..];
+            &s[..s.find('"').unwrap()]
+        })
+        .collect();
+    let unique: std::collections::HashSet<&&str> = xs.iter().collect();
+    assert!(
+        unique.len() < xs.len(),
+        "overlaid series should share x positions: {xs:?}"
     );
 }
 

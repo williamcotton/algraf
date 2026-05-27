@@ -103,6 +103,18 @@ pub(super) fn compute_derived(
                                 None
                             }
                         }
+                        // A blended histogram desugars to a union of numeric
+                        // columns, producing one overlaid series per member.
+                        FrameIr::Union(members) => {
+                            let columns: Option<Vec<&str>> = members
+                                .iter()
+                                .map(|member| match member {
+                                    FrameIr::Vector(column) => Some(column.name.as_str()),
+                                    _ => None,
+                                })
+                                .collect();
+                            columns.map(|columns| stats::bin_blended(source, &columns, options))
+                        }
                         _ => None,
                     }
                 }

@@ -194,6 +194,16 @@ Define whether URL-valued properties are ever allowed for images, hyperlinks, or
 tooltips, and how they interact with SVG injection, previews, and network
 policy. Do not enable URL loading by default.
 
+### Overlaid histogram blend follow-up
+
+Status: Implemented.
+
+Promote the carried-forward grouped-histogram example gap into a concrete
+blend-based form: `Space((a + b)) { Histogram(...) }` bins each numeric column
+over shared edges and overlays full-width series bars. Add dotted/dashed
+reference-line styling as needed for the example. This is chart-surface polish
+and does not affect the v0.24 backend contract work.
+
 ## Explicitly Deferred Past v0.24.0
 
 - Plugin render backends.
@@ -218,6 +228,7 @@ policy. Do not enable URL loading by default.
 - Animated SVG design.
 - Browser/WASM playground design.
 - URL-valued property policy.
+- Overlaid histogram blend follow-up.
 
 ### Keep Deferred
 

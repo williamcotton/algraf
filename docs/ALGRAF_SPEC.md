@@ -4105,6 +4105,28 @@ categorical `fill` legend, and are deterministic (stacking and dodge slots
 ordered by group first-appearance). A grouped Histogram requires a numeric input
 column; a temporal input with grouping MUST emit `E1404`.
 
+Version 0.24.0 MUST support overlaid Histograms by blending numeric columns with
+the blend operator:
+
+```ag
+Space((selection_age + mission_age)) {
+    Histogram(binWidth: 1, alpha: 0.8)
+}
+```
+
+This form bins every blended column over the same shared edges computed from the
+combined numeric domain. It draws one full-width bar per `(bin, series)` from a
+zero baseline to that series' count, with bars overlaid in deterministic
+bin-major, series-minor order. The synthetic `series` column names the source
+column and drives the categorical `fill` scale and legend. This is the algebraic
+counterpart to an identity-position overlaid histogram; there is no
+`position`/`layout` keyword.
+
+When a Space contains exactly one Histogram plus annotation marks (`VLine`,
+`HLine`, `Text`, or `Segment`), those annotations MUST render in the Histogram's
+derived count space rather than producing a separate panel. Literal annotation
+coordinates resolve against the generated bin/count axes.
+
 Histogram is a high-level geometry.
 
 Histogram MUST have a specified primitive desugaring.
@@ -4175,6 +4197,19 @@ MUST be visually equivalent to the same `Bin` feeding:
 
 ```ag
 Rect(xmin: dodge_start, xmax: dodge_end, ymin: 0, ymax: count, fill: species)
+```
+
+The blended form
+
+```ag
+Space((selection_age + mission_age)) { Histogram(binWidth: 1) }
+```
+
+MUST be visually equivalent to a `Bin` over the union
+`(selection_age + mission_age)` feeding:
+
+```ag
+Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count, fill: series)
 ```
 
 ### 14.8 Frequency Polygon
@@ -4460,6 +4495,15 @@ Text labels containing newline characters MUST render each line separately
 inside one SVG `text` element. The renderer MUST preserve row order and MUST
 escape each line before emission.
 
+Text MAY specify `x` and `y` as numeric literals or column mappings. When either
+coordinate is supplied, it resolves through the corresponding axis scale; mapped
+categorical coordinates resolve to the band center. When omitted, Text inherits
+the active space position for each row.
+
+A Text mark with literal `x`, literal `y`, a literal `label`, and no data
+mappings is a single annotation and MUST emit once, not once per row in the
+active table.
+
 Text supports the following alignment properties:
 
 `anchor` — string literal `"start"`, `"middle"`, or `"end"`, selecting the
@@ -4499,6 +4543,8 @@ HLine uses y scale to map literal y.
 
 It spans the plot x range.
 
+HLine accepts `dash: "solid" | "dotted" | "dashed"`. The default is solid.
+
 ### 14.18 VLine
 
 Syntax:
@@ -4514,6 +4560,8 @@ Supported spaces:
 VLine uses x scale to map literal x.
 
 It spans the plot y range.
+
+VLine accepts `dash: "solid" | "dotted" | "dashed"`. The default is solid.
 
 ### 14.19 Segment
 
@@ -4841,6 +4889,13 @@ column, the pre-stacked `stack_lower`/`stack_upper` y-bounds, and the per-group
 `dodge_start`/`dodge_end` sub-slot x-bounds (the bin divided into equal slots in
 group order). Stacking and dodge order follow group first-appearance, and row
 order is bin-major, group-minor, for determinism.
+
+Version 0.24.0: when the Bin stat receives a union of numeric columns (the
+blended-`Histogram` desugaring, spec §14.7), it MUST bin all members over the
+same shared edges computed from the combined numeric domain and emit one row per
+`(bin, series)`. The output MUST add a synthetic string `series` column whose
+value is the source column name. Row order is bin-major, series-minor following
+the source union member order. Null and non-finite cells are skipped per series.
 
 `bin_start`, `bin_end`, and `bin_center` have the same domain type as the input column.
 

@@ -9,7 +9,7 @@ use crate::layout::Rect;
 use crate::scale::cell_category;
 use crate::svg::{escape_attr, escape_text, num, SvgWriter};
 
-use super::common::render_rows;
+use super::common::{any_mapped, pos_center, render_rows};
 use super::GeometryRenderContext;
 
 /// A label placed at its (possibly decluttered) screen position.
@@ -44,12 +44,37 @@ pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderCon
         .iter()
         .find(|m| m.aesthetic == PropertyKey::Label);
     let label_literal = string_setting(geo, PropertyKey::Label);
+    let literal_positioned_annotation = label_mapping.is_none()
+        && label_literal.is_some()
+        && geo.mappings.is_empty()
+        && geo.settings.iter().any(|s| s.name == PropertyKey::X)
+        && geo.settings.iter().any(|s| s.name == PropertyKey::Y);
+    let render_row_indices = if literal_positioned_annotation {
+        vec![0]
+    } else {
+        render_rows(table, rows)
+    };
 
     // Phase 1: collect each resolvable label at its post-dx/dy position.
     let mut labels: Vec<PlacedLabel> = Vec::new();
-    for row in render_rows(table, rows) {
-        let (Some(cx), Some(cy)) = (space.resolve_x(table, row), space.resolve_y(table, row))
-        else {
+    for row in render_row_indices {
+        let x_axis = space.x_axis();
+        let y_axis = space.y_axis();
+        let cx = if any_mapped(geo, &[PropertyKey::X])
+            || geo.settings.iter().any(|s| s.name == PropertyKey::X)
+        {
+            pos_center(geo, PropertyKey::X, x_axis, table, row)
+        } else {
+            space.resolve_x(table, row)
+        };
+        let cy = if any_mapped(geo, &[PropertyKey::Y])
+            || geo.settings.iter().any(|s| s.name == PropertyKey::Y)
+        {
+            y_axis.and_then(|axis| pos_center(geo, PropertyKey::Y, axis, table, row))
+        } else {
+            space.resolve_y(table, row)
+        };
+        let (Some(cx), Some(cy)) = (cx, cy) else {
             continue;
         };
         let text = if let Some(mapping) = label_mapping {

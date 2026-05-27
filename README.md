@@ -395,6 +395,57 @@ Chart(data: "exam_scores.csv", width: 760, height: 460, title: "Exam scores by c
 
 ![dodged_histogram](examples/dodged_histogram.svg)
 
+## Overlaid histograms via the blend operator
+
+`+` is *blend*: `selection_age + mission_age` trains one shared continuous axis
+over both columns. `Histogram` uses that blend to bin each column over the same
+edges and draw the series on top of each other with alpha. Literal `VLine` and
+`Text` annotations in the same space are placed on the derived count axes.
+
+```algraf
+Chart(
+    data: "astronauts.csv",
+    width: 760,
+    height: 460,
+    title: "How old are astronauts on their most recent mission?",
+    subtitle: "Age of astronauts when they were selected and when they were sent on their mission",
+) {
+    Theme(
+        name: "minimal",
+        plotBackground: "#EBEBEB",
+        gridMajor: Line(stroke: "#FFFFFF", strokeWidth: 1),
+    )
+    Scale(axis: x, domain: [20, 80])
+    Scale(axis: y, domain: [0, 69])
+    Scale(
+        fill: series,
+        range: ["selection_age" => "#beaed4", "mission_age" => "#7fc97f"],
+        labels: ["selection_age" => "Age at selection", "mission_age" => "Age at mission"],
+        label: "",
+    )
+    Guide(axis: x, label: "Age of astronaut (years)")
+    Guide(axis: y, label: "count")
+
+    Space((mission_age + selection_age)) {
+        Histogram(binWidth: 1, alpha: 0.8, stroke: "#000000")
+        VLine(x: 34.5, stroke: "#000000", strokeWidth: 1, dash: "dotted")
+        VLine(x: 44.5, stroke: "#000000", strokeWidth: 1, dash: "dotted")
+        Text(x: 34, y: 66, label: "Mean age at selection = 34", anchor: "start", dx: 15, dy: 10, size: 14)
+        Text(x: 44, y: 49, label: "Mean age at mission = 44", anchor: "start", dx: 15, dy: 10, size: 14)
+        Text(
+            x: 60,
+            y: 20,
+            label: "John Glenn was 77\non his last mission -\nthe oldest person to\ntravel in space!",
+            anchor: "start",
+            dx: 6,
+            size: 14,
+        )
+    }
+}
+```
+
+![astronauts](examples/astronauts.svg)
+
 ## Frequency polygon
 
 `FreqPoly` uses the same binning controls as `Histogram`, but connects bin

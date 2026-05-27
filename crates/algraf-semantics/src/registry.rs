@@ -195,6 +195,7 @@ const ALPHA: &[Accept] = &[Accept::Number, Accept::Column];
 const SIZE: &[Accept] = &[Accept::Number, Accept::Column];
 const SHAPE: &[Accept] = &[Accept::Column, Accept::Str];
 const STROKE_WIDTH: &[Accept] = &[Accept::Number];
+const DASH: &[Accept] = &[Accept::Enum(&["solid", "dotted", "dashed"])];
 /// `strokeWidth` for `Line`/`Path`, which support a data-driven (per-segment)
 /// width in addition to a constant line width (spec §13.8).
 const LINE_STROKE_WIDTH: &[Accept] = &[Accept::Number, Accept::Column];
@@ -354,6 +355,7 @@ const HLINE: &[PropSpec] = &[
     req(PropertyKey::Y, &[Accept::Number]),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Label, &[Accept::Str]),
 ];
@@ -362,6 +364,7 @@ const VLINE: &[PropSpec] = &[
     req(PropertyKey::X, &[Accept::Number]),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Label, &[Accept::Str]),
 ];
@@ -383,6 +386,8 @@ const AREA: &[PropSpec] = &[
 
 const TEXT: &[PropSpec] = &[
     req(PropertyKey::Label, &[Accept::Column, Accept::Str]),
+    opt(PropertyKey::X, POS),
+    opt(PropertyKey::Y, POS),
     opt(PropertyKey::Fill, FILL),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Size, SIZE),
@@ -502,6 +507,7 @@ pub fn property_doc(name: &str) -> &'static str {
         "fill" => "Fill color setting or data column mapping.",
         "stroke" => "Stroke color setting or data column mapping.",
         "strokeWidth" => "Stroke width numeric setting.",
+        "dash" => "Reference-line dash style: `\"solid\"`, `\"dotted\"`, or `\"dashed\"`.",
         "alpha" => "Opacity setting or data column mapping.",
         "size" => "Point or text size setting or data column mapping.",
         "shape" => "Point shape setting or data column mapping.",

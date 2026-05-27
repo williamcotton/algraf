@@ -55,7 +55,19 @@ impl Analyzer<'_> {
                 }
                 key if registry::SCALE_AESTHETIC_TARGETS.contains(&key) => match arg.value() {
                     Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
-                        let column = self.resolve_column(&name, table);
+                        let column = if name.name().as_deref() == Some("series")
+                            && table.get("series").is_none()
+                        {
+                            ColumnRef {
+                                name: "series".into(),
+                                dtype: DataType::String,
+                                span: name
+                                    .ident_span()
+                                    .unwrap_or_else(|| node_span(name.syntax())),
+                            }
+                        } else {
+                            self.resolve_column(&name, table)
+                        };
                         self.set_scale_target(
                             &mut target,
                             ScaleTargetIr::Aesthetic {
