@@ -33,7 +33,7 @@
   <line x1="494.622" y1="390" x2="494.622" y2="395" stroke="#333333" stroke-width="1" />
   <text x="494.622" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">800</text>
   <line x1="610" y1="390" x2="610" y2="395" stroke="#333333" stroke-width="1" />
-  <text x="610" y="408" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1000</text>
+  <text x="610" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1000</text>
   <text x="350.4" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Ticket Price ($)</text>
   <line x1="90.8" y1="66" x2="90.8" y2="390" stroke="#333333" stroke-width="1" />
   <line x1="85.8" y1="357.6" x2="90.8" y2="357.6" stroke="#333333" stroke-width="1" />

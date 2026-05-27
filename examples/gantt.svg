@@ -17,7 +17,7 @@
 <g class="algraf-axes">
   <line x1="69.2" y1="370" x2="610" y2="370" stroke="#333333" stroke-width="1" />
   <line x1="69.2" y1="370" x2="69.2" y2="375" stroke="#333333" stroke-width="1" />
-  <text x="69.2" y="388" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-01</text>
+  <text x="69.2" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-01</text>
   <line x1="400.302" y1="370" x2="400.302" y2="375" stroke="#333333" stroke-width="1" />
   <text x="400.302" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-07-01</text>
   <text x="339.6" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Timeline</text>

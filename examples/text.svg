@@ -26,7 +26,7 @@
 <g class="algraf-axes">
   <line x1="60" y1="470" x2="770" y2="470" stroke="#333333" stroke-width="1" />
   <line x1="60" y1="470" x2="60" y2="475" stroke="#333333" stroke-width="1" />
-  <text x="60" y="488" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <text x="60" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
   <line x1="148.75" y1="470" x2="148.75" y2="475" stroke="#333333" stroke-width="1" />
   <text x="148.75" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
   <line x1="237.5" y1="470" x2="237.5" y2="475" stroke="#333333" stroke-width="1" />
@@ -42,7 +42,7 @@
   <line x1="681.25" y1="470" x2="681.25" y2="475" stroke="#333333" stroke-width="1" />
   <text x="681.25" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">70</text>
   <line x1="770" y1="470" x2="770" y2="475" stroke="#333333" stroke-width="1" />
-  <text x="770" y="488" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
+  <text x="770" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
   <text x="415" y="508" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">x</text>
   <line x1="60" y1="40" x2="60" y2="470" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="470" x2="60" y2="470" stroke="#333333" stroke-width="1" />

@@ -4,7 +4,6 @@
 
 use algraf_semantics::TemporalFormatIr;
 
-use crate::layout::Rect;
 use crate::space::ScaledSpace;
 
 /// Gap between the plot edge and the right edge of the y tick labels.
@@ -47,17 +46,4 @@ pub(crate) fn max_y_tick_label_width(
         .iter()
         .map(|(_, label)| estimate_text_width(label, font_size))
         .fold(0.0_f64, f64::max)
-}
-
-/// Where an x tick label anchors: labels at the plot edges anchor inward so they
-/// stay inside the plot box; interior labels center on the tick.
-pub(crate) fn x_tick_label_anchor(x: f64, plot: Rect) -> &'static str {
-    const EPSILON: f64 = 1e-6;
-    if x <= plot.x + EPSILON {
-        "start"
-    } else if x >= plot.right() - EPSILON {
-        "end"
-    } else {
-        "middle"
-    }
 }

@@ -1,4 +1,4 @@
-Chart(data: "intervals.csv") {
+Chart(data: "intervals.csv", marginRight: 150) {
     // Both axes must be continuous/temporal
     Space(time * value) {
         Rect(

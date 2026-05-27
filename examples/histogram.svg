@@ -33,7 +33,7 @@
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="730" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="60" y1="410" x2="60" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="60" y="428" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <text x="60" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
   <line x1="171.667" y1="410" x2="171.667" y2="415" stroke="#333333" stroke-width="1" />
   <text x="171.667" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
   <line x1="283.333" y1="410" x2="283.333" y2="415" stroke="#333333" stroke-width="1" />
@@ -45,7 +45,7 @@
   <line x1="618.333" y1="410" x2="618.333" y2="415" stroke="#333333" stroke-width="1" />
   <text x="618.333" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
   <line x1="730" y1="410" x2="730" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="730" y="428" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">12</text>
+  <text x="730" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">12</text>
   <text x="395" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">bin start</text>
   <line x1="60" y1="40" x2="60" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="410" x2="60" y2="410" stroke="#333333" stroke-width="1" />

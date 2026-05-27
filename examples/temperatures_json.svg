@@ -29,13 +29,13 @@
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="610" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="60" y1="410" x2="60" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="60" y="428" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <text x="60" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
   <line x1="249.444" y1="410" x2="249.444" y2="415" stroke="#333333" stroke-width="1" />
   <text x="249.444" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-02-01</text>
   <line x1="420.556" y1="410" x2="420.556" y2="415" stroke="#333333" stroke-width="1" />
   <text x="420.556" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-03-01</text>
   <line x1="610" y1="410" x2="610" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="610" y="428" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-04-01</text>
+  <text x="610" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-04-01</text>
   <text x="335" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">date</text>
   <line x1="60" y1="66" x2="60" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="326.215" x2="60" y2="326.215" stroke="#333333" stroke-width="1" />

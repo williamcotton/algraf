@@ -43,11 +43,11 @@
 <g class="algraf-axes">
   <line x1="60" y1="430" x2="610" y2="430" stroke="#333333" stroke-width="1" />
   <line x1="60" y1="430" x2="60" y2="435" stroke="#333333" stroke-width="1" />
-  <text x="60" y="448" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024</text>
+  <text x="60" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024</text>
   <line x1="335" y1="430" x2="335" y2="435" stroke="#333333" stroke-width="1" />
   <text x="335" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2025</text>
   <line x1="610" y1="430" x2="610" y2="435" stroke="#333333" stroke-width="1" />
-  <text x="610" y="448" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026</text>
+  <text x="610" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026</text>
   <text x="335" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Year</text>
   <line x1="60" y1="66" x2="60" y2="430" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="430" x2="60" y2="430" stroke="#333333" stroke-width="1" />

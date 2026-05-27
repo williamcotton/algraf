@@ -91,11 +91,11 @@
 <g class="algraf-axes">
   <line x1="60" y1="223" x2="319" y2="223" stroke="#333333" stroke-width="1" />
   <line x1="60" y1="223" x2="60" y2="228" stroke="#333333" stroke-width="1" />
-  <text x="60" y="241" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <text x="60" y="241" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
   <line x1="189.5" y1="223" x2="189.5" y2="228" stroke="#333333" stroke-width="1" />
   <text x="189.5" y="241" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-02</text>
   <line x1="319" y1="223" x2="319" y2="228" stroke="#333333" stroke-width="1" />
-  <text x="319" y="241" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-03</text>
+  <text x="319" y="241" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-03</text>
   <text x="189.5" y="261" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">time</text>
   <line x1="60" y1="64" x2="60" y2="223" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="212.034" x2="60" y2="212.034" stroke="#333333" stroke-width="1" />
@@ -119,11 +119,11 @@
 <g class="algraf-axes">
   <line x1="391" y1="223" x2="650" y2="223" stroke="#333333" stroke-width="1" />
   <line x1="391" y1="223" x2="391" y2="228" stroke="#333333" stroke-width="1" />
-  <text x="391" y="241" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <text x="391" y="241" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
   <line x1="520.5" y1="223" x2="520.5" y2="228" stroke="#333333" stroke-width="1" />
   <text x="520.5" y="241" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-02</text>
   <line x1="650" y1="223" x2="650" y2="228" stroke="#333333" stroke-width="1" />
-  <text x="650" y="241" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-03</text>
+  <text x="650" y="241" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-03</text>
   <text x="520.5" y="261" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">time</text>
   <line x1="391" y1="64" x2="391" y2="223" stroke="#333333" stroke-width="1" />
   <line x1="386" y1="212.034" x2="391" y2="212.034" stroke="#333333" stroke-width="1" />
@@ -147,11 +147,11 @@
 <g class="algraf-axes">
   <line x1="60" y1="470" x2="319" y2="470" stroke="#333333" stroke-width="1" />
   <line x1="60" y1="470" x2="60" y2="475" stroke="#333333" stroke-width="1" />
-  <text x="60" y="488" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <text x="60" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
   <line x1="189.5" y1="470" x2="189.5" y2="475" stroke="#333333" stroke-width="1" />
   <text x="189.5" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-02</text>
   <line x1="319" y1="470" x2="319" y2="475" stroke="#333333" stroke-width="1" />
-  <text x="319" y="488" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-03</text>
+  <text x="319" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-03</text>
   <text x="189.5" y="508" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">time</text>
   <line x1="60" y1="311" x2="60" y2="470" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="459.034" x2="60" y2="459.034" stroke="#333333" stroke-width="1" />
@@ -175,11 +175,11 @@
 <g class="algraf-axes">
   <line x1="391" y1="470" x2="650" y2="470" stroke="#333333" stroke-width="1" />
   <line x1="391" y1="470" x2="391" y2="475" stroke="#333333" stroke-width="1" />
-  <text x="391" y="488" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <text x="391" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
   <line x1="520.5" y1="470" x2="520.5" y2="475" stroke="#333333" stroke-width="1" />
   <text x="520.5" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-02</text>
   <line x1="650" y1="470" x2="650" y2="475" stroke="#333333" stroke-width="1" />
-  <text x="650" y="488" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-03</text>
+  <text x="650" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-03</text>
   <text x="520.5" y="508" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">time</text>
   <line x1="391" y1="311" x2="391" y2="470" stroke="#333333" stroke-width="1" />
   <line x1="386" y1="459.034" x2="391" y2="459.034" stroke="#333333" stroke-width="1" />

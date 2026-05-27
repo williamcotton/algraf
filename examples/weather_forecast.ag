@@ -1,4 +1,4 @@
-Chart(data: "weather_forecast.csv", width: 760, height: 420, title: "7-Day Weather Forecast & Observations") {
+Chart(data: "weather_forecast.csv", width: 760, height: 420, title: "7-Day Weather Forecast & Observations", marginRight: 50) {
     Theme(name: "minimal")
     Scale(axis: y, domain: [8, 28])
     Guide(axis: x, label: "Date")

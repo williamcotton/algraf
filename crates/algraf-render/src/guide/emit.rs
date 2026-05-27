@@ -9,7 +9,7 @@ use crate::space::ScaledSpace;
 use crate::svg::{escape_attr, escape_text, num, SvgWriter};
 use crate::theme::Theme;
 
-use super::plan::{max_y_tick_label_width, x_tick_label_anchor, y_axis_title_x};
+use super::plan::{max_y_tick_label_width, y_axis_title_x};
 
 pub(crate) struct AxisRenderOptions<'a> {
     pub(crate) x_label_override: Option<&'a str>,
@@ -85,13 +85,7 @@ pub(crate) fn render_axes(
             &theme.axis_color,
             1.0,
         ));
-        w.line(&text(
-            x,
-            plot.bottom() + 18.0,
-            x_tick_label_anchor(x, plot),
-            &label,
-            theme,
-        ));
+        w.line(&text(x, plot.bottom() + 18.0, "middle", &label, theme));
     }
     // An override of "" suppresses the axis title (`Guide(axis: x, label: null)`,
     // spec §19.x); ticks and grid are unaffected.

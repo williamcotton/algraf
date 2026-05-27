@@ -101,14 +101,17 @@ fn test_chart_margin_below_default_is_a_floor() {
 
 /// Extract the `y` attribute of the `<text>` element whose content is `label`.
 fn text_y(svg: &str, label: &str) -> f64 {
+    let element = text_element(svg, label);
+    let y_start = element.find("y=\"").unwrap() + 3;
+    let y_end = element[y_start..].find('"').unwrap();
+    element[y_start..y_start + y_end].parse().unwrap()
+}
+
+fn text_element<'a>(svg: &'a str, label: &str) -> &'a str {
     let needle = format!(">{label}</text>");
-    let element_start = svg[..svg.find(&needle).expect("label")]
-        .rfind("<text")
-        .unwrap();
-    let after_y = &svg[element_start..];
-    let y_start = after_y.find("y=\"").unwrap() + 3;
-    let y_end = after_y[y_start..].find('"').unwrap();
-    after_y[y_start..y_start + y_end].parse().unwrap()
+    let element_end = svg.find(&needle).expect("label") + needle.len();
+    let element_start = svg[..element_end].rfind("<text").unwrap();
+    &svg[element_start..element_end]
 }
 
 #[test]
@@ -292,7 +295,7 @@ fn test_short_temporal_axis_uses_whole_day_ticks() {
 }
 
 #[test]
-fn test_edge_x_tick_labels_anchor_inside_plot() {
+fn test_edge_x_tick_labels_are_centered_on_ticks() {
     let svg = render_svg(
         "Chart(data: \"intervals.csv\") {
             Space(time * value) {
@@ -305,8 +308,8 @@ fn test_edge_x_tick_labels_anchor_inside_plot() {
          2026-01-13,120,2026-01-13,2026-01-17,120\n\
          2026-01-19,140,2026-01-19,2026-01-22,140\n",
     );
-    assert!(svg.contains("text-anchor=\"start\"") && svg.contains(">2026-01-01</text>"));
-    assert!(svg.contains("text-anchor=\"end\"") && svg.contains(">2026-01-22</text>"));
+    assert!(text_element(&svg, "2026-01-01").contains("text-anchor=\"middle\""));
+    assert!(text_element(&svg, "2026-01-22").contains("text-anchor=\"middle\""));
 }
 
 #[test]
