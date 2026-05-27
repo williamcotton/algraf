@@ -296,7 +296,9 @@ async function refreshPreview(): Promise<void> {
 
 function renderHtml(result: PreviewResult): string {
     if (result.svg) {
-        return wrapHtml(`<div class="canvas">${result.svg}</div>`);
+        return wrapHtml(
+            `<div class="canvas"><img class="preview-image" alt="Algraf preview" src="${svgDataUri(result.svg)}" /></div>`,
+        );
     }
     return renderMessage(escapeHtml(result.message ?? "No preview available."));
 }
@@ -323,12 +325,16 @@ function wrapHtml(body: string): string {
             font-family: var(--vscode-font-family);
         }
         .canvas { display: flex; justify-content: center; }
-        .canvas svg { max-width: 100%; height: auto; }
+        .preview-image { max-width: 100%; height: auto; }
         .message { opacity: 0.8; font-size: 13px; white-space: pre-wrap; }
     </style>
 </head>
 <body>${body}</body>
 </html>`;
+}
+
+function svgDataUri(svg: string): string {
+    return `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`;
 }
 
 function escapeHtml(value: string): string {

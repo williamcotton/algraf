@@ -1000,6 +1000,39 @@ async fn preview_renders_svg_through_render_pipeline() {
 }
 
 #[tokio::test]
+async fn preview_preserves_multiline_text_labels() {
+    let dir = temp_project("preview-multiline-text");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(
+        dir.join("data.json"),
+        r#"[{"x": 1, "y": 2, "label": "first line\nsecond line"}]"#,
+    )
+    .unwrap();
+    let source = "Chart(data: \"data.json\") {\n    Space(x * y) { Text(label: label) }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let response = call(
+        &mut service,
+        Request::build("algraf/preview")
+            .params(json!({ "uri": uri }))
+            .id(23)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = response_result(response);
+    let svg = value["svg"].as_str().expect("svg string");
+    assert!(
+        svg.contains("<tspan") && svg.contains("first line") && svg.contains("second line"),
+        "{svg}"
+    );
+}
+
+#[tokio::test]
 async fn preview_loads_named_geojson_table_constructor() {
     let dir = temp_project("preview-named-geojson");
     let source_path = dir.join("chart.ag");
