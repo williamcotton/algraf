@@ -120,6 +120,14 @@ pub fn grouped_bin_output_schema(group_name: &str) -> Vec<ColumnDefIr> {
             name: "stack_upper".into(),
             dtype: DataType::Float,
         },
+        ColumnDefIr {
+            name: "dodge_start".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "dodge_end".into(),
+            dtype: DataType::Float,
+        },
     ]
 }
 

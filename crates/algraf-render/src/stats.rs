@@ -44,8 +44,10 @@ pub enum BinInterval {
 /// pre-stacked per bin in group order: each emitted row carries `stack_lower`
 /// and `stack_upper`, the cumulative y-bounds for a stacked bar. Output columns
 /// are `bin_start`, `bin_end`, `bin_center`, `count`, `density`, the group
-/// column (preserving its name), `stack_lower`, and `stack_upper`. Rows are
-/// emitted bin-major, group-minor, for deterministic order (spec §18.12).
+/// column (preserving its name), `stack_lower`, and `stack_upper` (cumulative
+/// y-bounds for a stacked bar), plus `dodge_start`/`dodge_end` (the per-group
+/// side-by-side sub-slot within the bin, for a dodged bar). Rows are emitted
+/// bin-major, group-minor, for deterministic order (spec §18.12).
 pub fn bin_grouped(
     table: &dyn Table,
     value_column: &str,
@@ -76,6 +78,7 @@ pub fn bin_grouped(
     }
 
     let total_f = total as f64;
+    let group_count = groups.len().max(1) as f64;
     let mut bin_starts = Vec::new();
     let mut bin_ends = Vec::new();
     let mut bin_centers = Vec::new();
@@ -84,6 +87,8 @@ pub fn bin_grouped(
     let mut group_keys = Vec::new();
     let mut stack_lowers = Vec::new();
     let mut stack_uppers = Vec::new();
+    let mut dodge_starts = Vec::new();
+    let mut dodge_ends = Vec::new();
     for bi in 0..bin_count {
         let bin_start = start + bi as f64 * width;
         let bin_end = bin_start + width;
@@ -105,6 +110,10 @@ pub fn bin_grouped(
             group_keys.push(Some(group.clone()));
             stack_lowers.push(Some(lower as f64));
             stack_uppers.push(Some(cumulative as f64));
+            // Side-by-side sub-slot: split the bin into one slot per group, in
+            // group order, for an algebraically-dodged histogram (spec §15.6).
+            dodge_starts.push(Some(bin_start + width * gi as f64 / group_count));
+            dodge_ends.push(Some(bin_start + width * (gi as f64 + 1.0) / group_count));
         }
     }
 
@@ -117,6 +126,8 @@ pub fn bin_grouped(
         col_def(group_column, DataType::String),
         col_def("stack_lower", DataType::Float),
         col_def("stack_upper", DataType::Float),
+        col_def("dodge_start", DataType::Float),
+        col_def("dodge_end", DataType::Float),
     ];
     DataFrame::new(
         schema,
@@ -129,6 +140,8 @@ pub fn bin_grouped(
             Column::String(group_keys),
             Column::Float(stack_lowers),
             Column::Float(stack_uppers),
+            Column::Float(dodge_starts),
+            Column::Float(dodge_ends),
         ],
     )
 }
@@ -1462,5 +1475,25 @@ mod grouped_bin_tests {
             _ => String::new(),
         };
         assert_eq!(first_group, "z");
+    }
+
+    #[test]
+    fn dodge_subslots_tile_the_bin_without_overlap() {
+        // Two groups: within each bin the dodge slots are adjacent halves
+        // [bin_start, mid] and [mid, bin_end], in group order.
+        let df = frame(&[(0.2, "a"), (0.2, "b")]);
+        let out = bin_grouped(&df, "v", "g", opts());
+        // First two rows are bin 0, groups a then b.
+        let s0 = cell_f64(&out, "dodge_start", 0).unwrap();
+        let e0 = cell_f64(&out, "dodge_end", 0).unwrap();
+        let s1 = cell_f64(&out, "dodge_start", 1).unwrap();
+        let e1 = cell_f64(&out, "dodge_end", 1).unwrap();
+        let bin_start = cell_f64(&out, "bin_start", 0).unwrap();
+        let bin_end = cell_f64(&out, "bin_end", 0).unwrap();
+        assert!((s0 - bin_start).abs() < 1e-9);
+        assert!((e1 - bin_end).abs() < 1e-9);
+        // Adjacent, non-overlapping, equal halves.
+        assert!((e0 - s1).abs() < 1e-9);
+        assert!((e0 - (bin_start + bin_end) / 2.0).abs() < 1e-9);
     }
 }

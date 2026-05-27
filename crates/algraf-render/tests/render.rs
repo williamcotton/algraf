@@ -835,6 +835,37 @@ fn test_grouped_histogram_stacks_and_legends() {
 }
 
 #[test]
+fn test_dodged_histogram_splits_bins_into_subbars() {
+    // `Space(v / g)` dodges: within a bin the two groups sit in adjacent,
+    // non-overlapping x sub-slots (both rising from y baseline).
+    let result = render_result(
+        "Chart(data: \"d.csv\") { Space(v / g) { Histogram(fill: g, bins: 2) } }",
+        "v,g\n1,a\n1,b\n2,a\n2,a\n2,b\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-rect"));
+    assert!(result.svg.contains("algraf-legends"));
+    let data_layer = result
+        .svg
+        .split_once("algraf-legends")
+        .map_or(result.svg.as_str(), |(before, _)| before);
+    // Collect the rect x positions in the data layer; adjacent sub-bars must
+    // have distinct x (side-by-side), not share one stacked x per bin.
+    let xs: Vec<&str> = data_layer
+        .match_indices("<rect x=\"")
+        .map(|(i, _)| {
+            let s = &data_layer[i + 9..];
+            &s[..s.find('"').unwrap()]
+        })
+        .collect();
+    let unique: std::collections::HashSet<&&str> = xs.iter().collect();
+    assert!(
+        unique.len() >= 4,
+        "expected distinct sub-slot x positions: {xs:?}"
+    );
+}
+
+#[test]
 fn test_temporal_histogram_renders_bins() {
     let result = render_result(
         "Chart(data: \"t.csv\") { Space(day) { Histogram(bins: 3, fill: \"steelblue\") } }",

@@ -4085,15 +4085,25 @@ Histogram produces an internal Cartesian frame of bin position by count.
 
 Histogram SHOULD expose computed y label as `count`.
 
-Version 0.23.0 MUST support grouping a Histogram by a categorical column, given
-either as a `fill` column mapping or an explicit `group` mapping (an explicit
-`group` takes precedence; a literal `fill: "color"` is not a grouping). A
-grouped Histogram bins each group over the same shared edges (computed from the
-global value domain) so bars align, and renders the per-group counts as a
-**stacked** bar in each bin, colored by the group column with a categorical
-`fill` legend. Counts MUST be pre-stacked deterministically in group
-first-appearance order. A grouped Histogram requires a numeric input column; a
-temporal input with grouping MUST emit `E1404`.
+Version 0.23.0 MUST support grouping a Histogram by a categorical column in two
+forms:
+
+- **Stacked** — a `fill` column mapping or explicit `group` mapping on a single
+  numeric vector space (`Space(value) { Histogram(fill: group) }`). An explicit
+  `group` takes precedence; a literal `fill: "color"` is not a grouping. Each
+  group is binned over the same shared edges (from the global value domain) so
+  bars align, and the per-group counts render as a **stacked** bar in each bin.
+- **Dodged** — nesting the group inside the binned value axis with the nest
+  operator (`Space(value / group) { Histogram(...) }`). Each bin is split into
+  side-by-side per-group sub-bars on a continuous x-axis, rising from a zero
+  baseline to each group's count. This is the algebraic counterpart to dodged
+  bars (§12); there is no `position`/`layout` keyword. When no `fill` is given,
+  the dodged sub-bars are colored by the nested group.
+
+Both forms bin per group over shared edges, color by the group column with a
+categorical `fill` legend, and are deterministic (stacking and dodge slots
+ordered by group first-appearance). A grouped Histogram requires a numeric input
+column; a temporal input with grouping MUST emit `E1404`.
 
 Histogram is a high-level geometry.
 
@@ -4140,23 +4150,31 @@ The generated `count` column is a synthetic stat output column.
 The implementation MAY keep `Histogram` as a direct IR node internally, but its visual output MUST match the derived-table plus `Rect` model.
 
 A grouped Histogram desugars to a grouped `Bin` (a two-column `(value, group)`
-input) plus stacked `Rect`s. The grouped `Bin` emits `bin_start`, `bin_end`,
-`bin_center`, `count`, `density`, the group key column, and the pre-stacked
-`stack_lower`/`stack_upper` y-bounds. For example:
+input) plus `Rect`s. The grouped `Bin` emits `bin_start`, `bin_end`,
+`bin_center`, `count`, `density`, the group key column, the pre-stacked
+`stack_lower`/`stack_upper` y-bounds, and the per-group `dodge_start`/`dodge_end`
+sub-slot x-bounds. The stacked form
 
 ```ag
-Chart(data: "penguins.csv") {
-    Space(body_mass) {
-        Histogram(fill: species, bins: 16)
-    }
-}
+Space(body_mass) { Histogram(fill: species, bins: 16) }
 ```
 
-MUST be visually equivalent to a `Bin` over `(body_mass, species)` whose stacked
-rows feed:
+MUST be visually equivalent to a `Bin` over `(body_mass, species)` feeding:
 
 ```ag
 Rect(xmin: bin_start, xmax: bin_end, ymin: stack_lower, ymax: stack_upper, fill: species)
+```
+
+and the dodged form
+
+```ag
+Space(body_mass / species) { Histogram(bins: 16) }
+```
+
+MUST be visually equivalent to the same `Bin` feeding:
+
+```ag
+Rect(xmin: dodge_start, xmax: dodge_end, ymin: 0, ymax: count, fill: species)
 ```
 
 ### 14.8 Frequency Polygon
@@ -4819,9 +4837,10 @@ Bin stat SHOULD output `density`.
 Version 0.23.0: when the Bin stat receives a second, categorical group column
 (the grouped-`Histogram` desugaring, spec §14.5), it MUST bin every group over
 the same shared edges and emit one row per `(bin, group)`, adding the group key
-column plus pre-stacked `stack_lower`/`stack_upper` y-bounds. Stacking order
-follows group first-appearance, and row order is bin-major, group-minor, for
-determinism.
+column, the pre-stacked `stack_lower`/`stack_upper` y-bounds, and the per-group
+`dodge_start`/`dodge_end` sub-slot x-bounds (the bin divided into equal slots in
+group order). Stacking and dodge order follow group first-appearance, and row
+order is bin-major, group-minor, for determinism.
 
 `bin_start`, `bin_end`, and `bin_center` have the same domain type as the input column.
 

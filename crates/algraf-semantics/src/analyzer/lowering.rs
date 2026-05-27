@@ -24,11 +24,37 @@ impl Analyzer<'_> {
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
+        // Dodge: `Space(value / group)` nests the group inside the binned value
+        // axis, so each bin is split into side-by-side per-group sub-bars
+        // (spec §14.5). The nest is the trigger — no `layout` keyword.
+        if let FrameIr::Nested { outer, inner } = frame {
+            let value = self
+                .require_numeric_vector(outer, histogram.span, "Histogram", false)?
+                .clone();
+            let FrameIr::Vector(group) = inner.as_ref() else {
+                self.diag(Diagnostic::error(
+                    codes::E1302,
+                    "grouped Histogram requires `value / group` with a single group column",
+                    histogram.span,
+                ));
+                return None;
+            };
+            return Some(self.grouped_histogram(
+                histogram,
+                value,
+                group.clone(),
+                true,
+                theme,
+                guides,
+                scales,
+            ));
+        }
+
         let input = self
             .require_numeric_vector(frame, histogram.span, "Histogram", true)?
             .clone();
 
-        // Grouping column: an explicit `group` mapping, else a `fill` column
+        // Stacked grouping: an explicit `group` mapping, else a `fill` column
         // mapping (spec §15.6). A literal `fill: "color"` is a setting, not a
         // mapping, so it does not trigger grouping.
         let group = histogram
@@ -52,7 +78,9 @@ impl Analyzer<'_> {
                 ));
                 return None;
             }
-            return Some(self.grouped_histogram(histogram, input, group, theme, guides, scales));
+            return Some(
+                self.grouped_histogram(histogram, input, group, false, theme, guides, scales),
+            );
         }
 
         let name = self.next_synthetic("histogram");
@@ -110,16 +138,21 @@ impl Analyzer<'_> {
         Some((derive, space))
     }
 
-    /// Desugar a grouped `Histogram` into a grouped `Bin` plus stacked `Rect`s
-    /// colored by the group column (spec §15.6). The `Bin` stat receives a
-    /// two-column `(value, group)` input and emits pre-stacked y-bounds, which
-    /// the `Rect` reads as `ymin`/`ymax`. The group column drives a categorical
-    /// `fill` scale and its legend.
+    /// Desugar a grouped `Histogram` into a grouped `Bin` plus `Rect`s colored by
+    /// the group column (spec §15.6). The `Bin` stat receives a two-column
+    /// `(value, group)` input and emits both pre-stacked y-bounds and per-group
+    /// dodge sub-slots. When `dodge` is set (the `value / group` nest form), each
+    /// bin is split into side-by-side sub-bars from a zero baseline; otherwise
+    /// the groups stack. The group column drives a categorical `fill` scale.
+    // Mirrors the other `desugar_*` signatures (geometry + space context) with
+    // the grouped extras `value`/`group`/`dodge`; the arity is inherent.
+    #[allow(clippy::too_many_arguments)]
     fn grouped_histogram(
         &mut self,
         histogram: &GeometryIr,
         value: ColumnRef,
         group: ColumnRef,
+        dodge: bool,
         theme: Option<ThemeIr>,
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
@@ -145,46 +178,56 @@ impl Analyzer<'_> {
         };
 
         let bin_start = synthetic_column("bin_start", DataType::Float, span);
-        let bin_end = synthetic_column("bin_end", DataType::Float, span);
         let count = synthetic_column("count", DataType::Integer, span);
-        let stack_lower = synthetic_column("stack_lower", DataType::Float, span);
-        let stack_upper = synthetic_column("stack_upper", DataType::Float, span);
         let group_col = ColumnRef {
             name: group.name.clone(),
             dtype: DataType::String,
             span,
         };
+        let mapping = |aesthetic: PropertyKey, name: &str, dtype: DataType| AestheticMapping {
+            aesthetic,
+            column: synthetic_column(name, dtype, span),
+            span,
+        };
+
+        // Dodge maps x to the sub-slot and y from a zero baseline to the group
+        // count; stack maps x to the full bin and y to the cumulative bounds.
+        let (mappings, mut settings) = if dodge {
+            (
+                vec![
+                    mapping(PropertyKey::Xmin, "dodge_start", DataType::Float),
+                    mapping(PropertyKey::Xmax, "dodge_end", DataType::Float),
+                    mapping(PropertyKey::Ymax, "count", DataType::Integer),
+                    AestheticMapping {
+                        aesthetic: PropertyKey::Fill,
+                        column: group_col,
+                        span,
+                    },
+                ],
+                vec![fixed_setting(PropertyKey::Ymin, 0.0, span)],
+            )
+        } else {
+            (
+                vec![
+                    mapping(PropertyKey::Xmin, "bin_start", DataType::Float),
+                    mapping(PropertyKey::Xmax, "bin_end", DataType::Float),
+                    mapping(PropertyKey::Ymin, "stack_lower", DataType::Float),
+                    mapping(PropertyKey::Ymax, "stack_upper", DataType::Float),
+                    AestheticMapping {
+                        aesthetic: PropertyKey::Fill,
+                        column: group_col,
+                        span,
+                    },
+                ],
+                Vec::new(),
+            )
+        };
+        // Pass through stroke/strokeWidth/alpha; `fill` is a mapping here.
+        settings.extend(passthrough_settings(histogram, GROUPED_RECT_SETTINGS));
         let rect = GeometryIr {
             kind: GeometryKind::Rect,
-            mappings: vec![
-                AestheticMapping {
-                    aesthetic: PropertyKey::Xmin,
-                    column: bin_start.clone(),
-                    span,
-                },
-                AestheticMapping {
-                    aesthetic: PropertyKey::Xmax,
-                    column: bin_end,
-                    span,
-                },
-                AestheticMapping {
-                    aesthetic: PropertyKey::Ymin,
-                    column: stack_lower,
-                    span,
-                },
-                AestheticMapping {
-                    aesthetic: PropertyKey::Ymax,
-                    column: stack_upper,
-                    span,
-                },
-                AestheticMapping {
-                    aesthetic: PropertyKey::Fill,
-                    column: group_col,
-                    span,
-                },
-            ],
-            // Pass through stroke/strokeWidth/alpha; `fill` is now a mapping.
-            settings: passthrough_settings(histogram, GROUPED_RECT_SETTINGS),
+            mappings,
+            settings,
             span,
         };
         let space = SpaceIr {

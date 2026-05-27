@@ -14,6 +14,7 @@ charts=(
     histogram
     histogram_direct
     grouped_histogram
+    dodged_histogram
     facet
     connected_scatter
     barcode

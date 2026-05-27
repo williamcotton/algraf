@@ -652,7 +652,9 @@ fn test_grouped_histogram_desugars_to_grouped_bin_and_stacked_rect() {
             "density",
             "species",
             "stack_lower",
-            "stack_upper"
+            "stack_upper",
+            "dodge_start",
+            "dodge_end"
         ]
     );
     // The Rect stacks via ymin/ymax and colors by the group column.
@@ -665,7 +667,39 @@ fn test_grouped_histogram_desugars_to_grouped_bin_and_stacked_rect() {
     assert!(rect
         .mappings
         .iter()
-        .any(|m| m.aesthetic == PropertyKey::Ymin));
+        .any(|m| m.aesthetic == PropertyKey::Ymin && m.column.name == "stack_lower"));
+}
+
+#[test]
+fn test_dodged_histogram_nests_value_over_group() {
+    // `Space(value / species)` dodges: each bin splits into per-group sub-bars
+    // mapped from the dodge sub-slot columns, with a zero y baseline.
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Space(value / species) {\n    Histogram(fill: species, bins: 8)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let rect = &ir.spaces[0].geometries[0];
+    assert_eq!(rect.kind, GeometryKind::Rect);
+    assert!(rect
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == PropertyKey::Xmin && m.column.name == "dodge_start"));
+    assert!(rect
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == PropertyKey::Xmax && m.column.name == "dodge_end"));
+    assert!(rect
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == PropertyKey::Ymax && m.column.name == "count"));
+    // Zero baseline as a fixed setting, not a mapping.
+    assert!(rect.settings.iter().any(|s| s.name == PropertyKey::Ymin));
 }
 
 #[test]

@@ -375,6 +375,26 @@ Chart(data: "exam_scores.csv", width: 720, height: 460, title: "Exam scores by c
 
 ![grouped_histogram](examples/grouped_histogram.svg)
 
+## Dodged histograms via the nest operator
+
+To place the groups side-by-side instead of stacked, nest the group inside the
+binned value axis with `/` — the same algebraic move that dodges bars. Each bin
+splits into one sub-bar per group on a continuous x-axis; there is no
+`position`/`layout` keyword.
+
+```algraf
+Chart(data: "exam_scores.csv", width: 760, height: 460, title: "Exam scores by cohort (dodged)") {
+    Guide(axis: x, label: "Score")
+    Guide(axis: y, label: "Count")
+
+    Space(score / cohort) {
+        Histogram(fill: cohort, bins: 14)
+    }
+}
+```
+
+![dodged_histogram](examples/dodged_histogram.svg)
+
 ## Frequency polygon
 
 `FreqPoly` uses the same binning controls as `Histogram`, but connects bin
