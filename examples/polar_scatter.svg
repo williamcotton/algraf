@@ -23,6 +23,26 @@
   <line x1="225" y1="218" x2="141.279" y2="134.279" stroke="#e6e6e6" stroke-width="1" />
   <line x1="225" y1="218" x2="194.356" y2="103.634" stroke="#e6e6e6" stroke-width="1" />
 </g>
+<g class="algraf-layer algraf-geom-area">
+  <path d="M229.729 200.351 L241.15 201.85 L264.71 207.36 L282.359 233.369 L279.91 272.91 L249.827 310.657 L196.626 323.894 L150.71 292.29 L141.167 240.463 L163.228 201.448 L195.93 188.93 L219.089 195.939 Z" fill="#bcd" opacity="0.4" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M229.729 200.351 L241.15 201.85 L264.71 207.36 L282.359 233.369 L279.91 272.91 L249.827 310.657 L196.626 323.894 L150.71 292.29 L141.167 240.463 L163.228 201.448 L195.93 188.93 L219.089 195.939Z" fill="none" stroke="#4E79A7" stroke-width="1.5" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="229.729" cy="200.351" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="241.15" cy="201.85" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="264.71" cy="207.36" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="282.359" cy="233.369" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="279.91" cy="272.91" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="249.827" cy="310.657" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="196.626" cy="323.894" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="150.71" cy="292.29" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="141.167" cy="240.463" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="163.228" cy="201.448" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="195.93" cy="188.93" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="219.089" cy="195.939" r="3" fill="#4E79A7" opacity="1" />
+</g>
 <g class="algraf-polar-theta-labels">
   <text x="258.75" y="92.043" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan</text>
   <text x="317.207" y="125.793" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Feb</text>
@@ -44,25 +64,5 @@
   <text x="228" y="147.481" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15</text>
   <text x="228" y="124.642" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
   <text x="228" y="101.802" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
-</g>
-<g class="algraf-layer algraf-geom-area">
-  <path d="M229.729 200.351 L241.15 201.85 L264.71 207.36 L282.359 233.369 L279.91 272.91 L249.827 310.657 L196.626 323.894 L150.71 292.29 L141.167 240.463 L163.228 201.448 L195.93 188.93 L219.089 195.939 Z" fill="#bcd" opacity="0.4" />
-</g>
-<g class="algraf-layer algraf-geom-line">
-  <path d="M229.729 200.351 L241.15 201.85 L264.71 207.36 L282.359 233.369 L279.91 272.91 L249.827 310.657 L196.626 323.894 L150.71 292.29 L141.167 240.463 L163.228 201.448 L195.93 188.93 L219.089 195.939Z" fill="none" stroke="#4E79A7" stroke-width="1.5" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="229.729" cy="200.351" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="241.15" cy="201.85" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="264.71" cy="207.36" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="282.359" cy="233.369" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="279.91" cy="272.91" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="249.827" cy="310.657" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="196.626" cy="323.894" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="150.71" cy="292.29" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="141.167" cy="240.463" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="163.228" cy="201.448" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="195.93" cy="188.93" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="219.089" cy="195.939" r="3" fill="#4E79A7" opacity="1" />
 </g>
 </svg>

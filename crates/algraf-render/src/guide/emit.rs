@@ -47,8 +47,9 @@ pub(crate) fn render_grid(w: &mut SvgWriter, space: &ScaledSpace, plot: Rect, th
     w.close_group();
 }
 
-/// Draw polar guides (spec §16.16, §19): concentric radius rings (circle or
-/// polygon), angular spokes, and perimeter/radius tick labels.
+/// Draw polar grid lines (spec §16.16, §19): concentric radius rings (circle or
+/// polygon) and angular spokes. Labels are emitted separately after geometry so
+/// opaque polar marks do not cover them.
 pub(crate) fn render_polar_grid(
     w: &mut SvgWriter,
     space: &ScaledSpace,
@@ -100,7 +101,22 @@ pub(crate) fn render_polar_grid(
         w.line(&grid_line(x0, y0, x1, y1, color, width));
     }
     w.close_group();
+}
 
+/// Draw polar perimeter and radius labels above the data marks.
+pub(crate) fn render_polar_labels(
+    w: &mut SvgWriter,
+    space: &ScaledSpace,
+    guides: &GuideIr,
+    theme: &Theme,
+) {
+    let Some(polar) = space.polar() else {
+        return;
+    };
+    if !guides.grid || !theme.grid {
+        return;
+    }
+    let theta_ticks = space.polar_theta_ticks();
     // Perimeter labels (categories) around the outside.
     if space.polar_theta_is_band() {
         w.open_group("class=\"algraf-polar-theta-labels\"");

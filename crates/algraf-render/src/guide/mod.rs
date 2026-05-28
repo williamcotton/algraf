@@ -15,7 +15,7 @@ mod plan;
 
 pub(crate) use emit::{
     render_axes, render_facet_label, render_grid, render_legends, render_polar_grid,
-    AxisRenderOptions,
+    render_polar_labels, AxisRenderOptions,
 };
 pub(crate) use plan::{
     estimate_text_width, max_x_tick_label_height, max_y_tick_label_width, x_axis_bottom_margin,

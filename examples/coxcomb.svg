@@ -24,6 +24,20 @@
   <line x1="165" y1="218" x2="114.513" y2="167.513" stroke="#e6e6e6" stroke-width="1" />
   <line x1="165" y1="218" x2="146.52" y2="149.033" stroke="#e6e6e6" stroke-width="1" />
 </g>
+<g class="algraf-layer algraf-geom-bar">
+  <path d="M 165 170.938 A 47.062 47.062 0 0 1 188.531 177.243 L 165 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 187.411 179.184 A 44.821 44.821 0 0 1 203.816 195.589 L 165 218 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 222.254 184.944 A 66.111 66.111 0 0 1 231.111 218 L 165 218 Z" fill="#E15759" opacity="1" />
+  <path d="M 196.375 218 A 31.375 31.375 0 0 1 192.171 233.687 L 165 218 Z" fill="#76B7B2" opacity="1" />
+  <path d="M 186.349 230.326 A 24.652 24.652 0 0 1 177.326 239.349 L 165 218 Z" fill="#59A14F" opacity="1" />
+  <path d="M 175.085 235.467 A 20.169 20.169 0 0 1 165 238.169 L 165 218 Z" fill="#EDC948" opacity="1" />
+  <path d="M 165 237.049 A 19.049 19.049 0 0 1 155.476 234.497 L 165 218 Z" fill="#B07AA1" opacity="1" />
+  <path d="M 153.795 237.408 A 22.411 22.411 0 0 1 145.592 229.205 L 165 218 Z" fill="#FF9DA7" opacity="1" />
+  <path d="M 141.71 231.446 A 26.893 26.893 0 0 1 138.107 218 L 165 218 Z" fill="#9C755F" opacity="1" />
+  <path d="M 128.023 218 A 36.977 36.977 0 0 1 132.977 199.511 L 165 218 Z" fill="#BAB0AC" opacity="1" />
+  <path d="M 121.332 192.788 A 50.424 50.424 0 0 1 139.788 174.332 L 165 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 134.185 164.628 A 61.629 61.629 0 0 1 165 156.371 L 165 218 Z" fill="#F28E2B" opacity="1" />
+</g>
 <g class="algraf-polar-theta-labels">
   <text x="186.586" y="137.442" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan</text>
   <text x="223.973" y="159.027" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Feb</text>
@@ -46,20 +60,6 @@
   <text x="168" y="171.179" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
   <text x="168" y="159.974" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
   <text x="168" y="148.768" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
-</g>
-<g class="algraf-layer algraf-geom-bar">
-  <path d="M 165 170.938 A 47.062 47.062 0 0 1 188.531 177.243 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 187.411 179.184 A 44.821 44.821 0 0 1 203.816 195.589 L 165 218 Z" fill="#F28E2B" opacity="1" />
-  <path d="M 222.254 184.944 A 66.111 66.111 0 0 1 231.111 218 L 165 218 Z" fill="#E15759" opacity="1" />
-  <path d="M 196.375 218 A 31.375 31.375 0 0 1 192.171 233.687 L 165 218 Z" fill="#76B7B2" opacity="1" />
-  <path d="M 186.349 230.326 A 24.652 24.652 0 0 1 177.326 239.349 L 165 218 Z" fill="#59A14F" opacity="1" />
-  <path d="M 175.085 235.467 A 20.169 20.169 0 0 1 165 238.169 L 165 218 Z" fill="#EDC948" opacity="1" />
-  <path d="M 165 237.049 A 19.049 19.049 0 0 1 155.476 234.497 L 165 218 Z" fill="#B07AA1" opacity="1" />
-  <path d="M 153.795 237.408 A 22.411 22.411 0 0 1 145.592 229.205 L 165 218 Z" fill="#FF9DA7" opacity="1" />
-  <path d="M 141.71 231.446 A 26.893 26.893 0 0 1 138.107 218 L 165 218 Z" fill="#9C755F" opacity="1" />
-  <path d="M 128.023 218 A 36.977 36.977 0 0 1 132.977 199.511 L 165 218 Z" fill="#BAB0AC" opacity="1" />
-  <path d="M 121.332 192.788 A 50.424 50.424 0 0 1 139.788 174.332 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 134.185 164.628 A 61.629 61.629 0 0 1 165 156.371 L 165 218 Z" fill="#F28E2B" opacity="1" />
 </g>
 <g class="algraf-legends">
   <text x="286" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">month</text>

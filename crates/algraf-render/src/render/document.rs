@@ -106,12 +106,14 @@ pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagn
         }
     }
 
-    // Axes and legends.
+    // Axes, polar labels, and legends.
     for slot in &slots {
         if let Some(panel) = slot.panel {
             // Spatial spaces have no lat/lon axes (spec §16.15); polar spaces use
-            // ring/spoke guides drawn above instead of Cartesian axes (§16.16).
-            if panel.theme.axes && !panel.scaled.is_spatial() && !panel.scaled.is_polar() {
+            // ring/spoke guides instead of Cartesian axes (§16.16).
+            if panel.scaled.is_polar() {
+                guide::render_polar_labels(&mut w, &panel.scaled, &panel.guides, &panel.theme);
+            } else if panel.theme.axes && !panel.scaled.is_spatial() {
                 guide::render_axes(
                     &mut w,
                     &panel.scaled,

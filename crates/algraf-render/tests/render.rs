@@ -1617,6 +1617,26 @@ fn test_polar_radar_closes_line_and_polygon_grid() {
 }
 
 #[test]
+fn test_polar_labels_render_above_opaque_tiles() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\", width: 420, height: 420) { Space(day * period, coords: \"polar\", theta: \"x\", innerRadius: 0.25) { Tile(fill: sessions) } }",
+        "day,period,sessions\nMon,Morning,8\nMon,Midday,5\nMon,Evening,3\nTue,Morning,6\nTue,Midday,7\nTue,Evening,4\n",
+    );
+    let grid = svg.find("algraf-polar-grid").expect("polar grid");
+    let tiles = svg.find("algraf-geom-tile").expect("tile layer");
+    let radius_labels = svg
+        .find("algraf-polar-radius-labels")
+        .expect("radius labels");
+
+    assert!(grid < tiles, "polar grid should render below tiles");
+    assert!(
+        tiles < radius_labels,
+        "polar radius labels should render above opaque tiles"
+    );
+    assert!(svg.contains(">Evening</text>"));
+}
+
+#[test]
 fn test_cartesian_bar_unaffected_by_polar_support() {
     // A Cartesian bar still emits rectangles, never arc paths.
     let svg = render_svg(

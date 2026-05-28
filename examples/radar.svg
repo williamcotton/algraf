@@ -15,6 +15,19 @@
   <line x1="225" y1="218" x2="139.785" y2="245.688" stroke="#e6e6e6" stroke-width="1" />
   <line x1="225" y1="218" x2="172.334" y2="145.512" stroke="#e6e6e6" stroke-width="1" />
 </g>
+<g class="algraf-layer algraf-geom-area">
+  <path d="M268.346 158.339 L277.602 235.091 L225 300.963 L163.631 237.94 L197.909 180.712 Z" fill="#9ec6e0" opacity="0.4" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M268.346 158.339 L277.602 235.091 L225 300.963 L163.631 237.94 L197.909 180.712Z" fill="none" stroke="#2b6ca3" stroke-width="1.5" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="268.346" cy="158.339" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="277.602" cy="235.091" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="225" cy="300.963" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="163.631" cy="237.94" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="197.909" cy="180.712" r="3" fill="#2b6ca3" opacity="1" />
+</g>
 <g class="algraf-polar-theta-labels">
   <text x="284.719" y="135.804" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Speed</text>
   <text x="321.627" y="249.396" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Power</text>
@@ -28,18 +41,5 @@
   <text x="228" y="179.128" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
   <text x="228" y="160.691" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
   <text x="228" y="142.255" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
-</g>
-<g class="algraf-layer algraf-geom-area">
-  <path d="M268.346 158.339 L277.602 235.091 L225 300.963 L163.631 237.94 L197.909 180.712 Z" fill="#9ec6e0" opacity="0.4" />
-</g>
-<g class="algraf-layer algraf-geom-line">
-  <path d="M268.346 158.339 L277.602 235.091 L225 300.963 L163.631 237.94 L197.909 180.712Z" fill="none" stroke="#2b6ca3" stroke-width="1.5" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="268.346" cy="158.339" r="3" fill="#2b6ca3" opacity="1" />
-  <circle cx="277.602" cy="235.091" r="3" fill="#2b6ca3" opacity="1" />
-  <circle cx="225" cy="300.963" r="3" fill="#2b6ca3" opacity="1" />
-  <circle cx="163.631" cy="237.94" r="3" fill="#2b6ca3" opacity="1" />
-  <circle cx="197.909" cy="180.712" r="3" fill="#2b6ca3" opacity="1" />
 </g>
 </svg>
