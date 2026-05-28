@@ -1,105 +1,144 @@
 # Algraf v0.32.0 Plan
 
-Status: Planned
+Status: Planned (draft)
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_31_PLAN.md`](V0_31_PLAN.md)
+Foundation plan: [`V0_30_PLAN.md`](V0_30_PLAN.md) (declarative interaction
+metadata)
 
 ## Purpose
 
-This document defines the intended v0.32.0 release shape: resolving the
-long-reserved language items that the grammar has held in "reserved for later
-versions" limbo since v0.1 — **nested `Space` blocks** and **space-local
-annotation declarations** (spec §4.2).
+This document defines the intended v0.32.0 release shape: the **host-runtime
+contract** that turns the declarative interaction metadata shipped in v0.30
+into a real integration story for applications that embed Algraf charts.
 
-These were originally bundled into the v0.31 language-surface-polish release but
-were pulled out (see [`V0_31_PLAN.md`](V0_31_PLAN.md)) because, unlike the
-independent polish items there, they are a single coherent grammar-and-scope
-subsystem: they change how a `Space` block is parsed, what it may contain, and
-how scope/inheritance flows through the chart tree. That deserves a release of
-its own.
+[`V0_30_PLAN.md`](V0_30_PLAN.md) shipped the metadata foundation — `tooltip:`
+and `highlight:` source syntax, per-mark `<g data-mark-id="…">` SVG groups
+with `<title>` children, and an inert `interactions: { marks, groups }` block
+on the draw list — but deliberately shipped *no runtime*. Static SVG with
+CSS `:hover` and native `<title>` tooltips covered the zero-JS path; anything
+richer was left for a release that could think the integration boundary
+through.
+
+The integration model in v0.32 is: **Algraf renders an SVG plus a JSON
+sidecar; the host runtime (React, Vue, plain JS, Canvas/WebGL) consumes the
+sidecar and drives interactivity itself.** Algraf does not ship an inline
+runtime; it ships a documented data contract and a reference host
+implementation. This keeps Algraf's job rendering, not UX policy — and gives
+hosts the freedom to draw crosshairs, value readouts, brush selections, and
+tooltips in their own idiom.
 
 As with prior releases, items here are planning guidance. A feature becomes
-normative only when the relevant section of [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md) is
-updated with concrete `MUST`, `SHOULD`, or `MUST NOT` language. Inclusion is a
-commitment to *attempt*; an item ships only when code, tests, docs, and examples
-remain synchronized.
+normative only when the relevant section of [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
+is updated with concrete `MUST`, `SHOULD`, or `MUST NOT` language. Inclusion
+is a commitment to *attempt*; an item ships only when code, tests, docs, and
+examples remain synchronized.
 
 ## Release Thesis
 
-v0.32.0 is a **scope-and-composition** release. Its single job is to take the two
-reserved §4.2 items out of indefinite limbo: each ships with a tested, specified
-design **or** is formally rejected with a recorded rationale that replaces the
-open-ended "reserved for later versions" language with a concrete decision. No
-item stays "reserved."
+v0.32.0 is the **host-runtime** release. It picks up the v0.30 interaction
+metadata and exposes it as a stable JSON contract alongside the rendered SVG,
+adds the extra pieces a host needs (plot rect, invertible scale serialization,
+per-mark pixel positions), and ships a reference React component plus an
+interactive LSP preview that both consume the same contract.
 
-The guiding constraint is that composition must not fork the model. Algraf
-already has one well-defined way to subdivide a plane — algebraic faceting via
-the nesting operator (`a / b`, spec §8, §4.2) — and already supports space-local
-`Scale`, `Guide`, and `Theme` declarations on a `SpaceIr`. This release decides
-what *block* nesting and *annotation* declarations add on top of those, in a way
-that reuses the existing frame, scale-training, and layout machinery rather than
-introducing a parallel one.
+The decision is that Algraf does not ship UX behavior. Algraf provides data;
+the host decides how interactivity looks and feels. The same sidecar serves a
+React tooltip overlay, a Canvas/WebGL custom renderer, a vanilla-JS crosshair,
+and the LSP preview — one contract, many consumers.
 
 ## Current Debt Surface
 
 The plan/spec/code audit found:
 
-- Spec §4.2 says "Nested spaces are reserved for later versions" and "The first
-  implementation SHOULD reject nested `Space` blocks with a diagnostic." The
-  parser/analyzer reject a `Space` declared inside another `Space`; there is no
-  defined meaning for it.
-- Spec §4.2 also says "A space MAY own local scale, guide, or annotation
-  declarations in later versions." Of these, **space-local scales and guides are
-  already implemented** (`SpaceIr.scales`, `SpaceIr.guides`), as is a space-local
-  `Theme`. The genuinely-undefined remainder is the **annotation** declaration:
-  there is no scoped, reusable annotation construct distinct from placing
-  `HLine`/`VLine`/`Text`/`Rect` geometries directly in a space (which already
-  works).
-- Faceting (spec §8.3, "nested spaces represent facets when applied to a whole
-  Cartesian plane") already provides one nesting semantics via algebra. Any
-  block-level nesting must be clearly distinguished from faceting to avoid two
-  overlapping mechanisms.
-- The §4.2 reservation language is the last "reserved for later versions" clause
-  of its kind in the core grammar; leaving it open indefinitely is the debt this
-  release clears.
+- The interaction metadata model from [`V0_30_PLAN.md`](V0_30_PLAN.md) gives
+  hosts per-mark identity and tooltip data but no way to invert mouse
+  coordinates back to data values (needed for crosshair / cursor readouts).
+  Scales in `crates/algraf-render` are training-time structures, not exported.
+- The v0.30 release deliberately deferred all runtime work: no embedded
+  interactive SVG `<script>`, no interactive LSP preview, no host integration
+  surface. v0.30 spec §3 records interactivity as "declarative metadata
+  supported, runtime deferred to v0.32."
+- The "Browser/WASM playground groundwork" Should item from v0.24/v0.30 has
+  no concrete consumer in tree; without a reference host runtime the metadata
+  contract is theory.
+- The URL-valued property policy was settled deny-only in v0.30 (spec §29).
+  A host runtime that supports tooltip hyperlinks or image hrefs is the
+  natural place to revisit, with a real consumer to gate against.
 
 ## Scope Rules
 
-- The decision is binary per item: ship a tested/specified design, or formally
-  reject and document. No "reserved" status survives this release.
-- Block nesting, if shipped, MUST reuse the existing algebraic frame, scale
-  training, and layout machinery; it MUST NOT introduce a second faceting model
-  or a parallel scale engine.
-- Faceting via algebra (`a / b`) stays the canonical way to subdivide a plane;
-  any block nesting is additive and must be unambiguously distinguished from it.
-- Scope/inheritance MUST be explicit and deterministic: a nested construct
-  inherits a single well-defined parent and overrides are last-wins, matching the
-  existing space-local `Theme`/`Scale`/`Guide` resolution (spec §20.1, §16.11).
-- Charts that use neither feature MUST render byte-for-byte unchanged; existing
-  examples MUST NOT drift.
-- Output stays deterministic and locale-independent.
+- Algraf ships *data*, not UX. The host runtime owns hover visuals, tooltip
+  styling, crosshair rendering, selection state, and animation.
+- The sidecar contract is the only carrier for new metadata. No new SVG
+  attributes, no new draw-list fields outside the existing interaction block,
+  no embedded `<script>`.
+- The draw-list and the sidecar carry *the same JSON shape* for interaction
+  metadata. One contract, two carriers.
+- The reference React component is reference material — it exercises the
+  contract end-to-end and is the worked example for other hosts. It is not a
+  required runtime for SVG consumers.
+- Algraf still emits no inline `<script>` in SVG output. SVG with no sidecar
+  remains exactly the v0.30 static artifact.
+- Output stays deterministic: sidecar key ordering is stable;
+  locale-independent number/time formatting (spec §18.12, §19.4) carries
+  into sidecar formatting.
+- URL-valued properties remain denied in source unless this release ships a
+  host-gated policy (see Must §6).
 
 ## Capstone Acceptance Target
 
-The capstone is whichever of the two items ships. If nested blocks ship, a chart
-that nests a `Space` to compose layers with a shared parent frame and a
-space-local override; if rejected, the rejection is recorded and the capstone is
-the diagnostic plus the spec design note.
-
-Illustrative (subject to the item 1 design decision — *not* yet accepted syntax):
+The capstone is the v0.30 scatter chart rendered with the new sidecar, plus a
+reference React component that consumes it and implements three behaviors:
+mark-hover tooltip, crosshair with axis value readout, and legend hover
+highlight.
 
 ```ag
-Chart(data: "metrics.csv", width: 720, height: 460) {
-    Space(time * value) {
-        Line()
-        Space(time * forecast) {
-            Scale(axis: y, domain: [0, null])
-            Line(stroke: "#888", dash: "dashed")
-        }
+Chart(data: "penguins.csv", width: 760, height: 520) {
+    Space(flipper_length * body_mass) {
+        Point(
+            fill: species,
+            tooltip: [species, flipper_length, body_mass],
+            highlight: "species"
+        )
     }
 }
 ```
+
+```bash
+algraf render chart.ag --output /tmp/chart.svg --metadata /tmp/chart.meta.json
+# or equivalently
+algraf render chart.ag --format svg+json --output /tmp/chart      # writes both
+algraf render chart.ag --format draw-list --output /tmp/scene.json
+```
+
+The sidecar shape (illustrative; finalized in spec §24.6):
+
+```jsonc
+{
+  "version": 1,
+  "plot_rect": { "x": 60, "y": 24, "width": 680, "height": 440 },
+  "axes": {
+    "x": { "scale": "linear", "domain": [170, 232], "range": [60, 740],
+           "format": "%.0f mm", "label": "flipper_length" },
+    "y": { "scale": "linear", "domain": [2700, 6300], "range": [464, 24],
+           "format": "%.0f g",  "label": "body_mass" }
+  },
+  "marks": [
+    { "id": "g0:42", "x_px": 412, "y_px": 318,
+      "groups": { "species": "Adelie" },
+      "tooltip": [{ "label": "flipper_length", "value": "195" }] }
+  ],
+  "groups": { "species": ["Adelie","Chinstrap","Gentoo"] }
+}
+```
+
+A reference React component (`@algraf/react` or in-tree equivalent) renders
+the SVG inline, overlays an absolute event layer sized to `plot_rect`, picks
+nearest mark by `x_px`/`y_px`, draws a vertical guideline that reads its
+value from the inverted `axes.x` scale, and toggles group highlight CSS on
+mark/legend hover.
 
 The release must pass:
 
@@ -111,183 +150,220 @@ cargo test --workspace
 git diff -- examples
 ```
 
-Existing examples without nested blocks or annotation declarations regenerate
-without drift.
+Static SVG examples (no sidecar requested) regenerate without drift.
 
-## Design Decisions (settled)
+## Design Decisions (settled in advance of implementation)
 
-1. **No indefinite limbo.** Both §4.2 reserved items reach a concrete decision in
-   this release — shipped-and-tested or formally-rejected — and the spec's
-   "reserved for later versions" wording is replaced accordingly.
-2. **One subdivision model.** Algebraic faceting (`a / b`) remains the canonical
-   way to split a plane. Block nesting, if shipped, is for *composition/layering*
-   with shared or overridden frames, not a second faceting path.
-3. **Reuse, don't fork.** Any nesting reuses the existing `FrameIr`, scale
-   training, and layout planning; space-local overrides reuse the resolution
-   already used for `Theme`/`Scale`/`Guide` on a space.
-4. **Annotations are evaluated against the existing geometry model.** A
-   space-local annotation construct, if shipped, lowers to the reference-mark and
-   text geometries that already exist (spec §14.17–14.20); it does not add a new
-   drawing primitive.
-5. **Backwards compatibility is non-negotiable.** Absent the new constructs,
-   parsing, analysis, and SVG output are byte-for-byte unchanged.
+1. **Hosts own UX.** Algraf does not ship a runtime script, a CSS theme for
+   tooltips, or selection state. The sidecar is the boundary.
+2. **One contract, two carriers.** The sidecar JSON shape and the draw-list
+   `interactions` block carry the same data, versioned together.
+3. **Scales serialize as data, not closures.** The sidecar describes scale
+   *parameters* (kind, domain, range, format string); the host implements
+   inversion using a documented algorithm per scale kind. No host-side WASM
+   dependency.
+4. **The reference component is reference material.** It exists to exercise
+   the contract end-to-end and document the integration pattern. It is not
+   required for SVG consumption.
 
 ## v0.32.0 Must
 
-### 1. Nested `Space` block semantics: decide and specify
+### 1. SVG + JSON sidecar emission
 
 Status: Planned.
 
 Acceptance criteria:
 
-- Decide whether nested `Space` blocks ship in v0.32, and specify their exact
-  meaning if so. Candidate semantics to evaluate (pick one or reject all):
-  - **Layer composition with frame inheritance:** a child `Space` shares the
-    parent's plot area and inherits its frame, optionally overriding one axis or
-    the coordinate system, to overlay a related series (e.g. a secondary line or
-    a forecast band) without a new panel.
-  - **Inset / sub-panel:** a child `Space` occupies a sub-rectangle of the
-    parent's plot area with an independent frame.
-  - **Formal rejection:** block nesting adds nothing that algebraic faceting and
-    overlaid geometries do not already provide, so it is rejected and the
-    diagnostic/spec note is finalized.
-- Whichever is chosen, explicitly distinguish it from algebraic faceting
-  (spec §8.3) so the two mechanisms do not overlap or compete.
-- Record the decision and rationale in the spec (§4.2) and this plan, replacing
-  the "reserved for later versions" language.
+- Add a `--metadata <path>` flag (or equivalent `--format svg+json`) to
+  `algraf render` that emits the sidecar JSON alongside the SVG.
+- Sidecar contents and key ordering are deterministic; numeric/time
+  formatting is locale-independent.
+- Without the flag, SVG output is byte-identical to v0.30 for non-interaction
+  charts; charts with `tooltip:`/`highlight:` still render their v0.30 static
+  affordances (`<title>`, `data-*` groups).
 
-### 2. Nested `Space`: grammar, scope, and rendering (only if item 1 ships)
+### 2. Plot rect and invertible scale serialization
 
 Status: Planned.
 
 Acceptance criteria:
 
-- Update the parser/CST to accept a `Space` inside a `Space` (removing the
-  current rejection diagnostic only where the new design permits it) and the AST
-  to expose the child space.
-- Define scope/inheritance in §9 terms: which frame, scales, guides, theme, and
-  coordinate system a child inherits, and how local declarations override them
-  (last-wins, matching existing space-local resolution).
-- Train scales and plan layout for nested blocks by reusing the existing
-  pipeline; no parallel scale engine or layout path.
-- Reserve and implement diagnostics for invalid nesting (e.g. a frame/coordinate
-  combination the chosen semantics forbids).
-- If item 1 rejects nesting, this item is dropped and the rejection diagnostic is
-  finalized and tested instead.
+- The sidecar carries `plot_rect` (the inner plot area in SVG pixel space)
+  and per-axis scale metadata sufficient for host-side inversion: scale
+  kind, domain, range, and format string at minimum.
+- Inversion algorithms per scale kind (linear, log, time, ordinal/band) are
+  documented in spec §24.6 so hosts can implement them without consulting
+  Algraf internals.
+- The reference React component invertibly maps a mouse-x within `plot_rect`
+  to a formatted axis-x value for every supported scale kind.
 
-### 3. Space-local annotation declarations: decide and (if shipped) implement
+### 3. Per-mark pixel positions in sidecar
 
 Status: Planned.
 
 Acceptance criteria:
 
-- Decide whether a dedicated space-local *annotation* declaration ships, distinct
-  from placing `HLine`/`VLine`/`Text`/`Rect` geometries directly in a space
-  (which already works). Candidate: a named or reusable annotation construct, or a
-  grouping that scopes reference marks to a space.
-- If it ships: specify its grammar and lower it to the existing reference-mark and
-  text geometries (no new drawing primitive); validate placement and reserve
-  diagnostics.
-- If it is rejected: record that direct geometry placement is the supported
-  mechanism, and update §4.2 to drop the "annotation declarations" reservation.
+- The sidecar's `marks[]` entries carry `x_px`/`y_px` (or a richer
+  shape-specific descriptor for non-point marks) so hosts can pick nearest
+  marks without re-running layout.
+- Mark IDs match the v0.29 stable mark identity used in the draw list and
+  the v0.30 SVG `data-mark-id` attribute.
+- Group keys and tooltip rows are formatted using the same locale-independent
+  rules as elsewhere in the renderer.
 
-### 4. Diagnostics, LSP, and editor metadata
+### 4. Draw-list parity with sidecar
 
 Status: Planned.
 
 Acceptance criteria:
 
-- Reserve and implement any new diagnostics in spec §26 before coding (invalid
-  nesting, invalid space-local annotation placement), or finalize the rejection
-  diagnostic(s).
-- LSP completion, hover, signature help, document symbols, and folding handle a
-  nested `Space` (and any annotation construct) where they ship.
-- The VS Code TextMate grammar and `language-configuration.json` track any new
-  source-visible keywords or block structure.
+- The draw-list backend's `interactions` block carries the same JSON shape as
+  the sidecar (modulo any draw-list-only fields), versioned together with one
+  shared schema.
+- A snapshot test confirms the two carriers produce equivalent interaction
+  metadata for the capstone chart.
 
-### 5. Examples, README, spec, and release hygiene
+### 5. Reference host runtime
 
 Status: Planned.
 
 Acceptance criteria:
 
-- Add at least one example for each shipped feature (or none, with a recorded
-  rejection); regenerate with `./examples/generate.sh` and confirm no drift on
-  existing examples.
-- README gains a composition/scope tutorial section if a feature ships.
-- Spec updates cover §4.2 (the nested-space and annotation decisions, replacing
-  the reserved language), §8/§9 (scope/inheritance semantics if nesting ships),
-  §14 (annotation lowering if it ships), and §26 (diagnostics).
+- Ship a reference component (React in `editors/` or a sibling package; a
+  vanilla-JS reference is acceptable if React tooling adds too much scope)
+  that consumes the sidecar and implements: mark-hover tooltip, crosshair
+  with axis value readout, and legend hover highlight.
+- The component is documented in the README as the worked integration
+  pattern; other host integrations (Vue, Canvas) reference its source.
+- Determinism: snapshot tests on the sidecar plus integration tests on the
+  reference component cover the capstone behaviors.
+
+### 6. URL-valued property policy (revisit)
+
+Status: Planned.
+
+Acceptance criteria:
+
+- Revisit the v0.30 deny-only design note now that a host runtime exists.
+  Decide whether URL-valued properties (hyperlinks, image hrefs in tooltip
+  rows) ship in v0.32 gated behind an explicit host/CLI policy with deny
+  default, or remain rejected.
+- If shipping: specify the surface, the policy hook, and how SVG injection
+  rules (spec §29.3) apply to URL values in the sidecar.
+- If not shipping: extend the v0.30 design note in spec §29 to point at a
+  later release.
+
+### 7. Interactive LSP preview
+
+Status: Planned.
+
+Acceptance criteria:
+
+- Extend the `algraf/preview` surface (spec §21.18) so VS Code can opt into
+  an interactive preview that consumes the same sidecar as a React host.
+  Static preview (the v0.30 default) is unchanged and remains the default.
+- The interactive preview path uses the reference runtime; the VS Code
+  webview pins a CSP allowing only the runtime's SHA-256 hash and the
+  Algraf-shipped CSS, with no user-authored script ever loaded.
+- A document with no interaction metadata previews exactly as today (static
+  `<img src="data:…" />` path).
+
+### 8. Examples, README, spec, and release hygiene
+
+Status: Planned.
+
+Acceptance criteria:
+
+- Add at least one example whose generation produces both an SVG and a
+  sidecar; the reference component's integration test exercises the sidecar
+  end-to-end.
+- README gains a "Embedding in a host runtime" section after the
+  output-modes tutorial.
+- Spec updates cover §3 (interactivity is supported via the host-runtime
+  contract), §18 (no change to static SVG; sidecar is a sibling artifact),
+  §21.18 (opt-in interactive preview), §24.6 (sidecar shape, scale
+  serialization, draw-list parity), §29 (URL policy revisit), and §30 if a
+  feature gate is used.
 - Workspace `Cargo.toml` and `editors/vscode/package.json` are bumped to
-  `0.32.0`; LSP completion/hover and the VS Code grammar gain any new keywords.
+  `0.32.0`; the reference component package (if separately published) is
+  versioned in lockstep.
 
 ## v0.32.0 Should
 
-### Dual-axis legibility
+### Selection / brushing in the reference runtime
 
 Status: Planned.
 
-If layer-composition nesting ships with a per-child axis override, design how a
-secondary axis is drawn and labeled without implying a shared scale, including
-guidance against misleading dual-axis charts.
+If the v0.30 design-only selection/brushing surface is in place, implement it
+in the reference component over the sidecar (legend click filters, drag-rect
+brush over the plot area). Keep selection state in the host; Algraf only
+provides the data shape.
 
-### Named/reusable annotation fragments
+### Animated SVG / transitions
 
 Status: Planned.
 
-If a space-local annotation construct ships, consider a reusable fragment
-mechanism (analogous to `Style(...)`, spec §7) so a set of reference marks can be
-declared once and applied to multiple spaces. Keep it declarative and inert.
+Carry forward the v0.30 animated-SVG design item. If declarative,
+deterministic, snapshot-testable transitions can be expressed without
+turning rendering into code execution, ship them; otherwise keep design-only.
+
+### WASM rendering path
+
+Status: Planned.
+
+If the host story is mature, sketch (do not require) a WASM-compiled Algraf
+renderer that produces sidecar + draw list in-browser, completing the
+v0.19/v0.24 WASM line.
 
 ## Explicitly Deferred Past v0.32.0
 
-- A second faceting model distinct from algebraic nesting (`a / b`).
-- Independent, free-floating sub-charts or picture-in-picture composition beyond
-  the chosen nesting semantics.
-- Dual-axis charts with independent *competing* scales presented as one axis pair
-  (kept out unless item 1 explicitly designs the secondary-axis case safely).
-- Extensibility — plugins, custom stats/geometries, user-defined functions, and
-  macros remain the scope of [`V0_25_PLAN.md`](V0_25_PLAN.md), still pending and
-  not reopened here.
+- Algraf-shipped UX policy (theme tokens for tooltip styling, cursor
+  affordances). Hosts own this.
+- Arbitrary JavaScript or user-authored event handlers in source.
+- Network-backed interactions, fetches, or live data.
+- Cross-chart linked brushing beyond a single chart document (unless the
+  reference runtime makes it trivial; design-only otherwise).
+- Required WASM/browser product.
 
 ## Optional-Item Audit
 
 ### Promote In v0.32.0 (Must)
 
-- Nested `Space` block semantics decision.
-- Nested `Space` grammar/scope/rendering (if shipped).
-- Space-local annotation declaration decision (and implementation if shipped).
-- Diagnostics, LSP, and editor metadata.
+- SVG + JSON sidecar emission.
+- Plot rect and invertible scale serialization.
+- Per-mark pixel positions in sidecar.
+- Draw-list parity with sidecar.
+- Reference host runtime.
+- URL-valued property policy revisit.
+- Interactive LSP preview.
 - Examples, README, spec, and release hygiene.
 
 ### Consider If Capacity Allows (Should)
 
-- Dual-axis legibility.
-- Named/reusable annotation fragments.
+- Selection / brushing in the reference runtime.
+- Animated SVG / transitions.
+- WASM rendering path.
 
 ### Keep Deferred
 
-- A second faceting model, free-floating sub-charts, competing dual-axis scales,
-  and extensibility (v0.25).
+- Algraf-shipped UX policy, arbitrary scripting, network interactions,
+  multi-chart linked brushing, required WASM/browser product.
 
 ## Promotion Workflow
 
-1. Decide nested-`Space` semantics (item 1); record the decision in the spec
-   before any code.
-2. Reserve new diagnostics in spec §26.
-3. If nesting ships: extend the parser/AST, then define scope/inheritance in §9
-   and reuse the existing scale-training and layout pipeline.
-4. Decide and (if shipped) implement space-local annotation declarations over the
-   existing reference-mark/text geometries.
-5. Add diagnostics, LSP, and grammar updates for whatever ships.
-6. Add examples and README sections; bump versions; confirm no unintended example
-   drift.
-
-## A note on sequencing
-
-After this release the last large unimplemented subsystem is **extensibility** —
-plugins, custom stats, custom geometries, user-defined functions, and macros —
-which already has a written but unshipped plan in
-[`V0_25_PLAN.md`](V0_25_PLAN.md). It remains the plan-of-record for extensibility
-and should be slotted in (and renumbered if desired) once the reserved grammar
-items are resolved here.
+1. Finalize the sidecar schema and scale-serialization algorithms in spec
+   §24.6 before coding.
+2. Add the `--metadata` / `--format svg+json` CLI surface and wire the
+   sidecar emitter from the render scene.
+3. Add per-mark pixel positions and plot rect to the scene's interaction
+   metadata; reuse for both sidecar and draw list.
+4. Bring the draw-list `interactions` block to parity with the sidecar
+   (shared shape, shared snapshot tests).
+5. Implement the reference host runtime against the sidecar; add the
+   integration test on the capstone chart.
+6. Revisit the URL-valued property policy and either ship a gated surface
+   or extend the v0.30 deny-only design note.
+7. Extend the LSP preview to an opt-in interactive surface reusing the
+   reference runtime; update the VS Code client wiring and CSP.
+8. Add examples, README, LSP metadata; bump versions; confirm static SVG
+   has no drift and the sidecar snapshot is stable.
