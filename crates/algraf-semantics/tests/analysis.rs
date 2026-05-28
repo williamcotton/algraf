@@ -1853,3 +1853,41 @@ fn test_non_string_projection_reports_e1802() {
         "E1802"
     ));
 }
+
+#[test]
+fn polar_coords_accept_valid_arguments() {
+    clean("Chart(data: \"p.csv\") { Space(amount, coords: \"polar\", theta: \"y\", innerRadius: 0.5) { Bar(fill: species, layout: \"fill\") } }");
+    clean("Chart(data: \"p.csv\") { Space(species * amount, coords: \"polar\", theta: \"x\") { Bar() } }");
+}
+
+#[test]
+fn polar_invalid_coordinate_system_is_e1901() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(amount, coords: \"radial\") { Bar() } }",
+        "E1901"
+    ));
+}
+
+#[test]
+fn polar_invalid_theta_is_e1902() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(species * amount, coords: \"polar\", theta: \"z\") { Bar() } }",
+        "E1902"
+    ));
+}
+
+#[test]
+fn polar_inner_radius_out_of_range_is_e1903() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(amount, coords: \"polar\", innerRadius: 1.5) { Bar() } }",
+        "E1903"
+    ));
+}
+
+#[test]
+fn polar_invalid_grid_shape_is_e1906() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(species * amount, coords: \"polar\") { Guide(gridShape: \"hexagon\") Bar() } }",
+        "E1906"
+    ));
+}

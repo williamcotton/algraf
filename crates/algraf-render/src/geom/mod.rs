@@ -8,6 +8,7 @@ mod geo;
 mod graticule;
 mod line;
 mod point;
+mod polar;
 mod rect_tile;
 mod text;
 

@@ -7,7 +7,7 @@ use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
 use super::args::DupGuard;
 use super::context::{Analyzer, ValueForm};
-use crate::ir::{AxisSelectorIr, GuideOverridesIr, TemporalFormatIr};
+use crate::ir::{AxisSelectorIr, GridShapeIr, GuideOverridesIr, TemporalFormatIr};
 
 impl Analyzer<'_> {
     pub(super) fn guide_decl(&mut self, decl: &Decl, guides: &mut GuideOverridesIr) {
@@ -113,6 +113,27 @@ impl Analyzer<'_> {
                         guides.grid = Some(b);
                     }
                 }
+                "gridShape" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        match string_value(&lit.text().unwrap_or_default()).as_str() {
+                            "circle" => guides.grid_shape = Some(GridShapeIr::Circle),
+                            "polygon" => guides.grid_shape = Some(GridShapeIr::Polygon),
+                            other => self.diag(Diagnostic::error(
+                                codes::E1906,
+                                format!(
+                                    "`gridShape` must be \"circle\" or \"polygon\", not {other:?}"
+                                ),
+                                node_span(lit.syntax()),
+                            )),
+                        }
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        codes::E1906,
+                        "`gridShape` expects a string literal: \"circle\" or \"polygon\"",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
                 _ => self.diag(Diagnostic::warning(
                     codes::W2006,
                     format!("unsupported Guide argument `{key}` ignored"),

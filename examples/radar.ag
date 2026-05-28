@@ -1,0 +1,8 @@
+Chart(data: "radar_skills.csv", width: 420, height: 420, title: "Player profile") {
+  Space(axis * score, coords: "polar", theta: "x") {
+    Guide(gridShape: "polygon")
+    Area(fill: "#9ec6e0")
+    Line(stroke: "#2b6ca3")
+    Point(fill: "#2b6ca3")
+  }
+}

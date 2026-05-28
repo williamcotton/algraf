@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::DataType;
 use algraf_syntax::ast::{
-    AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, LetDecl, LiteralKind, SpaceBlock,
+    AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, Arg, LetDecl, LiteralKind, SpaceBlock,
     SpaceItem, ValueExpr,
 };
 use algraf_syntax::{node_span, unescape_string_literal as string_value, SyntaxKind};
@@ -52,6 +52,7 @@ impl Analyzer<'_> {
             None => FrameIr::Invalid,
         };
         let projection = self.space_projection(space);
+        let coords = self.space_coords(space, &frame, projection.is_some());
 
         let mut geometries = Vec::new();
         let mut histograms = Vec::new();
@@ -186,8 +187,15 @@ impl Analyzer<'_> {
                 scales,
                 theme,
                 projection,
+                coords,
                 span,
             });
+        }
+        // Desugared spaces (histogram/freq-poly/bin2d/density/count-bar) inherit
+        // the parent space's coordinate system, so a polar `Histogram` yields a
+        // circular histogram (spec §16.16).
+        for produced in &mut analysis.spaces {
+            produced.coords = coords;
         }
         // Space-scope bindings do not leak into sibling spaces (spec §9.6).
         self.space_vars = HashMap::new();
@@ -215,6 +223,144 @@ impl Analyzer<'_> {
                 None
             }
             None => None,
+        }
+    }
+
+    /// Read and validate the polar coordinate arguments of a space (spec §4.2,
+    /// §16.16): `coords` (`"cartesian"` default | `"polar"`), `theta` (`"x"`
+    /// default | `"y"`), and `innerRadius` (a fraction in `[0, 1)`). Cartesian is
+    /// returned for any non-polar or invalid configuration so rendering is
+    /// unaffected. A spatial (projected) space ignores `coords` — combining polar
+    /// with geographic projections is deferred.
+    fn space_coords(
+        &mut self,
+        space: &SpaceBlock,
+        frame: &FrameIr,
+        has_projection: bool,
+    ) -> CoordsIr {
+        let args = space.args();
+        let Some(coords_arg) = args.iter().find(|a| a.key().as_deref() == Some("coords")) else {
+            return CoordsIr::Cartesian;
+        };
+        let (coords_value, value_span) = match coords_arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => (
+                string_value(&lit.text().unwrap_or_default()),
+                node_span(lit.syntax()),
+            ),
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E1901,
+                    "`coords` expects a string literal: \"cartesian\" or \"polar\"",
+                    node_span(value.syntax()),
+                ));
+                return CoordsIr::Cartesian;
+            }
+            None => return CoordsIr::Cartesian,
+        };
+        match coords_value.as_str() {
+            "cartesian" => CoordsIr::Cartesian,
+            "polar" => {
+                if has_projection {
+                    // Polar + geographic projection is deferred (spec §16.15);
+                    // the projection wins and the space stays spatial.
+                    return CoordsIr::Cartesian;
+                }
+                let theta = self.polar_theta(&args);
+                let inner_radius = self.polar_inner_radius(&args);
+                // The transform supports 1D and 2D (a * b) frames. Faceted
+                // (nested) polar frames are deferred.
+                match frame {
+                    FrameIr::Nested { .. } => {
+                        self.diag(Diagnostic::error(
+                            codes::E1904,
+                            "polar coordinates support a 1D or 2D (a * b) frame, not a faceted frame",
+                            value_span,
+                        ));
+                        CoordsIr::Cartesian
+                    }
+                    FrameIr::Invalid => CoordsIr::Cartesian,
+                    _ => CoordsIr::Polar {
+                        theta,
+                        inner_radius,
+                    },
+                }
+            }
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1901,
+                    format!("unknown coordinate system {coords_value:?}; expected \"cartesian\" or \"polar\""),
+                    value_span,
+                ));
+                CoordsIr::Cartesian
+            }
+        }
+    }
+
+    /// Read the `theta:` argument (`"x"` default | `"y"`), selecting which frame
+    /// axis maps to the angle under a polar transform (spec §16.16).
+    fn polar_theta(&mut self, args: &[Arg]) -> PolarThetaIr {
+        let Some(arg) = args.iter().find(|a| a.key().as_deref() == Some("theta")) else {
+            return PolarThetaIr::X;
+        };
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                match string_value(&lit.text().unwrap_or_default()).as_str() {
+                    "x" => PolarThetaIr::X,
+                    "y" => PolarThetaIr::Y,
+                    other => {
+                        self.diag(Diagnostic::error(
+                            codes::E1902,
+                            format!("`theta` must be \"x\" or \"y\", not {other:?}"),
+                            node_span(lit.syntax()),
+                        ));
+                        PolarThetaIr::X
+                    }
+                }
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E1902,
+                    "`theta` expects a string literal: \"x\" or \"y\"",
+                    node_span(value.syntax()),
+                ));
+                PolarThetaIr::X
+            }
+            None => PolarThetaIr::X,
+        }
+    }
+
+    /// Read the `innerRadius:` argument: a numeric literal in `[0, 1)` (a fraction
+    /// of the maximum radius; `0` = pie, `> 0` = donut, spec §16.16).
+    fn polar_inner_radius(&mut self, args: &[Arg]) -> f64 {
+        let Some(arg) = args
+            .iter()
+            .find(|a| a.key().as_deref() == Some("innerRadius"))
+        else {
+            return 0.0;
+        };
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Number) => {
+                match lit.text().and_then(|t| t.parse::<f64>().ok()) {
+                    Some(value) if (0.0..1.0).contains(&value) => value,
+                    _ => {
+                        self.diag(Diagnostic::error(
+                            codes::E1903,
+                            "`innerRadius` must be a number in [0, 1)",
+                            node_span(lit.syntax()),
+                        ));
+                        0.0
+                    }
+                }
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E1903,
+                    "`innerRadius` expects a numeric literal in [0, 1)",
+                    node_span(value.syntax()),
+                ));
+                0.0
+            }
+            None => 0.0,
         }
     }
 

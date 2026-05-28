@@ -1861,6 +1861,124 @@ Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
 
 ---
 
+## Polar coordinates: circular charts
+
+Algraf has no `Pie` or `Donut` geometry. Instead, a `Space` can opt into a
+**polar coordinate system** with `coords: "polar"`, and the *existing* Cartesian
+geometries map into it. One frame axis wraps around the angle (`theta: "x"` or
+`"y"`); the other extends along the radius. `innerRadius` (a fraction in
+`[0, 1)`) cuts a donut hole. The angle starts at 12 o'clock and runs clockwise.
+Cartesian charts are completely unaffected.
+
+A **pie** is a 1D space whose value wraps the full angle (`theta: "y"`, a `fill`
+layout), drawn as `Bar` wedges:
+
+```algraf
+Chart(data: "pie_sales.csv", width: 360, height: 360, title: "Revenue share") {
+  Space(sales, coords: "polar", theta: "y") {
+    Bar(fill: product, layout: "fill")
+  }
+}
+```
+
+![pie](examples/pie.svg)
+
+A **donut** is the same chart with `innerRadius` set:
+
+```algraf
+Chart(data: "pie_sales.csv", width: 360, height: 360, title: "Revenue share") {
+  Space(sales, coords: "polar", theta: "y", innerRadius: 0.55) {
+    Bar(fill: product, layout: "fill")
+  }
+}
+```
+
+![donut](examples/donut.svg)
+
+A **coxcomb** (Nightingale rose) keeps the category on the angle (`theta: "x"`)
+and lets the value drive the radius:
+
+```algraf
+Chart(data: "coxcomb_deaths.csv", width: 420, height: 420, title: "Deaths by month (coxcomb)") {
+  Space(month * deaths, coords: "polar", theta: "x") {
+    Bar(fill: month)
+  }
+}
+```
+
+![coxcomb](examples/coxcomb.svg)
+
+A **wind rose** stacks a sub-category within each angular wedge:
+
+```algraf
+Chart(data: "wind.csv", width: 420, height: 420, title: "Wind rose") {
+  Space(direction * freq, coords: "polar", theta: "x") {
+    Bar(fill: speed, layout: "stack")
+  }
+}
+```
+
+![wind_rose](examples/wind_rose.svg)
+
+A **circular histogram** is just `Histogram` in a polar space — it desugars to
+`Rect`, which honors polar for free:
+
+```algraf
+Chart(data: "circular_hours.csv", width: 420, height: 420, title: "Events by hour") {
+  Space(hour, coords: "polar", theta: "x") {
+    Histogram(bins: 12, fill: "#4E79A7")
+  }
+}
+```
+
+![circular_histogram](examples/circular_histogram.svg)
+
+A **polar line/scatter** is good for seasonal or periodic data; `Line` and
+`Area` close their polygons around the circle:
+
+```algraf
+Chart(data: "seasonal_temps.csv", width: 420, height: 420, title: "Seasonal temperature") {
+  Space(month * temp, coords: "polar", theta: "x") {
+    Area(fill: "#bcd")
+    Line(stroke: "#4E79A7")
+    Point(fill: "#4E79A7")
+  }
+}
+```
+
+![polar_scatter](examples/polar_scatter.svg)
+
+An **annular heatmap** uses `Tile` with band axes on both the angle and the
+radius, plus an `innerRadius` hole:
+
+```algraf
+Chart(data: "activity.csv", width: 420, height: 420, title: "Sessions by day and period") {
+  Space(day * period, coords: "polar", theta: "x", innerRadius: 0.25) {
+    Tile(fill: sessions)
+  }
+}
+```
+
+![annular_heatmap](examples/annular_heatmap.svg)
+
+A **radar** chart layers a closed `Area`, `Line`, and `Point` over a categorical
+angle, with a straight-edged polygon grid via `Guide(gridShape: "polygon")`:
+
+```algraf
+Chart(data: "radar_skills.csv", width: 420, height: 420, title: "Player profile") {
+  Space(axis * score, coords: "polar", theta: "x") {
+    Guide(gridShape: "polygon")
+    Area(fill: "#9ec6e0")
+    Line(stroke: "#2b6ca3")
+    Point(fill: "#2b6ca3")
+  }
+}
+```
+
+![radar](examples/radar.svg)
+
+---
+
 ## Multiple charts in one document
 
 A document may hold more than one top-level `Chart`. Each chart is fully

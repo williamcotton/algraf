@@ -48,6 +48,55 @@ pub(super) fn render_polyline(
     // historical behavior of grouping by stroke category.
     let groups: Vec<(String, Vec<usize>)> = grouped_rows(geo, &stroke, table, row_list);
 
+    // Polar Line/Path: order vertices around the circle by angle; a `Line`
+    // (sort) closes back to the first category for a radar polygon (spec §16.16).
+    if space.is_polar() {
+        let const_width = match &width {
+            NumberSpec::Constant(wd) => *wd,
+            _ => theme.line_width,
+        };
+        for (cat, rows) in groups {
+            let mut points: Vec<(f64, f64, f64, usize)> = rows
+                .iter()
+                .filter_map(|&r| {
+                    Some((
+                        space.polar_angle(table, r)?,
+                        space.resolve_x(table, r)?,
+                        space.resolve_y(table, r)?,
+                        r,
+                    ))
+                })
+                .collect();
+            points.sort_by(|a, b| a.0.total_cmp(&b.0));
+            if points.is_empty() {
+                continue;
+            }
+            let group_color = if cat.is_empty() {
+                constant_or(&stroke, DEFAULT_STROKE)
+            } else {
+                stroke
+                    .resolve(table, points[0].3)
+                    .unwrap_or_else(|| DEFAULT_STROKE.to_string())
+            };
+            let mut d = String::new();
+            for (i, (_, x, y, _)) in points.iter().enumerate() {
+                let cmd = if i == 0 { 'M' } else { 'L' };
+                let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
+            }
+            // A closed radar polygon for `Line`; `Path` stays open.
+            let close = if sort { "Z" } else { "" };
+            w.line(&format!(
+                "<path d=\"{}{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\" />",
+                d.trim_end(),
+                close,
+                escape_attr(&group_color),
+                num(const_width),
+                num(alpha),
+            ));
+        }
+        return;
+    }
+
     for (cat, rows) in groups {
         let mut points: Vec<(f64, f64, usize)> = rows
             .iter()
@@ -363,10 +412,6 @@ pub(super) fn render_area(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
     let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
     let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
     let alpha = number_setting(geo, PropertyKey::Alpha, 0.4);
-    let baseline_value = number_setting(geo, PropertyKey::Baseline, 0.0);
-    let Some(baseline_y) = space.map_y(baseline_value) else {
-        return;
-    };
 
     let row_list = render_rows(table, rows);
     let groups = match &fill {
@@ -375,6 +420,51 @@ pub(super) fn render_area(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
             ColorSpec::Categorical { .. } => grouped_rows_by_color(&stroke, table, row_list),
             _ => vec![row_list],
         },
+    };
+
+    // Polar Area: a closed polygon through the angle-ordered vertices (radar),
+    // filled directly rather than down to a baseline (spec §16.16).
+    if space.is_polar() {
+        for group_rows in groups {
+            let mut points: Vec<(f64, f64, f64, usize)> = group_rows
+                .iter()
+                .filter_map(|&row| {
+                    Some((
+                        space.polar_angle(table, row)?,
+                        space.resolve_x(table, row)?,
+                        space.resolve_y(table, row)?,
+                        row,
+                    ))
+                })
+                .collect();
+            if points.len() < 2 {
+                continue;
+            }
+            points.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let mut d = String::new();
+            for (i, (_, x, y, _)) in points.iter().enumerate() {
+                let cmd = if i == 0 { 'M' } else { 'L' };
+                let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
+            }
+            d.push('Z');
+            let first_row = points[0].3;
+            let fill_color = fill
+                .resolve(table, first_row)
+                .unwrap_or_else(|| DEFAULT_FILL.to_string());
+            w.line(&format!(
+                "<path d=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
+                d.trim_end(),
+                escape_attr(&fill_color),
+                stroke_attrs(&stroke, stroke_width, table, first_row),
+                num(alpha),
+            ));
+        }
+        return;
+    }
+
+    let baseline_value = number_setting(geo, PropertyKey::Baseline, 0.0);
+    let Some(baseline_y) = space.map_y(baseline_value) else {
+        return;
     };
 
     for group_rows in groups {

@@ -1408,3 +1408,58 @@ fn test_rotated_x_tick_labels_reserve_more_bottom_margin() {
         "rotated x labels should reserve more bottom margin: rotated={rotated}, horizontal={horizontal}"
     );
 }
+
+#[test]
+fn test_polar_pie_emits_arc_wedges() {
+    // A 1D polar space with a fill layout draws angular wedges as SVG arc paths
+    // (spec §16.16), not rectangles.
+    let svg = render_svg(
+        "Chart(data: \"p.csv\", width: 360, height: 360) { Space(amount, coords: \"polar\", theta: \"y\") { Bar(fill: product, layout: \"fill\") } }",
+        "product,amount\nA,30\nB,20\nC,50\n",
+    );
+    // Three categories -> three wedge paths using the arc command.
+    assert_eq!(svg.matches("<path d=\"M ").count(), 3);
+    assert!(svg.contains(" A "), "polar wedges use the SVG arc command");
+    // No axis lines/grid for a polar space.
+    assert!(!svg.contains("algraf-axes"));
+}
+
+#[test]
+fn test_polar_donut_emits_annular_segments() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\", width: 360, height: 360) { Space(amount, coords: \"polar\", theta: \"y\", innerRadius: 0.5) { Bar(fill: product, layout: \"fill\") } }",
+        "product,amount\nA,30\nB,20\nC,50\n",
+    );
+    // An annular segment has two arcs (outer + inner) per wedge.
+    let first = svg.lines().find(|l| l.contains("<path d=\"M ")).unwrap();
+    assert_eq!(
+        first.matches(" A ").count(),
+        2,
+        "donut wedge has inner + outer arc"
+    );
+}
+
+#[test]
+fn test_polar_radar_closes_line_and_polygon_grid() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\", width: 400, height: 400) { Space(axis * score, coords: \"polar\", theta: \"x\") { Guide(gridShape: \"polygon\") Line(stroke: \"navy\") Point() } }",
+        "axis,score\nA,8\nB,5\nC,9\nD,6\n",
+    );
+    // A radar Line closes its polygon with Z.
+    assert!(svg.contains("Z\" fill=\"none\" stroke=\"navy\""));
+    // The polygon grid uses <polygon> rings, not <circle> rings.
+    assert!(svg.contains("<polygon"));
+    // Four categories -> four point markers.
+    assert_eq!(svg.matches("<circle").count(), 4);
+}
+
+#[test]
+fn test_cartesian_bar_unaffected_by_polar_support() {
+    // A Cartesian bar still emits rectangles, never arc paths.
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") { Space(c * v) { Bar(stat: \"identity\") } }",
+        "c,v\na,1\nb,2\n",
+    );
+    assert!(svg.contains("<rect"));
+    assert!(!svg.contains(" A "));
+}

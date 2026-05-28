@@ -79,7 +79,9 @@ pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagn
     }
     for slot in &slots {
         if let Some(panel) = slot.panel {
-            if panel.guides.grid && !panel.scaled.is_spatial() {
+            if panel.scaled.is_polar() {
+                guide::render_polar_grid(&mut w, &panel.scaled, &panel.guides, &panel.theme);
+            } else if panel.guides.grid && !panel.scaled.is_spatial() {
                 guide::render_grid(&mut w, &panel.scaled, panel.plot, &panel.theme);
             }
         }
@@ -107,8 +109,9 @@ pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagn
     // Axes and legends.
     for slot in &slots {
         if let Some(panel) = slot.panel {
-            // Spatial spaces have no lat/lon axes (spec §16.15).
-            if panel.theme.axes && !panel.scaled.is_spatial() {
+            // Spatial spaces have no lat/lon axes (spec §16.15); polar spaces use
+            // ring/spoke guides drawn above instead of Cartesian axes (§16.16).
+            if panel.theme.axes && !panel.scaled.is_spatial() && !panel.scaled.is_polar() {
                 guide::render_axes(
                     &mut w,
                     &panel.scaled,

@@ -1,0 +1,5 @@
+Chart(data: "wind.csv", width: 420, height: 420, title: "Wind rose") {
+  Space(direction * freq, coords: "polar", theta: "x") {
+    Bar(fill: speed, layout: "stack")
+  }
+}

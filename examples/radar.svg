@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420" role="img" aria-label="Player profile">
+<title>Player profile</title>
+<rect class="algraf-background" x="0" y="0" width="420" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Player profile</text>
+<rect class="algraf-plot-area" x="60" y="66" width="330" height="304" fill="#ffffff" />
+<g class="algraf-polar-grid">
+  <polygon points="243.383,192.697 254.745,227.665 225,249.276 195.255,227.665 206.617,192.697" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <polygon points="261.767,167.395 284.49,237.329 225,280.551 165.51,237.329 188.233,167.395" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <polygon points="280.15,142.092 314.235,246.994 225,311.827 135.765,246.994 169.85,142.092" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <polygon points="298.534,116.79 343.98,256.659 225,343.103 106.02,256.659 151.466,116.79" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <polygon points="314.343,95.029 369.561,264.971 225,370 80.439,264.971 135.657,95.029" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="314.343" y2="95.029" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="369.561" y2="264.971" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="225" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="80.439" y2="264.971" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="135.657" y2="95.029" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-polar-theta-labels">
+  <text x="321.397" y="85.321" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Speed</text>
+  <text x="380.973" y="268.679" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Power</text>
+  <text x="225" y="382" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Range</text>
+  <text x="69.027" y="268.679" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Agility</text>
+  <text x="128.603" y="85.321" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Defense</text>
+</g>
+<g class="algraf-polar-radius-labels">
+  <text x="228" y="216" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <text x="228" y="184.724" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <text x="228" y="153.449" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <text x="228" y="122.173" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
+  <text x="228" y="90.897" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
+</g>
+<g class="algraf-layer algraf-geom-area">
+  <path d="M298.534 116.79 L314.235 246.994 L225 358.741 L120.893 251.827 L179.041 154.744 Z" fill="#9ec6e0" opacity="0.4" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M298.534 116.79 L314.235 246.994 L225 358.741 L120.893 251.827 L179.041 154.744Z" fill="none" stroke="#2b6ca3" stroke-width="1.5" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="298.534" cy="116.79" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="314.235" cy="246.994" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="225" cy="358.741" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="120.893" cy="251.827" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="179.041" cy="154.744" r="3" fill="#2b6ca3" opacity="1" />
+</g>
+</svg>

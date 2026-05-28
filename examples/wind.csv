@@ -1,0 +1,17 @@
+direction,speed,freq
+N,low,5
+N,high,3
+NE,low,4
+NE,high,2
+E,low,6
+E,high,1
+SE,low,3
+SE,high,2
+S,low,7
+S,high,4
+SW,low,5
+SW,high,3
+W,low,4
+W,high,2
+NW,low,3
+NW,high,1

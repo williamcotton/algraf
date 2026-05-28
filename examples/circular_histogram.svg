@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420" role="img" aria-label="Events by hour">
+<title>Events by hour</title>
+<rect class="algraf-background" x="0" y="0" width="420" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Events by hour</text>
+<rect class="algraf-plot-area" x="60" y="66" width="330" height="304" fill="#ffffff" />
+<g class="algraf-polar-grid">
+  <circle cx="225" cy="218" r="23.457" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="46.914" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="70.37" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="93.827" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="117.284" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="140.741" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="152" fill="none" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-polar-radius-labels">
+  <text x="228" y="216" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <text x="228" y="192.543" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0.5</text>
+  <text x="228" y="169.086" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <text x="228" y="145.63" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1.5</text>
+  <text x="228" y="122.173" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <text x="228" y="98.716" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2.5</text>
+  <text x="228" y="75.259" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+</g>
+<g class="algraf-layer algraf-geom-rect">
+  <path d="M 225 124.173 A 93.827 93.827 0 0 1 271.914 136.743 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 248.457 177.372 A 46.914 46.914 0 0 1 265.628 194.543 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 346.885 147.63 A 140.741 140.741 0 0 1 365.741 218 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 365.741 218 A 140.741 140.741 0 0 1 346.885 288.37 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 346.885 288.37 A 140.741 140.741 0 0 1 295.37 339.885 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 248.457 258.628 A 46.914 46.914 0 0 1 225 264.914 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 225 264.914 A 46.914 46.914 0 0 1 201.543 258.628 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 178.086 299.257 A 93.827 93.827 0 0 1 143.743 264.914 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 184.372 241.457 A 46.914 46.914 0 0 1 178.086 218 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 131.173 218 A 93.827 93.827 0 0 1 143.743 171.086 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 103.115 147.63 A 140.741 140.741 0 0 1 154.63 96.115 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 154.63 96.115 A 140.741 140.741 0 0 1 225 77.259 L 225 218 Z" fill="#4E79A7" opacity="1" />
+</g>
+</svg>

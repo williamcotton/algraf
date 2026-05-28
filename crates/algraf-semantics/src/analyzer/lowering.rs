@@ -180,6 +180,8 @@ impl Analyzer<'_> {
             scales,
             theme,
             projection: None,
+            // Inherits the parent space's coordinate system (set in `space()`).
+            coords: CoordsIr::Cartesian,
             span: histogram.span,
         };
         Some((derive, space))
@@ -248,6 +250,8 @@ impl Analyzer<'_> {
             scales,
             theme,
             projection: None,
+            // Inherits the parent space's coordinate system (set in `space()`).
+            coords: CoordsIr::Cartesian,
             span,
         };
         (derive, space)
@@ -358,6 +362,8 @@ impl Analyzer<'_> {
             scales,
             theme,
             projection: None,
+            // Inherits the parent space's coordinate system (set in `space()`).
+            coords: CoordsIr::Cartesian,
             span,
         };
         (derive, space)
@@ -408,6 +414,8 @@ impl Analyzer<'_> {
             scales,
             theme,
             projection: None,
+            // Inherits the parent space's coordinate system (set in `space()`).
+            coords: CoordsIr::Cartesian,
             span: freq_poly.span,
         };
         Some((derive, space))
@@ -526,6 +534,8 @@ impl Analyzer<'_> {
             scales,
             theme,
             projection: None,
+            // Inherits the parent space's coordinate system (set in `space()`).
+            coords: CoordsIr::Cartesian,
             span: bin2d.span,
         };
         Some((derive, space))
@@ -579,6 +589,8 @@ impl Analyzer<'_> {
             scales,
             theme,
             projection: None,
+            // Inherits the parent space's coordinate system (set in `space()`).
+            coords: CoordsIr::Cartesian,
             span: density.span,
         };
         Some((derive, space))
@@ -785,6 +797,8 @@ impl Analyzer<'_> {
             scales,
             theme,
             projection: None,
+            // Inherits the parent space's coordinate system (set in `space()`).
+            coords: CoordsIr::Cartesian,
             span: bar.span,
         };
         Some((derive, space))

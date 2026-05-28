@@ -4,18 +4,54 @@
 //! banded, or nested: geometries call `resolve_x`/`resolve_y` and the bandwidth
 //! accessors without knowing the underlying scale kind.
 
+use std::f64::consts::PI;
+
 use algraf_data::{DataType, Table, TemporalPrecision};
 use algraf_semantics::{
-    AxisSelectorIr, ColumnRef, FrameIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, TemporalFormatIr,
+    AxisSelectorIr, ColumnRef, FrameIr, PolarThetaIr, ScaleIr, ScaleTargetIr, ScaleTypeIr,
+    TemporalFormatIr,
 };
 use chrono::{DateTime, Datelike, NaiveDate};
 
 use crate::domains::{AxisDomainHints, SpaceDomainHints};
+use crate::layout::Rect;
 use crate::projection::SpatialScale;
 use crate::scale::{
     categorical_domain, cell_category, cell_f64, cell_micros, numeric_domain, temporal_domain,
     BandScale, ContinuousScale, NestedBandScale, TemporalScale,
 };
+
+/// The fixed polar angular range: 12-o'clock origin, traversed clockwise
+/// (spec §16.16). `θ = -π/2` is the top; increasing `θ` moves clockwise in
+/// screen coordinates (where +y points down).
+pub(crate) const THETA_START: f64 = -PI / 2.0;
+pub(crate) const THETA_END: f64 = 3.0 * PI / 2.0;
+
+/// A trained polar coordinate transform for a space (spec §16.16). The `theta`
+/// axis maps its domain to `[THETA_START, THETA_END]` and the radius axis maps
+/// its domain to `[r_inner, r_outer]`; final pixel positions come from
+/// [`Polar::point`].
+#[derive(Debug, Clone, Copy)]
+pub struct Polar {
+    pub cx: f64,
+    pub cy: f64,
+    pub r_inner: f64,
+    pub r_outer: f64,
+    pub theta: PolarThetaIr,
+}
+
+impl Polar {
+    /// Convert a `(θ, r)` polar coordinate to a Cartesian pixel position:
+    /// `x = cx + r·cos(θ)`, `y = cy + r·sin(θ)` (spec §16.16).
+    pub fn point(&self, theta: f64, r: f64) -> (f64, f64) {
+        (self.cx + r * theta.cos(), self.cy + r * theta.sin())
+    }
+
+    /// Clamp a radius to the drawable annulus `[r_inner, r_outer]`.
+    pub fn clamp_radius(&self, r: f64) -> f64 {
+        r.clamp(self.r_inner, self.r_outer)
+    }
+}
 
 /// One trained position axis.
 pub enum AxisScale {
@@ -350,6 +386,9 @@ pub struct ScaledSpace {
     /// Present for a spatial space: position comes from projecting geographic
     /// coordinates rather than mapping the x/y axes.
     pub spatial: Option<SpatialScale>,
+    /// Present for a polar space (spec §16.16): the x/y axes are trained over the
+    /// angular/radial ranges and combined through this transform.
+    pub polar: Option<Polar>,
 }
 
 impl ScaledSpace {
@@ -374,6 +413,7 @@ impl ScaledSpace {
                     x,
                     y: Some(y),
                     spatial: None,
+                    polar: None,
                 })
             }
             FrameIr::Cartesian(axes) if axes.len() == 1 => {
@@ -382,6 +422,7 @@ impl ScaledSpace {
                     x,
                     y: None,
                     spatial: None,
+                    polar: None,
                 })
             }
             FrameIr::Vector(_) | FrameIr::Nested { .. } | FrameIr::Union(_) => {
@@ -390,6 +431,85 @@ impl ScaledSpace {
                     x,
                     y: None,
                     spatial: None,
+                    polar: None,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    /// Build a polar space from a frame (spec §16.16). Domain training is
+    /// identical to Cartesian; only the *range* each axis maps into changes: the
+    /// `theta` axis spans the angular range and the radius axis spans
+    /// `[r_inner, r_outer]`. The plot is treated as a square centered on its
+    /// midpoint with `R = min(width, height) / 2`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_polar(
+        frame: &FrameIr,
+        table: &dyn Table,
+        plot: Rect,
+        hints: &SpaceDomainHints,
+        scales: &[ScaleIr],
+        theta: PolarThetaIr,
+        inner_radius: f64,
+    ) -> Option<ScaledSpace> {
+        let cx = plot.x + plot.width / 2.0;
+        let cy = plot.y + plot.height / 2.0;
+        let r_outer = plot.width.min(plot.height) / 2.0;
+        let r_inner = inner_radius * r_outer;
+        let polar = Polar {
+            cx,
+            cy,
+            r_inner,
+            r_outer,
+            theta,
+        };
+        let angular = (THETA_START, THETA_END);
+        let radial = (r_inner, r_outer);
+        let x_config = axis_config(scales, AxisSelectorIr::X);
+        let y_config = axis_config(scales, AxisSelectorIr::Y);
+
+        match frame {
+            FrameIr::Cartesian(axes) if axes.len() >= 2 => {
+                // The theta axis maps to the angular range, the other to radial.
+                let (x_range, y_range) = match theta {
+                    PolarThetaIr::X => (angular, radial),
+                    PolarThetaIr::Y => (radial, angular),
+                };
+                let mut x = build_axis(&axes[0], table, x_range, Some(&hints.x), &x_config)?;
+                let mut y = build_axis(&axes[1], table, y_range, Some(&hints.y), &y_config)?;
+                // The angular band axis tiles the full circle: no band padding.
+                match theta {
+                    PolarThetaIr::X => clear_band_padding(&mut x),
+                    PolarThetaIr::Y => clear_band_padding(&mut y),
+                }
+                Some(ScaledSpace {
+                    x,
+                    y: Some(y),
+                    spatial: None,
+                    polar: Some(polar),
+                })
+            }
+            // A 1D frame: the single value wraps around the angle; the radius
+            // spans the full plotting radius (pie/donut, spec §16.16).
+            FrameIr::Cartesian(axes) if axes.len() == 1 => {
+                let mut x = build_axis(&axes[0], table, angular, Some(&hints.x), &x_config)?;
+                clear_band_padding(&mut x);
+                Some(ScaledSpace {
+                    x,
+                    y: None,
+                    spatial: None,
+                    polar: Some(polar),
+                })
+            }
+            FrameIr::Vector(_) | FrameIr::Union(_) => {
+                let mut x = build_axis(frame, table, angular, Some(&hints.x), &x_config)?;
+                clear_band_padding(&mut x);
+                Some(ScaledSpace {
+                    x,
+                    y: None,
+                    spatial: None,
+                    polar: Some(polar),
                 })
             }
             _ => None,
@@ -406,6 +526,7 @@ impl ScaledSpace {
             },
             y: None,
             spatial: Some(spatial),
+            polar: None,
         }
     }
 
@@ -418,6 +539,9 @@ impl ScaledSpace {
         if let Some(spatial) = &self.spatial {
             return self.project_row(spatial, table, row).map(|(x, _)| x);
         }
+        if self.polar.is_some() {
+            return self.polar_point(table, row).map(|(x, _)| x);
+        }
         self.x.resolve(table, row)
     }
 
@@ -425,7 +549,120 @@ impl ScaledSpace {
         if let Some(spatial) = &self.spatial {
             return self.project_row(spatial, table, row).map(|(_, y)| y);
         }
+        if self.polar.is_some() {
+            return self.polar_point(table, row).map(|(_, y)| y);
+        }
         self.y.as_ref()?.resolve(table, row)
+    }
+
+    /// Whether this is a polar (circular) space (spec §16.16).
+    pub fn is_polar(&self) -> bool {
+        self.polar.is_some()
+    }
+
+    /// The polar transform, when this space is polar.
+    pub fn polar(&self) -> Option<&Polar> {
+        self.polar.as_ref()
+    }
+
+    /// The axis that maps to the angle (theta) under the polar transform.
+    fn theta_axis(&self) -> &AxisScale {
+        match (self.polar.map(|p| p.theta), &self.y) {
+            (Some(PolarThetaIr::Y), Some(y)) => y,
+            _ => &self.x,
+        }
+    }
+
+    /// The axis that maps to the radius, when a second axis exists. A 1D polar
+    /// frame has no radius axis: the radius is the full plotting radius.
+    fn radius_axis(&self) -> Option<&AxisScale> {
+        match (self.polar.map(|p| p.theta), &self.y) {
+            (Some(PolarThetaIr::Y), Some(_)) => Some(&self.x),
+            (Some(PolarThetaIr::X), Some(y)) => Some(y),
+            _ => None,
+        }
+    }
+
+    /// Resolve a row to its `(θ, r)` then to a Cartesian pixel position.
+    fn polar_point(&self, table: &dyn Table, row: usize) -> Option<(f64, f64)> {
+        let polar = self.polar.as_ref()?;
+        let theta = self.theta_axis().resolve(table, row)?;
+        let r = match self.radius_axis() {
+            Some(axis) => axis.resolve(table, row)?,
+            None => polar.r_outer,
+        };
+        Some(polar.point(theta, polar.clamp_radius(r)))
+    }
+
+    /// Whether the angular (theta) axis is categorical (a band). When true, each
+    /// category occupies an angular wedge (coxcomb/wind rose); when false the
+    /// angle comes from a continuous value (pie/donut).
+    pub fn polar_theta_is_band(&self) -> bool {
+        self.theta_axis().is_band()
+    }
+
+    /// The data column backing the radius axis, when present.
+    pub fn polar_radius_column(&self) -> Option<&str> {
+        self.radius_axis().and_then(|axis| axis.data_column())
+    }
+
+    /// The data column backing the angular (theta) axis, when present.
+    pub fn polar_theta_column(&self) -> Option<&str> {
+        self.theta_axis().data_column()
+    }
+
+    /// Theta-axis ticks for polar spokes: `(angle, label)` pairs (spec §16.16,
+    /// §19). For a categorical angle these are the category centers.
+    pub fn polar_theta_ticks(&self) -> Vec<(f64, String)> {
+        self.theta_axis().ticks()
+    }
+
+    /// Radius-axis ticks for polar rings: `(radius_px, label)` pairs within the
+    /// drawable annulus. Empty when there is no radius axis (a full-radius pie).
+    pub fn polar_radius_ticks(&self) -> Vec<(f64, String)> {
+        let Some(polar) = self.polar.as_ref() else {
+            return Vec::new();
+        };
+        match self.radius_axis() {
+            Some(axis) => axis
+                .ticks()
+                .into_iter()
+                .filter(|(r, _)| *r >= polar.r_inner - 1.0 && *r <= polar.r_outer + 1.0)
+                .collect(),
+            None => Vec::new(),
+        }
+    }
+
+    /// The angle (radians) a row maps to on the theta axis (for ordering polar
+    /// Line/Area vertices around the circle).
+    pub fn polar_angle(&self, table: &dyn Table, row: usize) -> Option<f64> {
+        self.theta_axis().resolve(table, row)
+    }
+
+    /// The angle and angular bandwidth for a row's theta band (area geometries).
+    pub fn polar_angle_band(&self, table: &dyn Table, row: usize) -> Option<(f64, f64)> {
+        let center = self.theta_axis().resolve(table, row)?;
+        let width = self.theta_axis().bandwidth(table, row).unwrap_or(0.0);
+        Some((center, width))
+    }
+
+    /// Map a raw radius-axis value to a radius in pixels (e.g. the `0` baseline
+    /// maps to `r_inner`). Falls back to the full radius for a 1D frame.
+    pub fn polar_radius_value(&self, value: f64) -> Option<f64> {
+        let polar = self.polar.as_ref()?;
+        match self.radius_axis() {
+            Some(axis) => axis.map_value(value).map(|r| polar.clamp_radius(r)),
+            None => Some(polar.r_outer),
+        }
+    }
+
+    /// The `(start_radius, radial_bandwidth)` for a banded radius axis (radial
+    /// bars / annular tiles).
+    pub fn polar_radius_band(&self, table: &dyn Table, row: usize) -> Option<(f64, f64)> {
+        let axis = self.radius_axis()?;
+        let center = axis.resolve(table, row)?;
+        let width = axis.bandwidth(table, row)?;
+        Some((center - width / 2.0, width))
     }
 
     /// Project a row's `long * lat` coordinate through a projected overlay
@@ -465,6 +702,23 @@ impl ScaledSpace {
     /// The y axis scale, when present.
     pub fn y_axis(&self) -> Option<&AxisScale> {
         self.y.as_ref()
+    }
+}
+
+/// Remove band padding so an angular band axis tiles the full circle without
+/// gaps (spec §16.16). A no-op for non-band axes.
+fn clear_band_padding(axis: &mut AxisScale) {
+    match axis {
+        AxisScale::Band { scale, .. } => {
+            scale.pad_inner = 0.0;
+            scale.pad_outer = 0.0;
+        }
+        AxisScale::NestedBand { scale, .. } => {
+            scale.pad_inner = 0.0;
+            scale.outer.pad_inner = 0.0;
+            scale.outer.pad_outer = 0.0;
+        }
+        _ => {}
     }
 }
 

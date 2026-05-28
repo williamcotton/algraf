@@ -85,6 +85,14 @@ charts=(
     lollipop
     bubble
     diverging_bar
+    pie
+    donut
+    coxcomb
+    wind_rose
+    circular_histogram
+    polar_scatter
+    annular_heatmap
+    radar
 )
 
 cd "$repo_root"

@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use algraf_core::{codes, Diagnostic};
 use algraf_data::{DataFrame, Table};
-use algraf_semantics::{AxisSelectorIr, ChartIr, ColumnRef, FrameIr, GeometryIr, GuideIr, ScaleIr};
+use algraf_semantics::{
+    AxisSelectorIr, ChartIr, ColumnRef, CoordsIr, FrameIr, GeometryIr, GuideIr, ScaleIr,
+};
 
 use crate::domains::train_space_domains;
 use crate::guide;
@@ -191,16 +193,35 @@ pub(super) fn build_render_plan<'t>(
             }
         } else {
             let mut domain_hints = train_space_domains(&space.frame, table, &space.geometries);
-            shared_x.apply(&mut domain_hints.x);
-            shared_y.apply(&mut domain_hints.y);
-            match ScaledSpace::build(
-                &space.frame,
-                table,
-                x_range,
-                y_range,
-                &domain_hints,
-                &space_scales,
-            ) {
+            // Polar spaces are self-contained (one circular plot); Cartesian
+            // axis-sharing across overlaid spaces does not apply (spec §16.16).
+            let scaled = if let CoordsIr::Polar {
+                theta,
+                inner_radius,
+            } = space.coords
+            {
+                ScaledSpace::build_polar(
+                    &space.frame,
+                    table,
+                    layout.plot,
+                    &domain_hints,
+                    &space_scales,
+                    theta,
+                    inner_radius,
+                )
+            } else {
+                shared_x.apply(&mut domain_hints.x);
+                shared_y.apply(&mut domain_hints.y);
+                ScaledSpace::build(
+                    &space.frame,
+                    table,
+                    x_range,
+                    y_range,
+                    &domain_hints,
+                    &space_scales,
+                )
+            };
+            match scaled {
                 Some(scaled) => panels.push(Panel {
                     table,
                     scaled,

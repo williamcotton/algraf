@@ -1,6 +1,7 @@
 # Algraf v0.26.0 Plan
 
-Status: Planned
+Status: Implemented (polar coordinate transform across Bar/Rect/Tile/Point/Line/
+Area + polar guides; `radial_bar` deferred — see item 3)
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_25_PLAN.md`](V0_25_PLAN.md)
@@ -208,14 +209,16 @@ Acceptance criteria:
 
 - Add runnable examples (registered in `examples/generate.sh` and a README
   tutorial section in the theming/coords progression):
-  - `pie.ag`, `donut.ag` (1D space, `theta: "y"`, fill, `innerRadius`)
-  - `coxcomb.ag` (Nightingale rose)
-  - `radial_bar.ag` (concentric rings)
-  - `wind_rose.ag` (stacked polar bars)
-  - `circular_histogram.ag` (Histogram in polar)
-  - `polar_scatter.ag` (seasonal Point + Line)
-  - `annular_heatmap.ag` (Tile, `innerRadius`)
-  - `radar.ag` (Area + Line + Point, `gridShape: "polygon"`) — capstone
+  - `pie.ag`, `donut.ag` (1D space, `theta: "y"`, fill, `innerRadius`) — **done**
+  - `coxcomb.ag` (Nightingale rose) — **done**
+  - `radial_bar.ag` (concentric rings) — **deferred**: needs a per-category
+    independent angular-bar mode (`theta: "y"` with a categorical radius), distinct
+    from the cumulative pie path and the value→radius coxcomb path. Carried forward.
+  - `wind_rose.ag` (stacked polar bars) — **done**
+  - `circular_histogram.ag` (Histogram in polar) — **done**
+  - `polar_scatter.ag` (seasonal Point + Line + Area) — **done**
+  - `annular_heatmap.ag` (Tile, `innerRadius`) — **done**
+  - `radar.ag` (Area + Line + Point, `gridShape: "polygon"`) — capstone, **done**
 - Examples are regenerated with `./examples/generate.sh`.
 
 ## v0.26.0 Should

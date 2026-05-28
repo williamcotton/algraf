@@ -1,7 +1,7 @@
 //! Guide emission: writes grid lines, axes, facet strips, and legends to SVG
 //! from trained scales and the planning results in [`super::plan`] (spec §19).
 
-use algraf_semantics::TemporalFormatIr;
+use algraf_semantics::{GridShapeIr, GuideIr, TemporalFormatIr};
 
 use crate::aes::{Legend, LegendKind};
 use crate::layout::Rect;
@@ -44,6 +44,141 @@ pub(crate) fn render_grid(w: &mut SvgWriter, space: &ScaledSpace, plot: Rect, th
         }
     }
     w.close_group();
+}
+
+/// Draw polar guides (spec §16.16, §19): concentric radius rings (circle or
+/// polygon), angular spokes, and perimeter/radius tick labels.
+pub(crate) fn render_polar_grid(
+    w: &mut SvgWriter,
+    space: &ScaledSpace,
+    guides: &GuideIr,
+    theme: &Theme,
+) {
+    let Some(polar) = space.polar() else {
+        return;
+    };
+    if !guides.grid || !theme.grid {
+        return;
+    }
+    let color = &theme.grid_major_color;
+    let width = theme.grid_major_width;
+    let theta_ticks = space.polar_theta_ticks();
+    // Spokes only make sense for a categorical angle (coxcomb/radar); a pie's
+    // continuous angle has no meaningful spokes.
+    let spoke_angles: Vec<f64> = if space.polar_theta_is_band() {
+        theta_ticks.iter().map(|(a, _)| *a).collect()
+    } else {
+        Vec::new()
+    };
+    let polygon = guides.grid_shape == GridShapeIr::Polygon && !spoke_angles.is_empty();
+
+    w.open_group("class=\"algraf-polar-grid\"");
+    // Radius rings at each tick, plus the outer boundary.
+    let mut radii: Vec<f64> = space
+        .polar_radius_ticks()
+        .into_iter()
+        .map(|(r, _)| r)
+        .collect();
+    if !radii.iter().any(|r| (*r - polar.r_outer).abs() < 1.0) {
+        radii.push(polar.r_outer);
+    }
+    for r in radii {
+        if r <= polar.r_inner + f64::EPSILON {
+            continue;
+        }
+        if polygon {
+            w.line(&polar_ring_polygon(polar, &spoke_angles, r, color, width));
+        } else {
+            w.line(&polar_ring_circle(polar, r, color, width));
+        }
+    }
+    // Spokes from the inner radius to the perimeter.
+    for angle in &spoke_angles {
+        let (x0, y0) = polar.point(*angle, polar.r_inner);
+        let (x1, y1) = polar.point(*angle, polar.r_outer);
+        w.line(&grid_line(x0, y0, x1, y1, color, width));
+    }
+    w.close_group();
+
+    // Perimeter labels (categories) around the outside.
+    if space.polar_theta_is_band() {
+        w.open_group("class=\"algraf-polar-theta-labels\"");
+        for (angle, label) in &theta_ticks {
+            let (lx, ly) = polar.point(*angle, polar.r_outer + 12.0);
+            let anchor = perimeter_anchor(*angle);
+            w.line(&polar_label(lx, ly, anchor, label, theme));
+        }
+        w.close_group();
+    }
+
+    // Radius labels along the top spoke.
+    let radius_ticks = space.polar_radius_ticks();
+    if !radius_ticks.is_empty() {
+        w.open_group("class=\"algraf-polar-radius-labels\"");
+        for (r, label) in radius_ticks {
+            let (lx, ly) = polar.point(crate::space::THETA_START, r);
+            w.line(&polar_label(lx + 3.0, ly - 2.0, "start", &label, theme));
+        }
+        w.close_group();
+    }
+}
+
+fn polar_ring_circle(polar: &crate::space::Polar, r: f64, color: &str, width: f64) -> String {
+    format!(
+        "<circle cx=\"{}\" cy=\"{}\" r=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" />",
+        num(polar.cx),
+        num(polar.cy),
+        num(r),
+        escape_attr(color),
+        num(width),
+    )
+}
+
+fn polar_ring_polygon(
+    polar: &crate::space::Polar,
+    angles: &[f64],
+    r: f64,
+    color: &str,
+    width: f64,
+) -> String {
+    let points: Vec<String> = angles
+        .iter()
+        .map(|a| {
+            let (x, y) = polar.point(*a, r);
+            format!("{},{}", num(x), num(y))
+        })
+        .collect();
+    format!(
+        "<polygon points=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" />",
+        points.join(" "),
+        escape_attr(color),
+        num(width),
+    )
+}
+
+/// Horizontal anchor for a perimeter label, by its position around the circle.
+fn perimeter_anchor(angle: f64) -> &'static str {
+    let c = angle.cos();
+    if c > 0.2 {
+        "start"
+    } else if c < -0.2 {
+        "end"
+    } else {
+        "middle"
+    }
+}
+
+fn polar_label(x: f64, y: f64, anchor: &str, content: &str, theme: &Theme) -> String {
+    format!(
+        "<text x=\"{}\" y=\"{}\" text-anchor=\"{}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
+        num(x),
+        num(y),
+        anchor,
+        escape_attr(&theme.font_family),
+        num(theme.font_size),
+        escape_attr(&theme.text_color),
+        escape_text(content),
+    )
 }
 
 fn grid_line(x1: f64, y1: f64, x2: f64, y2: f64, color: &str, width: f64) -> String {

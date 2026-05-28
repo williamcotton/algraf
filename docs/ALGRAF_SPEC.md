@@ -310,6 +310,25 @@ A space MAY own local scale, guide, or annotation declarations in later versions
 
 A geometry inside a space inherits the nearest parent space.
 
+A space has a **coordinate system**. The default is Cartesian: a frame maps to
+planar x/y pixels exactly as in earlier versions. A space MAY opt into a polar
+coordinate system with `coords: "polar"`, which remaps scale *ranges* — not
+domains — so that one frame axis wraps around an angle and the other extends
+along a radius (spec §16.16). Polar accepts two further arguments:
+
+- `theta`: `"x"` (default) or `"y"`, selecting which frame axis maps to the
+  angle; the other maps to the radius. Invalid values are `E1902`.
+- `innerRadius`: a number in `[0, 1)`, the fraction of the maximum radius left
+  empty at the center (`0` = pie, `> 0` = donut). Out-of-range or non-numeric
+  values are `E1903`.
+
+`coords` MUST be `"cartesian"` or `"polar"` (otherwise `E1901`). Polar requires a
+1D or 2D (`a * b`) frame; a faceted frame is `E1904` and a 3D+ frame is rejected
+as for Cartesian. Circular charts (pie, donut, coxcomb, wind rose, polar
+scatter/line, annular heatmap, radar) arise from applying this transform to the
+ordinary geometries, not from dedicated geometries. Cartesian output MUST be
+byte-for-byte unchanged when `coords` is absent.
+
 Nested spaces are reserved for later versions.
 
 The first implementation SHOULD reject nested `Space` blocks with a diagnostic.
@@ -1076,6 +1095,10 @@ An empty `Space` body SHOULD produce a warning in CLI render mode.
 `Space` MAY include a `data` argument.
 
 `Space(..., data: name)` binds that space to a chart-scoped derived table.
+
+`Space` MAY include `coords`, `theta`, and `innerRadius` arguments for a polar
+coordinate system (§4.2, §16.16). These are ordinary named `Arg` nodes — no
+grammar change — validated in semantics (`E1901`–`E1905`).
 
 The `data` argument MUST be a bare identifier that resolves to a derived table.
 
@@ -3664,6 +3687,13 @@ High-level geometries may compute derived data before drawing primitive marks.
 
 High-level geometries SHOULD document their primitive desugaring.
 
+In a polar space (§16.16) geometries draw circular forms from the same data and
+stat logic. `Bar`, `Rect`, and `Tile` draw wedges or annular segments (reusing
+the Cartesian stacking/fill of `BarLayout`); `Line` and `Area` draw closed
+polygons ordered by angle (radar); `Point` places markers at the polar-projected
+position. `Histogram` desugars to `Rect` and so yields a circular histogram for
+free. Built-in Cartesian geometry output is unchanged.
+
 `Rect` is a primitive geometry.
 
 `Histogram` is a high-level geometry.
@@ -5651,6 +5681,34 @@ When projecting `Geo` line and polygon rings, the renderer MUST:
 
 A spatial frame whose column is not a geometry column is `E1801`.
 
+### 16.16 Polar Coordinate Transform
+
+> Since version 0.26.
+
+A space with `coords: "polar"` (§4.2) trains its position scales exactly as a
+Cartesian space — continuous, temporal, and band domains are unchanged — and
+remaps only the pixel **range** each axis occupies:
+
+- The **theta axis** (selected by `theta`) maps its domain to the angular range
+  `[-π/2, 3π/2]`, traversed clockwise. `-π/2` is the 12-o'clock origin and
+  increasing values move clockwise in screen coordinates. This origin and
+  direction are fixed in version 0.26; configurable start angle and direction are
+  deferred.
+- The **radius axis** (the other frame axis) maps its domain to
+  `[innerRadius · R, R]`, where `R = min(plot.width, plot.height) / 2` and the
+  polar center is the plot rectangle's midpoint.
+
+Final pixel positions are `x = cx + r·cos(θ)`, `y = cy + r·sin(θ)`, so
+point-like geometries need no polar awareness: the space resolves each datum to a
+Cartesian pixel. Area-filling geometries additionally read raw `(θ, r)` band and
+value extents to draw wedges and annular segments (§15, §18). A categorical theta
+axis tiles the full circle without band padding so adjacent wedges abut.
+
+A 1D polar frame (e.g. `Space(amount)`) has no radius axis: the single value
+wraps around the angle and the radius spans the full `[innerRadius · R, R]`
+annulus — this is the pie/donut form. Polar is opt-in; a space without `coords`
+is Cartesian and its output is unchanged.
+
 ## 17. Layout
 
 ### 17.1 Viewport Model
@@ -5834,6 +5892,12 @@ The renderer MUST produce valid XML-compatible SVG.
 The renderer SHOULD include `xmlns`.
 
 Version 0.1 SVG output MUST use inline attributes for mark, guide, and theme styling.
+
+Polar geometries (§16.16) emit `<path>` elements using the SVG arc (`A`) command:
+a solid wedge (`M … A … L center Z`) or an annular segment (outer arc forward,
+inner arc back). Polar `Line`/`Area` emit closed `<path>` polygons. Arc and
+polygon coordinates use the same 3-decimal deterministic formatting as all other
+SVG numbers (§18.8).
 
 Version 0.1 SVG output MUST NOT depend on embedded CSS for core visual appearance.
 
@@ -6228,7 +6292,22 @@ Aesthetics mapped to different columns MUST keep separate legends.
 
 Continuous (gradient) legends are not merged in version 0.2.0.
 
-## 20. Theme
+### 19.8 Polar Guides
+
+> Since version 0.26.
+
+A polar space (§16.16) replaces the Cartesian grid and axes with:
+
+- **Radius rings** at each radius-axis tick (plus the outer boundary). With
+  `gridShape: "circle"` (default) each ring is an SVG `<circle>`; with
+  `gridShape: "polygon"` each ring is an SVG `<polygon>` through the spoke
+  vertices (the radar pentagon/hexagon grid). An invalid `gridShape` is `E1906`.
+- **Spokes** from the inner radius to the perimeter at each theta tick, drawn
+  only for a categorical theta axis.
+- **Perimeter labels** placed around the outside at each theta category, and
+  **radius labels** along the top spoke.
+
+`Guide(grid: false)` suppresses polar guides as it does Cartesian grids.
 
 ### 20.1 Theme Object
 
@@ -7859,6 +7938,18 @@ missing `=>`/stray separator in a map literal)
 `E1804 Geo mark requires a spatial space`
 
 `E1805 GeoJSON / shapefile parse error or unsupported geometry type`
+
+`E1901 invalid coordinate system (expected "cartesian" or "polar")`
+
+`E1902 invalid polar theta axis (expected "x" or "y")`
+
+`E1903 innerRadius out of range (expected a number in [0, 1))`
+
+`E1904 polar coordinates require a 1D or 2D (a * b) frame`
+
+`E1905 3D+ polar frames are unsupported`
+
+`E1906 invalid polar gridShape (expected "circle" or "polygon")`
 
 ### 26.3 Warning Diagnostics
 

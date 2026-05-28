@@ -135,6 +135,19 @@ pub struct GuideIr {
     pub x_tick_label_angle: Option<f64>,
     /// Optional y tick label rotation in degrees (spec §19.4).
     pub y_tick_label_angle: Option<f64>,
+    /// Polar grid shape (spec §16.16, §19): concentric circles (default) or
+    /// straight-edged polygons (radar). Ignored for Cartesian spaces.
+    pub grid_shape: GridShapeIr,
+}
+
+/// The shape of a polar grid (spec §16.16, §19).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GridShapeIr {
+    /// Concentric circle rings and arc gridlines.
+    #[default]
+    Circle,
+    /// Straight segments between adjacent spokes (radar pentagon/hexagon).
+    Polygon,
 }
 
 impl Default for GuideIr {
@@ -150,6 +163,7 @@ impl Default for GuideIr {
             y_time_format: None,
             x_tick_label_angle: None,
             y_tick_label_angle: None,
+            grid_shape: GridShapeIr::Circle,
         }
     }
 }
@@ -167,6 +181,7 @@ impl GuideIr {
             y_time_format: overrides.y_time_format.or(self.y_time_format),
             x_tick_label_angle: overrides.x_tick_label_angle.or(self.x_tick_label_angle),
             y_tick_label_angle: overrides.y_tick_label_angle.or(self.y_tick_label_angle),
+            grid_shape: overrides.grid_shape.unwrap_or(self.grid_shape),
         }
     }
 }
@@ -184,6 +199,7 @@ pub struct GuideOverridesIr {
     pub y_time_format: Option<TemporalFormatIr>,
     pub x_tick_label_angle: Option<f64>,
     pub y_tick_label_angle: Option<f64>,
+    pub grid_shape: Option<GridShapeIr>,
 }
 
 /// Named temporal label formats accepted by `Guide(timeFormat: ...)`.
@@ -486,7 +502,35 @@ pub struct SpaceIr {
     /// the space non-spatial unless its frame is a geometry column, in which
     /// case the default equirectangular projection applies.
     pub projection: Option<String>,
+    /// The coordinate system for this space (spec §4.2, §16.16). Cartesian is the
+    /// default; `coords: "polar"` remaps scale ranges into a polar frame.
+    pub coords: CoordsIr,
     pub span: Span,
+}
+
+/// The coordinate system of a space (spec §4.2, §16.16). Cartesian is implicit
+/// and unchanged from earlier versions; polar is opt-in via `coords: "polar"`.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum CoordsIr {
+    #[default]
+    Cartesian,
+    /// A polar transform: one frame axis maps to the angle, the other to the
+    /// radius. `inner_radius` is a fraction of the maximum radius in `[0, 1)`
+    /// (`0` = pie, `> 0` = donut).
+    Polar {
+        theta: PolarThetaIr,
+        inner_radius: f64,
+    },
+}
+
+/// Which frame axis maps to the angle under a polar transform (spec §16.16).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PolarThetaIr {
+    /// The x (first) frame axis maps to the angle; y maps to radius. Default.
+    #[default]
+    X,
+    /// The y (second) frame axis maps to the angle; x maps to radius.
+    Y,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

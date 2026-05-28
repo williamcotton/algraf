@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420" role="img" aria-label="Seasonal temperature">
+<title>Seasonal temperature</title>
+<rect class="algraf-background" x="0" y="0" width="420" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Seasonal temperature</text>
+<rect class="algraf-plot-area" x="60" y="66" width="330" height="304" fill="#ffffff" />
+<g class="algraf-polar-grid">
+  <circle cx="225" cy="218" r="29.321" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="58.642" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="87.963" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="117.284" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="146.605" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="152" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="264.34" y2="71.179" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="332.48" y2="110.52" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="371.821" y2="178.66" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="371.821" y2="257.34" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="332.48" y2="325.48" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="264.34" y2="364.821" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="185.66" y2="364.821" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="117.52" y2="325.48" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="78.179" y2="257.34" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="78.179" y2="178.66" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="117.52" y2="110.52" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="185.66" y2="71.179" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-polar-theta-labels">
+  <text x="267.446" y="59.588" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan</text>
+  <text x="340.966" y="102.034" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Feb</text>
+  <text x="383.412" y="175.554" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar</text>
+  <text x="383.412" y="260.446" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr</text>
+  <text x="340.966" y="333.966" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May</text>
+  <text x="267.446" y="376.412" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jun</text>
+  <text x="182.554" y="376.412" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul</text>
+  <text x="109.034" y="333.966" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Aug</text>
+  <text x="66.588" y="260.446" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sep</text>
+  <text x="66.588" y="175.554" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oct</text>
+  <text x="109.034" y="102.034" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Nov</text>
+  <text x="182.554" y="59.588" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Dec</text>
+</g>
+<g class="algraf-polar-radius-labels">
+  <text x="228" y="216" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <text x="228" y="186.679" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <text x="228" y="157.358" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <text x="228" y="128.037" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15</text>
+  <text x="228" y="98.716" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <text x="228" y="69.395" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+</g>
+<g class="algraf-layer algraf-geom-area">
+  <path d="M231.071 195.342 L245.733 197.267 L275.979 204.34 L298.637 237.731 L295.492 288.492 L256.873 336.952 L188.574 353.945 L129.628 313.372 L117.377 246.838 L145.699 196.751 L187.68 180.68 L217.411 189.678 Z" fill="#bcd" opacity="0.4" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M231.071 195.342 L245.733 197.267 L275.979 204.34 L298.637 237.731 L295.492 288.492 L256.873 336.952 L188.574 353.945 L129.628 313.372 L117.377 246.838 L145.699 196.751 L187.68 180.68 L217.411 189.678Z" fill="none" stroke="#4E79A7" stroke-width="1.5" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="231.071" cy="195.342" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="245.733" cy="197.267" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="275.979" cy="204.34" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="298.637" cy="237.731" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="295.492" cy="288.492" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="256.873" cy="336.952" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="188.574" cy="353.945" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="129.628" cy="313.372" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="117.377" cy="246.838" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="145.699" cy="196.751" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="187.68" cy="180.68" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="217.411" cy="189.678" r="3" fill="#4E79A7" opacity="1" />
+</g>
+</svg>
