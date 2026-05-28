@@ -17,3 +17,4 @@ proj4rs = { workspace = true }
 
 [dev-dependencies]
 algraf-syntax = { workspace = true }
+serde_json = { workspace = true }

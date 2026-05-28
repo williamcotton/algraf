@@ -8,9 +8,11 @@
 //!    derived-table execution, guide/legend discovery, layout and panel planning,
 //!    spatial projection fitting, and scale training all happen here. No output
 //!    bytes are written in this half.
-//! 2. **Emission** hands the scene to a [`RenderBackend`]. The only backend is
-//!    [`SvgBackend`] ([`document`], geometry emission, guide emission, final SVG
-//!    assembly), which produces deterministic SVG.
+//! 2. **Emission** hands the scene to a [`RenderBackend`]. Two backends consume
+//!    the same scene: [`SvgBackend`] ([`document`], geometry emission, guide
+//!    emission, final SVG assembly) produces deterministic SVG, and
+//!    [`DrawListBackend`](draw_list::DrawListBackend) records a serializable
+//!    [`DrawList`] of Canvas-drawable frame primitives.
 //!
 //! See [`backend`] for the seam itself.
 
@@ -18,6 +20,7 @@ mod backend;
 mod common;
 mod derived;
 mod document;
+mod draw_list;
 mod legend;
 mod panels;
 mod spatial;
@@ -32,12 +35,23 @@ use crate::error::RenderError;
 use crate::layout::Layout;
 use crate::theme::Theme;
 
-use backend::RenderBackend;
+use backend::{RenderBackend, RenderScene, SvgBackend};
+use draw_list::DrawListBackend;
+
+pub use draw_list::{DrawList, DrawOp, DrawRole, TextAnchor};
 
 /// The result of rendering: an SVG document plus render diagnostics.
 #[derive(Debug, Clone)]
 pub struct RenderResult {
     pub svg: String,
+    pub diagnostics: Vec<Diagnostic>,
+    pub layout: Layout,
+}
+
+/// The result of rendering through the draw-list backend (spec §24.6).
+#[derive(Debug, Clone)]
+pub struct DrawListResult {
+    pub draw_list: DrawList,
     pub diagnostics: Vec<Diagnostic>,
     pub layout: Layout,
 }
@@ -66,6 +80,69 @@ pub fn render_with_tables(
     theme: &Theme,
     cli_theme_override: Option<&str>,
 ) -> Result<RenderResult, RenderError> {
+    let (svg, diagnostics, layout) = render_with_backend(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        SvgBackend,
+    )?;
+    Ok(RenderResult {
+        svg,
+        diagnostics,
+        layout,
+    })
+}
+
+/// Render a chart IR to a [`DrawList`] through the draw-list backend (spec §24.6).
+///
+/// This drives the same planning pipeline as [`render`] but emits a serializable,
+/// Canvas-drawable frame description instead of SVG. See [`DrawList`] for the
+/// documented equivalence limits relative to SVG output.
+pub fn render_draw_list(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+) -> Result<DrawListResult, RenderError> {
+    render_draw_list_with_tables(ir, primary, &HashMap::new(), theme, cli_theme_override)
+}
+
+/// Draw-list counterpart of [`render_with_tables`].
+pub fn render_draw_list_with_tables(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+) -> Result<DrawListResult, RenderError> {
+    let (draw_list, diagnostics, layout) = render_with_backend(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        DrawListBackend,
+    )?;
+    Ok(DrawListResult {
+        draw_list,
+        diagnostics,
+        layout,
+    })
+}
+
+/// Drive the shared planning pipeline and hand the resulting scene to `backend`
+/// for emission (spec §24.6). Planning is identical across backends; only the
+/// emission step differs.
+fn render_with_backend<B: RenderBackend>(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    backend: B,
+) -> Result<(B::Output, Vec<Diagnostic>, Layout), RenderError> {
     let mut diagnostics = Vec::new();
     let derived = derived::compute_derived(ir, primary, named_tables);
     // Planning half: resolve everything to draw into a render scene.
@@ -77,19 +154,15 @@ pub fn render_with_tables(
         cli_theme_override,
         &mut diagnostics,
     );
-    let scene = backend::RenderScene {
+    let scene = RenderScene {
         ir,
         layout: &plan.layout,
         legends: &plan.legends,
         panels: &plan.panels,
         theme,
     };
-    // Emission half: hand the scene to the (single) output backend.
-    let svg = backend::SvgBackend.emit(&scene, &mut diagnostics);
+    // Emission half: hand the scene to the chosen output backend.
+    let output = backend.emit(&scene, &mut diagnostics);
 
-    Ok(RenderResult {
-        svg,
-        diagnostics,
-        layout: plan.layout,
-    })
+    Ok((output, diagnostics, plan.layout))
 }

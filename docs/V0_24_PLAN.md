@@ -1,6 +1,7 @@
 # Algraf v0.24.0 Plan
 
-Status: Planned
+Status: In progress (backend contract, draw-list/Canvas backend, and WebGL note
+landed; raster, interaction metadata, and interactive preview carried forward)
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_23_PLAN.md`](V0_23_PLAN.md)
@@ -84,47 +85,89 @@ Existing SVG examples remain the visual regression baseline.
 
 ### 1. Public render backend contract
 
-Status: Planned.
+Status: Implemented.
+
+The `RenderBackend` seam is now generic over an associated `Output` type and is
+documented in spec §24.6 as a closed, compiled-in set (not a plugin API). Two
+backends implement it — `SvgBackend` (`Output = String`) and `DrawListBackend`
+(`Output = DrawList`) — driven by a shared `render_with_backend` helper so the
+planning half is identical across both. The contract consumes the planned
+`RenderScene`, never the AST.
 
 Acceptance criteria:
 
 - Promote the private v0.17 SVG backend seam into a documented internal or
-  public trait only after proving a second backend can use it.
+  public trait only after proving a second backend can use it. **Done** — kept
+  crate-private (no plugin API per the scope rules) and documented in §24.6.
 - The contract accepts planned render operations or a render model, not source
-  AST nodes.
+  AST nodes. **Done.**
 - SVG escaping, number formatting, ordering, and accessibility behavior remain
-  unchanged.
+  unchanged. **Done** — SVG emission code is untouched; examples regenerate
+  without drift.
 - Existing `render` and `render_with_tables` APIs keep compatibility wrappers.
+  **Done** — both are unchanged; new `render_draw_list[_with_tables]` parallel
+  them.
 
 ### 2. Render-crate raster backend
 
-Status: Planned.
+Status: Deferred to a follow-on release (carried forward).
+
+A standalone render-crate raster path that draws from the render model (rather
+than rasterizing SVG) is gated on the per-mark draw list — without per-datum
+primitives a raster backend cannot reproduce the chart body. The CLI PNG path is
+now explicitly documented as a compatibility wrapper around the SVG backend
+(spec §24.6, §22.3): `--output *.png` rasterizes SVG and is unaffected by the
+draw-list backend. The per-mark draw list (see item 3's deferred parity) is the
+prerequisite; raster moves with it.
 
 Acceptance criteria:
 
 - Add a raster backend or render-crate raster path distinct from the current CLI
-  PNG adapter.
+  PNG adapter. **Deferred** (needs per-mark primitives).
 - Raster output uses the same render model and theme semantics as SVG.
+  **Deferred.**
 - CLI PNG output is either migrated to the shared backend or documented as a
-  compatibility wrapper.
+  compatibility wrapper. **Done** — documented as a compatibility wrapper.
 - Tests compare dimensions, background, and representative mark placement.
+  **Partially done** via the draw-list backend tests (dimensions, background,
+  plot-panel placement compared against the SVG layout).
 
 ### 3. Canvas backend prototype
 
-Status: Planned.
+Status: Implemented (documented subset).
+
+A serializable, Canvas-drawable `DrawList` backend ships in `algraf-render`
+(`render_draw_list`, `algraf render --format draw-list`). It consumes the planned
+scene, requires no browser runtime for CLI builds, and emits a deterministic flat
+list of `rect`/`text` ops a Canvas/raster/WebGL client can replay. Per the
+acceptance allowance, it covers a documented subset first: canvas size,
+background, plot panels (with facet strips/labels), and chart title/subtitle/
+caption, with coordinates and colors identical to the SVG backend. Per-datum
+geometry marks, axis ticks, and gridlines remain SVG-only; promoting that "full
+guide/text parity" is the carried-forward follow-up (and the prerequisite for
+items 2 and 6).
 
 Acceptance criteria:
 
 - Add a Canvas-oriented backend or a serializable draw-list that a Canvas client
-  can consume.
+  can consume. **Done.**
 - The backend supports a documented subset first if full guide/text parity is
-  too large.
-- Unsupported features produce clear diagnostics or fallback behavior.
-- The implementation does not require a browser runtime for CLI builds.
+  too large. **Done** — subset documented in spec §24.6 and the module docs.
+- Unsupported features produce clear diagnostics or fallback behavior. **Done**
+  — the equivalence limits are documented; the subset omits marks rather than
+  emitting partial/incorrect ones.
+- The implementation does not require a browser runtime for CLI builds. **Done.**
 
 ### 4. Interaction metadata model
 
-Status: Planned.
+Status: Deferred to a follow-on release (carried forward).
+
+Defining a safe, declarative source/IR model for tooltips, highlights, and
+selections touches syntax → semantics → IR → render and is its own workstream; it
+is not started in this pass. The backend contract landed here is the foundation
+it will build on (interaction metadata would ride on the render scene and be
+emitted by both backends). SVG output remains script-free and the draw list is
+inert data, satisfying the safety scope rules in the meantime.
 
 Acceptance criteria:
 
@@ -136,38 +179,46 @@ Acceptance criteria:
 
 ### 5. Interactive preview path
 
-Status: Planned.
+Status: Deferred to a follow-on release (carried forward).
 
-Acceptance criteria:
-
-- Extend the LSP/VS Code preview to display interactive metadata safely if the
-  backend supports it.
-- Preview cancellation and generation semantics remain intact.
-- Clients that do not support interaction still receive static SVG.
-- Remote workspace data-path watching continues to work.
+Depends on item 4 (interaction metadata); not started. LSP preview remains
+read-only and script-safe by default, which satisfies the safety scope rules
+until interactions exist.
 
 ### 6. WebGL feasibility note
 
-Status: Planned.
+Status: Implemented.
+
+See [`WEBGL_FEASIBILITY.md`](WEBGL_FEASIBILITY.md). It documents what WebGL needs
+beyond Canvas/raster (chiefly the per-mark draw list, plus batching, glyph-atlas
+text, and a clip-space transform), identifies the marks/scales that benefit most
+(high-cardinality points, heatmaps, dense lines, continuous color/size), and adds
+no WebGL dependency.
 
 Acceptance criteria:
 
-- Document what WebGL would need beyond Canvas and raster backends.
-- Identify which marks and scales would benefit most.
-- Do not make WebGL a required dependency in this release.
+- Document what WebGL would need beyond Canvas and raster backends. **Done.**
+- Identify which marks and scales would benefit most. **Done.**
+- Do not make WebGL a required dependency in this release. **Done.**
 
 ### 7. Spec, plan, and example hygiene
 
-Status: Planned.
+Status: Partially implemented.
 
 Acceptance criteria:
 
 - Workspace and VS Code versions are bumped to `0.24.0` when the release branch
-  is ready.
+  is ready. **Deferred** — the release is not complete (items 2, 4, 5 are
+  carried forward), so the version stays at `0.23.0` for now.
 - Spec §18, §21, §22, §23, §24, §29, and §30 are updated for promoted backend
-  and interaction behavior.
+  and interaction behavior. **Done for the shipped scope** — §24.6 documents the
+  two-backend contract and draw-list semantics, §22.3 documents `--format`, and
+  the §23 crate-layout note reflects the closed backend set. Interaction-related
+  sections are untouched because interactions are deferred.
 - README documents the available output modes and their equivalence limits.
-- Existing SVG examples regenerate without drift.
+  **Done.**
+- Existing SVG examples regenerate without drift. **Done** — SVG emission is
+  unchanged.
 
 ## v0.24.0 Should
 

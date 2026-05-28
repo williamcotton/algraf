@@ -16,7 +16,9 @@ use algraf_driver::{
     prepare_chart_partial, DriverError, LoadContext, PreparationReport, PrepareOptions,
     ReportPhase, SourceInput,
 };
-use algraf_render::{render_with_tables, svg_num, Layout, Rect, Theme};
+use algraf_render::{
+    render_draw_list_with_tables, render_with_tables, svg_num, Layout, Rect, Theme,
+};
 use algraf_semantics::{
     analyze, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
     GeometryKind, GradientIr, GuideOverridesIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
@@ -42,7 +44,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Render a chart to SVG or PNG.
+    /// Render a chart to SVG, PNG, or a draw-list JSON.
     Render(RenderArgs),
     /// Parse and analyze without rendering.
     Check(CheckArgs),
@@ -58,13 +60,26 @@ enum Command {
     Lsp,
 }
 
+/// Output backend for `render` (spec §24.6).
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum RenderFormat {
+    /// Deterministic SVG (the canonical backend). `.png` outputs rasterize it.
+    Svg,
+    /// A serializable, Canvas-drawable JSON draw list of frame primitives.
+    DrawList,
+}
+
 #[derive(Args)]
 struct RenderArgs {
     /// Source file, or `-` for stdin.
     input: Option<String>,
-    /// Output path. `.png` paths rasterize to PNG; all other paths write SVG.
+    /// Output path. With `--format svg`, `.png` paths rasterize to PNG and all
+    /// other paths write SVG; with `--format draw-list`, paths write JSON.
     #[arg(long)]
     output: Option<PathBuf>,
+    /// Output backend: `svg` (default) or `draw-list` JSON (spec §24.6).
+    #[arg(long, value_enum, default_value_t = RenderFormat::Svg)]
+    format: RenderFormat,
     #[arg(long)]
     width: Option<u32>,
     #[arg(long)]
@@ -237,28 +252,56 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
     }
 
     // Render every chart before writing, so a failure leaves no partial output.
-    let mut svgs = Vec::with_capacity(charts.len());
+    let mut outputs = Vec::with_capacity(charts.len());
     for chart in &charts {
-        svgs.push(render_chart_svg(
+        outputs.push(render_chart_output(
             chart, &args, &input, &source, &label, multi,
         )?);
     }
 
-    for (idx, svg) in svgs.into_iter().enumerate() {
+    for (idx, output) in outputs.into_iter().enumerate() {
         match chart_output_path(args.output.as_deref(), idx, multi) {
-            Some(path) if is_png_path(&path) => {
+            // PNG rasterization only applies to SVG output.
+            Some(path) if args.format == RenderFormat::Svg && is_png_path(&path) => {
                 let png_options =
                     png::PngOptions::new(args.png_scale, args.png_dpi).map_err(CliError::Usage)?;
-                png::write_png(svg.as_bytes(), &path, png_options).map_err(|e| {
+                png::write_png(output.as_bytes(), &path, png_options).map_err(|e| {
                     CliError::Io(format!("failed to write PNG {}: {e}", path.display()))
                 })?;
             }
-            Some(path) => std::fs::write(&path, svg)
+            Some(path) => std::fs::write(&path, output)
                 .map_err(|e| CliError::Io(format!("failed to write {}: {e}", path.display())))?,
-            None => print!("{svg}"),
+            None => print!("{output}"),
         }
     }
     Ok(())
+}
+
+/// Resolve, analyze, and render one chart to the requested output format.
+fn render_chart_output(
+    chart: &ChartBlock,
+    args: &RenderArgs,
+    input: &SourceInput,
+    source: &str,
+    label: &str,
+    multi: bool,
+) -> Result<String, CliError> {
+    match args.format {
+        RenderFormat::Svg => render_chart_svg(chart, args, input, source, label, multi),
+        RenderFormat::DrawList => render_chart_draw_list(chart, args, input, source, label, multi),
+    }
+}
+
+/// Everything needed to drive a render backend for one chart, with all parse,
+/// data, and semantic diagnostics already reported. The shared `report` carries
+/// data warnings so each backend can append its own render diagnostics.
+struct RenderInputs {
+    ir: ChartIr,
+    frame: algraf_data::DataFrame,
+    named_frames: HashMap<String, algraf_data::DataFrame>,
+    theme: Theme,
+    cli_theme_override: Option<String>,
+    report: PreparationReport,
 }
 
 /// Resolve, analyze, and render one chart block to an SVG string (spec §7.1).
@@ -270,6 +313,102 @@ fn render_chart_svg(
     label: &str,
     multi: bool,
 ) -> Result<String, CliError> {
+    let RenderInputs {
+        ir,
+        frame,
+        named_frames,
+        theme,
+        cli_theme_override,
+        mut report,
+    } = prepare_render_inputs(chart, args, input, source, label, multi)?;
+
+    let mut result = render_with_tables(
+        &ir,
+        &frame,
+        &named_frames,
+        &theme,
+        cli_theme_override.as_deref(),
+    )
+    .map_err(|e| CliError::Internal(e.to_string()))?;
+    // Append render diagnostics to the same report (spec §23.4); they carry
+    // source spans, so they print through the diagnostic renderer.
+    report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());
+    let render_diags = report.diagnostics();
+    if !render_diags.is_empty() {
+        eprint!(
+            "{}",
+            diagnostics::render_human(source, label, &render_diags)
+        );
+    }
+    if diagnostics::has_blocking(&render_diags, args.strict) {
+        return Err(CliError::Diagnostics);
+    }
+
+    if args.debug_layout || args.emit_metadata {
+        let layout = result.layout.clone();
+        augment_svg(
+            &mut result.svg,
+            &ir,
+            &theme,
+            &layout,
+            result.diagnostics.len(),
+            args.debug_layout,
+            args.emit_metadata,
+        );
+    }
+    Ok(result.svg)
+}
+
+/// Render one chart block to a draw-list JSON string (spec §24.6).
+fn render_chart_draw_list(
+    chart: &ChartBlock,
+    args: &RenderArgs,
+    input: &SourceInput,
+    source: &str,
+    label: &str,
+    multi: bool,
+) -> Result<String, CliError> {
+    let RenderInputs {
+        ir,
+        frame,
+        named_frames,
+        theme,
+        cli_theme_override,
+        mut report,
+    } = prepare_render_inputs(chart, args, input, source, label, multi)?;
+
+    let result = render_draw_list_with_tables(
+        &ir,
+        &frame,
+        &named_frames,
+        &theme,
+        cli_theme_override.as_deref(),
+    )
+    .map_err(|e| CliError::Internal(e.to_string()))?;
+    report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());
+    let render_diags = report.diagnostics();
+    if !render_diags.is_empty() {
+        eprint!(
+            "{}",
+            diagnostics::render_human(source, label, &render_diags)
+        );
+    }
+    if diagnostics::has_blocking(&render_diags, args.strict) {
+        return Err(CliError::Diagnostics);
+    }
+    Ok(result.draw_list.to_json())
+}
+
+/// Shared preparation for both render backends: load data, analyze, resolve the
+/// IR and theme, and report all non-render diagnostics (spec §7.1).
+fn prepare_render_inputs(
+    chart: &ChartBlock,
+    args: &RenderArgs,
+    input: &SourceInput,
+    source: &str,
+    label: &str,
+    multi: bool,
+) -> Result<RenderInputs, CliError> {
     let algraf_driver::PreparedChart {
         mut primary,
         named_tables,
@@ -360,41 +499,14 @@ fn render_chart_svg(
     };
     let cli_theme_override = args.theme.clone();
 
-    let mut result = render_with_tables(
-        &ir,
-        &frame,
-        &named_frames,
-        &theme,
-        cli_theme_override.as_deref(),
-    )
-    .map_err(|e| CliError::Internal(e.to_string()))?;
-    // Append render diagnostics to the same report (spec §23.4); they carry
-    // source spans, so they print through the diagnostic renderer.
-    report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());
-    let render_diags = report.diagnostics();
-    if !render_diags.is_empty() {
-        eprint!(
-            "{}",
-            diagnostics::render_human(source, label, &render_diags)
-        );
-    }
-    if diagnostics::has_blocking(&render_diags, args.strict) {
-        return Err(CliError::Diagnostics);
-    }
-
-    if args.debug_layout || args.emit_metadata {
-        let layout = result.layout.clone();
-        augment_svg(
-            &mut result.svg,
-            &ir,
-            &theme,
-            &layout,
-            result.diagnostics.len(),
-            args.debug_layout,
-            args.emit_metadata,
-        );
-    }
-    Ok(result.svg)
+    Ok(RenderInputs {
+        ir,
+        frame,
+        named_frames,
+        theme,
+        cli_theme_override,
+        report,
+    })
 }
 
 /// Output path for chart `idx` (0-based). With a single chart the `--output`

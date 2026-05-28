@@ -1576,6 +1576,70 @@ Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
 
 ![spatial_overlay](examples/spatial_overlay.svg)
 
+## Maps: proportional symbol (bubble) map overlay
+
+You can map point attributes like population to both color and size scales. By overlaying the projected points on top of a county outline basemap, we can create a proportional symbol map.
+
+```algraf
+Chart(data: GeoJson("us_counties.geojson"), width: 800, height: 500,
+      title: "Major US Cities by Population",
+      subtitle: "Proportional symbol (bubble) map overlaid on county boundaries") {
+    Theme(name: "void")
+    Table cities = "us_cities.csv"
+
+    Scale(fill: population, gradient: ["#feb24c", "#f03b20"], label: "Population")
+    Scale(size: population, range: [5, 25], label: "Population Scale")
+
+    // Basemap
+    Space(geom, projection: "albers_usa") {
+        Geo(fill: "#f7f7f7", stroke: "#e0e0e0", strokeWidth: 0.25)
+    }
+
+    // Cities bubble overlay
+    Space(long * lat, projection: "albers_usa", data: cities) {
+        Point(size: population, fill: population, alpha: 0.85)
+        Text(label: city, dy: -14, size: 7, fill: "#222222", anchor: "middle")
+    }
+}
+```
+
+![us_city_bubbles](examples/us_city_bubbles.svg)
+
+## Maps: route segments overlay with flight hubs
+
+A `Path` geometry inside a projected `long * lat` space can draw lines between sequential points. By grouping the rows by a route identifier, we can draw individual flight paths between hubs, with line thickness scaled by passenger volume and airline colored categorically.
+
+```algraf
+Chart(data: "flight_routes.csv", width: 900, height: 600,
+      title: "US Commercial Flight Routes & Hubs",
+      subtitle: "Route segments and passenger volumes (Delta, United, American)") {
+    Theme(name: "void")
+    Table counties = GeoJson("us_counties.geojson")
+    Table cities = "us_cities.csv"
+
+    Scale(stroke: airline, palette: "default", label: "Airline")
+    Scale(strokeWidth: passengers, domain: [0, null], range: [1.2, 7.5], label: "Passengers (M)")
+
+    // Basemap
+    Space(geom, data: counties, projection: "albers_usa") {
+        Geo(fill: "#f8f9fa", stroke: "#e9ecef", strokeWidth: 0.25)
+    }
+
+    // Flight routes path segments
+    Space(long * lat, projection: "albers_usa") {
+        Path(group: route_id, stroke: airline, strokeWidth: passengers, alpha: 0.65)
+    }
+
+    // City landmarks overlay
+    Space(long * lat, projection: "albers_usa", data: cities) {
+        Point(size: 6, fill: "#212529", stroke: "#ffffff")
+        Text(label: city, dy: -10, size: 7.5, fill: "#212529", anchor: "middle")
+    }
+}
+```
+
+![flight_routes_map](examples/flight_routes_map.svg)
+
 ## Maps: a graticule over the `albers_usa` composite
 
 `projection: "albers_usa"` is the conventional `albersUsa` composite: it routes
@@ -1621,6 +1685,50 @@ Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
 ```
 
 ![county_centroids](examples/county_centroids.svg)
+
+## Maps: geometry-simplifying stats with `Simplify`
+
+Similar to `Centroid`, the `Simplify(geom, tolerance: t)` derived stat consumes a geometry column and returns a simplified version using the Douglas–Peucker algorithm. This is particularly useful for reducing complex boundaries to speed up rendering or create stylized, abstract maps.
+
+Here, we declare three charts in one document to compare different simplification tolerances (0.02, 0.1, and 0.4 degrees):
+
+```algraf
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "Douglas-Peucker Simplification: 0.02 Degrees Tolerance",
+      subtitle: "Medium-detail county boundaries") {
+    Theme(name: "void")
+    Derive simple = Simplify(geom, tolerance: 0.02)
+    Space(geom, data: simple, projection: "albers_usa") {
+        Geo(fill: "#f8f9fa", stroke: "#212529", strokeWidth: 0.2)
+    }
+}
+
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "Douglas-Peucker Simplification: 0.1 Degrees Tolerance",
+      subtitle: "Low-detail county boundaries") {
+    Theme(name: "void")
+    Derive simple = Simplify(geom, tolerance: 0.1)
+    Space(geom, data: simple, projection: "albers_usa") {
+        Geo(fill: "#f8f9fa", stroke: "#212529", strokeWidth: 0.2)
+    }
+}
+
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "Douglas-Peucker Simplification: 0.4 Degrees Tolerance",
+      subtitle: "Ultra-coarse outline") {
+    Theme(name: "void")
+    Derive simple = Simplify(geom, tolerance: 0.4)
+    Space(geom, data: simple, projection: "albers_usa") {
+        Geo(fill: "#f8f9fa", stroke: "#212529", strokeWidth: 0.2)
+    }
+}
+```
+
+![map_simplification-1](examples/map_simplification-1.svg)
+
+![map_simplification-2](examples/map_simplification-2.svg)
+
+![map_simplification-3](examples/map_simplification-3.svg)
 
 ## Maps: TopoJSON input
 
@@ -1668,6 +1776,88 @@ Chart(data: GeoJson("sensors.geojson"), width: 500, height: 360,
 ```
 
 ![spatial_join](examples/spatial_join.svg)
+
+## Maps: compound dashboard combining choropleth and Cartesian bar chart
+
+You can combine geographic visualizations with Cartesian statistical plots in a single multi-chart document to create a cohesive data dashboard. Here, Chart 1 displays a US county population choropleth with major city hubs overlaid. Chart 2 displays a Cartesian bar chart showing the populations of those same cities.
+
+```algraf
+Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 500,
+      title: "US County Populations and Major City Hubs",
+      subtitle: "Population density (Lower 48) with major city markers") {
+    Theme(name: "void")
+    Table cities = "us_cities.csv"
+
+    Scale(fill: population, gradient: ["#f7fbff", "#08306b"], label: "Population")
+
+    // Basemap: Counties filled by population
+    Space(geom, projection: "albers_usa") {
+        Geo(fill: population, stroke: "#ffffff", strokeWidth: 0.25)
+    }
+
+    // Overlay cities
+    Space(long * lat, projection: "albers_usa", data: cities) {
+        Point(size: 6, fill: "#ff3333", stroke: "#ffffff")
+        Text(label: city, dy: -12, size: 7.5, fill: "#212529", anchor: "middle")
+    }
+}
+
+Chart(data: "us_cities.csv", width: 900, height: 400,
+      title: "Urban Population of Major US Cities",
+      subtitle: "Comparison of top metropolitan areas") {
+    Theme(name: "minimal")
+    Scale(fill: population, gradient: ["#feb24c", "#f03b20"], label: "Population")
+    Guide(axis: x, label: "City")
+    Guide(axis: y, label: "Population")
+
+    Space(city * population) {
+        Bar(stat: "identity", fill: population, layout: "stack")
+    }
+}
+```
+
+![us_urban_population-1](examples/us_urban_population-1.svg)
+
+![us_urban_population-2](examples/us_urban_population-2.svg)
+
+## Maps: comparing map projections side-by-side
+
+A multi-chart document can also be used to compare how different cartographic projections distort shapes, areas, and directions of the same dataset. Here, we render the identical US counties dataset under three different projections: `albers_usa`, `mercator`, and `equirectangular`.
+
+```algraf
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "US Counties - Albers USA Projection",
+      subtitle: "Composite equal-area projection with Alaska & Hawaii insets") {
+    Theme(name: "void")
+    Space(geom, projection: "albers_usa") {
+        Geo(fill: "#f8f9fa", stroke: "#adb5bd", strokeWidth: 0.2)
+    }
+}
+
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "US Counties - Mercator Projection",
+      subtitle: "Web Mercator projection (conformal cylindrical)") {
+    Theme(name: "void")
+    Space(geom, projection: "mercator") {
+        Geo(fill: "#f8f9fa", stroke: "#adb5bd", strokeWidth: 0.2)
+    }
+}
+
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "US Counties - Equirectangular Projection",
+      subtitle: "Plate Carrée planar projection (default)") {
+    Theme(name: "void")
+    Space(geom, projection: "equirectangular") {
+        Geo(fill: "#f8f9fa", stroke: "#adb5bd", strokeWidth: 0.2)
+    }
+}
+```
+
+![projection_comparison-1](examples/projection_comparison-1.svg)
+
+![projection_comparison-2](examples/projection_comparison-2.svg)
+
+![projection_comparison-3](examples/projection_comparison-3.svg)
 
 ---
 
@@ -1722,6 +1912,37 @@ cargo run -p algraf-cli -- check examples/scatter.ag
 # Inspect inferred schema and IR
 cargo run -p algraf-cli -- schema examples/scatter.ag --json
 ```
+
+## Output modes
+
+`render` drives one of two output backends over a shared planning pipeline
+(spec §24.6). Both consume the same resolved render scene, so they agree on
+layout exactly.
+
+```bash
+# SVG (default): the canonical, deterministic backend.
+cargo run -p algraf-cli -- render examples/scatter.ag --output chart.svg
+
+# PNG: rasterizes the SVG output (a compatibility wrapper around the SVG backend).
+cargo run -p algraf-cli -- render examples/scatter.ag --output chart.png
+
+# Draw list: a serializable, Canvas-drawable JSON description of the chart frame.
+cargo run -p algraf-cli -- render examples/scatter.ag --format draw-list
+```
+
+The **draw list** is a flat sequence of inert `rect`/`text` primitives that a
+Canvas, raster, or WebGL client can replay without an SVG parser or a browser
+runtime. It is byte-for-byte deterministic and uses the same number formatting
+as SVG.
+
+**Equivalence limits (v0.24):** the draw list covers the chart *frame* — canvas
+size, background, plot panels (with facet strips and labels), and the chart
+title/subtitle/caption — with coordinates and colors identical to the SVG
+backend. It does **not** yet include per-datum geometry marks (points, bars,
+lines, areas), axis ticks, or gridlines; those remain SVG-only while full
+mark/guide parity is promoted in a later release. See
+[`docs/WEBGL_FEASIBILITY.md`](docs/WEBGL_FEASIBILITY.md) for how a GPU backend
+would build on this.
 
 ## Workspace layout
 

@@ -6897,7 +6897,7 @@ Algraf source from standard input:
 cat chart.ag | algraf render - --data data.csv
 ```
 
-If output omitted, SVG writes to stdout.
+If output omitted, output writes to stdout.
 
 If input omitted or `-`, source reads from stdin.
 
@@ -6914,6 +6914,8 @@ environment-variable, or command sources in version 0.21.
 Render options:
 
 `--output <path>`
+
+`--format <svg|draw-list>`
 
 `--width <px>`
 
@@ -6938,6 +6940,12 @@ Render options:
 `--theme <name>` is a render-time override.
 
 It does not change source syntax.
+
+`--format <svg|draw-list>` selects the output backend (§24.6); it defaults to
+`svg`. With `svg`, a `.png` `--output` path rasterizes the SVG; with
+`draw-list`, the command emits the serializable draw-list JSON described in
+§24.6, and PNG rasterization does not apply. Draw-list output covers a
+documented subset of the chart frame and is byte-for-byte deterministic.
 
 Source files MUST use `Theme(name: "...")` for persistent theme selection.
 
@@ -7211,7 +7219,8 @@ SVG emission
 
 The render crate is internally split along the planning/emission boundary of
 §24.6: planning modules resolve a render scene (derived tables, scales, layout,
-guide measurements, legends) and a single private backend emits SVG from it.
+guide measurements, legends) and a closed set of private backends emit output
+from it — the canonical SVG backend and a serializable draw-list backend.
 
 `lsp`:
 
@@ -7444,20 +7453,40 @@ The renderer is organized around one boundary, between **planning** and
   trained scales, layout rectangles, guide measurements, and legends. Planning
   reads data only through the data-table abstraction and MUST NOT write output
   bytes.
-- Emission (pipeline step 18) takes that scene and serializes it through a
-  single output backend. The backend MUST NOT make layout or scale decisions.
+- Emission (pipeline step 18) takes that scene and serializes it through one
+  output backend. The backend MUST NOT make layout or scale decisions, and it
+  MUST consume the planned render scene rather than the source AST.
 
 Data materialization MUST be eager: stats and scale training run during
-planning against in-memory tables. The output backend is a private
-implementation detail: the renderer MAY expose a private trait, enum, or facade
-to name this seam, but it MUST have exactly one implementation (the deterministic
-SVG backend of §18) and MUST NOT expose a plugin API. Guide planning (label
-measurement, axis-margin reservation) and guide emission (writing axes, grids,
-strips, and legends to SVG) are likewise separated, planning before final
-layout and emission during document assembly.
+planning against in-memory tables. The output backend set is a closed,
+compiled-in implementation detail: the renderer MAY expose a private trait,
+enum, or facade to name this seam, but it MUST NOT expose a plugin API or accept
+externally supplied backends. Guide planning (label measurement, axis-margin
+reservation) and guide emission (writing axes, grids, strips, and legends to
+SVG) are likewise separated, planning before final layout and emission during
+document assembly.
 
-Additional backends (raster, canvas, retained DOM) and lazy or streaming data
-materialization are deferred to a later release.
+The renderer ships two backends over this seam:
+
+- The **SVG backend** (§18) is canonical and emits the deterministic SVG
+  document. It MUST remain unchanged in escaping, number formatting, ordering,
+  and accessibility behavior regardless of any other backend.
+- The **draw-list backend** records a serializable, Canvas-drawable draw list of
+  frame primitives (filled rectangles and text) from the same scene. It is the
+  proof that the seam supports more than one output format. The draw list MUST
+  use the same locale-independent number formatting as §18.8 and MUST be
+  deterministic. In this release it covers a documented subset of the chart —
+  canvas size, background, plot panels (with facet strips and labels), and the
+  chart title/subtitle/caption — and MUST report coordinates and colors
+  identical to the SVG backend for the elements it covers. Per-datum geometry
+  marks, axis ticks, and gridlines are NOT yet part of the draw list; promoting
+  full mark and guide parity is deferred. The draw list MUST NOT execute scripts
+  or embed behavior; it is inert data.
+
+Additional backends (raster, retained DOM, WebGL) and lazy or streaming data
+materialization are deferred to a later release. The canonical CLI rasterizer
+(`--output *.png`) rasterizes the SVG backend's output and is unaffected by the
+draw-list backend (§22).
 
 Schema-only planning is outside this render execution boundary: semantic
 analysis may compute built-in derived schemas from typed frames, but it MUST NOT

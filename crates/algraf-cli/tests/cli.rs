@@ -54,6 +54,28 @@ fn render_writes_svg_to_stdout() {
 }
 
 #[test]
+fn render_draw_list_writes_json_to_stdout() {
+    let dir = temp_dir("render-draw-list");
+    let (chart, _) = write_fixture(&dir);
+
+    let output = Command::new(bin())
+        .arg("render")
+        .arg(&chart)
+        .arg("--format")
+        .arg("draw-list")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    // A draw list, not SVG.
+    assert!(!out.contains("<svg"));
+    assert!(out.starts_with("{\"width\":"));
+    assert!(out.contains("\"role\":\"background\""));
+    assert!(out.contains("\"role\":\"plot-area\""));
+}
+
+#[test]
 fn render_debug_flags_add_deterministic_svg_content() {
     let dir = temp_dir("render-debug");
     let (chart, _) = write_fixture(&dir);

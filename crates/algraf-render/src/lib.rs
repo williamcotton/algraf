@@ -13,13 +13,16 @@
 //!   scales ([`scale`], [`domains`], [`space`]), layout rectangles ([`layout`]),
 //!   guide measurements ([`guide`]'s planning half), and legends. It reads data
 //!   only through the [`Table`] abstraction and writes no output bytes.
-//! - **Emission** takes that scene and serializes it through a single output
-//!   backend (SVG today). Geometry ([`geom`]) and guide emission write bytes via
-//!   the [`svg`] writer and make no layout or scale decisions.
+//! - **Emission** takes that scene and serializes it through one of a closed set
+//!   of output backends. The canonical SVG backend writes SVG: geometry
+//!   ([`geom`]) and guide emission write bytes via the [`svg`] writer and make no
+//!   layout or scale decisions. A second backend records a serializable
+//!   [`DrawList`] of Canvas-drawable frame primitives ([`render_draw_list`]).
 //!
 //! Data materialization is eager: stats and scale training run during planning
-//! against in-memory tables. Lazy execution and additional backends are deferred
-//! (see `docs/V0_17_PLAN.md`).
+//! against in-memory tables. Lazy/streaming execution is deferred (see
+//! `docs/V0_17_PLAN.md`); the draw-list backend landed in v0.24 (see
+//! `docs/V0_24_PLAN.md`).
 
 mod aes;
 mod domains;
@@ -39,7 +42,10 @@ mod theme;
 
 pub use error::RenderError;
 pub use layout::{FacetPanel, Layout, Rect};
-pub use render::{render, render_with_tables, RenderResult};
+pub use render::{
+    render, render_draw_list, render_draw_list_with_tables, render_with_tables, DrawList,
+    DrawListResult, DrawOp, DrawRole, RenderResult, TextAnchor,
+};
 pub use svg::num as svg_num;
 pub use theme::Theme;
 

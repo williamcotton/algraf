@@ -8,11 +8,17 @@
 //! 2. **Emission** hands that scene to a [`RenderBackend`], which serializes it to
 //!    bytes for one concrete output format.
 //!
-//! In v0.17.0 the scene is produced by [`super::panels::build_render_plan`] and
-//! the only backend is [`SvgBackend`], which writes deterministic SVG via
-//! [`super::document`]. The trait exists to name the seam — so a future raster or
-//! canvas backend has an obvious insertion point — not to expose a plugin API; it
-//! is private to the crate and has exactly one implementation.
+//! The scene is produced by [`super::panels::build_render_plan`]. As of v0.24.0
+//! the seam has two implementations that consume the same scene:
+//!
+//! - [`SvgBackend`] writes deterministic SVG via [`super::document`] — the
+//!   canonical backend of §18.
+//! - [`DrawListBackend`](super::draw_list::DrawListBackend) records a serializable,
+//!   Canvas-drawable [`DrawList`](super::draw_list::DrawList) of frame primitives.
+//!
+//! The trait is generic over its `Output` so each backend returns its own
+//! serialized form. It remains crate-private and is *not* a plugin API: the set of
+//! backends is closed and compiled in (spec §24.6).
 
 use algraf_core::Diagnostic;
 use algraf_semantics::ChartIr;
@@ -35,20 +41,26 @@ pub(super) struct RenderScene<'a> {
     pub(super) theme: &'a Theme,
 }
 
-/// Serializes a planned [`RenderScene`] to bytes for one output format.
+/// Serializes a planned [`RenderScene`] into one concrete output format.
 ///
 /// This is the render execution boundary: planning code never writes output, and
-/// a backend never makes layout or scale decisions. The trait is private and has
-/// a single implementation ([`SvgBackend`]); it marks where an additional backend
-/// would attach, not a public extension point.
+/// a backend never makes layout or scale decisions. The trait is crate-private
+/// with a closed set of implementations; it marks where an additional compiled-in
+/// backend attaches, not a public extension point (spec §24.6).
 pub(super) trait RenderBackend {
-    fn emit(&self, scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> String;
+    /// The serialized form this backend produces (e.g. an SVG string or a
+    /// [`DrawList`](super::draw_list::DrawList)).
+    type Output;
+
+    fn emit(&self, scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> Self::Output;
 }
 
-/// The deterministic SVG backend — the only backend in v0.17.0 (spec §18, §24.6).
+/// The deterministic SVG backend — the canonical backend (spec §18, §24.6).
 pub(super) struct SvgBackend;
 
 impl RenderBackend for SvgBackend {
+    type Output = String;
+
     fn emit(&self, scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> String {
         document::emit_document(scene, diagnostics)
     }

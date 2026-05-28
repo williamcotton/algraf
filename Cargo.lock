@@ -92,6 +92,7 @@ dependencies = [
  "chrono",
  "geo-types",
  "proj4rs",
+ "serde_json",
  "thiserror",
 ]
 
