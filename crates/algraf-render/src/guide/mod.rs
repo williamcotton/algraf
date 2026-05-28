@@ -18,5 +18,6 @@ pub(crate) use emit::{
     AxisRenderOptions,
 };
 pub(crate) use plan::{
-    max_x_tick_label_height, max_y_tick_label_width, x_axis_bottom_margin, y_axis_left_margin,
+    estimate_text_width, max_x_tick_label_height, max_y_tick_label_width, x_axis_bottom_margin,
+    y_axis_left_margin,
 };

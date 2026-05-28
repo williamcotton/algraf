@@ -33,6 +33,7 @@ impl Analyzer<'_> {
         &mut self,
         call: &GeometryCall,
         frame: &FrameIr,
+        coords: &CoordsIr,
         table: &ActiveTable,
     ) -> Option<GeometryIr> {
         let span = node_span(call.syntax());
@@ -110,7 +111,7 @@ impl Analyzer<'_> {
             }
         }
 
-        self.bar_dodge_hint(def, frame, &mappings, &settings, span);
+        self.bar_dodge_hint(def, frame, coords, &mappings, &settings, span);
 
         Some(GeometryIr {
             kind: def.kind,
@@ -271,11 +272,18 @@ impl Analyzer<'_> {
         &mut self,
         def: &GeometryDef,
         frame: &FrameIr,
+        coords: &CoordsIr,
         mappings: &[AestheticMapping],
         settings: &[GeometrySetting],
         span: Span,
     ) {
         if def.kind != GeometryKind::Bar {
+            return;
+        }
+        // Polar bars (coxcomb/wind rose) stack around the angle; dodging into
+        // nested algebra is not the idiom there, so the hint is a false
+        // positive under a polar transform.
+        if matches!(coords, CoordsIr::Polar { .. }) {
             return;
         }
         let has_fill = mappings.iter().any(|m| m.aesthetic == PropertyKey::Fill);

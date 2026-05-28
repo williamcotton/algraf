@@ -68,7 +68,7 @@ impl Analyzer<'_> {
             match item {
                 SpaceItem::Geometry(call) => {
                     saw_geometry = true;
-                    if let Some(geo) = self.geometry(&call, &frame, &table) {
+                    if let Some(geo) = self.geometry(&call, &frame, &coords, &table) {
                         if geo.kind == GeometryKind::Histogram {
                             histograms.push(geo);
                         } else if geo.kind == GeometryKind::FreqPoly {

@@ -14,6 +14,7 @@ use algraf_semantics::{
 use chrono::{DateTime, Datelike, NaiveDate};
 
 use crate::domains::{AxisDomainHints, SpaceDomainHints};
+use crate::guide::estimate_text_width;
 use crate::layout::Rect;
 use crate::projection::SpatialScale;
 use crate::scale::{
@@ -26,6 +27,12 @@ use crate::scale::{
 /// screen coordinates (where +y points down).
 pub(crate) const THETA_START: f64 = -PI / 2.0;
 pub(crate) const THETA_END: f64 = 3.0 * PI / 2.0;
+
+/// Radial gap (px) between the outer radius and the baseline of a perimeter
+/// category label (spec §19). The polar plot reserves this plus the widest
+/// label so the labels stay within the plot rect; `render_polar_grid` places
+/// labels at the same offset.
+pub(crate) const POLAR_LABEL_GAP: f64 = 12.0;
 
 /// A trained polar coordinate transform for a space (spec §16.16). The `theta`
 /// axis maps its domain to `[THETA_START, THETA_END]` and the radius axis maps
@@ -556,20 +563,53 @@ impl ScaledSpace {
         scales: &[ScaleIr],
         theta: PolarThetaIr,
         inner_radius: f64,
+        font_size: f64,
     ) -> Option<ScaledSpace> {
         let cx = plot.x + plot.width / 2.0;
         let cy = plot.y + plot.height / 2.0;
-        let r_outer = plot.width.min(plot.height) / 2.0;
-        let r_inner = inner_radius * r_outer;
-        let polar = Polar {
-            cx,
-            cy,
-            r_inner,
-            r_outer,
-            theta,
+        let max_r = plot.width.min(plot.height) / 2.0;
+        let assemble = |r_outer: f64| {
+            Self::assemble_polar(
+                frame,
+                table,
+                Polar {
+                    cx,
+                    cy,
+                    r_inner: inner_radius * r_outer,
+                    r_outer,
+                    theta,
+                },
+                hints,
+                scales,
+            )
         };
+
+        // First pass at the full radius to discover the perimeter (theta)
+        // labels, then inset the circle so those labels stay within the plot
+        // rect (e.g. clear of the legend on the right). A continuous angle
+        // (pie/donut) draws no perimeter labels and keeps the full radius.
+        let provisional = assemble(max_r)?;
+        let reserve = provisional.polar_perimeter_reserve(font_size);
+        if reserve <= 0.0 {
+            return Some(provisional);
+        }
+        assemble((max_r - reserve).max(max_r * 0.5))
+    }
+
+    /// Build the trained axes for a polar space at a fixed radius. Domain
+    /// training is identical to Cartesian; only the *range* each axis maps into
+    /// changes (spec §16.16): the `theta` axis spans the angular range and the
+    /// radius axis spans `[r_inner, r_outer]`.
+    fn assemble_polar(
+        frame: &FrameIr,
+        table: &dyn Table,
+        polar: Polar,
+        hints: &SpaceDomainHints,
+        scales: &[ScaleIr],
+    ) -> Option<ScaledSpace> {
+        let theta = polar.theta;
         let angular = (THETA_START, THETA_END);
-        let radial = (r_inner, r_outer);
+        let radial = (polar.r_inner, polar.r_outer);
         let x_config = axis_config(scales, AxisSelectorIr::X);
         let y_config = axis_config(scales, AxisSelectorIr::Y);
 
@@ -703,6 +743,26 @@ impl ScaledSpace {
     /// angle comes from a continuous value (pie/donut).
     pub fn polar_theta_is_band(&self) -> bool {
         self.theta_axis().is_band()
+    }
+
+    /// Horizontal room (px) the perimeter category labels need beyond the outer
+    /// radius, used to inset the circle so they stay within the plot rect (e.g.
+    /// clear of the legend). Zero for a continuous angle (pie/donut), which
+    /// draws no perimeter labels (spec §16.16, §19).
+    fn polar_perimeter_reserve(&self, font_size: f64) -> f64 {
+        if !self.polar_theta_is_band() {
+            return 0.0;
+        }
+        let widest = self
+            .polar_theta_ticks()
+            .iter()
+            .map(|(_, label)| estimate_text_width(label, font_size))
+            .fold(0.0_f64, f64::max);
+        if widest <= 0.0 {
+            0.0
+        } else {
+            POLAR_LABEL_GAP + widest
+        }
     }
 
     /// The data column backing the radius axis, when present.

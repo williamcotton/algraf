@@ -60,9 +60,11 @@ Chart(data: "series.csv", width: 760, height: 460) {
 ## Embeddable sparkline
 
 A sparkline is just a `void`-themed `Line` shrunk down and stripped of margins.
-The `void` theme drops the axes, grid, and labels; declaring it at the `Chart`
-level is what shrinks the layout (a `Theme` nested only inside `Space` hides the
-marks but still reserves the wide axis margins). With no axes, the `marginTop`,
+The `void` theme drops the axes, grid, and labels. Declare it at the `Chart`
+level: the chart theme drives the layout and cascades down to each `Space`, so
+one declaration both shrinks the margins and hides the marks' guides. (A `Theme`
+nested only inside `Space` would hide the guides but still reserve the wide axis
+margins, leaving big empty borders.) With no axes, the `marginTop`,
 `marginRight`, `marginBottom`, and `marginLeft` arguments set each side exactly
 — down to `0` — instead of acting as a floor, so the line can bleed to the
 viewport edge. Here a 2px top/bottom margin keeps the stroke from clipping while
@@ -73,7 +75,6 @@ Chart(data: "sparkline.csv", width: 200, height: 50,
       marginTop: 2, marginRight: 0, marginBottom: 2, marginLeft: 0) {
     Theme(name: "void")
     Space(t * value) {
-        Theme(name: "void")
         Line(stroke: "#e74c3c", strokeWidth: 1.5)
     }
 }

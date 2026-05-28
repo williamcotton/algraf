@@ -43,7 +43,6 @@
   <line x1="133.5" y1="400" x2="133.5" y2="405" stroke="#333333" stroke-width="1" />
   <text x="133.5" y="418" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Java</text>
   <line x1="182.5" y1="400" x2="182.5" y2="405" stroke="#333333" stroke-width="1" />
-  <text x="182.5" y="418" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">JavaScript</text>
   <line x1="231.5" y1="400" x2="231.5" y2="405" stroke="#333333" stroke-width="1" />
   <text x="231.5" y="418" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">C++</text>
   <line x1="280.5" y1="400" x2="280.5" y2="405" stroke="#333333" stroke-width="1" />
@@ -51,7 +50,6 @@
   <line x1="329.5" y1="400" x2="329.5" y2="405" stroke="#333333" stroke-width="1" />
   <text x="329.5" y="418" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">PHP</text>
   <line x1="378.5" y1="400" x2="378.5" y2="405" stroke="#333333" stroke-width="1" />
-  <text x="378.5" y="418" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">TypeScript</text>
   <line x1="427.5" y1="400" x2="427.5" y2="405" stroke="#333333" stroke-width="1" />
   <text x="427.5" y="418" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Go</text>
   <line x1="476.5" y1="400" x2="476.5" y2="405" stroke="#333333" stroke-width="1" />

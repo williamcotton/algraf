@@ -5762,7 +5762,10 @@ remaps only the pixel **range** each axis occupies:
   deferred.
 - The **radius axis** (the other frame axis) maps its domain to
   `[innerRadius · R, R]`, where `R = min(plot.width, plot.height) / 2` and the
-  polar center is the plot rectangle's midpoint.
+  polar center is the plot rectangle's midpoint. When the theta axis is
+  categorical, `R` is reduced to reserve room for the perimeter category labels
+  (§19.8) so they stay within the plot rectangle (e.g. clear of the legend); a
+  continuous angle (pie/donut) draws no perimeter labels and keeps the full `R`.
 
 Final pixel positions are `x = cx + r·cos(θ)`, `y = cy + r·sin(θ)`, so
 point-like geometries need no polar awareness: the space resolves each datum to a

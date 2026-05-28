@@ -208,6 +208,7 @@ pub(super) fn build_render_plan<'t>(
                     &space_scales,
                     theta,
                     inner_radius,
+                    panel_theme.font_size,
                 )
             } else {
                 shared_x.apply(&mut domain_hints.x);

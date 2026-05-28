@@ -4,65 +4,65 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Seasonal temperature</text>
 <rect class="algraf-plot-area" x="60" y="66" width="330" height="304" fill="#ffffff" />
 <g class="algraf-polar-grid">
-  <circle cx="225" cy="218" r="29.321" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="225" cy="218" r="58.642" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="225" cy="218" r="87.963" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="225" cy="218" r="117.284" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="225" cy="218" r="146.605" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="225" cy="218" r="152" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="264.34" y2="71.179" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="332.48" y2="110.52" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="371.821" y2="178.66" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="371.821" y2="257.34" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="332.48" y2="325.48" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="264.34" y2="364.821" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="185.66" y2="364.821" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="117.52" y2="325.48" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="78.179" y2="257.34" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="78.179" y2="178.66" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="117.52" y2="110.52" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="185.66" y2="71.179" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="22.84" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="45.679" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="68.519" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="91.358" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="114.198" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="225" cy="218" r="118.4" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="255.644" y2="103.634" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="308.721" y2="134.279" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="339.366" y2="187.356" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="339.366" y2="248.644" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="308.721" y2="301.721" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="255.644" y2="332.366" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="194.356" y2="332.366" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="141.279" y2="301.721" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="110.634" y2="248.644" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="110.634" y2="187.356" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="141.279" y2="134.279" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="225" y1="218" x2="194.356" y2="103.634" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-polar-theta-labels">
-  <text x="267.446" y="59.588" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan</text>
-  <text x="340.966" y="102.034" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Feb</text>
-  <text x="383.412" y="175.554" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar</text>
-  <text x="383.412" y="260.446" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr</text>
-  <text x="340.966" y="333.966" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May</text>
-  <text x="267.446" y="376.412" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jun</text>
-  <text x="182.554" y="376.412" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul</text>
-  <text x="109.034" y="333.966" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Aug</text>
-  <text x="66.588" y="260.446" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sep</text>
-  <text x="66.588" y="175.554" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oct</text>
-  <text x="109.034" y="102.034" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Nov</text>
-  <text x="182.554" y="59.588" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Dec</text>
+  <text x="258.75" y="92.043" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan</text>
+  <text x="317.207" y="125.793" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Feb</text>
+  <text x="350.957" y="184.25" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar</text>
+  <text x="350.957" y="251.75" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr</text>
+  <text x="317.207" y="310.207" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May</text>
+  <text x="258.75" y="343.957" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jun</text>
+  <text x="191.25" y="343.957" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul</text>
+  <text x="132.793" y="310.207" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Aug</text>
+  <text x="99.043" y="251.75" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sep</text>
+  <text x="99.043" y="184.25" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oct</text>
+  <text x="132.793" y="125.793" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Nov</text>
+  <text x="191.25" y="92.043" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Dec</text>
 </g>
 <g class="algraf-polar-radius-labels">
   <text x="228" y="216" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
-  <text x="228" y="186.679" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
-  <text x="228" y="157.358" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
-  <text x="228" y="128.037" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15</text>
-  <text x="228" y="98.716" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
-  <text x="228" y="69.395" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <text x="228" y="193.16" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <text x="228" y="170.321" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <text x="228" y="147.481" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15</text>
+  <text x="228" y="124.642" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <text x="228" y="101.802" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
 </g>
 <g class="algraf-layer algraf-geom-area">
-  <path d="M231.071 195.342 L245.733 197.267 L275.979 204.34 L298.637 237.731 L295.492 288.492 L256.873 336.952 L188.574 353.945 L129.628 313.372 L117.377 246.838 L145.699 196.751 L187.68 180.68 L217.411 189.678 Z" fill="#bcd" opacity="0.4" />
+  <path d="M229.729 200.351 L241.15 201.85 L264.71 207.36 L282.359 233.369 L279.91 272.91 L249.827 310.657 L196.626 323.894 L150.71 292.29 L141.167 240.463 L163.228 201.448 L195.93 188.93 L219.089 195.939 Z" fill="#bcd" opacity="0.4" />
 </g>
 <g class="algraf-layer algraf-geom-line">
-  <path d="M231.071 195.342 L245.733 197.267 L275.979 204.34 L298.637 237.731 L295.492 288.492 L256.873 336.952 L188.574 353.945 L129.628 313.372 L117.377 246.838 L145.699 196.751 L187.68 180.68 L217.411 189.678Z" fill="none" stroke="#4E79A7" stroke-width="1.5" opacity="1" />
+  <path d="M229.729 200.351 L241.15 201.85 L264.71 207.36 L282.359 233.369 L279.91 272.91 L249.827 310.657 L196.626 323.894 L150.71 292.29 L141.167 240.463 L163.228 201.448 L195.93 188.93 L219.089 195.939Z" fill="none" stroke="#4E79A7" stroke-width="1.5" opacity="1" />
 </g>
 <g class="algraf-layer algraf-geom-point">
-  <circle cx="231.071" cy="195.342" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="245.733" cy="197.267" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="275.979" cy="204.34" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="298.637" cy="237.731" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="295.492" cy="288.492" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="256.873" cy="336.952" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="188.574" cy="353.945" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="129.628" cy="313.372" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="117.377" cy="246.838" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="145.699" cy="196.751" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="187.68" cy="180.68" r="3" fill="#4E79A7" opacity="1" />
-  <circle cx="217.411" cy="189.678" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="229.729" cy="200.351" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="241.15" cy="201.85" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="264.71" cy="207.36" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="282.359" cy="233.369" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="279.91" cy="272.91" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="249.827" cy="310.657" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="196.626" cy="323.894" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="150.71" cy="292.29" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="141.167" cy="240.463" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="163.228" cy="201.448" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="195.93" cy="188.93" r="3" fill="#4E79A7" opacity="1" />
+  <circle cx="219.089" cy="195.939" r="3" fill="#4E79A7" opacity="1" />
 </g>
 </svg>

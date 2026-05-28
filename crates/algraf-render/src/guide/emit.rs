@@ -105,7 +105,7 @@ pub(crate) fn render_polar_grid(
     if space.polar_theta_is_band() {
         w.open_group("class=\"algraf-polar-theta-labels\"");
         for (angle, label) in &theta_ticks {
-            let (lx, ly) = polar.point(*angle, polar.r_outer + 12.0);
+            let (lx, ly) = polar.point(*angle, polar.r_outer + crate::space::POLAR_LABEL_GAP);
             let anchor = perimeter_anchor(*angle);
             w.line(&polar_label(lx, ly, anchor, label, theme));
         }
