@@ -1,4 +1,5 @@
 Chart(data: "activity.csv", width: 420, height: 420, title: "Sessions by day and period") {
+  Scale(fill: sessions, gradient: [Stop(value: 0, color: "#ffffff"), Stop(value: 9, color: "#994422")])
   Space(day * period, coords: "polar", theta: "x", innerRadius: 0.25) {
     Tile(fill: sessions)
   }
