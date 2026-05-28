@@ -179,6 +179,7 @@ fn render_preview(source: &str, source_input: SourceInput) -> Result<String, Str
             source_input: &source_input,
             base_dir: None,
             data_override: None,
+            data_format_override: None,
             multi_chart: false,
         },
     )

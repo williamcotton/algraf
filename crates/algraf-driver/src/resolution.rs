@@ -14,6 +14,7 @@ use crate::DriverError;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SourceInput {
     Stdin,
+    Inline { label: String },
     Path(PathBuf),
 }
 
@@ -22,6 +23,7 @@ impl SourceInput {
     pub fn label(&self) -> String {
         match self {
             SourceInput::Stdin => "<stdin>".to_string(),
+            SourceInput::Inline { label } => label.clone(),
             SourceInput::Path(path) => path.display().to_string(),
         }
     }
@@ -97,7 +99,10 @@ pub enum DataLocation {
         path: PathBuf,
         object: Option<String>,
     },
-    Stdin,
+    Input {
+        /// `None` means parse caller-provided bytes as CSV.
+        format: Option<Format>,
+    },
 }
 
 /// Internal driver context shared by resolution, loading, and preparation.
@@ -106,6 +111,7 @@ pub(crate) struct DriverEnv<'a> {
     pub(crate) source_input: &'a SourceInput,
     pub(crate) base_dir: Option<&'a Path>,
     pub(crate) data_override: Option<&'a str>,
+    pub(crate) data_format_override: Option<Format>,
     pub(crate) multi_chart: bool,
 }
 
@@ -114,12 +120,14 @@ impl<'a> DriverEnv<'a> {
         source_input: &'a SourceInput,
         base_dir: Option<&'a Path>,
         data_override: Option<&'a str>,
+        data_format_override: Option<Format>,
         multi_chart: bool,
     ) -> DriverEnv<'a> {
         DriverEnv {
             source_input,
             base_dir,
             data_override,
+            data_format_override,
             multi_chart,
         }
     }
@@ -142,7 +150,7 @@ impl SourceResolver<'_> {
             .map(PathBuf::from)
             .or_else(|| match self.env.source_input {
                 SourceInput::Path(path) => path.parent().map(PathBuf::from),
-                SourceInput::Stdin => Some(PathBuf::from(".")),
+                SourceInput::Stdin | SourceInput::Inline { .. } => Some(PathBuf::from(".")),
             })
             .unwrap_or_else(|| PathBuf::from("."))
     }
@@ -225,11 +233,13 @@ impl SourceResolver<'_> {
                         "cannot read both source and CSV data from stdin".to_string(),
                     ));
                 }
-                return Ok(DataLocation::Stdin);
+                return Ok(DataLocation::Input {
+                    format: self.env.data_format_override,
+                });
             }
             return Ok(DataLocation::Path {
                 path: PathBuf::from(data),
-                format: None,
+                format: self.env.data_format_override,
             });
         }
 
@@ -241,7 +251,9 @@ impl SourceResolver<'_> {
                             .to_string(),
                     ));
                 }
-                Ok(DataLocation::Stdin)
+                Ok(DataLocation::Input {
+                    format: self.env.data_format_override,
+                })
             }
             SourceExpr::Path { .. } => {
                 let resolved = self
@@ -279,14 +291,14 @@ impl SourceResolver<'_> {
 
 /// Resolve the base directory for relative data paths.
 pub fn source_base_dir(source: &SourceInput, base_dir: Option<&Path>) -> PathBuf {
-    DriverEnv::new(source, base_dir, None, false)
+    DriverEnv::new(source, base_dir, None, None, false)
         .resolver()
         .source_base_dir()
 }
 
 /// Resolve a path string using the source path or `--base-dir`.
 pub fn resolve_path(path: &str, source: &SourceInput, base_dir: Option<&Path>) -> PathBuf {
-    DriverEnv::new(source, base_dir, None, false)
+    DriverEnv::new(source, base_dir, None, None, false)
         .resolver()
         .resolve_path(path)
 }
@@ -309,7 +321,7 @@ pub fn resolve_source_expr_path(
     source: &SourceInput,
     base_dir: Option<&Path>,
 ) -> Option<ResolvedSource> {
-    DriverEnv::new(source, base_dir, None, false)
+    DriverEnv::new(source, base_dir, None, None, false)
         .resolver()
         .resolve_source_expr_path(source_expr)
 }
@@ -320,7 +332,7 @@ pub fn resolve_document_data_path(
     source: &SourceInput,
     base_dir: Option<&Path>,
 ) -> Option<ResolvedSource> {
-    DriverEnv::new(source, base_dir, None, false)
+    DriverEnv::new(source, base_dir, None, None, false)
         .resolver()
         .resolve_document_data_path(root)
 }
@@ -331,7 +343,7 @@ pub fn resolve_chart_data_path(
     source: &SourceInput,
     base_dir: Option<&Path>,
 ) -> Option<ResolvedSource> {
-    DriverEnv::new(source, base_dir, None, false)
+    DriverEnv::new(source, base_dir, None, None, false)
         .resolver()
         .resolve_chart_data_path(chart)
 }
@@ -342,7 +354,7 @@ pub fn resolve_named_table_sources(
     source: &SourceInput,
     base_dir: Option<&Path>,
 ) -> Vec<ResolvedTableSource> {
-    DriverEnv::new(source, base_dir, None, false)
+    DriverEnv::new(source, base_dir, None, None, false)
         .resolver()
         .resolve_named_table_sources(chart)
 }
@@ -354,7 +366,7 @@ pub fn data_location(
     base_dir: Option<&Path>,
     data_override: Option<&str>,
 ) -> Result<DataLocation, DriverError> {
-    DriverEnv::new(source, base_dir, data_override, false)
+    DriverEnv::new(source, base_dir, data_override, None, false)
         .resolver()
         .data_location(source_expr)
 }
@@ -408,7 +420,7 @@ impl ChartDataPlan {
                 query: None,
                 object: object.clone(),
             }),
-            DataLocation::Stdin => None,
+            DataLocation::Input { .. } => None,
         });
         let tables = self.named_tables.iter().map(|table| DataDependency {
             kind: DataDependencyKind::Table {
@@ -433,7 +445,7 @@ pub fn plan_chart_data(
 ) -> Result<ChartDataPlan, DriverError> {
     resolve_chart_inputs(
         chart,
-        DriverEnv::new(source, base_dir, data_override, multi_chart),
+        DriverEnv::new(source, base_dir, data_override, None, multi_chart),
     )
 }
 
@@ -444,7 +456,7 @@ pub fn data_dependencies(
     base_dir: Option<&Path>,
     data_override: Option<&str>,
 ) -> Result<Vec<DataDependency>, DriverError> {
-    let env = DriverEnv::new(source, base_dir, data_override, false);
+    let env = DriverEnv::new(source, base_dir, data_override, None, false);
     Ok(resolve_chart_inputs(chart, env)?.data_dependencies())
 }
 

@@ -157,7 +157,7 @@ pub enum SourceExpr {
         object: Option<String>,
         span: Span,
     },
-    /// The bare `stdin` sentinel.
+    /// The bare `input` sentinel, or the compatibility alias `stdin`.
     Stdin { span: Span },
     /// No source expression was present.
     Missing,
@@ -186,7 +186,7 @@ impl SourceExpr {
         )
     }
 
-    /// Whether this source is `stdin`.
+    /// Whether this source is caller-provided input (`input`/`stdin`).
     pub fn is_stdin(&self) -> bool {
         matches!(self, SourceExpr::Stdin { .. })
     }

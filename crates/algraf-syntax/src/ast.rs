@@ -1,7 +1,7 @@
-//! Typed AST views over the rowan CST (spec §11).
+//! Typed AST views over the rowan CST (spec section 11).
 //!
 //! These are lightweight wrappers around [`SyntaxNode`]s that walk CST children
-//! on demand rather than owning a separate tree (spec §11.1). Enum-shaped views
+//! on demand rather than owning a separate tree (spec section 11.1). Enum-shaped views
 //! (`ChartItem`, `SpaceItem`, `ValueExpr`, `AlgebraExpr`) `cast` from a node by
 //! inspecting its [`SyntaxKind`].
 
@@ -52,7 +52,7 @@ fn first_token(node: &SyntaxNode, kind: SyntaxKind) -> Option<SyntaxToken> {
 // --- Root and chart -------------------------------------------------------
 
 ast_node!(
-    /// The tree root holding the single chart block (spec §11.4).
+    /// The tree root holding the single chart block (spec section 11.4).
     Root = ROOT
 );
 
@@ -67,7 +67,7 @@ impl Root {
         self.syntax.children().find_map(ChartBlock::cast)
     }
 
-    /// Every top-level chart block, in source order (spec §7.1).
+    /// Every top-level chart block, in source order (spec section 7.1).
     pub fn charts(&self) -> Vec<ChartBlock> {
         child_nodes(&self.syntax, ChartBlock::cast)
     }
@@ -86,7 +86,7 @@ impl SourceHeader {
 }
 
 ast_node!(
-    /// The root chart block (spec §11.5).
+    /// The root chart block (spec section 11.5).
     ChartBlock = CHART_BLOCK
 );
 
@@ -102,7 +102,7 @@ impl ChartBlock {
     }
 }
 
-/// A chart-body item (spec §11.5).
+/// A chart-body item (spec section 11.5).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChartItem {
     Space(SpaceBlock),
@@ -136,7 +136,7 @@ impl ChartItem {
 // --- Space ----------------------------------------------------------------
 
 ast_node!(
-    /// A space block (spec §11.6).
+    /// A space block (spec section 11.6).
     SpaceBlock = SPACE_BLOCK
 );
 
@@ -157,7 +157,7 @@ impl SpaceBlock {
     }
 }
 
-/// A space-body item (spec §11.6).
+/// A space-body item (spec section 11.6).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpaceItem {
     Geometry(GeometryCall),
@@ -185,7 +185,7 @@ impl SpaceItem {
 // --- Derive / stat --------------------------------------------------------
 
 ast_node!(
-    /// A `Derive` declaration (spec §11.7).
+    /// A `Derive` declaration (spec section 11.7).
     DeriveDecl = DERIVE_DECL
 );
 
@@ -202,7 +202,7 @@ impl DeriveDecl {
 }
 
 ast_node!(
-    /// A statistical transform call (spec §11.7).
+    /// A statistical transform call (spec section 11.7).
     StatCall = STAT_CALL
 );
 
@@ -231,7 +231,7 @@ impl StatCall {
 // --- Let bindings ---------------------------------------------------------
 
 ast_node!(
-    /// A `let name = value` variable binding (spec §7.10, §11.14).
+    /// A `let name = value` variable binding (spec sections 7.10, 11.14).
     LetDecl = LET_DECL
 );
 
@@ -261,7 +261,7 @@ impl LetDecl {
 // --- Table declarations ---------------------------------------------------
 
 ast_node!(
-    /// A `Table name = <source>` chart-scoped table declaration (spec §7.4).
+    /// A `Table name = <source>` chart-scoped table declaration (spec section 7.4).
     TableDecl = TABLE_DECL
 );
 
@@ -291,7 +291,7 @@ impl TableDecl {
 // --- Calls and declarations ----------------------------------------------
 
 ast_node!(
-    /// A geometry call such as `Point(...)` (spec §11.8).
+    /// A geometry call such as `Point(...)` (spec section 11.8).
     GeometryCall = GEOMETRY_CALL
 );
 
@@ -307,7 +307,7 @@ impl GeometryCall {
     }
 }
 
-/// A `Scale` / `Guide` / `Theme` / `Layout` declaration (spec §11.5, §7.6).
+/// A `Scale` / `Guide` / `Theme` / `Layout` declaration (spec sections 11.5, 7.6).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Decl {
     syntax: SyntaxNode,
@@ -349,7 +349,7 @@ impl Decl {
 // --- Arguments and values -------------------------------------------------
 
 ast_node!(
-    /// A `key: value` argument (spec §11.9).
+    /// A `key: value` argument (spec section 11.9).
     Arg = ARG
 );
 
@@ -365,7 +365,7 @@ impl Arg {
     }
 }
 
-/// A property value (spec §11.10).
+/// A property value (spec section 11.10).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueExpr {
     Algebra(AlgebraExpr),
@@ -406,7 +406,7 @@ impl ValueExpr {
     }
 }
 
-/// The kind of a literal value (spec §11.12).
+/// The kind of a literal value (spec section 11.12).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LiteralKind {
     String,
@@ -416,7 +416,7 @@ pub enum LiteralKind {
 }
 
 ast_node!(
-    /// A literal value (spec §11.12).
+    /// A literal value (spec section 11.12).
     Literal = LITERAL
 );
 
@@ -457,12 +457,13 @@ impl Literal {
 }
 
 ast_node!(
-    /// The bare `stdin` sentinel in a value position (spec §11.10, §10.1).
+    /// The bare caller-provided input sentinel in a value position
+    /// (spec sections 11.10, 10.1).
     StdinValue = STDIN_VALUE
 );
 
 ast_node!(
-    /// An array value (spec §11.10, §7.8).
+    /// An array value (spec sections 11.10, 7.8).
     ArrayValue = ARRAY_VALUE
 );
 
@@ -474,7 +475,7 @@ impl ArrayValue {
 }
 
 ast_node!(
-    /// A map value such as `["A" => "burlywood"]` (spec §7.8).
+    /// A map value such as `["A" => "burlywood"]` (spec section 7.8).
     MapValue = MAP_VALUE
 );
 
@@ -486,7 +487,7 @@ impl MapValue {
 }
 
 ast_node!(
-    /// One `key => value` entry inside a map value (spec §7.8).
+    /// One `key => value` entry inside a map value (spec section 7.8).
     MapEntry = MAP_ENTRY
 );
 
@@ -503,7 +504,7 @@ impl MapEntry {
 }
 
 ast_node!(
-    /// A nested call value such as `Text(size: 12)` (spec §7.8, §20.8).
+    /// A nested call value such as `Text(size: 12)` (spec sections 7.8, 20.8).
     CallValue = CALL_VALUE
 );
 
@@ -519,16 +520,16 @@ impl CallValue {
     }
 }
 
-// --- Algebra (spec §11.11) ------------------------------------------------
+// --- Algebra (spec section 11.11) -----------------------------------------
 
-/// An algebra operator (spec §11.11).
+/// An algebra operator (spec section 11.11).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlgebraOp {
-    /// `*` — Cartesian product.
+    /// `*` Cartesian product.
     Cross,
-    /// `/` — nesting.
+    /// `/` nesting.
     Nest,
-    /// `+` — blend / union.
+    /// `+` blend / union.
     Blend,
 }
 
@@ -543,7 +544,7 @@ impl AlgebraOp {
     }
 }
 
-/// A typed view of an algebra expression node (spec §11.11).
+/// A typed view of an algebra expression node (spec section 11.11).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AlgebraExpr {
     Name(AlgebraName),
@@ -576,7 +577,7 @@ impl AlgebraExpr {
 }
 
 ast_node!(
-    /// An identifier frame: one plain or quoted column identifier (spec §8.2).
+    /// An identifier frame: one plain or quoted column identifier (spec section 8.2).
     AlgebraName = ALGEBRA_NAME
 );
 
@@ -620,7 +621,7 @@ impl AlgebraName {
 }
 
 ast_node!(
-    /// A binary algebra expression (spec §11.11).
+    /// A binary algebra expression (spec section 11.11).
     AlgebraBinary = ALGEBRA_BINARY
 );
 
@@ -654,7 +655,7 @@ impl AlgebraBinary {
 }
 
 ast_node!(
-    /// A parenthesized algebra expression (spec §11.11).
+    /// A parenthesized algebra expression (spec section 11.11).
     AlgebraParen = ALGEBRA_PAREN
 );
 
@@ -666,6 +667,6 @@ impl AlgebraParen {
 }
 
 ast_node!(
-    /// A recovered error node (spec §11.13).
+    /// A recovered error node (spec section 11.13).
     Error = ERROR
 );

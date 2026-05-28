@@ -696,9 +696,12 @@ impl Parser {
                 self.builder.finish_node();
             }
             SyntaxKind::L_BRACKET => self.bracket_value(),
-            // Bare `stdin` is the stdin sentinel only when it is the whole value
-            // (spec §10.1, §12.13); otherwise it is an ordinary column.
-            SyntaxKind::IDENT if self.at_kw("stdin") && self.value_ends_after(1) => {
+            // Bare `input`/`stdin` is the caller-provided data sentinel only when
+            // it is the whole value (spec §10.1, §12.13); otherwise it is an
+            // ordinary column.
+            SyntaxKind::IDENT
+                if (self.at_kw("input") || self.at_kw("stdin")) && self.value_ends_after(1) =>
+            {
                 self.builder.start_node(SyntaxKind::STDIN_VALUE.into());
                 self.bump_as(SyntaxKind::STDIN_KW);
                 self.builder.finish_node();

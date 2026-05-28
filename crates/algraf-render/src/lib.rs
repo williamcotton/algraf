@@ -26,6 +26,7 @@
 
 mod aes;
 mod domains;
+mod embed;
 mod error;
 mod geo_stats;
 mod geom;
@@ -40,6 +41,11 @@ mod stats;
 mod svg;
 mod theme;
 
+pub use embed::{
+    render_embedded, render_embedded_json, render_embedded_with_io, EmbeddedOutputFormat,
+    EmbeddedRenderError, EmbeddedRenderOptions, EmbeddedRenderResult, InMemoryDriverIo,
+    InputOnlyIo,
+};
 pub use error::RenderError;
 pub use layout::{FacetPanel, Layout, Rect};
 pub use render::{

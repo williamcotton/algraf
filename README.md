@@ -6,6 +6,8 @@ binary parses the source, validates it against the data, trains scales, and
 emits deterministic SVG.
 
 The normative reference is [`docs/ALGRAF_SPEC.md`](docs/ALGRAF_SPEC.md).
+Embedding notes for pipeline middleware and host applications live in
+[`docs/WEBPIPE_INTEGRATION.md`](docs/WEBPIPE_INTEGRATION.md).
 Active planning starts at [`docs/V0_15_PLAN.md`](docs/V0_15_PLAN.md), with the
 staged roadmap recorded in [`docs/`](docs/).
 

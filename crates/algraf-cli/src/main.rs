@@ -10,11 +10,11 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use algraf_data::DataType;
+use algraf_data::{DataType, Format};
 use algraf_driver::{
-    document_charts, driver_error_diagnostic, extract_data_source, load_schema, prepare_chart,
-    prepare_chart_partial, DriverError, LoadContext, PreparationReport, PrepareOptions,
-    ReportPhase, SourceInput,
+    document_charts, driver_error_diagnostic, expand_variables, extract_data_source, load_schema,
+    parse_variable_assignments, prepare_chart, prepare_chart_partial, DriverError, LoadContext,
+    PreparationReport, PrepareOptions, ReportPhase, SourceInput,
 };
 use algraf_render::{
     render_draw_list_with_tables, render_with_tables, svg_num, Layout, Rect, Theme,
@@ -69,10 +69,37 @@ enum RenderFormat {
     DrawList,
 }
 
+/// Stream/data format override for caller-provided primary data.
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum DataFormatArg {
+    Csv,
+    Tsv,
+    Json,
+    Ndjson,
+    Geojson,
+    Topojson,
+}
+
+impl From<DataFormatArg> for Format {
+    fn from(value: DataFormatArg) -> Self {
+        match value {
+            DataFormatArg::Csv => Format::Csv,
+            DataFormatArg::Tsv => Format::Tsv,
+            DataFormatArg::Json => Format::Json,
+            DataFormatArg::Ndjson => Format::NdJson,
+            DataFormatArg::Geojson => Format::GeoJson,
+            DataFormatArg::Topojson => Format::TopoJson,
+        }
+    }
+}
+
 #[derive(Args)]
 struct RenderArgs {
     /// Source file, or `-` for stdin.
     input: Option<String>,
+    /// Inline source text. Mutually exclusive with a source file or `-`.
+    #[arg(short = 'e', long = "eval", conflicts_with = "input")]
+    eval: Option<String>,
     /// Output path. With `--format svg`, `.png` paths rasterize to PNG and all
     /// other paths write SVG; with `--format draw-list`, paths write JSON.
     #[arg(long)]
@@ -95,6 +122,12 @@ struct RenderArgs {
     /// CSV data path, or `-` for stdin (overrides the chart's data argument).
     #[arg(long)]
     data: Option<String>,
+    /// Explicit format for caller-provided primary data or --data paths.
+    #[arg(long, value_enum)]
+    data_format: Option<DataFormatArg>,
+    /// Raw source variable assignment, repeated as --var key=value.
+    #[arg(long = "var")]
+    vars: Vec<String>,
     #[arg(long)]
     theme: Option<String>,
     /// Treat warnings as errors.
@@ -109,10 +142,16 @@ struct RenderArgs {
 #[derive(Args)]
 struct CheckArgs {
     input: Option<String>,
+    #[arg(short = 'e', long = "eval", conflicts_with = "input")]
+    eval: Option<String>,
     #[arg(long)]
     base_dir: Option<PathBuf>,
     #[arg(long)]
     data: Option<String>,
+    #[arg(long, value_enum)]
+    data_format: Option<DataFormatArg>,
+    #[arg(long = "var")]
+    vars: Vec<String>,
     #[arg(long)]
     json: bool,
     #[arg(long)]
@@ -130,10 +169,16 @@ struct FormatArgs {
 #[derive(Args)]
 struct SchemaArgs {
     input: Option<String>,
+    #[arg(short = 'e', long = "eval", conflicts_with = "input")]
+    eval: Option<String>,
     #[arg(long)]
     base_dir: Option<PathBuf>,
     #[arg(long)]
     data: Option<String>,
+    #[arg(long, value_enum)]
+    data_format: Option<DataFormatArg>,
+    #[arg(long = "var")]
+    vars: Vec<String>,
     #[arg(long)]
     json: bool,
     #[arg(long)]
@@ -143,6 +188,10 @@ struct SchemaArgs {
 #[derive(Args)]
 struct AstArgs {
     input: Option<String>,
+    #[arg(short = 'e', long = "eval", conflicts_with = "input")]
+    eval: Option<String>,
+    #[arg(long = "var")]
+    vars: Vec<String>,
     #[arg(long)]
     json: bool,
 }
@@ -150,10 +199,16 @@ struct AstArgs {
 #[derive(Args)]
 struct IrArgs {
     input: Option<String>,
+    #[arg(short = 'e', long = "eval", conflicts_with = "input")]
+    eval: Option<String>,
     #[arg(long)]
     base_dir: Option<PathBuf>,
     #[arg(long)]
     data: Option<String>,
+    #[arg(long, value_enum)]
+    data_format: Option<DataFormatArg>,
+    #[arg(long = "var")]
+    vars: Vec<String>,
     #[arg(long)]
     json: bool,
 }
@@ -187,8 +242,18 @@ fn run(cli: Cli) -> Result<(), CliError> {
     }
 }
 
-/// Read Algraf source from a path argument (`-` or absent means stdin).
-fn read_source(arg: Option<&str>) -> Result<(String, SourceInput), CliError> {
+/// Read Algraf source from an inline string or a path argument (`-` or absent
+/// means stdin when no inline source is supplied).
+fn read_source(arg: Option<&str>, eval: Option<&str>) -> Result<(String, SourceInput), CliError> {
+    if let Some(source) = eval {
+        return Ok((
+            source.to_string(),
+            SourceInput::Inline {
+                label: "<eval>".to_string(),
+            },
+        ));
+    }
+
     match arg {
         None | Some("-") => {
             let mut text = String::new();
@@ -205,6 +270,22 @@ fn read_source(arg: Option<&str>) -> Result<(String, SourceInput), CliError> {
     }
 }
 
+fn read_template_source(
+    arg: Option<&str>,
+    eval: Option<&str>,
+    vars: &[String],
+) -> Result<(String, SourceInput), CliError> {
+    let (source, input) = read_source(arg, eval)?;
+    let variables = parse_variable_assignments(vars).map_err(driver_error)?;
+    if variables.is_empty() {
+        Ok((source, input))
+    } else {
+        expand_variables(&source, &variables)
+            .map(|expanded| (expanded, input))
+            .map_err(driver_error)
+    }
+}
+
 fn driver_error(err: DriverError) -> CliError {
     match err {
         DriverError::Usage(message) => CliError::Usage(message),
@@ -215,7 +296,8 @@ fn driver_error(err: DriverError) -> CliError {
 }
 
 fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
-    let (source, input) = read_source(args.input.as_deref())?;
+    let (source, input) =
+        read_template_source(args.input.as_deref(), args.eval.as_deref(), &args.vars)?;
     let parsed = parse(&source);
     let root = parsed.syntax();
     let label = input.label();
@@ -420,6 +502,7 @@ fn prepare_render_inputs(
             source_input: input,
             base_dir: args.base_dir.as_deref(),
             data_override: args.data.as_deref(),
+            data_format_override: args.data_format.map(Format::from),
             multi_chart: multi,
         },
     ) {
@@ -530,7 +613,8 @@ fn is_png_path(path: &std::path::Path) -> bool {
 }
 
 fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
-    let (source, input) = read_source(args.input.as_deref())?;
+    let (source, input) =
+        read_template_source(args.input.as_deref(), args.eval.as_deref(), &args.vars)?;
     let parsed = parse(&source);
     let root = parsed.syntax();
     let label = input.label();
@@ -564,6 +648,7 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
                 source_input: &input,
                 base_dir: args.base_dir.as_deref(),
                 data_override: args.data.as_deref(),
+                data_format_override: args.data_format.map(Format::from),
                 multi_chart: multi,
             },
         );
@@ -601,7 +686,7 @@ fn check_cmd(args: CheckArgs) -> Result<(), CliError> {
 }
 
 fn format_cmd(args: FormatArgs) -> Result<(), CliError> {
-    let (source, input) = read_source(args.input.as_deref())?;
+    let (source, input) = read_source(args.input.as_deref(), None)?;
     let formatted = format(&source);
     match (&input, args.write) {
         (SourceInput::Path(path), true) => std::fs::write(path, formatted)
@@ -617,7 +702,8 @@ fn format_cmd(args: FormatArgs) -> Result<(), CliError> {
 }
 
 fn schema_cmd(args: SchemaArgs) -> Result<(), CliError> {
-    let (source, input) = read_source(args.input.as_deref())?;
+    let (source, input) =
+        read_template_source(args.input.as_deref(), args.eval.as_deref(), &args.vars)?;
     let parsed = parse(&source);
     let root = parsed.syntax();
     let label = input.label();
@@ -647,6 +733,7 @@ fn schema_cmd(args: SchemaArgs) -> Result<(), CliError> {
         &input,
         args.base_dir.as_deref(),
         args.data.as_deref(),
+        args.data_format.map(Format::from),
         args.sample_size,
     ) {
         Ok(schema) => schema,
@@ -700,7 +787,8 @@ fn schema_cmd(args: SchemaArgs) -> Result<(), CliError> {
 }
 
 fn ast_cmd(args: AstArgs) -> Result<(), CliError> {
-    let (source, _) = read_source(args.input.as_deref())?;
+    let (source, _) =
+        read_template_source(args.input.as_deref(), args.eval.as_deref(), &args.vars)?;
     let root = parse(&source).syntax();
     if args.json {
         println!(
@@ -714,7 +802,8 @@ fn ast_cmd(args: AstArgs) -> Result<(), CliError> {
 }
 
 fn ir_cmd(args: IrArgs) -> Result<(), CliError> {
-    let (source, input) = read_source(args.input.as_deref())?;
+    let (source, input) =
+        read_template_source(args.input.as_deref(), args.eval.as_deref(), &args.vars)?;
     let parsed = parse(&source);
     let root = parsed.syntax();
     let label = input.label();
@@ -738,6 +827,7 @@ fn ir_cmd(args: IrArgs) -> Result<(), CliError> {
             source_input: &input,
             base_dir: args.base_dir.as_deref(),
             data_override: args.data.as_deref(),
+            data_format_override: args.data_format.map(Format::from),
             multi_chart: false,
         },
     )

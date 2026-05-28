@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use algraf_data::{
-    read_bytes_as, read_csv, read_csv_schema, read_schema_bytes_as, read_topojson, ColumnDef,
-    DataError, DataFrame, DataWarning, Format, LoadResult, Table,
+    read_bytes_as, read_schema_bytes_as, read_topojson, ColumnDef, DataError, DataFrame,
+    DataWarning, Format, LoadResult, Table,
 };
 use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::SourceExpr;
@@ -34,8 +34,16 @@ pub fn load_data(
     source: &SourceInput,
     base_dir: Option<&Path>,
     data_override: Option<&str>,
+    data_format_override: Option<Format>,
 ) -> Result<LoadResult, DriverError> {
-    load_data_with_io(source_expr, source, base_dir, data_override, &OsDriverIo)
+    load_data_with_io(
+        source_expr,
+        source,
+        base_dir,
+        data_override,
+        data_format_override,
+        &OsDriverIo,
+    )
 }
 
 /// Load a full data source for a chart through an injected I/O provider.
@@ -44,9 +52,10 @@ pub fn load_data_with_io(
     source: &SourceInput,
     base_dir: Option<&Path>,
     data_override: Option<&str>,
+    data_format_override: Option<Format>,
     io: &dyn DriverIo,
 ) -> Result<LoadResult, DriverError> {
-    let env = DriverEnv::new(source, base_dir, data_override, false);
+    let env = DriverEnv::new(source, base_dir, data_override, data_format_override, false);
     let location = env.resolver().data_location(source_expr)?;
     load_location(location, LoadContext::Primary, io)
 }
@@ -57,9 +66,10 @@ pub async fn load_data_with_async_io(
     source: &SourceInput,
     base_dir: Option<&Path>,
     data_override: Option<&str>,
+    data_format_override: Option<Format>,
     io: &dyn AsyncDriverIo,
 ) -> Result<LoadResult, DriverError> {
-    let env = DriverEnv::new(source, base_dir, data_override, false);
+    let env = DriverEnv::new(source, base_dir, data_override, data_format_override, false);
     let location = env.resolver().data_location(source_expr)?;
     load_location_async(location, LoadContext::Primary, io).await
 }
@@ -82,7 +92,7 @@ fn load_location(
         DataLocation::TopoJson { path, object } => {
             load_topojson_with_io(&path, object.as_deref(), context, io)
         }
-        DataLocation::Stdin => read_stdin_csv(io),
+        DataLocation::Input { format } => read_input(io, format.unwrap_or(Format::Csv)),
     }
 }
 
@@ -135,7 +145,7 @@ async fn load_location_async(
                 path: path.clone(),
                 source,
             }),
-        DataLocation::Stdin => read_stdin_csv_async(io).await,
+        DataLocation::Input { format } => read_input_async(io, format.unwrap_or(Format::Csv)).await,
     }
 }
 
@@ -228,6 +238,7 @@ pub fn load_schema(
     source: &SourceInput,
     base_dir: Option<&Path>,
     data_override: Option<&str>,
+    data_format_override: Option<Format>,
     sample_size: Option<usize>,
 ) -> Result<Vec<ColumnDef>, DriverError> {
     load_schema_with_io(
@@ -235,6 +246,7 @@ pub fn load_schema(
         source,
         base_dir,
         data_override,
+        data_format_override,
         sample_size,
         &OsDriverIo,
     )
@@ -246,17 +258,23 @@ pub fn load_schema_with_io(
     source: &SourceInput,
     base_dir: Option<&Path>,
     data_override: Option<&str>,
+    data_format_override: Option<Format>,
     sample_size: Option<usize>,
     io: &dyn DriverIo,
 ) -> Result<Vec<ColumnDef>, DriverError> {
-    let env = DriverEnv::new(source, base_dir, data_override, false);
+    let env = DriverEnv::new(source, base_dir, data_override, data_format_override, false);
     let Some(sample_size) = sample_size else {
-        return Ok(
-            load_data_with_io(source_expr, source, base_dir, data_override, io)?
-                .frame
-                .schema()
-                .to_vec(),
-        );
+        return Ok(load_data_with_io(
+            source_expr,
+            source,
+            base_dir,
+            data_override,
+            data_format_override,
+            io,
+        )?
+        .frame
+        .schema()
+        .to_vec());
     };
 
     load_schema_location(env.resolver().data_location(source_expr)?, sample_size, io)
@@ -268,18 +286,24 @@ pub async fn load_schema_with_async_io(
     source: &SourceInput,
     base_dir: Option<&Path>,
     data_override: Option<&str>,
+    data_format_override: Option<Format>,
     sample_size: Option<usize>,
     io: &dyn AsyncDriverIo,
 ) -> Result<Vec<ColumnDef>, DriverError> {
-    let env = DriverEnv::new(source, base_dir, data_override, false);
+    let env = DriverEnv::new(source, base_dir, data_override, data_format_override, false);
     let Some(sample_size) = sample_size else {
-        return Ok(
-            load_data_with_async_io(source_expr, source, base_dir, data_override, io)
-                .await?
-                .frame
-                .schema()
-                .to_vec(),
-        );
+        return Ok(load_data_with_async_io(
+            source_expr,
+            source,
+            base_dir,
+            data_override,
+            data_format_override,
+            io,
+        )
+        .await?
+        .frame
+        .schema()
+        .to_vec());
     };
 
     load_schema_location_async(env.resolver().data_location(source_expr)?, sample_size, io).await
@@ -300,7 +324,9 @@ fn load_schema_location(
         DataLocation::TopoJson { path, object } => {
             load_topojson_schema_with_io(&path, object.as_deref(), LoadContext::Primary, io)
         }
-        DataLocation::Stdin => read_stdin_csv_schema(sample_size, io),
+        DataLocation::Input { format } => {
+            read_input_schema(sample_size, io, format.unwrap_or(Format::Csv))
+        }
     }
 }
 
@@ -329,7 +355,9 @@ async fn load_schema_location_async(
                 path: path.clone(),
                 source,
             }),
-        DataLocation::Stdin => read_stdin_csv_schema_async(sample_size, io).await,
+        DataLocation::Input { format } => {
+            read_input_schema_async(sample_size, io, format.unwrap_or(Format::Csv)).await
+        }
     }
 }
 
@@ -442,7 +470,7 @@ pub fn load_named_tables_with_io(
     base_dir: Option<&Path>,
     io: &dyn DriverIo,
 ) -> Result<Vec<NamedTable>, DriverError> {
-    let resolved = DriverEnv::new(source, base_dir, None, false)
+    let resolved = DriverEnv::new(source, base_dir, None, None, false)
         .resolver()
         .resolve_named_table_sources(chart);
     load_resolved_named_tables_with_io(resolved, io)
@@ -492,7 +520,7 @@ pub fn load_named_table_schemas_with_io(
     sample_size: usize,
     io: &dyn DriverIo,
 ) -> Result<Vec<NamedTableSchema>, DriverError> {
-    let resolved = DriverEnv::new(source, base_dir, None, false)
+    let resolved = DriverEnv::new(source, base_dir, None, None, false)
         .resolver()
         .resolve_named_table_sources(chart);
     load_resolved_named_table_schemas_with_io(resolved, sample_size, io)
@@ -524,42 +552,73 @@ fn load_resolved_named_table_schemas_with_io(
     Ok(out)
 }
 
-fn read_stdin_csv(io: &dyn DriverIo) -> Result<LoadResult, DriverError> {
-    let bytes = io
-        .read_stdin()
-        .map_err(|e| DriverError::StdinRead(format!("failed to read CSV from stdin: {e}")))?;
-    read_csv(bytes.as_slice())
-        .map_err(|e| DriverError::StdinParse(format!("failed to parse stdin CSV: {e}")))
+fn read_input(io: &dyn DriverIo, format: Format) -> Result<LoadResult, DriverError> {
+    let bytes = io.read_stdin().map_err(|e| {
+        DriverError::StdinRead(format!(
+            "failed to read caller-provided {} input: {e}",
+            format.as_str()
+        ))
+    })?;
+    read_bytes_as(bytes.as_slice(), format).map_err(|e| {
+        DriverError::StdinParse(format!(
+            "failed to parse caller-provided {} input: {e}",
+            format.as_str()
+        ))
+    })
 }
 
-async fn read_stdin_csv_async(io: &dyn AsyncDriverIo) -> Result<LoadResult, DriverError> {
-    let bytes = io
-        .read_stdin_async()
-        .await
-        .map_err(|e| DriverError::StdinRead(format!("failed to read CSV from stdin: {e}")))?;
-    read_csv(bytes.as_slice())
-        .map_err(|e| DriverError::StdinParse(format!("failed to parse stdin CSV: {e}")))
+async fn read_input_async(
+    io: &dyn AsyncDriverIo,
+    format: Format,
+) -> Result<LoadResult, DriverError> {
+    let bytes = io.read_stdin_async().await.map_err(|e| {
+        DriverError::StdinRead(format!(
+            "failed to read caller-provided {} input: {e}",
+            format.as_str()
+        ))
+    })?;
+    read_bytes_as(bytes.as_slice(), format).map_err(|e| {
+        DriverError::StdinParse(format!(
+            "failed to parse caller-provided {} input: {e}",
+            format.as_str()
+        ))
+    })
 }
 
-fn read_stdin_csv_schema(
+fn read_input_schema(
     sample_size: usize,
     io: &dyn DriverIo,
+    format: Format,
 ) -> Result<Vec<ColumnDef>, DriverError> {
-    let bytes = io
-        .read_stdin()
-        .map_err(|e| DriverError::StdinRead(format!("failed to read CSV from stdin: {e}")))?;
-    read_csv_schema(bytes.as_slice(), sample_size)
-        .map_err(|e| DriverError::StdinParse(format!("failed to parse stdin CSV: {e}")))
+    let bytes = io.read_stdin().map_err(|e| {
+        DriverError::StdinRead(format!(
+            "failed to read caller-provided {} input: {e}",
+            format.as_str()
+        ))
+    })?;
+    read_schema_bytes_as(bytes.as_slice(), format, sample_size).map_err(|e| {
+        DriverError::StdinParse(format!(
+            "failed to parse caller-provided {} input: {e}",
+            format.as_str()
+        ))
+    })
 }
 
-async fn read_stdin_csv_schema_async(
+async fn read_input_schema_async(
     sample_size: usize,
     io: &dyn AsyncDriverIo,
+    format: Format,
 ) -> Result<Vec<ColumnDef>, DriverError> {
-    let bytes = io
-        .read_stdin_async()
-        .await
-        .map_err(|e| DriverError::StdinRead(format!("failed to read CSV from stdin: {e}")))?;
-    read_csv_schema(bytes.as_slice(), sample_size)
-        .map_err(|e| DriverError::StdinParse(format!("failed to parse stdin CSV: {e}")))
+    let bytes = io.read_stdin_async().await.map_err(|e| {
+        DriverError::StdinRead(format!(
+            "failed to read caller-provided {} input: {e}",
+            format.as_str()
+        ))
+    })?;
+    read_schema_bytes_as(bytes.as_slice(), format, sample_size).map_err(|e| {
+        DriverError::StdinParse(format!(
+            "failed to parse caller-provided {} input: {e}",
+            format.as_str()
+        ))
+    })
 }

@@ -350,7 +350,7 @@ fn render_value(value: &ValueExpr) -> String {
     match value {
         ValueExpr::Algebra(expr) => render_algebra(expr),
         ValueExpr::Literal(lit) => lit.text().unwrap_or_default(),
-        ValueExpr::Stdin(_) => "stdin".to_string(),
+        ValueExpr::Stdin(stdin) => stdin.syntax().text().to_string(),
         ValueExpr::Array(array) => {
             let items = array
                 .values()

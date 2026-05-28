@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use algraf_core::Span;
-use algraf_data::{ColumnDef, DataFrame, LoadResult, Table};
+use algraf_data::{ColumnDef, DataFrame, Format, LoadResult, Table};
 use algraf_semantics::{analyze_chart_with_tables, Analysis};
 use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::SourceExpr;
@@ -49,6 +49,7 @@ pub struct PrepareOptions<'a> {
     pub source_input: &'a SourceInput,
     pub base_dir: Option<&'a Path>,
     pub data_override: Option<&'a str>,
+    pub data_format_override: Option<Format>,
     pub multi_chart: bool,
 }
 
@@ -58,6 +59,7 @@ impl<'a> PrepareOptions<'a> {
             self.source_input,
             self.base_dir,
             self.data_override,
+            self.data_format_override,
             self.multi_chart,
         )
     }
@@ -163,7 +165,7 @@ pub fn prepare_chart_partial_with_io(
                 DataLocation::Path { path, .. } => Some(path.clone()),
                 DataLocation::Sqlite { path, .. } => Some(path.clone()),
                 DataLocation::TopoJson { path, .. } => Some(path.clone()),
-                DataLocation::Stdin => None,
+                DataLocation::Input { .. } => None,
             };
             match load_primary_with_io(location, io) {
                 Ok(loaded) => {

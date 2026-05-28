@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use algraf_render::{render_embedded, EmbeddedRenderOptions};
+
 fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_algraf")
 }
@@ -306,6 +308,101 @@ fn source_and_csv_cannot_both_read_from_stdin() {
 
     assert_eq!(output.status.code(), Some(2), "stderr: {}", stderr(&output));
     assert!(stderr(&output).contains("cannot read both source and CSV data from stdin"));
+}
+
+#[test]
+fn render_eval_uses_stdin_for_json_input_and_variables() {
+    let source = r##"Chart(data: input, width: 320, height: 220) {
+  Space(x * y) {
+    Line(stroke: "$color", strokeWidth: $size)
+    Point(fill: "$color", size: $size)
+  }
+}
+"##;
+    let mut child = Command::new(bin())
+        .arg("render")
+        .arg("--eval")
+        .arg(source)
+        .arg("--data")
+        .arg("-")
+        .arg("--data-format")
+        .arg("json")
+        .arg("--var")
+        .arg("color=#e74c3c")
+        .arg("--var")
+        .arg("size=3")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(br#"[{"x":1,"y":2},{"x":3,"y":4}]"#)
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(out.contains("<svg"));
+    assert!(out.contains("#e74c3c"));
+
+    let facade = render_embedded(
+        source,
+        br#"[{"x":1,"y":2},{"x":3,"y":4}]"#,
+        EmbeddedRenderOptions {
+            data_format: algraf_data::Format::Json,
+            variables: [
+                ("color".to_string(), "#e74c3c".to_string()),
+                ("size".to_string(), "3".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+            ..EmbeddedRenderOptions::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(out, facade.svg().unwrap());
+}
+
+#[test]
+fn eval_conflicts_with_positional_source() {
+    let dir = temp_dir("eval-conflict");
+    let (chart, _) = write_fixture(&dir);
+
+    let output = Command::new(bin())
+        .arg("check")
+        .arg(&chart)
+        .arg("--eval")
+        .arg("Chart(data: input) {}")
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(2), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("cannot be used with"),
+        "stderr: {}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn bad_data_format_is_a_usage_error() {
+    let output = Command::new(bin())
+        .arg("schema")
+        .arg("--eval")
+        .arg("Chart(data: input) {}")
+        .arg("--data")
+        .arg("-")
+        .arg("--data-format")
+        .arg("yaml")
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(2), "stderr: {}", stderr(&output));
+    assert!(stderr(&output).contains("invalid value"));
 }
 
 #[test]

@@ -10,6 +10,7 @@ mod loading;
 mod prepare;
 mod report;
 mod resolution;
+mod variables;
 
 pub use cache::{
     fingerprint_path, resolve_schema_cached, resolve_sqlite_schema_cached, CachedSchema,
@@ -42,6 +43,7 @@ pub use resolution::{
     DataDependency, DataDependencyKind, DataLocation, ResolvedSource, ResolvedTableSource,
     SourceInput,
 };
+pub use variables::{expand_variables, parse_variable_assignments};
 
 use algraf_syntax::ast::{ChartBlock, Root};
 use algraf_syntax::{
@@ -395,7 +397,7 @@ mod tests {
                 Space(x * y) { Point() }
             }"#,
         );
-        let env = crate::resolution::DriverEnv::new(&source, Some(&base), None, false);
+        let env = crate::resolution::DriverEnv::new(&source, Some(&base), None, None, false);
 
         let internal_primary = env.resolver().resolve_chart_data_path(&chart).unwrap();
         let public_primary = resolve_chart_data_path(&chart, &source, Some(&base)).unwrap();
@@ -425,6 +427,7 @@ mod tests {
                     source_input: &source,
                     base_dir: None,
                     data_override: None,
+                    data_format_override: None,
                     multi_chart: false,
                 },
             )
@@ -488,6 +491,7 @@ mod tests {
                     source_input: &source,
                     base_dir: None,
                     data_override: None,
+                    data_format_override: None,
                     multi_chart: false,
                 },
             )
@@ -500,6 +504,7 @@ mod tests {
                     source_input: &source,
                     base_dir: None,
                     data_override: None,
+                    data_format_override: None,
                     multi_chart: false,
                 },
                 &memory,
@@ -541,6 +546,7 @@ mod tests {
                 source_input: &source,
                 base_dir: None,
                 data_override: None,
+                data_format_override: None,
                 multi_chart: false,
             },
             &memory,
@@ -562,6 +568,7 @@ mod tests {
             &source,
             None,
             Some("/mem/override.json"),
+            None,
             Some(10),
             &memory,
         )
@@ -575,10 +582,57 @@ mod tests {
             &source,
             None,
             None,
+            None,
             &memory,
         )
         .unwrap();
         assert_eq!(stdin.frame.row_count(), 1);
+    }
+
+    #[test]
+    fn caller_input_accepts_explicit_stream_formats_and_input_alias() {
+        let source = SourceInput::Inline {
+            label: "<eval>".to_string(),
+        };
+        let cases = [
+            (
+                r#"Chart(data: input) { Space(x * y) { Point() } }"#,
+                br#"[{"x":1,"y":2},{"x":3,"y":4}]"#.as_slice(),
+                Format::Json,
+                2,
+            ),
+            (
+                r#"Chart(data: stdin) { Space(x * y) { Point() } }"#,
+                b"{\"x\":1,\"y\":2}\n{\"x\":3,\"y\":4}\n".as_slice(),
+                Format::NdJson,
+                2,
+            ),
+            (
+                r#"Chart(data: input) { Space(x * y) { Point() } }"#,
+                b"x\ty\n1\t2\n".as_slice(),
+                Format::Tsv,
+                1,
+            ),
+        ];
+
+        for (source_text, bytes, format, rows) in cases {
+            let chart = parse_chart(source_text);
+            let memory = MemoryIo::default().with_stdin(bytes);
+            let prepared = prepare_chart_with_io(
+                &chart,
+                PrepareOptions {
+                    source_input: &source,
+                    base_dir: None,
+                    data_override: None,
+                    data_format_override: Some(format),
+                    multi_chart: false,
+                },
+                &memory,
+            )
+            .unwrap();
+
+            assert_eq!(prepared.primary.unwrap().frame.row_count(), rows);
+        }
     }
 
     #[test]
@@ -605,6 +659,7 @@ mod tests {
                 source_input: &source,
                 base_dir: None,
                 data_override: None,
+                data_format_override: None,
                 multi_chart: false,
             },
             &memory,
@@ -636,6 +691,7 @@ mod tests {
                     source_input: &source,
                     base_dir: None,
                     data_override: None,
+                    data_format_override: None,
                     multi_chart: false,
                 },
             )
@@ -657,6 +713,7 @@ mod tests {
                 source_input: &source,
                 base_dir: None,
                 data_override: None,
+                data_format_override: None,
                 multi_chart: false,
             },
         )
@@ -742,6 +799,7 @@ Chart(data: "b.csv") { Space(x * y) { Line() } }"#,
                     source_input: &source,
                     base_dir: None,
                     data_override: None,
+                    data_format_override: None,
                     multi_chart: true,
                 },
             )
@@ -784,6 +842,7 @@ Chart(data: "b.csv") { Space(x * y) { Line() } }"#,
             &source,
             None,
             None,
+            None,
         )
         .unwrap_err();
         assert!(matches!(missing, DriverError::Data { .. }));
@@ -795,6 +854,7 @@ Chart(data: "b.csv") { Space(x * y) { Line() } }"#,
                 span: Span::new(0, 0),
             },
             &source,
+            None,
             None,
             None,
         )
@@ -811,6 +871,7 @@ Chart(data: "b.csv") { Space(x * y) { Line() } }"#,
                 source_input: &SourceInput::Path(PathBuf::from("chart.ag")),
                 base_dir: None,
                 data_override: None,
+                data_format_override: None,
                 multi_chart: true,
             },
         )
@@ -823,6 +884,7 @@ Chart(data: "b.csv") { Space(x * y) { Line() } }"#,
             source_input: source,
             base_dir: None,
             data_override: None,
+            data_format_override: None,
             multi_chart: false,
         }
     }

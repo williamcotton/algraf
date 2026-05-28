@@ -1,7 +1,9 @@
 //! End-to-end render tests: source + CSV to SVG (spec §18, §24, §27.1).
 
 use algraf_data::{read_csv_str, Table};
-use algraf_render::{render, RenderResult, Theme};
+use algraf_render::{
+    render, render_embedded, EmbeddedOutputFormat, EmbeddedRenderOptions, RenderResult, Theme,
+};
 use algraf_semantics::analyze;
 use algraf_syntax::parse;
 
@@ -16,6 +18,53 @@ fn render_result(source: &str, csv: &str) -> RenderResult {
     let analysis = analyze(&parsed.syntax(), frame.schema());
     let ir = analysis.ir.expect("ir");
     render(&ir, &frame, &Theme::minimal(), None).expect("render")
+}
+
+#[test]
+fn embedded_facade_renders_json_input_with_variables() {
+    let source = r##"Chart(data: input, width: 320, height: 220) {
+  Space(x * y) {
+    Line(stroke: "$color", strokeWidth: $size)
+    Point(fill: "$color", size: $size)
+  }
+}"##;
+    let result = render_embedded(
+        source,
+        br#"[{"x":1,"y":2},{"x":3,"y":4}]"#,
+        EmbeddedRenderOptions {
+            data_format: algraf_data::Format::Json,
+            variables: [
+                ("color".to_string(), "#e74c3c".to_string()),
+                ("size".to_string(), "3".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+            ..EmbeddedRenderOptions::default()
+        },
+    )
+    .unwrap();
+
+    let svg = result.svg().unwrap();
+    assert_eq!(result.content_type, "image/svg+xml");
+    assert!(svg.contains("<svg"));
+    assert!(svg.contains("#e74c3c"));
+}
+
+#[test]
+fn embedded_facade_returns_png_bytes() {
+    let result = render_embedded(
+        "Chart(data: input) { Space(x * y) { Point() } }",
+        b"x,y\n1,2\n",
+        EmbeddedRenderOptions {
+            output_format: EmbeddedOutputFormat::Png,
+            png_scale: 1.0,
+            ..EmbeddedRenderOptions::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(result.content_type, "image/png");
+    assert!(result.bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
 }
 
 #[test]

@@ -7,6 +7,7 @@
 
 use std::io::Read;
 use std::path::Path;
+use std::str::FromStr;
 
 use crate::csv::{read_csv, read_delimited_schema, read_tsv, LoadResult};
 use crate::error::DataError;
@@ -41,6 +42,19 @@ pub enum Format {
 }
 
 impl Format {
+    /// Stable lowercase spelling for CLI flags and embedded request options.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Format::Csv => "csv",
+            Format::Tsv => "tsv",
+            Format::Json => "json",
+            Format::NdJson => "ndjson",
+            Format::GeoJson => "geojson",
+            Format::Shapefile => "shapefile",
+            Format::TopoJson => "topojson",
+        }
+    }
+
     /// Select a format from a path's extension. Unrecognized (or absent)
     /// extensions fall back to [`Format::Csv`] (spec §10.2).
     pub fn from_path(path: &Path) -> Format {
@@ -60,6 +74,25 @@ impl Format {
             "topojson" => Format::TopoJson,
             "shp" => Format::Shapefile,
             _ => Format::Csv,
+        }
+    }
+}
+
+impl FromStr for Format {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.to_ascii_lowercase().as_str() {
+            "csv" => Ok(Format::Csv),
+            "tsv" => Ok(Format::Tsv),
+            "json" => Ok(Format::Json),
+            "ndjson" => Ok(Format::NdJson),
+            "geojson" => Ok(Format::GeoJson),
+            "topojson" => Ok(Format::TopoJson),
+            "shapefile" | "shp" => Ok(Format::Shapefile),
+            _ => Err(format!(
+                "unsupported data format {value:?}; expected csv, tsv, json, ndjson, geojson, or topojson"
+            )),
         }
     }
 }

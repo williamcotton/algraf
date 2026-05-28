@@ -103,7 +103,7 @@ pub enum SyntaxKind {
     ARG,
     /// A literal value (string, number, boolean, or null).
     LITERAL,
-    /// The bare `stdin` sentinel in a value position.
+    /// The bare caller-provided input sentinel in a value position.
     STDIN_VALUE,
     /// An array value.
     ARRAY_VALUE,

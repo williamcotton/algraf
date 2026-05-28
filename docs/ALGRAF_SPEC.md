@@ -429,7 +429,7 @@ The default resolution order SHOULD be:
 
 1. Column reference where a data mapping is allowed.
 2. Language selector where the property explicitly accepts selectors, such as `Guide(axis: x)`.
-3. Language sentinel where the property explicitly accepts sentinels, such as `Chart(data: stdin)`.
+3. Language sentinel where the property explicitly accepts sentinels, such as `Chart(data: input)`.
 4. Symbol reference where the property explicitly accepts chart symbols, such as `Space(..., data: bins)`.
 5. Diagnostic if unresolved.
 
@@ -443,7 +443,9 @@ If a user writes `Bar(layout: stack)`, the analyzer MUST produce a diagnostic su
 
 The bare `x` and `y` values in guide declarations are language selectors, not general enum values.
 
-The bare `stdin` value in `Chart(data: stdin)` is a language sentinel, not a general enum value.
+The bare `input` value in `Chart(data: input)` is a language sentinel, not a
+general enum value. `stdin` is accepted as a compatibility alias for CLI-era
+charts that already use `Chart(data: stdin)`.
 
 ### 4.7 Scale
 
@@ -802,11 +804,15 @@ reserved at the start of a chart-body item; like the other block keywords it is
 lexed as an identifier and retagged by the parser. A column literally named
 `Table` MUST be referenced with backticks.
 
-`stdin` is a contextual keyword only in `Chart(data: stdin)`.
+`input` and `stdin` are contextual keywords only in `Chart(data: input)` and
+`Chart(data: stdin)`.
 
-Outside `Chart(data: stdin)`, `stdin` is an ordinary plain identifier.
+Outside those source positions, `input` and `stdin` are ordinary plain
+identifiers.
 
-`Derive stdin = Bin(value, bins: 25)` is syntactically valid, though style guides SHOULD discourage it because it is visually confusing.
+`Derive input = Bin(value, bins: 25)` and `Derive stdin = Bin(value, bins: 25)`
+are syntactically valid, though style guides SHOULD discourage them because
+they are visually confusing.
 
 `Algraf` introduces the optional source header in version 0.20.0 and is
 reserved only at top level before the first `Chart`.
@@ -1204,7 +1210,7 @@ decides which properties accept a call value; most geometry properties do not.
 
 This grammar admits algebra expressions as property values.
 
-`StdinSentinel` is the bare token `stdin`.
+`StdinSentinel` is the bare token `input`, or the compatibility alias `stdin`.
 
 Semantic analysis decides whether algebra is allowed for that property.
 
@@ -1879,11 +1885,16 @@ source-expression seam (spec §10.12). It MAY appear in `Chart(data:)` and in
 The first positional string is a local database path; the second positional
 string is the SQL query.
 
-`Chart(data: stdin)` reads CSV data from standard input.
+`Chart(data: input)` reads caller-provided primary data. In the CLI, caller
+input is supplied with `--data -`; in an embedded host, caller input is the byte
+buffer or structured JSON value provided to the Rust facade.
 
-`stdin` is a bare sentinel, not a string path.
+`stdin` is accepted as a compatibility alias for `input`.
 
-`Chart(data: "stdin")` refers to a file literally named `stdin`.
+`input` and `stdin` are bare sentinels, not string paths.
+
+`Chart(data: "input")` and `Chart(data: "stdin")` refer to files literally
+named `input` and `stdin`.
 
 If source is read from stdin, relative paths resolve against the current working directory.
 
@@ -1893,11 +1904,18 @@ The canonical command for CSV data from stdin is:
 cat data.csv | algraf render chart.ag --data -
 ```
 
-When `--data -` is used, it overrides the chart's `data` argument for the render command and supplies CSV rows from standard input.
+When `--data -` is used, it overrides the chart's `data` argument for the render
+command and supplies caller-provided bytes from standard input.
 
-The recommended source pattern for piped CSV data is `Chart(data: stdin)`.
+The recommended source pattern for piped data is `Chart(data: input)`.
 
-When `Chart(data: stdin)` is used, the render command MUST read CSV rows from standard input without requiring `--data -`.
+When `Chart(data: input)` or `Chart(data: stdin)` is used with no explicit
+format override, the CLI and embedded facade MUST parse caller-provided bytes as
+CSV. The CLI `--data-format <csv|tsv|json|ndjson|geojson|topojson>` option
+MUST select the stream format for `--data -`, `Chart(data: input)`, and
+`Chart(data: stdin)`. The same option also overrides extension inference for a
+primary `--data <path>` override. Path-backed chart declarations continue to
+select format by source syntax or file extension.
 
 `Chart` MUST include `data` in version 0.1 even when the CLI supplies `--data`.
 
@@ -1928,7 +1946,7 @@ cat data.csv | algraf render chart.ag --data - --output chart.svg
 Source syntax example:
 
 ```ag
-Chart(data: stdin) {
+Chart(data: input) {
     Space(time * value) {
         Line(stroke: series)
     }
@@ -1965,8 +1983,10 @@ case-insensitively:
 | `.json`            | JSON   |
 | `.ndjson`, `.jsonl`| NDJSON |
 
-An unrecognized or absent extension MUST be treated as CSV. Data read from
-`stdin` (the `stdin` sentinel or `--data -`) is always CSV.
+An unrecognized or absent extension MUST be treated as CSV. Caller-provided
+bytes (`Chart(data: input)`, the `stdin` compatibility alias, or `--data -`) are
+CSV by default, unless the CLI or embedded host supplies an explicit data-format
+override.
 
 #### 10.2.2 TSV
 
@@ -2702,13 +2722,16 @@ pub enum ValueExpr {
 
 The parser may initially parse identifiers in argument values as algebra expressions.
 
-The parser SHOULD parse bare `stdin` as `ValueExpr::Stdin` only in value positions.
+The parser SHOULD parse bare `input` and `stdin` as `ValueExpr::Stdin` only in
+value positions.
 
 The analyzer interprets them by property context.
 
-The analyzer MUST accept `ValueExpr::Stdin` only for `Chart(data: stdin)`.
+The analyzer MUST accept `ValueExpr::Stdin` only for `Chart(data: input)` and
+the compatibility alias `Chart(data: stdin)`.
 
-Using `stdin` as a geometry property value MUST produce a semantic diagnostic unless a future property explicitly allows it.
+Using `input` or `stdin` as a geometry property value MUST produce a semantic
+diagnostic unless a future property explicitly allows it.
 
 ### 11.11 Algebra Node
 
@@ -3083,7 +3106,7 @@ boolean
 
 null
 
-stdin sentinel
+caller-input sentinel
 
 array
 
@@ -3091,7 +3114,8 @@ algebra expression
 
 Value parser SHOULD prefer literal parsing when current token is literal.
 
-Value parser SHOULD parse bare `stdin` as the stdin sentinel in value positions.
+Value parser SHOULD parse bare `input` and `stdin` as the caller-input sentinel
+in value positions.
 
 Value parser SHOULD parse other identifiers, quoted identifiers, and parenthesized identifiers as algebra.
 
@@ -6980,11 +7004,29 @@ If output omitted, output writes to stdout.
 
 If input omitted or `-`, source reads from stdin.
 
-If `--data -` is supplied, CSV data reads from stdin.
+If `--eval <source>` or `-e <source>` is supplied, source reads from that inline
+string and diagnostics label it as `<eval>`. `--eval` MUST be mutually exclusive
+with positional source input. Inline source resolves relative data paths against
+`--base-dir` when present, otherwise the current working directory.
 
-The command MUST reject using `-` for both source and CSV data in version 0.1.
+If `--data -` is supplied, caller-provided data reads from stdin.
 
-If the source contains `Chart(data: stdin)`, CSV data reads from stdin unless `--data <path>` overrides it.
+The command MUST reject using `-` for both source and caller-provided data.
+
+If the source contains `Chart(data: input)` or `Chart(data: stdin)`, caller data
+reads from stdin unless `--data <path>` overrides it.
+
+`--data-format <csv|tsv|json|ndjson|geojson|topojson>` MUST select the format
+for caller-provided bytes and for a primary `--data <path>` override. Without
+this flag, caller-provided bytes are CSV and `--data <path>` uses extension
+inference.
+
+`--var key=value` MAY be repeated on source-consuming commands. Expansion
+happens before parsing against the expanded source. `${name}` and `$name`
+placeholders are replaced with raw Algraf source fragments after shell parsing.
+Undefined variables and duplicate keys MUST produce deterministic usage errors.
+The expansion layer MUST NOT evaluate expressions, read environment variables,
+include files, or provide conditionals or loops.
 
 If the source contains gated `Sqlite(...)`, the CLI MUST require
 `Algraf(version: "0.21", features: ["sql"])`. No CLI flag enables network,
@@ -7007,6 +7049,12 @@ Render options:
 `--base-dir <path>`
 
 `--data <path|->`
+
+`--data-format <csv|tsv|json|ndjson|geojson|topojson>`
+
+`--eval <source>` / `-e <source>`
+
+`--var <key=value>`
 
 `--theme <name>`
 
@@ -7270,6 +7318,10 @@ chart analysis preparation for CLI, LSP, and render callers
 
 centralized driver/data error-to-diagnostic mapping shared by CLI and LSP
 
+small invocation variable expansion helpers for CLI and embedded callers;
+expansion is raw source-fragment substitution before parsing and has no access
+to the environment, filesystem, network, or process state
+
 a preparation report model that collects parse, load, semantic, data-warning,
 and render entries in deterministic phase order, plus a partial preparation path
 that does not short-circuit at the first recoverable phase boundary
@@ -7295,6 +7347,12 @@ stats
 geometries
 
 SVG emission
+
+an embedded rendering facade that accepts inline source, caller-provided bytes
+or `serde_json::Value`, explicit data format, optional variables, render options,
+and injected driver I/O; the facade MUST use the same driver preparation and
+`render_with_tables` execution path as CLI render and MUST NOT depend on
+`algraf-cli`
 
 The render crate is internally split along the planning/emission boundary of
 §24.6: planning modules resolve a render scene (derived tables, scales, layout,
@@ -7833,7 +7891,7 @@ missing `=>`/stray separator in a map literal)
 
 `E1003 unsupported Chart argument`
 
-`E1004 data source must be string literal or stdin sentinel`
+`E1004 data source must be string literal or caller-input sentinel`
 
 `E1005 data file not found`
 
@@ -8351,6 +8409,20 @@ LSP SHOULD respect workspace boundaries where possible.
 
 Path traversal is not inherently unsafe for local CLI, but editor integrations SHOULD avoid surprising reads outside workspace.
 
+### 29.2.1 Embedded Host I/O
+
+Embedded rendering MUST NOT read process stdin, environment variables, network
+resources, or run commands implicitly. The secure default exposes only
+caller-provided primary input bytes and denies path reads. Hosts that need
+filesystem data MUST provide an explicit `DriverIo` policy, such as an
+allowlisted in-memory provider or a controlled filesystem provider.
+
+Denied embedded host I/O MUST be reported distinctly from missing local files
+where possible, using permission-denied wording such as `host I/O denied`.
+Inline source uses a stable diagnostic label and resolves relative paths against
+the configured base directory, or the current working directory when no base
+directory is provided.
+
 ### 29.3 SVG Injection
 
 All text labels are escaped.
@@ -8619,9 +8691,10 @@ Geometry names are PascalCase.
 
 Visual properties use `fill` and `stroke`; there is no `color` aesthetic in Algraf source syntax.
 
-CLI render supports CSV data from standard input with `--data -`.
+CLI render supports caller-provided data from standard input with `--data -`.
 
-`Chart(data: stdin)` is the bare sentinel for stdin CSV data.
+`Chart(data: input)` is the bare sentinel for caller-provided data. `stdin`
+remains a compatibility alias.
 
 Quoted column identifiers use backticks.
 
@@ -8723,7 +8796,8 @@ PrimaryExpr    ::= Ident
                  | ErrorExpr
 ```
 
-`StdinSentinel` is the bare token `stdin` and is only semantically valid as `Chart(data: stdin)`.
+`StdinSentinel` is the bare token `input` or `stdin` and is only semantically
+valid as `Chart(data: input)` or `Chart(data: stdin)`.
 
 ## 34. Appendix B: Rust Type Sketch
 
