@@ -219,6 +219,10 @@ fn format_temporal(
 }
 
 fn temporal_ticks(scale: &TemporalScale) -> Vec<i64> {
+    if let Some(ticks) = hinted_temporal_ticks(scale) {
+        return ticks;
+    }
+
     if scale.precision == TemporalPrecision::Date {
         if let Some(ticks) = daily_ticks(scale.min, scale.max) {
             return ticks;
@@ -231,6 +235,32 @@ fn temporal_ticks(scale: &TemporalScale) -> Vec<i64> {
     (0..=5)
         .map(|i| scale.min + (scale.max - scale.min) * i / 5)
         .collect()
+}
+
+fn hinted_temporal_ticks(scale: &TemporalScale) -> Option<Vec<i64>> {
+    let values: Vec<i64> = scale
+        .tick_values
+        .iter()
+        .copied()
+        .filter(|value| *value >= scale.min && *value <= scale.max)
+        .collect();
+    if values.len() < 2 {
+        return None;
+    }
+    if scale.tick_span != Some((scale.min, scale.max)) {
+        return None;
+    }
+    if values.len() <= 8 {
+        return Some(values);
+    }
+
+    let stride = values.len().div_ceil(8);
+    let ticks: Vec<i64> = values
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, value)| (index % stride == 0).then_some(value))
+        .collect();
+    (ticks.len() >= 2).then_some(ticks)
 }
 
 fn daily_ticks(min: i64, max: i64) -> Option<Vec<i64>> {
@@ -511,10 +541,12 @@ fn build_axis(
                 if let Some(hints) = hints {
                     hints.apply_temporal(&mut min, &mut max);
                 }
-                return Some(AxisScale::TemporalUnion {
-                    label,
-                    scale: TemporalScale::new(min, max, range, precision),
-                });
+                let mut scale = TemporalScale::new(min, max, range, precision);
+                if let Some(hints) = hints {
+                    scale.tick_values = hints.temporal_tick_values();
+                    scale.tick_span = hints.temporal_tick_span();
+                }
+                return Some(AxisScale::TemporalUnion { label, scale });
             }
             let mut min = f64::INFINITY;
             let mut max = f64::NEG_INFINITY;
@@ -572,9 +604,14 @@ fn build_vector_axis(
             if let Some(hints) = hints {
                 hints.apply_temporal(&mut min, &mut max);
             }
+            let mut scale = TemporalScale::new(min, max, range, precision);
+            if let Some(hints) = hints {
+                scale.tick_values = hints.temporal_tick_values();
+                scale.tick_span = hints.temporal_tick_span();
+            }
             AxisScale::Temporal {
                 col: col.name.clone(),
-                scale: TemporalScale::new(min, max, range, precision),
+                scale,
             }
         }
         _ => {

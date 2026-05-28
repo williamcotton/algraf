@@ -100,6 +100,8 @@ pub struct TemporalScale {
     pub max: i64,
     pub range: (f64, f64),
     pub precision: TemporalPrecision,
+    pub tick_values: Vec<i64>,
+    pub tick_span: Option<(i64, i64)>,
 }
 
 impl TemporalScale {
@@ -114,6 +116,8 @@ impl TemporalScale {
             max,
             range,
             precision,
+            tick_values: Vec::new(),
+            tick_span: None,
         }
     }
 

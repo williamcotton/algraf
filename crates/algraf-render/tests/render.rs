@@ -931,6 +931,19 @@ fn test_temporal_histogram_calendar_interval_renders_bins() {
     assert!(result.svg.contains("2026-02"));
 }
 
+#[test]
+fn test_temporal_histogram_calendar_interval_ticks_use_bin_centers() {
+    let result = render_result(
+        "Chart(data: \"t.csv\") { Guide(axis: x, timeFormat: \"iso-date\") Space(day) { Histogram(interval: \"week\", fill: \"steelblue\") } }",
+        "day\n2026-01-01\n2026-01-06\n2026-01-14\n2026-01-21\n2026-01-30\n2026-02-04\n2026-02-13\n2026-02-19\n2026-02-28\n2026-03-05\n2026-03-12\n2026-03-18\n2026-03-25\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains(">2026-01-01</text>"));
+    assert!(result.svg.contains(">2026-01-15</text>"));
+    assert!(result.svg.contains(">2026-03-26</text>"));
+    assert!(!result.svg.contains(">2026-02-01</text>"));
+}
+
 // --- Area, Text, Segment ---
 
 #[test]

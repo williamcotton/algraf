@@ -32,6 +32,9 @@ pub struct AxisDomainHints {
 struct TemporalDomainHints {
     min: Option<i64>,
     max: Option<i64>,
+    tick_values: Vec<i64>,
+    tick_min: Option<i64>,
+    tick_max: Option<i64>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -151,6 +154,23 @@ impl AxisDomainHints {
         self.temporal.max = Some(self.temporal.max.map_or(micros, |m| m.max(micros)));
     }
 
+    fn add_temporal_interval_tick(&mut self, start: i64, end: i64) {
+        let (lo, hi) = if start <= end {
+            (start, end)
+        } else {
+            (end, start)
+        };
+        self.add_temporal(lo);
+        self.add_temporal(hi);
+        self.temporal.tick_min = Some(self.temporal.tick_min.map_or(lo, |value| value.min(lo)));
+        self.temporal.tick_max = Some(self.temporal.tick_max.map_or(hi, |value| value.max(hi)));
+
+        let midpoint = lo + (hi - lo) / 2;
+        if !self.temporal.tick_values.contains(&midpoint) {
+            self.temporal.tick_values.push(midpoint);
+        }
+    }
+
     pub fn apply_temporal(&self, min: &mut i64, max: &mut i64) {
         if let Some(value) = self.temporal.min {
             *min = (*min).min(value);
@@ -158,6 +178,17 @@ impl AxisDomainHints {
         if let Some(value) = self.temporal.max {
             *max = (*max).max(value);
         }
+    }
+
+    pub fn temporal_tick_values(&self) -> Vec<i64> {
+        let mut values = self.temporal.tick_values.clone();
+        values.sort_unstable();
+        values.dedup();
+        values
+    }
+
+    pub fn temporal_tick_span(&self) -> Option<(i64, i64)> {
+        Some((self.temporal.tick_min?, self.temporal.tick_max?))
     }
 }
 
@@ -314,7 +345,16 @@ fn train_bar(
 
 fn train_rect(table: &dyn Table, geometry: &GeometryIr, hints: &mut SpaceDomainHints) {
     hints.x.lock_bounds();
+    let use_interval_center_ticks = rect_uses_bin_boundaries(geometry);
     for row in 0..table.row_count() {
+        if use_interval_center_ticks {
+            if let (Some(start), Some(end)) = (
+                positional_temporal(geometry, PropertyKey::Xmin, table, row),
+                positional_temporal(geometry, PropertyKey::Xmax, table, row),
+            ) {
+                hints.x.add_temporal_interval_tick(start, end);
+            }
+        }
         for property in [PropertyKey::Xmin, PropertyKey::Xmax] {
             if let Some(value) = positional_value(geometry, property, table, row) {
                 hints.x.add_numeric(value);
@@ -335,6 +375,19 @@ fn train_rect(table: &dyn Table, geometry: &GeometryIr, hints: &mut SpaceDomainH
             }
         }
     }
+}
+
+fn rect_uses_bin_boundaries(geometry: &GeometryIr) -> bool {
+    mapping_column_name(geometry, PropertyKey::Xmin) == Some("bin_start")
+        && mapping_column_name(geometry, PropertyKey::Xmax) == Some("bin_end")
+}
+
+fn mapping_column_name(geometry: &GeometryIr, property: PropertyKey) -> Option<&str> {
+    geometry
+        .mappings
+        .iter()
+        .find(|mapping| mapping.aesthetic == property)
+        .map(|mapping| mapping.column.name.as_str())
 }
 
 fn is_stacked(geometry: &GeometryIr) -> bool {
