@@ -85,19 +85,17 @@ Chart(data: "sparkline.csv", width: 200, height: 50,
 
 ## One-dimensional point-line
 
-Wilkinson's `point(position(pop1980))` is a 1D point-line graph. Algraf's
-`Point` and `Line` layers currently render in an x/y frame, so this example
-uses a constant `baseline` column as the y coordinate and maps `pop1980` on x.
+Wilkinson's `point(position(pop1980))` is a 1D point-line graph. In Algraf,
+`Space(pop1980)` trains a single x axis and places the point-line marks on the
+plot-center baseline without drawing a y axis.
 
 ```algraf
 Chart(data: "population_point_line.csv", width: 760, height: 240, title: "1980 population point-line") {
     Theme(name: "minimal")
     Guide(grid: false)
     Guide(axis: x, label: "Population in 1980 (millions)")
-    Guide(axis: y, label: null)
-    Scale(axis: y, domain: [-1, 1])
 
-    Space(pop1980 * baseline) {
+    Space(pop1980) {
         Line(stroke: "#9aa0a6", strokeWidth: 2)
         Point(fill: "#3366cc", size: 5)
     }

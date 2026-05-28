@@ -20,6 +20,21 @@ fn render_result(source: &str, csv: &str) -> RenderResult {
     render(&ir, &frame, &Theme::minimal(), None).expect("render")
 }
 
+fn svg_num(value: f64) -> String {
+    let rounded = (value * 1000.0).round() / 1000.0;
+    let rounded = if rounded == 0.0 { 0.0 } else { rounded };
+    let mut s = format!("{rounded:.3}");
+    if s.contains('.') {
+        while s.ends_with('0') {
+            s.pop();
+        }
+        if s.ends_with('.') {
+            s.pop();
+        }
+    }
+    s
+}
+
 #[test]
 fn embedded_facade_renders_json_input_with_variables() {
     let source = r##"Chart(data: input, width: 320, height: 220) {
@@ -80,6 +95,48 @@ fn test_scatter_renders_points() {
     // Three rows -> three circles.
     assert_eq!(svg.matches("<circle").count(), 3);
     assert!(svg.ends_with("</svg>\n"));
+}
+
+#[test]
+fn test_1d_space_renders_points_on_center_baseline() {
+    let result = render_result(
+        "Chart(data: \"p.csv\", width: 400, height: 240) { Space(x) { Point() } }",
+        "x\n10\n20\n30\n",
+    );
+    let baseline = result.layout.plot.y + result.layout.plot.height / 2.0;
+    let cy = format!("cy=\"{}\"", svg_num(baseline));
+
+    assert_eq!(result.svg.matches("<circle").count(), 3);
+    assert_eq!(result.svg.matches(&cy).count(), 3);
+}
+
+#[test]
+fn test_1d_space_renders_x_sorted_line_without_y_axis() {
+    let result = render_result(
+        "Chart(data: \"p.csv\", width: 400, height: 240) { Space(x) { Line(); Point() } }",
+        "x\n30\n10\n20\n",
+    );
+    let plot = result.layout.plot;
+    let baseline = svg_num(plot.y + plot.height / 2.0);
+    let left_axis = format!(
+        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\"",
+        svg_num(plot.x),
+        svg_num(plot.y),
+        svg_num(plot.x),
+        svg_num(plot.bottom())
+    );
+    let line_layer = result
+        .svg
+        .split_once("algraf-geom-line")
+        .and_then(|(_, after)| after.split_once("</g>"))
+        .map(|(layer, _)| layer)
+        .unwrap_or("");
+
+    assert!(line_layer.contains("<path"));
+    assert!(line_layer.matches(&baseline).count() >= 3);
+    assert_eq!(result.svg.matches("<circle").count(), 3);
+    assert!(!result.svg.contains(&left_axis));
+    assert!(result.svg.contains("class=\"algraf-axes\""));
 }
 
 #[test]

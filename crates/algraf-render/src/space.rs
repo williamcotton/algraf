@@ -487,6 +487,10 @@ fn month_start_micros(year: i32, month: u32) -> Option<i64> {
     )
 }
 
+fn midpoint(range: (f64, f64)) -> f64 {
+    (range.0 + range.1) / 2.0
+}
+
 /// A trained 2D (or 1D) position context for one space. A spatial (map) space
 /// carries a [`SpatialScale`] instead of independent x/y axes (spec §16.15);
 /// the placeholder `x` axis is never drawn because spatial panels skip axes and
@@ -494,6 +498,9 @@ fn month_start_micros(year: i32, month: u32) -> Option<i64> {
 pub struct ScaledSpace {
     pub x: AxisScale,
     pub y: Option<AxisScale>,
+    /// Pixel y coordinate used by 1D Cartesian/vector spaces. This gives point,
+    /// line, and text marks a row position without creating a visible y axis.
+    baseline_y: Option<f64>,
     /// Present for a spatial space: position comes from projecting geographic
     /// coordinates rather than mapping the x/y axes.
     pub spatial: Option<SpatialScale>,
@@ -523,6 +530,7 @@ impl ScaledSpace {
                 Some(ScaledSpace {
                     x,
                     y: Some(y),
+                    baseline_y: None,
                     spatial: None,
                     polar: None,
                 })
@@ -532,6 +540,7 @@ impl ScaledSpace {
                 Some(ScaledSpace {
                     x,
                     y: None,
+                    baseline_y: Some(midpoint(y_range)),
                     spatial: None,
                     polar: None,
                 })
@@ -541,6 +550,7 @@ impl ScaledSpace {
                 Some(ScaledSpace {
                     x,
                     y: None,
+                    baseline_y: Some(midpoint(y_range)),
                     spatial: None,
                     polar: None,
                 })
@@ -630,6 +640,7 @@ impl ScaledSpace {
                 Some(ScaledSpace {
                     x,
                     y: Some(y),
+                    baseline_y: None,
                     spatial: None,
                     polar: Some(polar),
                 })
@@ -642,6 +653,7 @@ impl ScaledSpace {
                 Some(ScaledSpace {
                     x,
                     y: None,
+                    baseline_y: None,
                     spatial: None,
                     polar: Some(polar),
                 })
@@ -652,6 +664,7 @@ impl ScaledSpace {
                 Some(ScaledSpace {
                     x,
                     y: None,
+                    baseline_y: None,
                     spatial: None,
                     polar: Some(polar),
                 })
@@ -669,6 +682,7 @@ impl ScaledSpace {
                 scale: ContinuousScale::new(0.0, 1.0, (0.0, 1.0)),
             },
             y: None,
+            baseline_y: None,
             spatial: Some(spatial),
             polar: None,
         }
@@ -696,7 +710,10 @@ impl ScaledSpace {
         if self.polar.is_some() {
             return self.polar_point(table, row).map(|(_, y)| y);
         }
-        self.y.as_ref()?.resolve(table, row)
+        self.y
+            .as_ref()
+            .and_then(|axis| axis.resolve(table, row))
+            .or(self.baseline_y)
     }
 
     /// Whether this is a polar (circular) space (spec §16.16).

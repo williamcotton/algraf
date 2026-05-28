@@ -266,6 +266,17 @@ unchanged when the chart has axes, and chart title/caption reserve remains a
 floor on the sides that carry it. Spec §17.3 updated; covered by
 `test_no_axes_margin_overrides_below_default` and the `sparkline` example.
 
+### Native 1D point-line spaces
+
+Status: Done.
+
+Make `Space(x) { Line(); Point() }` render as a Wilkinson-style 1D point-line:
+the x axis trains normally, while point/line/text marks resolve y to the
+plot-center baseline without creating a visible y axis. This reconciles spec
+§8.3's 1D renderer guarantee with the geometry sections for `Point` and `Line`;
+covered by `test_1d_space_renders_points_on_center_baseline` and
+`test_1d_space_renders_x_sorted_line_without_y_axis`.
+
 ## Explicitly Deferred Past v0.29.0
 
 - A shipping WebGL backend (re-scoped here, implemented later).

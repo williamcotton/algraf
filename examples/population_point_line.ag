@@ -2,10 +2,8 @@ Chart(data: "population_point_line.csv", width: 760, height: 240, title: "1980 p
     Theme(name: "minimal")
     Guide(grid: false)
     Guide(axis: x, label: "Population in 1980 (millions)")
-    Guide(axis: y, label: null)
-    Scale(axis: y, domain: [-1, 1])
 
-    Space(pop1980 * baseline) {
+    Space(pop1980) {
         Line(stroke: "#9aa0a6", strokeWidth: 2)
         Point(fill: "#3366cc", size: 5)
     }

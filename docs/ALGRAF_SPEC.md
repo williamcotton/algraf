@@ -3794,6 +3794,8 @@ Point(fill: species, alpha: 0.7, size: 3)
 
 Supported spaces:
 
+1D Cartesian/vector
+
 2D Cartesian
 
 nested 2D Cartesian where x or y has nested bands
@@ -3804,7 +3806,8 @@ Required inherited frame:
 
 x coordinate
 
-y coordinate
+y coordinate for 2D spaces; 1D spaces place marks on the plot-center baseline
+without creating a visible y axis
 
 Optional mappings:
 
@@ -3867,7 +3870,7 @@ order and wrap when there are more categories than supported shapes.
 
 Point rendering emits SVG `circle`, `path`, or `use` elements.
 
-Point MUST skip rows with missing x or y.
+Point MUST skip rows with missing x, or with missing y in 2D spaces.
 
 Point SHOULD skip rows with non-finite x or y after scale mapping.
 
@@ -3881,6 +3884,8 @@ Line(stroke: series, strokeWidth: 2)
 
 Supported spaces:
 
+1D Cartesian/vector
+
 2D Cartesian
 
 faceted Cartesian
@@ -3889,7 +3894,8 @@ Required inherited frame:
 
 x coordinate
 
-y coordinate
+y coordinate for 2D spaces; 1D spaces place vertices on the plot-center
+baseline without creating a visible y axis
 
 Optional mappings:
 
@@ -3921,7 +3927,7 @@ otherwise all rows one group
 
 Line MUST sort rows by x within each group unless `sort: false`.
 
-Line MUST skip missing coordinates.
+Line MUST skip rows with missing x, or with missing y in 2D spaces.
 
 Line SHOULD break paths on missing coordinates rather than connecting across gaps.
 
