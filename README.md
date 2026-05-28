@@ -57,6 +57,54 @@ Chart(data: "series.csv", width: 760, height: 460) {
 
 ![line](examples/line.svg)
 
+## Embeddable sparkline
+
+A sparkline is just a `void`-themed `Line` shrunk down and stripped of margins.
+The `void` theme drops the axes, grid, and labels; declaring it at the `Chart`
+level is what shrinks the layout (a `Theme` nested only inside `Space` hides the
+marks but still reserves the wide axis margins). With no axes, the `marginTop`,
+`marginRight`, `marginBottom`, and `marginLeft` arguments set each side exactly
+— down to `0` — instead of acting as a floor, so the line can bleed to the
+viewport edge. Here a 2px top/bottom margin keeps the stroke from clipping while
+the sides go fully flush.
+
+```algraf
+Chart(data: "sparkline.csv", width: 200, height: 50,
+      marginTop: 2, marginRight: 0, marginBottom: 2, marginLeft: 0) {
+    Theme(name: "void")
+    Space(t * value) {
+        Theme(name: "void")
+        Line(stroke: "#e74c3c", strokeWidth: 1.5)
+    }
+}
+```
+
+
+![sparkline](examples/sparkline.svg)
+
+## One-dimensional point-line
+
+Wilkinson's `point(position(pop1980))` is a 1D point-line graph. Algraf's
+`Point` and `Line` layers currently render in an x/y frame, so this example
+uses a constant `baseline` column as the y coordinate and maps `pop1980` on x.
+
+```algraf
+Chart(data: "population_point_line.csv", width: 760, height: 240, title: "1980 population point-line") {
+    Theme(name: "minimal")
+    Guide(grid: false)
+    Guide(axis: x, label: "Population in 1980 (millions)")
+    Guide(axis: y, label: null)
+    Scale(axis: y, domain: [-1, 1])
+
+    Space(pop1980 * baseline) {
+        Line(stroke: "#9aa0a6", strokeWidth: 2)
+        Point(fill: "#3366cc", size: 5)
+    }
+}
+```
+
+![population_point_line](examples/population_point_line.svg)
+
 ## Broader automatic time parsing
 
 Algraf recognizes unambiguous temporal strings across common CSV/JSON-style

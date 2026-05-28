@@ -1056,9 +1056,11 @@ ChartItem      ::= SpaceBlock
 `Chart` MAY include `title`, `subtitle`, and `caption` arguments.
 
 `Chart` MAY include `marginTop`, `marginRight`, `marginBottom`, and `marginLeft`
-arguments. Each is a non-negative integer giving a per-side minimum plot margin
-in pixels (see §17.3). They are useful to reserve room for annotations that sit
-outside the plot area, such as direct end-labels on a slope chart.
+arguments. Each is a non-negative integer giving a per-side plot margin in
+pixels (see §17.3). With axes they act as a floor — useful to reserve room for
+annotations outside the plot area, such as direct end-labels on a slope chart.
+With no axes they set the margin exactly and MAY be `0`, letting an embedded
+sparkline bleed to the viewport edge.
 
 `Chart` MUST NOT include `theme` as a shorthand in version 0.1.
 
@@ -5841,13 +5843,22 @@ Dynamic text measurement is hard in pure SVG.
 
 Version 0.1 MAY approximate text dimensions.
 
-`Chart` MAY set a per-side minimum margin via `marginTop`, `marginRight`,
-`marginBottom`, and `marginLeft` (each a non-negative integer in pixels). A
-configured value acts as a floor: the margin for that side is widened to at
-least the configured value, composed with the computed margin (`max(computed,
-configured)`). Because it is a floor, it never shrinks a side below what the
-content requires (title, y tick labels, legend reserve). When an argument is
-absent, the computed default for that side is unchanged.
+`Chart` MAY set a per-side margin via `marginTop`, `marginRight`,
+`marginBottom`, and `marginLeft` (each a non-negative integer in pixels). When
+an argument is absent, the computed default for that side is unchanged.
+
+When the chart has axes, a configured value acts as a floor: the margin for that
+side is widened to at least the configured value, composed with the computed
+margin (`max(computed, configured)`). Because it is a floor, it never shrinks a
+side below what the content requires (axis line, tick labels, title, legend
+reserve).
+
+When the chart has no axes (its resolved theme disables them — e.g. the `void`
+theme), the base margin is pure padding rather than content reserve. A
+configured value then sets that side exactly, and MAY be `0` to bleed marks to
+the viewport edge (useful for embedded sparklines). Chart title, subtitle, and
+caption reserve still act as a floor on the sides that carry them, so explicit
+text is never clipped.
 
 ### 17.4 Facet Layout
 
@@ -8580,10 +8591,16 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.19.0 | [`V0_19_PLAN.md`](V0_19_PLAN.md) | Data execution boundary | Complete |
 | 0.20.0 | [`V0_20_PLAN.md`](V0_20_PLAN.md) | Language versioning and reuse | Complete |
 | 0.21.0 | [`V0_21_PLAN.md`](V0_21_PLAN.md) | Data backends and source security | Implemented |
-| 0.22.0 | [`V0_22_PLAN.md`](V0_22_PLAN.md) | Geospatial completion | Planned |
-| 0.23.0 | [`V0_23_PLAN.md`](V0_23_PLAN.md) | Stat and geometry polish | Planned |
-| 0.24.0 | [`V0_24_PLAN.md`](V0_24_PLAN.md) | Output backends and interactivity | Planned |
-| 0.25.0 | [`V0_25_PLAN.md`](V0_25_PLAN.md) | Extensibility and sandboxing | Planned |
+| 0.22.0 | [`V0_22_PLAN.md`](V0_22_PLAN.md) | Geospatial completion | Implemented |
+| 0.23.0 | [`V0_23_PLAN.md`](V0_23_PLAN.md) | Stat and geometry polish | Implemented |
+| 0.24.0 | [`V0_24_PLAN.md`](V0_24_PLAN.md) | Output backends and interactivity | In progress (backend contract shipped; raster/interaction/preview carried forward) |
+| 0.25.0 | [`V0_25_PLAN.md`](V0_25_PLAN.md) | Extensibility and sandboxing | Planned (leapfrogged; pending) |
+| 0.26.0 | [`V0_26_PLAN.md`](V0_26_PLAN.md) | Coordinate systems — polar transform | Implemented (`radial_bar` deferred) |
+| 0.27.0 | [`V0_27_PLAN.md`](V0_27_PLAN.md) | Embedding and invocation ergonomics | Complete |
+| 0.28.0 | [`V0_28_PLAN.md`](V0_28_PLAN.md) | Temporal I/O ergonomics | Complete |
+| 0.29.0 | [`V0_29_PLAN.md`](V0_29_PLAN.md) | Render-model completeness and raster output | Planned |
+| 0.30.0 | [`V0_30_PLAN.md`](V0_30_PLAN.md) | Declarative interactivity and live preview | Planned |
+| 0.31.0 | [`V0_31_PLAN.md`](V0_31_PLAN.md) | Language-surface polish (temporal/coords/algebra) | Planned |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

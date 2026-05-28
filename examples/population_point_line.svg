@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="240" viewBox="0 0 760 240" role="img" aria-label="1980 population point-line">
+<title>1980 population point-line</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="240" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">1980 population point-line</text>
+<rect class="algraf-plot-area" x="60" y="66" width="670" height="124" fill="#ffffff" />
+<g class="algraf-layer algraf-geom-line">
+  <path d="M106.207 128 L109.37 128 L137.205 128 L138.471 128 L156.817 128 L206.794 128 L504.76 128 L683.793 128" fill="none" stroke="#9aa0a6" stroke-width="2" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="683.793" cy="128" r="5" fill="#3366cc" opacity="1" />
+  <circle cx="504.76" cy="128" r="5" fill="#3366cc" opacity="1" />
+  <circle cx="206.794" cy="128" r="5" fill="#3366cc" opacity="1" />
+  <circle cx="156.817" cy="128" r="5" fill="#3366cc" opacity="1" />
+  <circle cx="138.471" cy="128" r="5" fill="#3366cc" opacity="1" />
+  <circle cx="137.205" cy="128" r="5" fill="#3366cc" opacity="1" />
+  <circle cx="109.37" cy="128" r="5" fill="#3366cc" opacity="1" />
+  <circle cx="106.207" cy="128" r="5" fill="#3366cc" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="190" x2="730" y2="190" stroke="#333333" stroke-width="1" />
+  <line x1="63.188" y1="190" x2="63.188" y2="195" stroke="#333333" stroke-width="1" />
+  <text x="63.188" y="208" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="189.713" y1="190" x2="189.713" y2="195" stroke="#333333" stroke-width="1" />
+  <text x="189.713" y="208" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">200</text>
+  <line x1="316.238" y1="190" x2="316.238" y2="195" stroke="#333333" stroke-width="1" />
+  <text x="316.238" y="208" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">400</text>
+  <line x1="442.763" y1="190" x2="442.763" y2="195" stroke="#333333" stroke-width="1" />
+  <text x="442.763" y="208" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">600</text>
+  <line x1="569.288" y1="190" x2="569.288" y2="195" stroke="#333333" stroke-width="1" />
+  <text x="569.288" y="208" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">800</text>
+  <line x1="695.813" y1="190" x2="695.813" y2="195" stroke="#333333" stroke-width="1" />
+  <text x="695.813" y="208" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1000</text>
+  <text x="395" y="228" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Population in 1980 (millions)</text>
+  <line x1="60" y1="66" x2="60" y2="190" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="190" x2="60" y2="190" stroke="#333333" stroke-width="1" />
+  <text x="52" y="194" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">-1</text>
+  <line x1="55" y1="128" x2="60" y2="128" stroke="#333333" stroke-width="1" />
+  <text x="52" y="132" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="66" x2="60" y2="66" stroke="#333333" stroke-width="1" />
+  <text x="52" y="70" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+</g>
+</svg>

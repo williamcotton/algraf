@@ -8,6 +8,7 @@ algraf="$repo_root/target/debug/algraf"
 charts=(
     scatter
     line
+    sparkline
     grouped_bar
     stacked_bar
     heatmap

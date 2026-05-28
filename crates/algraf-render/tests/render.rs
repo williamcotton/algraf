@@ -148,6 +148,41 @@ fn test_chart_margin_below_default_is_a_floor() {
     assert_eq!(tiny.layout.plot.right(), default.layout.plot.right());
 }
 
+/// Render `source` against `csv` with `void` as the resolved chart theme, the
+/// way the CLI does for a chart-level `Theme(name: "void")` (spec §22.3).
+fn render_void(source: &str, csv: &str) -> RenderResult {
+    let frame = read_csv_str(csv).expect("csv").frame;
+    let parsed = parse(source);
+    let ir = analyze(&parsed.syntax(), frame.schema()).ir.expect("ir");
+    render(&ir, &frame, &Theme::void(), None).expect("render")
+}
+
+#[test]
+fn test_no_axes_margin_overrides_below_default() {
+    let csv = "x,y\n1,2\n2,3\n";
+    // The void theme has no axes, so the base 10px margin is pure padding. A
+    // configured value sets the side exactly — down to 0 — letting an embedded
+    // sparkline reach the viewport edges (spec §17.3).
+    let bleed = render_void(
+        "Chart(data: \"p.csv\", width: 200, height: 100, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0) { Space(x * y) { Line() } }",
+        csv,
+    );
+    assert_eq!(bleed.layout.plot.x, 0.0);
+    assert_eq!(bleed.layout.plot.y, 0.0);
+    assert_eq!(bleed.layout.plot.width, 200.0);
+    assert_eq!(bleed.layout.plot.height, 100.0);
+
+    // An intermediate value is honored exactly rather than floored at 10px.
+    let inset = render_void(
+        "Chart(data: \"p.csv\", width: 200, height: 100, marginLeft: 4) { Space(x * y) { Line() } }",
+        csv,
+    );
+    assert_eq!(inset.layout.plot.x, 4.0);
+
+    // An absent side keeps the 10px no-axes default.
+    assert_eq!(inset.layout.plot.y, 10.0);
+}
+
 /// Extract the `y` attribute of the `<text>` element whose content is `label`.
 fn text_y(svg: &str, label: &str) -> f64 {
     let element = text_element(svg, label);

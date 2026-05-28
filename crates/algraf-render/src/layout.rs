@@ -34,9 +34,10 @@ pub struct Layout {
     pub facets: Vec<FacetPanel>,
 }
 
-/// Per-side minimum plot margins in pixels (spec §17.3). A `Some(n)` value sets
-/// a floor: the computed margin for that side is widened to at least `n`. `None`
-/// keeps the computed default.
+/// Per-side configured plot margins in pixels (spec §17.3). With axes a
+/// `Some(n)` value is a floor (the computed margin widens to at least `n`); with
+/// no axes it sets the side exactly, down to 0. `None` keeps the computed
+/// default for that side.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Margins {
     pub top: Option<f64>,
@@ -49,6 +50,10 @@ const MARGIN_TOP: f64 = 40.0;
 const MARGIN_RIGHT: f64 = 30.0;
 pub(crate) const MARGIN_BOTTOM: f64 = 50.0;
 pub(crate) const MARGIN_LEFT: f64 = 60.0;
+/// Base padding per side when the chart has no axes (e.g. the `void` theme).
+/// Unlike the axis margins this is pure padding, so a configured `margin*`
+/// value overrides it outright — down to 0 — rather than acting as a floor.
+const NO_AXES_MARGIN: f64 = 10.0;
 const LEGEND_WIDTH: f64 = 120.0;
 const FACET_GAP_X: f64 = 24.0;
 const FACET_AXIS_GAP_X: f64 = 72.0;
@@ -86,19 +91,51 @@ impl Layout {
         left_extra: f64,
         margins: Margins,
     ) -> Layout {
-        let (top, right, bottom, left) = if has_axes {
+        let (base_top, base_right, base_bottom, base_left) = if has_axes {
             (MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT)
         } else {
-            (10.0, 10.0, 10.0, 10.0)
+            (
+                NO_AXES_MARGIN,
+                NO_AXES_MARGIN,
+                NO_AXES_MARGIN,
+                NO_AXES_MARGIN,
+            )
         };
-        let top = top + top_extra.max(0.0);
-        let bottom = bottom + bottom_extra.max(0.0);
-        let left = left + left_extra.max(0.0);
-        // User-supplied minimums act as a floor over the computed margins.
-        let top = margins.top.map_or(top, |m| top.max(m));
-        let right = margins.right.map_or(right, |m| right.max(m));
-        let bottom = margins.bottom.map_or(bottom, |m| bottom.max(m));
-        let left = margins.left.map_or(left, |m| left.max(m));
+        // Content reserve for chart title/subtitle/caption and wide y tick
+        // labels. This is a hard minimum that an explicit margin never clips.
+        let top_extra = top_extra.max(0.0);
+        let bottom_extra = bottom_extra.max(0.0);
+        let left_extra = left_extra.max(0.0);
+        // Computed default margins = base padding + content reserve.
+        let computed_top = base_top + top_extra;
+        let computed_bottom = base_bottom + bottom_extra;
+        let computed_left = base_left + left_extra;
+        let (top, right, bottom, left) = if has_axes {
+            // With axes the base margin holds the axis line and tick labels, so
+            // a configured value acts as a floor: it can widen a side but never
+            // shrink below what the guides require (spec §17.3).
+            (
+                margins.top.map_or(computed_top, |m| computed_top.max(m)),
+                margins.right.map_or(base_right, |m| base_right.max(m)),
+                margins
+                    .bottom
+                    .map_or(computed_bottom, |m| computed_bottom.max(m)),
+                margins.left.map_or(computed_left, |m| computed_left.max(m)),
+            )
+        } else {
+            // With no axes the base margin is pure padding, so a configured
+            // value sets the side exactly (down to 0) for full-bleed sparklines,
+            // floored only by the content reserve so explicit chart text is
+            // never clipped (spec §17.3).
+            (
+                margins.top.map_or(computed_top, |m| m.max(top_extra)),
+                margins.right.unwrap_or(base_right),
+                margins
+                    .bottom
+                    .map_or(computed_bottom, |m| m.max(bottom_extra)),
+                margins.left.map_or(computed_left, |m| m.max(left_extra)),
+            )
+        };
         let legend_reserve = if has_legend { LEGEND_WIDTH } else { 0.0 };
 
         let plot = Rect {
