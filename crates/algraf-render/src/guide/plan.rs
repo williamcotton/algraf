@@ -23,7 +23,7 @@ pub(crate) fn estimate_text_width(text: &str, font_size: f64) -> f64 {
     text.chars().count() as f64 * font_size * 0.6
 }
 
-fn rotated_text_size(text: &str, font_size: f64, angle: f64) -> (f64, f64) {
+pub(crate) fn rotated_text_size(text: &str, font_size: f64, angle: f64) -> (f64, f64) {
     let width = estimate_text_width(text, font_size);
     let height = font_size;
     let radians = angle.to_radians();
@@ -60,7 +60,7 @@ pub(crate) fn y_axis_left_margin(max_label_width: f64, font_size: f64) -> f64 {
 pub(crate) fn max_y_tick_label_width(
     space: &ScaledSpace,
     font_size: f64,
-    format: Option<TemporalFormatIr>,
+    format: Option<&TemporalFormatIr>,
     angle: Option<f64>,
 ) -> f64 {
     let Some(y) = &space.y else {
@@ -77,7 +77,7 @@ pub(crate) fn max_y_tick_label_width(
 pub(crate) fn max_x_tick_label_height(
     space: &ScaledSpace,
     font_size: f64,
-    format: Option<TemporalFormatIr>,
+    format: Option<&TemporalFormatIr>,
     angle: Option<f64>,
 ) -> f64 {
     let angle = angle.unwrap_or(0.0);

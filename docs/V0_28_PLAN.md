@@ -1,9 +1,10 @@
 # Algraf v0.28.0 Plan
 
-Status: Planned
+Status: Complete
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_27_PLAN.md`](V0_27_PLAN.md)
+Follow-on plan: [`V0_29_PLAN.md`](V0_29_PLAN.md)
 
 ## Purpose
 
@@ -175,7 +176,7 @@ git diff -- examples
 
 ### 1. Spec-first temporal audit reconciliation
 
-Status: Planned.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -194,7 +195,7 @@ Acceptance criteria:
 
 ### 2. Broader automatic temporal inference
 
-Status: Planned.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -233,7 +234,7 @@ Acceptance criteria:
 
 ### 3. Explicit temporal parse declarations
 
-Status: Planned.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -276,7 +277,7 @@ Parse(table: trades, column: executed_at, as: "datetime", formats: ["%FT%T%:z", 
 
 ### 4. Data loader and cache plumbing for parse policy
 
-Status: Planned.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -296,7 +297,7 @@ Acceptance criteria:
 
 ### 5. Named and custom temporal output formats
 
-Status: Planned.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -327,7 +328,7 @@ Acceptance criteria:
 
 ### 6. Span-aware temporal tick planning
 
-Status: Planned.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -352,7 +353,7 @@ Acceptance criteria:
 
 ### 7. Diagnostics, LSP, and editor metadata
 
-Status: Planned.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -377,7 +378,7 @@ Acceptance criteria:
 
 ### 8. Examples and README coverage
 
-Status: Planned.
+Status: Complete.
 
 Acceptance criteria:
 
@@ -394,7 +395,7 @@ Acceptance criteria:
 
 ### 9. Spec, plan, and release hygiene
 
-Status: Planned.
+Status: Complete.
 
 Acceptance criteria:
 

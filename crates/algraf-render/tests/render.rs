@@ -354,6 +354,28 @@ fn test_temporal_axis_iso_minute_format() {
 }
 
 #[test]
+fn test_dense_x_tick_labels_are_thinned_to_avoid_overlap() {
+    let svg = render_svg(
+        "Chart(data: \"t.csv\", width: 760, height: 420) {
+            Guide(axis: x, timeFormat: \"iso-minute\")
+            Space(ts * value) { Line() }
+        }",
+        "ts,value\n\
+         2026-05-27 00:00,10\n\
+         2026-05-28 09:30,14\n\
+         2026-05-29 00:00,12\n\
+         2026-05-30 16:45,18\n",
+    );
+    let visible_time_labels = svg.matches("2026-05-").count();
+    assert!(
+        visible_time_labels <= 4,
+        "expected dense temporal labels to be thinned; got {visible_time_labels}: {svg}"
+    );
+    assert!(svg.contains(">2026-05-27 00:00</text>"));
+    assert!(svg.contains(">2026-05-30 12:00</text>"));
+}
+
+#[test]
 fn test_temporal_axis_uses_calendar_month_ticks() {
     let svg = render_svg(
         "Chart(data: \"t.csv\") { Space(day * value) { Line() } }",

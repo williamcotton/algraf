@@ -177,8 +177,14 @@ impl GuideIr {
             grid: overrides.grid.unwrap_or(self.grid),
             x_label: overrides.x_label.clone().or_else(|| self.x_label.clone()),
             y_label: overrides.y_label.clone().or_else(|| self.y_label.clone()),
-            x_time_format: overrides.x_time_format.or(self.x_time_format),
-            y_time_format: overrides.y_time_format.or(self.y_time_format),
+            x_time_format: overrides
+                .x_time_format
+                .clone()
+                .or_else(|| self.x_time_format.clone()),
+            y_time_format: overrides
+                .y_time_format
+                .clone()
+                .or_else(|| self.y_time_format.clone()),
             x_tick_label_angle: overrides.x_tick_label_angle.or(self.x_tick_label_angle),
             y_tick_label_angle: overrides.y_tick_label_angle.or(self.y_tick_label_angle),
             grid_shape: overrides.grid_shape.unwrap_or(self.grid_shape),
@@ -203,17 +209,35 @@ pub struct GuideOverridesIr {
 }
 
 /// Named temporal label formats accepted by `Guide(timeFormat: ...)`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TemporalFormatIr {
     IsoDate,
     IsoMinute,
+    IsoSecond,
+    IsoMillis,
+    Rfc3339,
+    Year,
+    Month,
+    MonthDay,
+    TimeMinute,
+    TimeSecond,
+    Custom(String),
 }
 
 impl TemporalFormatIr {
-    pub fn as_str(self) -> &'static str {
+    pub fn as_str(&self) -> &str {
         match self {
             TemporalFormatIr::IsoDate => "iso-date",
             TemporalFormatIr::IsoMinute => "iso-minute",
+            TemporalFormatIr::IsoSecond => "iso-second",
+            TemporalFormatIr::IsoMillis => "iso-millis",
+            TemporalFormatIr::Rfc3339 => "rfc3339",
+            TemporalFormatIr::Year => "year",
+            TemporalFormatIr::Month => "month",
+            TemporalFormatIr::MonthDay => "month-day",
+            TemporalFormatIr::TimeMinute => "time-minute",
+            TemporalFormatIr::TimeSecond => "time-second",
+            TemporalFormatIr::Custom(pattern) => pattern,
         }
     }
 }

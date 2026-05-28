@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use algraf_data::{
-    read_bytes_as, read_schema_bytes_as, read_topojson, ColumnDef, DataError, DataFrame,
-    DataWarning, Format, LoadResult, Table,
+    read_bytes_as_with_temporal_policy, read_schema_bytes_as_with_temporal_policy, read_topojson,
+    ColumnDef, DataError, DataFrame, DataWarning, Format, LoadResult, Table, TemporalParsePolicy,
 };
 use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::SourceExpr;
@@ -57,7 +57,7 @@ pub fn load_data_with_io(
 ) -> Result<LoadResult, DriverError> {
     let env = DriverEnv::new(source, base_dir, data_override, data_format_override, false);
     let location = env.resolver().data_location(source_expr)?;
-    load_location(location, LoadContext::Primary, io)
+    load_location(location, LoadContext::Primary, io, None)
 }
 
 /// Load a full data source through an async-capable I/O provider.
@@ -71,33 +71,39 @@ pub async fn load_data_with_async_io(
 ) -> Result<LoadResult, DriverError> {
     let env = DriverEnv::new(source, base_dir, data_override, data_format_override, false);
     let location = env.resolver().data_location(source_expr)?;
-    load_location_async(location, LoadContext::Primary, io).await
+    load_location_async(location, LoadContext::Primary, io, None).await
 }
 
-pub(crate) fn load_primary_with_io(
+pub(crate) fn load_primary_with_policy_with_io(
     location: DataLocation,
     io: &dyn DriverIo,
+    temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<LoadResult, DriverError> {
-    load_location(location, LoadContext::Primary, io)
+    load_location(location, LoadContext::Primary, io, temporal_policy)
 }
 
 fn load_location(
     location: DataLocation,
     context: LoadContext,
     io: &dyn DriverIo,
+    temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<LoadResult, DriverError> {
     match location {
-        DataLocation::Path { path, format } => load_path_with_io(&path, format, context, io),
+        DataLocation::Path { path, format } => {
+            load_path_with_policy_with_io(&path, format, context, io, temporal_policy)
+        }
         DataLocation::Sqlite { path, query } => load_sqlite_with_io(&path, &query, context, io),
         DataLocation::TopoJson { path, object } => {
             load_topojson_with_io(&path, object.as_deref(), context, io)
         }
-        DataLocation::Input { format } => read_input(io, format.unwrap_or(Format::Csv)),
+        DataLocation::Input { format } => {
+            read_input(io, format.unwrap_or(Format::Csv), temporal_policy)
+        }
     }
 }
 
 /// Load a TopoJSON source by reading its bytes and decoding the named object.
-fn load_topojson_with_io(
+pub(crate) fn load_topojson_with_io(
     path: &Path,
     object: Option<&str>,
     context: LoadContext,
@@ -127,10 +133,11 @@ async fn load_location_async(
     location: DataLocation,
     context: LoadContext,
     io: &dyn AsyncDriverIo,
+    temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<LoadResult, DriverError> {
     match location {
         DataLocation::Path { path, format } => {
-            load_path_with_async_io(&path, format, context, io).await
+            load_path_with_policy_with_async_io(&path, format, context, io, temporal_policy).await
         }
         DataLocation::Sqlite { path, query } => {
             load_sqlite_with_async_io(&path, &query, context, io).await
@@ -145,7 +152,9 @@ async fn load_location_async(
                 path: path.clone(),
                 source,
             }),
-        DataLocation::Input { format } => read_input_async(io, format.unwrap_or(Format::Csv)).await,
+        DataLocation::Input { format } => {
+            read_input_async(io, format.unwrap_or(Format::Csv), temporal_policy).await
+        }
     }
 }
 
@@ -165,13 +174,22 @@ pub fn load_path_with_io(
     context: LoadContext,
     io: &dyn DriverIo,
 ) -> Result<LoadResult, DriverError> {
+    load_path_with_policy_with_io(path, format, context, io, None)
+}
+
+pub(crate) fn load_path_with_policy_with_io(
+    path: &Path,
+    format: Option<Format>,
+    context: LoadContext,
+    io: &dyn DriverIo,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DriverError> {
     let format = format.unwrap_or_else(|| Format::from_path(path));
     let loaded = match format {
         Format::Shapefile => io.load_shapefile(path),
-        _ => io
-            .read_path(path)
-            .map_err(DataError::Io)
-            .and_then(|bytes| read_bytes_as(bytes.as_slice(), format)),
+        _ => io.read_path(path).map_err(DataError::Io).and_then(|bytes| {
+            read_bytes_as_with_temporal_policy(bytes.as_slice(), format, temporal_policy)
+        }),
     };
     loaded.map_err(|source| DriverError::Data {
         context,
@@ -201,6 +219,16 @@ pub async fn load_path_with_async_io(
     context: LoadContext,
     io: &dyn AsyncDriverIo,
 ) -> Result<LoadResult, DriverError> {
+    load_path_with_policy_with_async_io(path, format, context, io, None).await
+}
+
+async fn load_path_with_policy_with_async_io(
+    path: &Path,
+    format: Option<Format>,
+    context: LoadContext,
+    io: &dyn AsyncDriverIo,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DriverError> {
     let format = format.unwrap_or_else(|| Format::from_path(path));
     let loaded = match format {
         Format::Shapefile => io.load_shapefile_async(path).await,
@@ -208,7 +236,9 @@ pub async fn load_path_with_async_io(
             .read_path_async(path)
             .await
             .map_err(DataError::Io)
-            .and_then(|bytes| read_bytes_as(bytes.as_slice(), format)),
+            .and_then(|bytes| {
+                read_bytes_as_with_temporal_policy(bytes.as_slice(), format, temporal_policy)
+            }),
     };
     loaded.map_err(|source| DriverError::Data {
         context,
@@ -277,7 +307,12 @@ pub fn load_schema_with_io(
         .to_vec());
     };
 
-    load_schema_location(env.resolver().data_location(source_expr)?, sample_size, io)
+    load_schema_location(
+        env.resolver().data_location(source_expr)?,
+        sample_size,
+        io,
+        None,
+    )
 }
 
 /// Load only a data schema through an async-capable I/O provider.
@@ -306,27 +341,42 @@ pub async fn load_schema_with_async_io(
         .to_vec());
     };
 
-    load_schema_location_async(env.resolver().data_location(source_expr)?, sample_size, io).await
+    load_schema_location_async(
+        env.resolver().data_location(source_expr)?,
+        sample_size,
+        io,
+        None,
+    )
+    .await
 }
 
 fn load_schema_location(
     location: DataLocation,
     sample_size: usize,
     io: &dyn DriverIo,
+    temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<Vec<ColumnDef>, DriverError> {
     match location {
-        DataLocation::Path { path, format } => {
-            load_schema_path_with_io(&path, format, sample_size, LoadContext::Primary, io)
-        }
+        DataLocation::Path { path, format } => load_schema_path_with_policy_with_io(
+            &path,
+            format,
+            sample_size,
+            LoadContext::Primary,
+            io,
+            temporal_policy,
+        ),
         DataLocation::Sqlite { path, query } => {
             load_sqlite_schema_with_io(&path, &query, sample_size, LoadContext::Primary, io)
         }
         DataLocation::TopoJson { path, object } => {
             load_topojson_schema_with_io(&path, object.as_deref(), LoadContext::Primary, io)
         }
-        DataLocation::Input { format } => {
-            read_input_schema(sample_size, io, format.unwrap_or(Format::Csv))
-        }
+        DataLocation::Input { format } => read_input_schema(
+            sample_size,
+            io,
+            format.unwrap_or(Format::Csv),
+            temporal_policy,
+        ),
     }
 }
 
@@ -334,11 +384,19 @@ async fn load_schema_location_async(
     location: DataLocation,
     sample_size: usize,
     io: &dyn AsyncDriverIo,
+    temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<Vec<ColumnDef>, DriverError> {
     match location {
         DataLocation::Path { path, format } => {
-            load_schema_path_with_async_io(&path, format, sample_size, LoadContext::Primary, io)
-                .await
+            load_schema_path_with_policy_with_async_io(
+                &path,
+                format,
+                sample_size,
+                LoadContext::Primary,
+                io,
+                temporal_policy,
+            )
+            .await
         }
         DataLocation::Sqlite { path, query } => {
             load_sqlite_schema_with_async_io(&path, &query, sample_size, LoadContext::Primary, io)
@@ -356,7 +414,13 @@ async fn load_schema_location_async(
                 source,
             }),
         DataLocation::Input { format } => {
-            read_input_schema_async(sample_size, io, format.unwrap_or(Format::Csv)).await
+            read_input_schema_async(
+                sample_size,
+                io,
+                format.unwrap_or(Format::Csv),
+                temporal_policy,
+            )
+            .await
         }
     }
 }
@@ -379,15 +443,30 @@ pub fn load_schema_path_with_io(
     context: LoadContext,
     io: &dyn DriverIo,
 ) -> Result<Vec<ColumnDef>, DriverError> {
+    load_schema_path_with_policy_with_io(path, format, sample_size, context, io, None)
+}
+
+fn load_schema_path_with_policy_with_io(
+    path: &Path,
+    format: Option<Format>,
+    sample_size: usize,
+    context: LoadContext,
+    io: &dyn DriverIo,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<Vec<ColumnDef>, DriverError> {
     let format = format.unwrap_or_else(|| Format::from_path(path));
     let loaded = match format {
         Format::Shapefile => io
             .load_shapefile(path)
             .map(|loaded| loaded.frame.schema().to_vec()),
-        _ => io
-            .read_path(path)
-            .map_err(DataError::Io)
-            .and_then(|bytes| read_schema_bytes_as(bytes.as_slice(), format, sample_size)),
+        _ => io.read_path(path).map_err(DataError::Io).and_then(|bytes| {
+            read_schema_bytes_as_with_temporal_policy(
+                bytes.as_slice(),
+                format,
+                sample_size,
+                temporal_policy,
+            )
+        }),
     };
     loaded.map_err(|source| DriverError::Data {
         context,
@@ -419,6 +498,17 @@ pub async fn load_schema_path_with_async_io(
     context: LoadContext,
     io: &dyn AsyncDriverIo,
 ) -> Result<Vec<ColumnDef>, DriverError> {
+    load_schema_path_with_policy_with_async_io(path, format, sample_size, context, io, None).await
+}
+
+async fn load_schema_path_with_policy_with_async_io(
+    path: &Path,
+    format: Option<Format>,
+    sample_size: usize,
+    context: LoadContext,
+    io: &dyn AsyncDriverIo,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<Vec<ColumnDef>, DriverError> {
     let format = format.unwrap_or_else(|| Format::from_path(path));
     let loaded = match format {
         Format::Shapefile => io
@@ -429,7 +519,14 @@ pub async fn load_schema_path_with_async_io(
             .read_path_async(path)
             .await
             .map_err(DataError::Io)
-            .and_then(|bytes| read_schema_bytes_as(bytes.as_slice(), format, sample_size)),
+            .and_then(|bytes| {
+                read_schema_bytes_as_with_temporal_policy(
+                    bytes.as_slice(),
+                    format,
+                    sample_size,
+                    temporal_policy,
+                )
+            }),
     };
     loaded.map_err(|source| DriverError::Data {
         context,
@@ -552,14 +649,18 @@ fn load_resolved_named_table_schemas_with_io(
     Ok(out)
 }
 
-fn read_input(io: &dyn DriverIo, format: Format) -> Result<LoadResult, DriverError> {
+fn read_input(
+    io: &dyn DriverIo,
+    format: Format,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DriverError> {
     let bytes = io.read_stdin().map_err(|e| {
         DriverError::StdinRead(format!(
             "failed to read caller-provided {} input: {e}",
             format.as_str()
         ))
     })?;
-    read_bytes_as(bytes.as_slice(), format).map_err(|e| {
+    read_bytes_as_with_temporal_policy(bytes.as_slice(), format, temporal_policy).map_err(|e| {
         DriverError::StdinParse(format!(
             "failed to parse caller-provided {} input: {e}",
             format.as_str()
@@ -570,6 +671,7 @@ fn read_input(io: &dyn DriverIo, format: Format) -> Result<LoadResult, DriverErr
 async fn read_input_async(
     io: &dyn AsyncDriverIo,
     format: Format,
+    temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<LoadResult, DriverError> {
     let bytes = io.read_stdin_async().await.map_err(|e| {
         DriverError::StdinRead(format!(
@@ -577,7 +679,7 @@ async fn read_input_async(
             format.as_str()
         ))
     })?;
-    read_bytes_as(bytes.as_slice(), format).map_err(|e| {
+    read_bytes_as_with_temporal_policy(bytes.as_slice(), format, temporal_policy).map_err(|e| {
         DriverError::StdinParse(format!(
             "failed to parse caller-provided {} input: {e}",
             format.as_str()
@@ -589,6 +691,7 @@ fn read_input_schema(
     sample_size: usize,
     io: &dyn DriverIo,
     format: Format,
+    temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<Vec<ColumnDef>, DriverError> {
     let bytes = io.read_stdin().map_err(|e| {
         DriverError::StdinRead(format!(
@@ -596,7 +699,13 @@ fn read_input_schema(
             format.as_str()
         ))
     })?;
-    read_schema_bytes_as(bytes.as_slice(), format, sample_size).map_err(|e| {
+    read_schema_bytes_as_with_temporal_policy(
+        bytes.as_slice(),
+        format,
+        sample_size,
+        temporal_policy,
+    )
+    .map_err(|e| {
         DriverError::StdinParse(format!(
             "failed to parse caller-provided {} input: {e}",
             format.as_str()
@@ -608,6 +717,7 @@ async fn read_input_schema_async(
     sample_size: usize,
     io: &dyn AsyncDriverIo,
     format: Format,
+    temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<Vec<ColumnDef>, DriverError> {
     let bytes = io.read_stdin_async().await.map_err(|e| {
         DriverError::StdinRead(format!(
@@ -615,7 +725,13 @@ async fn read_input_schema_async(
             format.as_str()
         ))
     })?;
-    read_schema_bytes_as(bytes.as_slice(), format, sample_size).map_err(|e| {
+    read_schema_bytes_as_with_temporal_policy(
+        bytes.as_slice(),
+        format,
+        sample_size,
+        temporal_policy,
+    )
+    .map_err(|e| {
         DriverError::StdinParse(format!(
             "failed to parse caller-provided {} input: {e}",
             format.as_str()

@@ -55,6 +55,9 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
     match decl {
         "Algraf" => &["version", "features"],
         "Layout" => &["facetColumns"],
+        "Parse" => &[
+            "table", "column", "as", "format", "formats", "unit", "timezone",
+        ],
         "Guide" => &[
             "axis",
             "label",

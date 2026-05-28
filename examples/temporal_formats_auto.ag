@@ -1,0 +1,9 @@
+Chart(data: "temporal_formats_auto.csv", width: 760, height: 420, title: "Automatic temporal parsing") {
+    Guide(axis: x, label: "Observed time", timeFormat: "iso-minute")
+    Guide(axis: y, label: "Value")
+
+    Space(time * value) {
+        Line(stroke: "#3366cc", strokeWidth: 2.5)
+        Point(fill: "#3366cc", size: 5)
+    }
+}

@@ -113,6 +113,7 @@ pub enum ChartItem {
     Guide(Decl),
     Theme(Decl),
     Layout(Decl),
+    Parse(Decl),
     Error(Error),
 }
 
@@ -127,6 +128,7 @@ impl ChartItem {
             SyntaxKind::GUIDE_DECL => Decl::cast(node).map(ChartItem::Guide),
             SyntaxKind::THEME_DECL => Decl::cast(node).map(ChartItem::Theme),
             SyntaxKind::LAYOUT_DECL => Decl::cast(node).map(ChartItem::Layout),
+            SyntaxKind::PARSE_DECL => Decl::cast(node).map(ChartItem::Parse),
             SyntaxKind::ERROR => Error::cast(node).map(ChartItem::Error),
             _ => None,
         }
@@ -307,7 +309,7 @@ impl GeometryCall {
     }
 }
 
-/// A `Scale` / `Guide` / `Theme` / `Layout` declaration (spec sections 11.5, 7.6).
+/// A `Scale` / `Guide` / `Theme` / `Layout` / `Parse` declaration (spec sections 11.5, 7.6).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Decl {
     syntax: SyntaxNode,
@@ -321,6 +323,7 @@ impl Decl {
                 | SyntaxKind::GUIDE_DECL
                 | SyntaxKind::THEME_DECL
                 | SyntaxKind::LAYOUT_DECL
+                | SyntaxKind::PARSE_DECL
         )
         .then_some(Decl { syntax: node })
     }
@@ -336,6 +339,7 @@ impl Decl {
             SyntaxKind::GUIDE_DECL => "Guide",
             SyntaxKind::THEME_DECL => "Theme",
             SyntaxKind::LAYOUT_DECL => "Layout",
+            SyntaxKind::PARSE_DECL => "Parse",
             _ => "",
         }
     }

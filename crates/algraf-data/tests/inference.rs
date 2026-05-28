@@ -1,8 +1,9 @@
 //! CSV loading, schema inference, and type inference tests (spec §10, §27.1).
 
 use algraf_data::{
-    parse_temporal, read_csv_schema_str, read_csv_str, DataError, DataType, DataValueRef, Table,
-    TemporalPrecision, DEFAULT_SCHEMA_SAMPLE,
+    parse_temporal, read_csv_schema_str, read_csv_str, read_csv_str_with_temporal_policy,
+    DataError, DataType, DataValueRef, EpochUnit, Table, TemporalColumnParse, TemporalParsePolicy,
+    TemporalParseType, TemporalPrecision, TemporalTimezone, DEFAULT_SCHEMA_SAMPLE,
 };
 
 fn load(input: &str) -> algraf_data::LoadResult {
@@ -139,6 +140,82 @@ fn test_non_temporal_strings_stay_strings() {
     assert!(parse_temporal("not a date").is_none());
     assert!(parse_temporal("2020").is_none());
     assert!(parse_temporal("12:30:00").is_none());
+    assert!(parse_temporal("01/02/2026").is_none());
+}
+
+#[test]
+fn test_broader_unambiguous_temporal_inference_matrix() {
+    for accepted in [
+        "2026-05-27T14:30",
+        "2026-05-27T14:30:15.250",
+        "2026-05-27 14:30:15.250",
+        "2026/05/27",
+        "20260527",
+        "Wed, 27 May 2026 14:30:00 -0500",
+        "May 27, 2026",
+        "27 May 2026 14:30",
+    ] {
+        assert!(parse_temporal(accepted).is_some(), "{accepted}");
+    }
+    for rejected in ["02-01-2026", "26", "2026-05", "14:30"] {
+        assert!(parse_temporal(rejected).is_none(), "{rejected}");
+    }
+}
+
+#[test]
+fn test_explicit_temporal_policy_parses_ambiguous_dates() {
+    let policy = TemporalParsePolicy {
+        columns: vec![TemporalColumnParse {
+            column: "started".to_string(),
+            as_type: TemporalParseType::DateTime,
+            formats: vec!["%m/%d/%Y %I:%M %p".to_string()],
+            unit: None,
+            timezone: TemporalTimezone::Utc,
+        }],
+    };
+    let result = read_csv_str_with_temporal_policy(
+        "started,latency\n05/27/2026 2:30 PM,82\nbad,91\n",
+        Some(&policy),
+    )
+    .unwrap();
+    assert_eq!(
+        result.frame.column_def("started").unwrap().dtype,
+        DataType::Temporal
+    );
+    let DataValueRef::Temporal(value) = result.frame.value("started", 0).unwrap() else {
+        panic!("expected temporal");
+    };
+    assert_eq!(
+        value.instant.format("%Y-%m-%d %H:%M").to_string(),
+        "2026-05-27 14:30"
+    );
+    assert!(matches!(
+        result.frame.value("started", 1),
+        Some(DataValueRef::Null)
+    ));
+    assert!(result
+        .warnings
+        .iter()
+        .any(|warning| warning.message.contains("failed explicit temporal parsing")));
+}
+
+#[test]
+fn test_explicit_epoch_milliseconds_policy() {
+    let policy = TemporalParsePolicy {
+        columns: vec![TemporalColumnParse {
+            column: "observed".to_string(),
+            as_type: TemporalParseType::DateTime,
+            formats: Vec::new(),
+            unit: Some(EpochUnit::Milliseconds),
+            timezone: TemporalTimezone::Utc,
+        }],
+    };
+    let result =
+        read_csv_str_with_temporal_policy("observed\n1780065000000\n", Some(&policy)).unwrap();
+    let DataValueRef::Temporal(value) = result.frame.value("observed", 0).unwrap() else {
+        panic!("expected temporal");
+    };
+    assert_eq!(value.precision, TemporalPrecision::DateTime);
 }
 
 #[test]

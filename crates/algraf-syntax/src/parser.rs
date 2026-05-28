@@ -180,6 +180,7 @@ impl Parser {
                     | "Theme"
                     | "Layout"
                     | "Table"
+                    | "Parse"
                     | "Algraf"
                     | "let"
             )
@@ -370,6 +371,7 @@ impl Parser {
                 Some("Space") => self.space_block(),
                 Some("Derive") => self.derive_decl(),
                 Some("Table") => self.table_decl(),
+                Some("Parse") => self.decl(SyntaxKind::PARSE_DECL, SyntaxKind::PARSE_KW),
                 Some("let") => self.let_decl(),
                 Some("Scale") => self.decl(SyntaxKind::SCALE_DECL, SyntaxKind::SCALE_KW),
                 Some("Guide") => self.decl(SyntaxKind::GUIDE_DECL, SyntaxKind::GUIDE_KW),
@@ -413,6 +415,7 @@ impl Parser {
             ("Guide", SyntaxKind::GUIDE_DECL, SyntaxKind::GUIDE_KW),
             ("Theme", SyntaxKind::THEME_DECL, SyntaxKind::THEME_KW),
             ("Layout", SyntaxKind::LAYOUT_DECL, SyntaxKind::LAYOUT_KW),
+            ("Parse", SyntaxKind::PARSE_DECL, SyntaxKind::PARSE_KW),
         ];
         for (name, node, keyword) in DECL_RECOVERY {
             if self.at_misspelled_kw(name) && self.nth_kind(1) == SyntaxKind::L_PAREN {
@@ -460,6 +463,7 @@ impl Parser {
             if self.at_kw("Space")
                 || self.at_kw("Derive")
                 || self.at_kw("Table")
+                || self.at_kw("Parse")
                 || self.at_kw("Layout")
                 || self.at_kw("Chart")
             {

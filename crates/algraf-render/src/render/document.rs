@@ -120,8 +120,8 @@ pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagn
                     guide::AxisRenderOptions {
                         x_label_override: panel.guides.x_label.as_deref(),
                         y_label_override: panel.guides.y_label.as_deref(),
-                        x_time_format: panel.guides.x_time_format,
-                        y_time_format: panel.guides.y_time_format,
+                        x_time_format: panel.guides.x_time_format.as_ref(),
+                        y_time_format: panel.guides.y_time_format.as_ref(),
                         x_tick_label_angle: panel.guides.x_tick_label_angle,
                         y_tick_label_angle: panel.guides.y_tick_label_angle,
                     },

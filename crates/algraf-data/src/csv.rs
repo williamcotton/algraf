@@ -9,8 +9,9 @@ use std::path::Path;
 
 use crate::error::{DataError, DataWarning};
 use crate::frame::{DataFrame, Table};
-use crate::infer::infer_column;
+use crate::infer::infer_column_with_policy;
 use crate::schema::ColumnDef;
+use crate::temporal::TemporalParsePolicy;
 
 /// The default number of rows sampled for provisional schema inference.
 pub const DEFAULT_SCHEMA_SAMPLE: usize = 100;
@@ -71,11 +72,23 @@ fn read_columns<R: Read>(
 /// Shared by the CSV/TSV and JSON/NDJSON loaders so inference is identical
 /// across formats for equivalent data.
 pub(crate) fn build(names: Vec<String>, columns: Vec<Vec<String>>) -> LoadResult {
+    build_with_temporal_policy(names, columns, None)
+}
+
+pub(crate) fn build_with_temporal_policy(
+    names: Vec<String>,
+    columns: Vec<Vec<String>>,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> LoadResult {
     let mut schema = Vec::with_capacity(names.len());
     let mut data = Vec::with_capacity(names.len());
     let mut warnings = Vec::new();
     for (name, raw) in names.iter().zip(columns) {
-        let inferred = infer_column(name, &raw);
+        let inferred = infer_column_with_policy(
+            name,
+            &raw,
+            temporal_policy.and_then(|policy| policy.for_column(name)),
+        );
         schema.push(inferred.def);
         data.push(inferred.column);
         warnings.extend(inferred.warnings);
@@ -89,15 +102,30 @@ pub(crate) fn build(names: Vec<String>, columns: Vec<Vec<String>>) -> LoadResult
 /// Fully load delimited data with authoritative type inference (spec §10.3),
 /// using `delimiter` as the field separator (`,` for CSV, `\t` for TSV).
 pub fn read_delimited<R: Read>(reader: R, delimiter: u8) -> Result<LoadResult, DataError> {
+    read_delimited_with_temporal_policy(reader, delimiter, None)
+}
+
+pub fn read_delimited_with_temporal_policy<R: Read>(
+    reader: R,
+    delimiter: u8,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DataError> {
     let mut reader = reader_from(reader, delimiter);
     let names = headers(&mut reader)?;
     let columns = read_columns(&mut reader, names.len(), None)?;
-    Ok(build(names, columns))
+    Ok(build_with_temporal_policy(names, columns, temporal_policy))
 }
 
 /// Fully load CSV data with authoritative type inference (spec §10.3).
 pub fn read_csv<R: Read>(reader: R) -> Result<LoadResult, DataError> {
     read_delimited(reader, b',')
+}
+
+pub fn read_csv_with_temporal_policy<R: Read>(
+    reader: R,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DataError> {
+    read_delimited_with_temporal_policy(reader, b',', temporal_policy)
 }
 
 /// Fully load tab-separated data (TSV) with authoritative type inference
@@ -106,9 +134,23 @@ pub fn read_tsv<R: Read>(reader: R) -> Result<LoadResult, DataError> {
     read_delimited(reader, b'\t')
 }
 
+pub fn read_tsv_with_temporal_policy<R: Read>(
+    reader: R,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DataError> {
+    read_delimited_with_temporal_policy(reader, b'\t', temporal_policy)
+}
+
 /// Load CSV data from a string.
 pub fn read_csv_str(input: &str) -> Result<LoadResult, DataError> {
     read_csv(input.as_bytes())
+}
+
+pub fn read_csv_str_with_temporal_policy(
+    input: &str,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DataError> {
+    read_csv_with_temporal_policy(input.as_bytes(), temporal_policy)
 }
 
 /// Load TSV data from a string.
@@ -137,10 +179,22 @@ pub fn read_delimited_schema<R: Read>(
     delimiter: u8,
     sample: usize,
 ) -> Result<Vec<ColumnDef>, DataError> {
+    read_delimited_schema_with_temporal_policy(reader, delimiter, sample, None)
+}
+
+pub fn read_delimited_schema_with_temporal_policy<R: Read>(
+    reader: R,
+    delimiter: u8,
+    sample: usize,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<Vec<ColumnDef>, DataError> {
     let mut reader = reader_from(reader, delimiter);
     let names = headers(&mut reader)?;
     let columns = read_columns(&mut reader, names.len(), Some(sample))?;
-    Ok(build(names, columns).frame.schema().to_vec())
+    Ok(build_with_temporal_policy(names, columns, temporal_policy)
+        .frame
+        .schema()
+        .to_vec())
 }
 
 /// Infer a provisional schema from a string.

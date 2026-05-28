@@ -41,6 +41,8 @@ charts=(
     sqrt_scale
     scale_domain
     reversed_axis
+    temporal_formats_auto
+    temporal_parse_custom
     temporal_histogram
     space_theme
     density

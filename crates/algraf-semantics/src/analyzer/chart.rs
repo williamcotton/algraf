@@ -81,6 +81,7 @@ impl Analyzer<'_> {
             match item {
                 ChartItem::Derive(_) => {}
                 ChartItem::Table(_) => {}
+                ChartItem::Parse(_) => {}
                 ChartItem::Let(_) => {}
                 ChartItem::Space(s) => {
                     let analysis = self.space(&s);

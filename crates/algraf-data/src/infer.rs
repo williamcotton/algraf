@@ -7,7 +7,9 @@
 use crate::error::DataWarning;
 use crate::frame::Column;
 use crate::schema::{ColumnDef, DataType};
-use crate::temporal::{parse_temporal, ParsedTemporal};
+use crate::temporal::{
+    parse_temporal, parse_temporal_explicit, ParsedTemporal, TemporalColumnParse,
+};
 use crate::value::DateTimeValue;
 
 /// Tokens treated as missing in any column (spec §10.3).
@@ -58,6 +60,13 @@ fn classify(text: &str) -> Cell {
     Cell::Str
 }
 
+fn classify_explicit(text: &str, policy: &TemporalColumnParse) -> Cell {
+    if is_missing(text) {
+        return Cell::Missing;
+    }
+    parse_temporal_explicit(text, policy).map_or(Cell::Str, Cell::Temporal)
+}
+
 /// The outcome of inferring one column.
 pub struct InferredColumn {
     pub def: ColumnDef,
@@ -67,7 +76,22 @@ pub struct InferredColumn {
 
 /// Infer a column's type from its raw string cells and build typed storage.
 pub fn infer_column(name: &str, raw: &[String]) -> InferredColumn {
-    let cells: Vec<Cell> = raw.iter().map(|s| classify(s)).collect();
+    infer_column_with_policy(name, raw, None)
+}
+
+/// Infer a column's type, optionally forcing a declared temporal parse policy.
+pub fn infer_column_with_policy(
+    name: &str,
+    raw: &[String],
+    temporal_policy: Option<&TemporalColumnParse>,
+) -> InferredColumn {
+    let cells: Vec<Cell> = raw
+        .iter()
+        .map(|s| match temporal_policy {
+            Some(policy) => classify_explicit(s, policy),
+            None => classify(s),
+        })
+        .collect();
 
     let mut n_bool = 0;
     let mut n_int = 0;
@@ -96,10 +120,14 @@ pub fn infer_column(name: &str, raw: &[String]) -> InferredColumn {
     }
 
     let n_present = cells.len() - n_missing;
-    let dtype = decide_type(n_present, n_bool, n_int, n_float, n_temporal, n_string);
+    let dtype = if temporal_policy.is_some() {
+        DataType::Temporal
+    } else {
+        decide_type(n_present, n_bool, n_int, n_float, n_temporal, n_string)
+    };
 
     let column = build_column(dtype, &cells, raw);
-    let nullable = n_missing > 0;
+    let nullable = n_missing > 0 || (temporal_policy.is_some() && n_string > 0);
     let examples = raw
         .iter()
         .filter(|s| !is_missing(s))
@@ -112,6 +140,35 @@ pub fn infer_column(name: &str, raw: &[String]) -> InferredColumn {
         warnings.push(DataWarning::for_column(
             name,
             "column mixes naive and offset-aware datetime values",
+        ));
+    }
+    if temporal_policy.is_some() && n_string > 0 {
+        let examples = raw
+            .iter()
+            .filter(|s| {
+                !is_missing(s)
+                    && matches!(classify_explicit(s, temporal_policy.unwrap()), Cell::Str)
+            })
+            .take(3)
+            .cloned()
+            .collect::<Vec<_>>();
+        warnings.push(DataWarning::for_column(
+            name,
+            format!(
+                "{} non-missing value(s) failed explicit temporal parsing{}",
+                n_string,
+                if examples.is_empty() {
+                    String::new()
+                } else {
+                    format!("; examples: {}", examples.join(", "))
+                }
+            ),
+        ));
+    }
+    if temporal_policy.is_some() && n_present > 0 && n_temporal == 0 {
+        warnings.push(DataWarning::for_column(
+            name,
+            "all non-missing values failed explicit temporal parsing",
         ));
     }
 

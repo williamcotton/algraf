@@ -2,6 +2,7 @@
 //! control, applied as space-local or chart-level overrides.
 
 use algraf_core::{codes, Diagnostic};
+use algraf_data::validate_temporal_format;
 use algraf_syntax::ast::{Decl, LiteralKind, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
@@ -55,19 +56,18 @@ impl Analyzer<'_> {
                 "timeFormat" => match arg.value() {
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
                         let value = string_value(&lit.text().unwrap_or_default());
-                        match value.as_str() {
-                            "iso-date" => time_format = Some(TemporalFormatIr::IsoDate),
-                            "iso-minute" => time_format = Some(TemporalFormatIr::IsoMinute),
-                            _ => self.diag(Diagnostic::error(
-                                codes::E1204,
-                                format!("unknown temporal format `{value}`"),
+                        match temporal_format(&value) {
+                            Some(format) => time_format = Some(format),
+                            None => self.diag(Diagnostic::error(
+                                codes::E1907,
+                                format!("unknown or invalid temporal format `{value}`"),
                                 node_span(lit.syntax()),
                             )),
                         }
                     }
                     Some(value) => self.diag(Diagnostic::error(
                         codes::E1204,
-                        "`timeFormat` expects \"iso-date\" or \"iso-minute\"",
+                        "`timeFormat` expects a named temporal format or chrono-style format string",
                         node_span(value.syntax()),
                     )),
                     None => {}
@@ -183,5 +183,24 @@ impl Analyzer<'_> {
                 node_span(decl.syntax()),
             ));
         }
+    }
+}
+
+fn temporal_format(value: &str) -> Option<TemporalFormatIr> {
+    match value {
+        "iso-date" => Some(TemporalFormatIr::IsoDate),
+        "iso-minute" => Some(TemporalFormatIr::IsoMinute),
+        "iso-second" => Some(TemporalFormatIr::IsoSecond),
+        "iso-millis" => Some(TemporalFormatIr::IsoMillis),
+        "rfc3339" => Some(TemporalFormatIr::Rfc3339),
+        "year" => Some(TemporalFormatIr::Year),
+        "month" => Some(TemporalFormatIr::Month),
+        "month-day" => Some(TemporalFormatIr::MonthDay),
+        "time-minute" => Some(TemporalFormatIr::TimeMinute),
+        "time-second" => Some(TemporalFormatIr::TimeSecond),
+        custom if validate_temporal_format(custom) => {
+            Some(TemporalFormatIr::Custom(custom.to_string()))
+        }
+        _ => None,
     }
 }

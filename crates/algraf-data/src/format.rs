@@ -9,13 +9,17 @@ use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
 
-use crate::csv::{read_csv, read_delimited_schema, read_tsv, LoadResult};
+use crate::csv::{
+    read_csv_with_temporal_policy, read_delimited_schema_with_temporal_policy,
+    read_tsv_with_temporal_policy, LoadResult,
+};
 use crate::error::DataError;
 use crate::frame::Table;
 use crate::geojson::read_geojson;
-use crate::json::{read_json, read_ndjson};
+use crate::json::{read_json_with_temporal_policy, read_ndjson_with_temporal_policy};
 use crate::schema::ColumnDef;
 use crate::shapefile::read_shapefile_path;
+use crate::temporal::TemporalParsePolicy;
 use crate::topojson::read_topojson;
 
 /// A supported data source format (spec §10.2, §10.11).
@@ -128,11 +132,19 @@ pub fn read_bytes(path: &Path, bytes: &[u8]) -> Result<LoadResult, DataError> {
 /// [`Format::Shapefile`] is a multi-file bundle; use
 /// [`crate::read_shapefile_bundle`] for in-memory shapefile sidecars.
 pub fn read_bytes_as(bytes: &[u8], format: Format) -> Result<LoadResult, DataError> {
+    read_bytes_as_with_temporal_policy(bytes, format, None)
+}
+
+pub fn read_bytes_as_with_temporal_policy(
+    bytes: &[u8],
+    format: Format,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DataError> {
     match format {
         Format::Shapefile => Err(DataError::Geo(
             "a shapefile must be loaded from a sidecar bundle, not a byte slice".to_string(),
         )),
-        _ => read_format(bytes, format),
+        _ => read_format_with_temporal_policy(bytes, format, temporal_policy),
     }
 }
 
@@ -141,11 +153,19 @@ pub fn read_bytes_as(bytes: &[u8], format: Format) -> Result<LoadResult, DataErr
 /// [`Format::Shapefile`] is not loadable from a bare reader (it needs sidecar
 /// files resolved by path); use [`read_path_as`] for shapefiles.
 pub fn read_format<R: Read>(reader: R, format: Format) -> Result<LoadResult, DataError> {
+    read_format_with_temporal_policy(reader, format, None)
+}
+
+pub fn read_format_with_temporal_policy<R: Read>(
+    reader: R,
+    format: Format,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DataError> {
     match format {
-        Format::Csv => read_csv(reader),
-        Format::Tsv => read_tsv(reader),
-        Format::Json => read_json(reader),
-        Format::NdJson => read_ndjson(reader),
+        Format::Csv => read_csv_with_temporal_policy(reader, temporal_policy),
+        Format::Tsv => read_tsv_with_temporal_policy(reader, temporal_policy),
+        Format::Json => read_json_with_temporal_policy(reader, temporal_policy),
+        Format::NdJson => read_ndjson_with_temporal_policy(reader, temporal_policy),
         Format::GeoJson => read_geojson(reader),
         Format::TopoJson => read_topojson(reader, None),
         Format::Shapefile => Err(DataError::Geo(
@@ -194,11 +214,20 @@ pub fn read_schema_bytes_as(
     format: Format,
     sample: usize,
 ) -> Result<Vec<ColumnDef>, DataError> {
+    read_schema_bytes_as_with_temporal_policy(bytes, format, sample, None)
+}
+
+pub fn read_schema_bytes_as_with_temporal_policy(
+    bytes: &[u8],
+    format: Format,
+    sample: usize,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<Vec<ColumnDef>, DataError> {
     match format {
         Format::Shapefile => Err(DataError::Geo(
             "a shapefile must be loaded from a sidecar bundle, not a byte slice".to_string(),
         )),
-        _ => read_schema_format(bytes, format, sample),
+        _ => read_schema_format_with_temporal_policy(bytes, format, sample, temporal_policy),
     }
 }
 
@@ -208,11 +237,30 @@ pub fn read_schema_format<R: Read>(
     format: Format,
     sample: usize,
 ) -> Result<Vec<ColumnDef>, DataError> {
+    read_schema_format_with_temporal_policy(reader, format, sample, None)
+}
+
+pub fn read_schema_format_with_temporal_policy<R: Read>(
+    reader: R,
+    format: Format,
+    sample: usize,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<Vec<ColumnDef>, DataError> {
     match format {
-        Format::Csv => read_delimited_schema(reader, b',', sample),
-        Format::Tsv => read_delimited_schema(reader, b'\t', sample),
-        Format::Json => Ok(read_json(reader)?.frame.schema().to_vec()),
-        Format::NdJson => Ok(read_ndjson(reader)?.frame.schema().to_vec()),
+        Format::Csv => {
+            read_delimited_schema_with_temporal_policy(reader, b',', sample, temporal_policy)
+        }
+        Format::Tsv => {
+            read_delimited_schema_with_temporal_policy(reader, b'\t', sample, temporal_policy)
+        }
+        Format::Json => Ok(read_json_with_temporal_policy(reader, temporal_policy)?
+            .frame
+            .schema()
+            .to_vec()),
+        Format::NdJson => Ok(read_ndjson_with_temporal_policy(reader, temporal_policy)?
+            .frame
+            .schema()
+            .to_vec()),
         Format::GeoJson => Ok(read_geojson(reader)?.frame.schema().to_vec()),
         Format::TopoJson => Ok(read_topojson(reader, None)?.frame.schema().to_vec()),
         Format::Shapefile => Err(DataError::Geo(

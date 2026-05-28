@@ -116,7 +116,7 @@
       "patterns": [
         {
           "name": "keyword.declaration.algraf",
-          "match": "\\b(?:Algraf|Chart|Space|Derive|Table|Scale|Guide|Theme|Layout)\\b"
+          "match": "\\b(?:Algraf|Chart|Space|Derive|Table|Parse|Scale|Guide|Theme|Layout)\\b"
         },
         {
           "name": "keyword.declaration.let.algraf",
@@ -160,7 +160,7 @@
       "patterns": [
         {
           "name": "variable.parameter.property.algraf",
-          "match": "\\b(?:version|features|data|width|height|title|subtitle|caption|marginTop|marginRight|marginBottom|marginLeft|facetColumns|axis|legend|grid|timeFormat|fill|stroke|strokeWidth|dash|alpha|size|shape|group|sort|layout|baseline|stat|xmin|xmax|ymin|ymax|bins|binWidth|boundary|closed|interval|bandwidth|n|quantiles|outliers|span|se|taper|type|domain|range|reverse|integer|palette|gradient|labels|method|label|anchor|dx|dy|x|y|xend|yend|sides|projection|name|axisText|gridMajor|fontFamily|fontSize|titleSize|pointSize|lineWidth|background|plotBackground|axisColor|gridColor|textColor|axes|style|color|value)\\b(?=\\s*:)"
+          "match": "\\b(?:version|features|data|width|height|title|subtitle|caption|marginTop|marginRight|marginBottom|marginLeft|facetColumns|axis|legend|grid|timeFormat|table|column|format|formats|unit|timezone|fill|stroke|strokeWidth|dash|alpha|size|shape|group|sort|layout|baseline|stat|xmin|xmax|ymin|ymax|bins|binWidth|boundary|closed|interval|bandwidth|n|quantiles|outliers|span|se|taper|type|domain|range|reverse|integer|palette|gradient|labels|method|label|anchor|dx|dy|x|y|xend|yend|sides|projection|name|axisText|gridMajor|fontFamily|fontSize|titleSize|pointSize|lineWidth|background|plotBackground|axisColor|gridColor|textColor|axes|style|color|value)\\b(?=\\s*:)"
         },
         {
           "name": "variable.parameter.property.unknown.algraf",

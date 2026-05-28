@@ -1,0 +1,10 @@
+Chart(data: "temporal_parse_custom.csv", width: 760, height: 420, title: "Explicit temporal parsing") {
+    Parse(column: started_at, as: "datetime", format: "%m/%d/%Y %I:%M %p", timezone: "UTC")
+    Guide(axis: x, label: "Start time", timeFormat: "%b %-d %I:%M")
+    Guide(axis: y, label: "Latency (ms)")
+
+    Space(started_at * latency_ms) {
+        Line(stroke: "#cc6633", strokeWidth: 2.5)
+        Point(fill: "#cc6633", size: 5)
+    }
+}

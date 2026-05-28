@@ -126,6 +126,7 @@ fn declaration_name(name: &str) -> bool {
             | "Space"
             | "Derive"
             | "Table"
+            | "Parse"
             | "Scale"
             | "Guide"
             | "Theme"

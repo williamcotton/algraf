@@ -109,8 +109,8 @@ pub(crate) fn completion_context(text: &str, offset: usize) -> CompletionContext
             last_kind,
         },
         Some(
-            "Algraf" | "Scale" | "Guide" | "Theme" | "Layout" | "Style" | "Stop" | "Bin" | "Smooth"
-            | "Bin2D" | "HexBin" | "Simplify" | "SpatialJoin",
+            "Algraf" | "Scale" | "Guide" | "Theme" | "Layout" | "Parse" | "Style" | "Stop" | "Bin"
+            | "Smooth" | "Bin2D" | "HexBin" | "Simplify" | "SpatialJoin",
         ) => CompletionContext::DeclArgs {
             decl: call_name_stack
                 .last()
@@ -418,6 +418,13 @@ fn declaration_value_items(
         ("Guide", "timeFormat") => vec![
             value_item("\"iso-minute\"", "YYYY-MM-DD HH:MM labels"),
             value_item("\"iso-date\"", "YYYY-MM-DD labels"),
+            value_item("\"iso-second\"", "YYYY-MM-DD HH:MM:SS labels"),
+            value_item("\"iso-millis\"", "YYYY-MM-DD HH:MM:SS.sss labels"),
+            value_item("\"rfc3339\"", "UTC RFC3339 labels"),
+            value_item("\"year\"", "Year labels"),
+            value_item("\"month\"", "Year-month labels"),
+            value_item("\"time-minute\"", "HH:MM labels"),
+            value_item("\"%b %-d, %Y\"", "Custom chrono-style temporal labels"),
         ],
         ("Guide", "tickLabelAngle") => vec![value_item("-45", "Tick label rotation in degrees")],
         ("Guide", "legend") | ("Guide", "grid") | ("Scale", "reverse") | ("Scale", "integer") => {
@@ -427,6 +434,23 @@ fn declaration_value_items(
             ]
         }
         ("Guide", "fill") | ("Guide", "stroke") => vec![value_item("null", "Suppress guide")],
+        ("Parse", "as") => vec![
+            value_item("\"date\"", "Parse as date values"),
+            value_item("\"datetime\"", "Parse as datetime values"),
+        ],
+        ("Parse", "unit") => vec![
+            value_item("\"seconds\"", "Unix epoch seconds"),
+            value_item("\"milliseconds\"", "Unix epoch milliseconds"),
+            value_item("\"microseconds\"", "Unix epoch microseconds"),
+            value_item("\"nanoseconds\"", "Unix epoch nanoseconds"),
+        ],
+        ("Parse", "timezone") => vec![
+            value_item("\"UTC\"", "Interpret naive datetimes as UTC"),
+            value_item(
+                "\"-05:00\"",
+                "Interpret naive datetimes with a fixed offset",
+            ),
+        ],
         ("Scale", target) if registry::SCALE_AESTHETIC_TARGETS.contains(&target) => {
             column_items_matching(state, |_| true)
         }
@@ -570,7 +594,7 @@ fn dedupe_by_label(items: Vec<CompletionItem>) -> Vec<CompletionItem> {
 }
 
 const CHART_BODY_ITEMS: &[&str] = &[
-    "let", "Derive", "Table", "Space", "Scale", "Guide", "Theme", "Layout",
+    "let", "Derive", "Table", "Parse", "Space", "Scale", "Guide", "Theme", "Layout",
 ];
 
 /// Variable-name completions for every in-document `let` binding (spec §9.6).

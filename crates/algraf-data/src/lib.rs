@@ -23,13 +23,18 @@ pub mod value;
 pub use geo_types;
 
 pub use csv::{
-    read_csv, read_csv_path, read_csv_schema, read_csv_schema_str, read_csv_str, read_delimited,
-    read_delimited_schema, read_tsv, read_tsv_str, LoadResult, DEFAULT_SCHEMA_SAMPLE,
+    read_csv, read_csv_path, read_csv_schema, read_csv_schema_str, read_csv_str,
+    read_csv_str_with_temporal_policy, read_csv_with_temporal_policy, read_delimited,
+    read_delimited_schema, read_delimited_schema_with_temporal_policy,
+    read_delimited_with_temporal_policy, read_tsv, read_tsv_str, read_tsv_with_temporal_policy,
+    LoadResult, DEFAULT_SCHEMA_SAMPLE,
 };
 pub use error::{DataError, DataWarning};
 pub use format::{
-    read_bytes, read_bytes_as, read_format, read_path, read_path_as, read_schema_bytes,
-    read_schema_bytes_as, read_schema_format, read_schema_path, read_schema_path_as, Format,
+    read_bytes, read_bytes_as, read_bytes_as_with_temporal_policy, read_format,
+    read_format_with_temporal_policy, read_path, read_path_as, read_schema_bytes,
+    read_schema_bytes_as, read_schema_bytes_as_with_temporal_policy, read_schema_format,
+    read_schema_format_with_temporal_policy, read_schema_path, read_schema_path_as, Format,
 };
 pub use frame::{Column, DataFrame, RowView, Table};
 pub use geojson::{read_geojson, read_geojson_str, GEOMETRY_COLUMN};
@@ -37,6 +42,9 @@ pub use json::{read_json, read_json_str, read_ndjson, read_ndjson_str};
 pub use schema::{ColumnDef, DataType};
 pub use shapefile::{read_shapefile_bundle, read_shapefile_path, ShapefileBundle};
 pub use sqlite::{read_sqlite_path, read_sqlite_schema_path};
-pub use temporal::{parse_temporal, ParsedTemporal};
+pub use temporal::{
+    parse_temporal, validate_temporal_format, EpochUnit, ParsedTemporal, TemporalColumnParse,
+    TemporalParsePolicy, TemporalParseType, TemporalTimezone,
+};
 pub use topojson::{read_topojson, read_topojson_str};
 pub use value::{DataValue, DataValueRef, DateTimeValue, TemporalPrecision};

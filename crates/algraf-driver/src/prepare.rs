@@ -1,20 +1,26 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::Path;
 
-use algraf_core::Span;
-use algraf_data::{ColumnDef, DataFrame, Format, LoadResult, Table};
+use algraf_core::{codes, Diagnostic, Span};
+use algraf_data::{
+    validate_temporal_format, ColumnDef, DataFrame, EpochUnit, Format, LoadResult, Table,
+    TemporalColumnParse, TemporalParsePolicy, TemporalParseType, TemporalTimezone,
+};
 use algraf_semantics::{analyze_chart_with_tables, Analysis};
-use algraf_syntax::ast::ChartBlock;
-use algraf_syntax::SourceExpr;
+use algraf_syntax::ast::{AlgebraExpr, Arg, ChartBlock, ChartItem, LiteralKind, ValueExpr};
+use algraf_syntax::{node_span, unescape_string_literal as string_value, SourceExpr};
 
 use crate::error::{DriverError, LoadContext};
 use crate::io::{DriverIo, OsDriverIo};
 use crate::loading::{
-    load_path_with_io, load_primary_with_io, load_resolved_named_tables_with_io,
-    load_sqlite_with_io, NamedTable,
+    load_path_with_policy_with_io, load_primary_with_policy_with_io, load_sqlite_with_io,
+    load_topojson_with_io, NamedTable,
 };
 use crate::report::{driver_error_diagnostic, PreparationReport, ReportPhase};
-use crate::resolution::{resolve_chart_inputs, DataLocation, DriverEnv, SourceInput};
+use crate::resolution::{
+    resolve_chart_inputs, DataLocation, DriverEnv, ResolvedTableSource, SourceInput,
+};
 
 /// Prepared chart inputs after loading and semantic analysis.
 #[derive(Debug)]
@@ -80,22 +86,34 @@ pub fn prepare_chart_with_io(
     io: &dyn DriverIo,
 ) -> Result<PreparedChart, DriverError> {
     let resolved = resolve_chart_inputs(chart, options.env())?;
+    let parse_policy = parse_policies(chart);
 
     let primary = resolved
         .primary
-        .map(|location| load_primary_with_io(location, io))
+        .map(|location| load_primary_with_policy_with_io(location, io, Some(&parse_policy.primary)))
         .transpose()?;
     let schema = primary
         .as_ref()
         .map(|loaded| loaded.frame.schema())
         .unwrap_or(&[] as &[ColumnDef]);
 
-    let named_tables = load_resolved_named_tables_with_io(resolved.named_tables, io)?;
+    let named_tables =
+        load_named_tables_with_parse_policy(resolved.named_tables, io, &parse_policy.by_table)?;
     let table_schemas: HashMap<String, Vec<ColumnDef>> = named_tables
         .iter()
         .map(|table| (table.name.clone(), table.frame.schema().to_vec()))
         .collect();
-    let analysis = analyze_chart_with_tables(chart, schema, &table_schemas);
+    let mut analysis = analyze_chart_with_tables(chart, schema, &table_schemas);
+    analysis
+        .diagnostics
+        .extend(parse_policy.diagnostics.clone());
+    analysis
+        .diagnostics
+        .extend(unknown_parse_target_diagnostics(
+            &parse_policy,
+            schema,
+            &table_schemas,
+        ));
 
     Ok(PreparedChart {
         source: resolved.source,
@@ -136,6 +154,11 @@ pub fn prepare_chart_partial_with_io(
     io: &dyn DriverIo,
 ) -> PreparedReport {
     let mut report = PreparationReport::new();
+    let parse_policy = parse_policies(chart);
+    report.extend(
+        ReportPhase::Semantic,
+        parse_policy.diagnostics.iter().cloned(),
+    );
 
     let resolved = match resolve_chart_inputs(chart, options.env()) {
         Ok(resolved) => resolved,
@@ -167,7 +190,7 @@ pub fn prepare_chart_partial_with_io(
                 DataLocation::TopoJson { path, .. } => Some(path.clone()),
                 DataLocation::Input { .. } => None,
             };
-            match load_primary_with_io(location, io) {
+            match load_primary_with_policy_with_io(location, io, Some(&parse_policy.primary)) {
                 Ok(loaded) => {
                     report.push_data_warnings(
                         &LoadContext::Primary,
@@ -193,14 +216,23 @@ pub fn prepare_chart_partial_with_io(
         let context = LoadContext::Table {
             name: resolved_table.name.clone(),
         };
-        let loaded = match resolved_table.query.as_deref() {
-            Some(query) => load_sqlite_with_io(&resolved_table.path, query, context.clone(), io),
-            None => load_path_with_io(
+        let loaded = if resolved_table.format == Some(Format::TopoJson) {
+            load_topojson_with_io(
+                &resolved_table.path,
+                resolved_table.object.as_deref(),
+                context.clone(),
+                io,
+            )
+        } else if let Some(query) = resolved_table.query.as_deref() {
+            load_sqlite_with_io(&resolved_table.path, query, context.clone(), io)
+        } else {
+            load_path_with_policy_with_io(
                 &resolved_table.path,
                 resolved_table.format,
                 context.clone(),
                 io,
-            ),
+                parse_policy.by_table.get(&resolved_table.name),
+            )
         };
         match loaded {
             Ok(loaded) => {
@@ -231,7 +263,14 @@ pub fn prepare_chart_partial_with_io(
         .iter()
         .map(|table| (table.name.clone(), table.frame.schema().to_vec()))
         .collect();
-    let analysis = analyze_chart_with_tables(chart, schema, &table_schemas);
+    let mut analysis = analyze_chart_with_tables(chart, schema, &table_schemas);
+    analysis
+        .diagnostics
+        .extend(unknown_parse_target_diagnostics(
+            &parse_policy,
+            schema,
+            &table_schemas,
+        ));
     report.extend(ReportPhase::Semantic, analysis.diagnostics.iter().cloned());
 
     PreparedReport {
@@ -241,4 +280,287 @@ pub fn prepare_chart_partial_with_io(
         analysis,
         report,
     }
+}
+
+#[derive(Debug, Clone, Default)]
+struct ChartParsePolicies {
+    primary: TemporalParsePolicy,
+    by_table: HashMap<String, TemporalParsePolicy>,
+    diagnostics: Vec<Diagnostic>,
+}
+
+fn parse_policies(chart: &ChartBlock) -> ChartParsePolicies {
+    let table_names: HashSet<String> = chart
+        .items()
+        .into_iter()
+        .filter_map(|item| match item {
+            ChartItem::Table(table) => table.name(),
+            _ => None,
+        })
+        .collect();
+
+    let mut out = ChartParsePolicies::default();
+    let mut seen = HashSet::new();
+    for item in chart.items() {
+        let ChartItem::Parse(decl) = item else {
+            continue;
+        };
+        let mut table = None;
+        let mut column = None;
+        let mut as_type = None;
+        let mut format = None;
+        let mut formats = None;
+        let mut unit = None;
+        let mut timezone = TemporalTimezone::Utc;
+
+        for arg in decl.args() {
+            let Some(key) = arg.key() else { continue };
+            match key.as_str() {
+                "table" => table = bare_name_arg(&arg),
+                "column" => column = bare_name_arg(&arg),
+                "as" => as_type = string_arg(&arg).and_then(parse_as_type),
+                "format" => format = string_arg(&arg),
+                "formats" => formats = string_array_arg(&arg),
+                "unit" => unit = string_arg(&arg).and_then(parse_epoch_unit),
+                "timezone" => {
+                    if let Some(text) = string_arg(&arg) {
+                        match parse_timezone(&text) {
+                            Some(tz) => timezone = tz,
+                            None => out.diagnostics.push(Diagnostic::error(
+                                codes::E1014,
+                                format!("invalid temporal parse timezone `{text}`"),
+                                node_span(arg.syntax()),
+                            )),
+                        }
+                    }
+                }
+                _ => out.diagnostics.push(Diagnostic::error(
+                    codes::E1014,
+                    format!("unsupported Parse argument `{key}`"),
+                    node_span(arg.syntax()),
+                )),
+            }
+        }
+
+        let Some(column) = column else {
+            out.diagnostics.push(Diagnostic::error(
+                codes::E1014,
+                "`Parse(...)` requires `column:`",
+                node_span(decl.syntax()),
+            ));
+            continue;
+        };
+        let as_type = as_type.unwrap_or(TemporalParseType::DateTime);
+        if let Some(table) = &table {
+            if !table_names.contains(table) {
+                out.diagnostics.push(Diagnostic::error(
+                    codes::E1016,
+                    format!("unknown Parse target table `{table}`"),
+                    node_span(decl.syntax()),
+                ));
+                continue;
+            }
+        }
+
+        let patterns = match (format, formats, unit) {
+            (Some(one), None, None) => vec![one],
+            (None, Some(many), None) => many,
+            (None, None, Some(_)) => Vec::new(),
+            (None, None, None) => {
+                out.diagnostics.push(Diagnostic::error(
+                    codes::E1014,
+                    "`Parse(...)` requires `format:`, `formats:`, or `unit:`",
+                    node_span(decl.syntax()),
+                ));
+                continue;
+            }
+            _ => {
+                out.diagnostics.push(Diagnostic::error(
+                    codes::E1014,
+                    "`format:`, `formats:`, and `unit:` are mutually exclusive",
+                    node_span(decl.syntax()),
+                ));
+                continue;
+            }
+        };
+        if patterns
+            .iter()
+            .any(|pattern| !validate_temporal_format(pattern))
+        {
+            out.diagnostics.push(Diagnostic::error(
+                codes::E1014,
+                "invalid temporal parse format",
+                node_span(decl.syntax()),
+            ));
+            continue;
+        }
+
+        let key = (table.clone(), column.clone());
+        if !seen.insert(key) {
+            out.diagnostics.push(Diagnostic::error(
+                codes::E1015,
+                format!("duplicate Parse declaration for column `{column}`"),
+                node_span(decl.syntax()),
+            ));
+            continue;
+        }
+
+        let entry = TemporalColumnParse {
+            column,
+            as_type,
+            formats: patterns,
+            unit,
+            timezone,
+        };
+        match table {
+            Some(table) => out.by_table.entry(table).or_default().columns.push(entry),
+            None => out.primary.columns.push(entry),
+        }
+    }
+    out
+}
+
+fn load_named_tables_with_parse_policy(
+    resolved_tables: Vec<ResolvedTableSource>,
+    io: &dyn DriverIo,
+    policies: &HashMap<String, TemporalParsePolicy>,
+) -> Result<Vec<NamedTable>, DriverError> {
+    let mut out = Vec::new();
+    for resolved in resolved_tables {
+        let context = LoadContext::Table {
+            name: resolved.name.clone(),
+        };
+        let loaded = if resolved.format == Some(Format::TopoJson) {
+            // TopoJSON currently has no policy-aware loader because properties
+            // are inferred after geometry extraction.
+            load_topojson_with_io(&resolved.path, resolved.object.as_deref(), context, io)?
+        } else if let Some(query) = resolved.query.as_deref() {
+            load_sqlite_with_io(&resolved.path, query, context, io)?
+        } else {
+            load_path_with_policy_with_io(
+                &resolved.path,
+                resolved.format,
+                context,
+                io,
+                policies.get(&resolved.name),
+            )?
+        };
+        out.push(NamedTable {
+            name: resolved.name,
+            path: resolved.path,
+            frame: loaded.frame,
+            warnings: loaded.warnings,
+        });
+    }
+    Ok(out)
+}
+
+fn unknown_parse_target_diagnostics(
+    policies: &ChartParsePolicies,
+    primary_schema: &[ColumnDef],
+    table_schemas: &HashMap<String, Vec<ColumnDef>>,
+) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+    for column in &policies.primary.columns {
+        if !primary_schema
+            .iter()
+            .any(|schema| schema.name == column.column)
+        {
+            diagnostics.push(Diagnostic::error(
+                codes::E1016,
+                format!("unknown Parse target column `{}`", column.column),
+                Span::new(0, 0),
+            ));
+        }
+    }
+    for (table, policy) in &policies.by_table {
+        let Some(schema) = table_schemas.get(table) else {
+            continue;
+        };
+        for column in &policy.columns {
+            if !schema.iter().any(|schema| schema.name == column.column) {
+                diagnostics.push(Diagnostic::error(
+                    codes::E1016,
+                    format!(
+                        "unknown Parse target column `{}` in table `{table}`",
+                        column.column
+                    ),
+                    Span::new(0, 0),
+                ));
+            }
+        }
+    }
+    diagnostics
+}
+
+fn bare_name_arg(arg: &Arg) -> Option<String> {
+    match arg.value()? {
+        ValueExpr::Algebra(AlgebraExpr::Name(name)) => name.name(),
+        _ => None,
+    }
+}
+
+fn string_arg(arg: &Arg) -> Option<String> {
+    match arg.value()? {
+        ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::String) => {
+            Some(string_value(&lit.text().unwrap_or_default()))
+        }
+        _ => None,
+    }
+}
+
+fn string_array_arg(arg: &Arg) -> Option<Vec<String>> {
+    match arg.value()? {
+        ValueExpr::Array(array) => Some(
+            array
+                .values()
+                .into_iter()
+                .filter_map(|value| match value {
+                    ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::String) => {
+                        Some(string_value(&lit.text().unwrap_or_default()))
+                    }
+                    _ => None,
+                })
+                .collect(),
+        ),
+        _ => None,
+    }
+}
+
+fn parse_as_type(value: String) -> Option<TemporalParseType> {
+    match value.as_str() {
+        "date" => Some(TemporalParseType::Date),
+        "datetime" => Some(TemporalParseType::DateTime),
+        _ => None,
+    }
+}
+
+fn parse_epoch_unit(value: String) -> Option<EpochUnit> {
+    match value.as_str() {
+        "seconds" => Some(EpochUnit::Seconds),
+        "milliseconds" => Some(EpochUnit::Milliseconds),
+        "microseconds" => Some(EpochUnit::Microseconds),
+        "nanoseconds" => Some(EpochUnit::Nanoseconds),
+        _ => None,
+    }
+}
+
+fn parse_timezone(value: &str) -> Option<TemporalTimezone> {
+    if value == "UTC" {
+        return Some(TemporalTimezone::Utc);
+    }
+    let sign = match value.as_bytes().first().copied()? {
+        b'+' => 1,
+        b'-' => -1,
+        _ => return None,
+    };
+    let (hour, minute) = value[1..].split_once(':')?;
+    let hour: i32 = hour.parse().ok()?;
+    let minute: i32 = minute.parse().ok()?;
+    if hour > 23 || minute > 59 {
+        return None;
+    }
+    Some(TemporalTimezone::FixedOffset {
+        seconds_east: sign * (hour * 3600 + minute * 60),
+    })
 }

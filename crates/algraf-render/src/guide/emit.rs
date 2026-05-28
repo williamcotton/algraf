@@ -10,14 +10,15 @@ use crate::svg::{escape_attr, escape_text, num, SvgWriter};
 use crate::theme::Theme;
 
 use super::plan::{
-    max_x_tick_label_height, max_y_tick_label_width, x_axis_title_y, y_axis_title_x,
+    max_x_tick_label_height, max_y_tick_label_width, rotated_text_size, x_axis_title_y,
+    y_axis_title_x,
 };
 
 pub(crate) struct AxisRenderOptions<'a> {
     pub(crate) x_label_override: Option<&'a str>,
     pub(crate) y_label_override: Option<&'a str>,
-    pub(crate) x_time_format: Option<TemporalFormatIr>,
-    pub(crate) y_time_format: Option<TemporalFormatIr>,
+    pub(crate) x_time_format: Option<&'a TemporalFormatIr>,
+    pub(crate) y_time_format: Option<&'a TemporalFormatIr>,
     pub(crate) x_tick_label_angle: Option<f64>,
     pub(crate) y_tick_label_angle: Option<f64>,
 }
@@ -193,6 +194,56 @@ fn grid_line(x1: f64, y1: f64, x2: f64, y2: f64, color: &str, width: f64) -> Str
     )
 }
 
+fn non_overlapping_x_tick_labels(ticks: &[(f64, String)], font_size: f64, angle: f64) -> Vec<bool> {
+    if ticks.len() <= 2 {
+        return vec![true; ticks.len()];
+    }
+
+    const LABEL_GAP: f64 = 4.0;
+    let mut selected = Vec::new();
+    let mut last_right = f64::NEG_INFINITY;
+    for (index, (x, label)) in ticks.iter().enumerate() {
+        let (left, right) = x_tick_label_bounds(*x, label, font_size, angle);
+        if selected.is_empty() || left >= last_right + LABEL_GAP {
+            selected.push(index);
+            last_right = right;
+        }
+    }
+
+    let last_index = ticks.len() - 1;
+    if selected.last().copied() != Some(last_index) {
+        let (last_left, _) =
+            x_tick_label_bounds(ticks[last_index].0, &ticks[last_index].1, font_size, angle);
+        while selected.len() > 1 {
+            let previous = *selected.last().expect("selected tick");
+            let (_, previous_right) =
+                x_tick_label_bounds(ticks[previous].0, &ticks[previous].1, font_size, angle);
+            if last_left >= previous_right + LABEL_GAP {
+                break;
+            }
+            selected.pop();
+        }
+        if let Some(previous) = selected.last().copied() {
+            let (_, previous_right) =
+                x_tick_label_bounds(ticks[previous].0, &ticks[previous].1, font_size, angle);
+            if last_left >= previous_right + LABEL_GAP {
+                selected.push(last_index);
+            }
+        }
+    }
+
+    let mut mask = vec![false; ticks.len()];
+    for index in selected {
+        mask[index] = true;
+    }
+    mask
+}
+
+fn x_tick_label_bounds(x: f64, label: &str, font_size: f64, angle: f64) -> (f64, f64) {
+    let width = rotated_text_size(label, font_size, angle).0;
+    (x - width / 2.0, x + width / 2.0)
+}
+
 /// Draw x and y axes with ticks, labels, and titles (spec §19.1–19.4).
 ///
 /// `x_label_override` and `y_label_override` come from `Guide(axis: ..., label: "...")`
@@ -215,30 +266,35 @@ pub(crate) fn render_axes(
         &theme.axis_color,
         1.0,
     ));
-    for (x, label) in space.x.ticks_with_format(options.x_time_format) {
+    let x_ticks = space.x.ticks_with_format(options.x_time_format);
+    let x_angle = options.x_tick_label_angle.unwrap_or(0.0);
+    let x_label_mask = non_overlapping_x_tick_labels(&x_ticks, theme.font_size, x_angle);
+    for (index, (x, label)) in x_ticks.iter().enumerate() {
         w.line(&grid_line(
-            x,
+            *x,
             plot.bottom(),
-            x,
+            *x,
             plot.bottom() + 5.0,
             &theme.axis_color,
             1.0,
         ));
-        let angle = options.x_tick_label_angle.unwrap_or(0.0);
-        let anchor = if angle < 0.0 {
+        if !x_label_mask.get(index).copied().unwrap_or(true) {
+            continue;
+        }
+        let anchor = if x_angle < 0.0 {
             "end"
-        } else if angle > 0.0 {
+        } else if x_angle > 0.0 {
             "start"
         } else {
             "middle"
         };
         w.line(&tick_text(
-            x,
+            *x,
             plot.bottom() + super::plan::X_TICK_BASELINE,
             anchor,
-            &label,
+            label,
             theme,
-            angle,
+            x_angle,
         ));
     }
     // An override of "" suppresses the axis title (`Guide(axis: x, label: null)`,

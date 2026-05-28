@@ -57,6 +57,46 @@ Chart(data: "series.csv", width: 760, height: 460) {
 
 ![line](examples/line.svg)
 
+## Broader automatic time parsing
+
+Algraf recognizes unambiguous temporal strings across common CSV/JSON-style
+inputs, including year-first dates, ISO datetimes, RFC timestamps, and
+English-month forms. Axis labels can use the built-in temporal format names.
+
+```algraf
+Chart(data: "temporal_formats_auto.csv", width: 760, height: 420, title: "Automatic temporal parsing") {
+    Guide(axis: x, label: "Observed time", timeFormat: "iso-minute")
+    Guide(axis: y, label: "Value")
+
+    Space(time * value) {
+        Line(stroke: "#3366cc", strokeWidth: 2.5)
+        Point(fill: "#3366cc", size: 5)
+    }
+}
+```
+
+![temporal_formats_auto](examples/temporal_formats_auto.svg)
+
+## Explicit time parsing and custom labels
+
+Ambiguous local date orders stay explicit. Use `Parse(...)` to declare the input
+format and `Guide(timeFormat: ...)` for project-specific axis labels.
+
+```algraf
+Chart(data: "temporal_parse_custom.csv", width: 760, height: 420, title: "Explicit temporal parsing") {
+    Parse(column: started_at, as: "datetime", format: "%m/%d/%Y %I:%M %p", timezone: "UTC")
+    Guide(axis: x, label: "Start time", timeFormat: "%b %-d %H:%M")
+    Guide(axis: y, label: "Latency (ms)")
+
+    Space(started_at * latency_ms) {
+        Line(stroke: "#cc6633", strokeWidth: 2.5)
+        Point(fill: "#cc6633", size: 5)
+    }
+}
+```
+
+![temporal_parse_custom](examples/temporal_parse_custom.svg)
+
 ## Layering multiple space blocks: weather forecast
 
 You can overlay different geometries mapped to different y-axis columns by defining multiple `Space` blocks inside the same `Chart`. They will share the same trained coordinate system. Here, we layer a forecast range (`Ribbon`), a mean forecast line (`Line`), and actual observed temperatures (`Point`).

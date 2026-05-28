@@ -198,7 +198,8 @@ impl Printer {
             ChartItem::Scale(decl)
             | ChartItem::Guide(decl)
             | ChartItem::Theme(decl)
-            | ChartItem::Layout(decl) => self.decl(decl),
+            | ChartItem::Layout(decl)
+            | ChartItem::Parse(decl) => self.decl(decl),
             ChartItem::Error(err) => self.raw(err.syntax()),
         }
     }

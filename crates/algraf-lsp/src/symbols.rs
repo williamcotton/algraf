@@ -101,7 +101,8 @@ pub(crate) fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<Documen
             ChartItem::Scale(decl)
             | ChartItem::Guide(decl)
             | ChartItem::Theme(decl)
-            | ChartItem::Layout(decl) => {
+            | ChartItem::Layout(decl)
+            | ChartItem::Parse(decl) => {
                 children.push(symbol(
                     source,
                     decl.keyword(),

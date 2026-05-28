@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420" viewBox="0 0 760 420" role="img" aria-label="Automatic temporal parsing">
+<title>Automatic temporal parsing</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Automatic temporal parsing</text>
+<rect class="algraf-plot-area" x="60" y="66" width="670" height="304" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="60" y1="66" x2="60" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150.592" y1="66" x2="150.592" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="241.183" y1="66" x2="241.183" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="331.775" y1="66" x2="331.775" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="422.366" y1="66" x2="422.366" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="512.958" y1="66" x2="512.958" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="603.549" y1="66" x2="603.549" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="694.141" y1="66" x2="694.141" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="349.034" x2="730" y2="349.034" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="283.517" x2="730" y2="283.517" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="218" x2="730" y2="218" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="152.483" x2="730" y2="152.483" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="86.966" x2="730" y2="86.966" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M60 349.034 L312.901 218 L422.366 283.517 L730 86.966" fill="none" stroke="#3366cc" stroke-width="2.5" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="60" cy="349.034" r="5" fill="#3366cc" opacity="1" />
+  <circle cx="312.901" cy="218" r="5" fill="#3366cc" opacity="1" />
+  <circle cx="422.366" cy="283.517" r="5" fill="#3366cc" opacity="1" />
+  <circle cx="730" cy="86.966" r="5" fill="#3366cc" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="370" x2="730" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="60" y1="370" x2="60" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="60" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-27 00:00</text>
+  <line x1="150.592" y1="370" x2="150.592" y2="375" stroke="#333333" stroke-width="1" />
+  <line x1="241.183" y1="370" x2="241.183" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="241.183" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 00:00</text>
+  <line x1="331.775" y1="370" x2="331.775" y2="375" stroke="#333333" stroke-width="1" />
+  <line x1="422.366" y1="370" x2="422.366" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="422.366" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-29 00:00</text>
+  <line x1="512.958" y1="370" x2="512.958" y2="375" stroke="#333333" stroke-width="1" />
+  <line x1="603.549" y1="370" x2="603.549" y2="375" stroke="#333333" stroke-width="1" />
+  <line x1="694.141" y1="370" x2="694.141" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="694.141" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-30 12:00</text>
+  <text x="395" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Observed time</text>
+  <line x1="60" y1="66" x2="60" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="349.034" x2="60" y2="349.034" stroke="#333333" stroke-width="1" />
+  <text x="52" y="353.034" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="55" y1="283.517" x2="60" y2="283.517" stroke="#333333" stroke-width="1" />
+  <text x="52" y="287.517" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">12</text>
+  <line x1="55" y1="218" x2="60" y2="218" stroke="#333333" stroke-width="1" />
+  <text x="52" y="222" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">14</text>
+  <line x1="55" y1="152.483" x2="60" y2="152.483" stroke="#333333" stroke-width="1" />
+  <text x="52" y="156.483" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">16</text>
+  <line x1="55" y1="86.966" x2="60" y2="86.966" stroke="#333333" stroke-width="1" />
+  <text x="52" y="90.966" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">18</text>
+  <text x="31.6" y="218" text-anchor="middle" transform="rotate(-90 31.6 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Value</text>
+</g>
+</svg>

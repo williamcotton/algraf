@@ -12,18 +12,33 @@ use std::io::Read;
 
 use serde_json::{Map, Value};
 
-use crate::csv::{build, LoadResult};
+use crate::csv::{build, build_with_temporal_policy, LoadResult};
 use crate::error::DataError;
+use crate::temporal::TemporalParsePolicy;
 
 /// Fully load a JSON array of row objects (spec §10.2, §10.3).
 pub fn read_json<R: Read>(mut reader: R) -> Result<LoadResult, DataError> {
+    read_json_with_temporal_policy(&mut reader, None)
+}
+
+pub fn read_json_with_temporal_policy<R: Read>(
+    mut reader: R,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DataError> {
     let mut text = String::new();
     reader.read_to_string(&mut text)?;
-    read_json_str(&text)
+    read_json_str_with_temporal_policy(&text, temporal_policy)
 }
 
 /// Load JSON data from a string.
 pub fn read_json_str(input: &str) -> Result<LoadResult, DataError> {
+    read_json_str_with_temporal_policy(input, None)
+}
+
+pub fn read_json_str_with_temporal_policy(
+    input: &str,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DataError> {
     let value: Value = serde_json::from_str(input)?;
     let Value::Array(rows) = value else {
         return Err(DataError::JsonNotArray);
@@ -35,18 +50,32 @@ pub fn read_json_str(input: &str) -> Result<LoadResult, DataError> {
             _ => return Err(DataError::JsonRowNotObject { index }),
         }
     }
-    Ok(build_from_objects(objects))
+    Ok(build_from_objects(objects, temporal_policy))
 }
 
 /// Fully load NDJSON: one JSON row object per non-blank line (spec §10.2).
 pub fn read_ndjson<R: Read>(mut reader: R) -> Result<LoadResult, DataError> {
+    read_ndjson_with_temporal_policy(&mut reader, None)
+}
+
+pub fn read_ndjson_with_temporal_policy<R: Read>(
+    mut reader: R,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DataError> {
     let mut text = String::new();
     reader.read_to_string(&mut text)?;
-    read_ndjson_str(&text)
+    read_ndjson_str_with_temporal_policy(&text, temporal_policy)
 }
 
 /// Load NDJSON data from a string.
 pub fn read_ndjson_str(input: &str) -> Result<LoadResult, DataError> {
+    read_ndjson_str_with_temporal_policy(input, None)
+}
+
+pub fn read_ndjson_str_with_temporal_policy(
+    input: &str,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> Result<LoadResult, DataError> {
     let mut objects = Vec::new();
     for (offset, raw) in input.lines().enumerate() {
         let line = offset + 1;
@@ -61,12 +90,15 @@ pub fn read_ndjson_str(input: &str) -> Result<LoadResult, DataError> {
             _ => return Err(DataError::NdJsonRowNotObject { line }),
         }
     }
-    Ok(build_from_objects(objects))
+    Ok(build_from_objects(objects, temporal_policy))
 }
 
 /// Assemble row objects into a [`LoadResult`]. Columns are discovered in
 /// first-seen key order across rows; a key absent from a row is a missing cell.
-fn build_from_objects(objects: Vec<Map<String, Value>>) -> LoadResult {
+pub(crate) fn build_from_objects(
+    objects: Vec<Map<String, Value>>,
+    temporal_policy: Option<&TemporalParsePolicy>,
+) -> LoadResult {
     let mut names: Vec<String> = Vec::new();
     let mut index_of: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     let mut columns: Vec<Vec<String>> = Vec::new();
@@ -87,7 +119,10 @@ fn build_from_objects(objects: Vec<Map<String, Value>>) -> LoadResult {
         }
     }
 
-    build(names, columns)
+    match temporal_policy {
+        Some(policy) => build_with_temporal_policy(names, columns, Some(policy)),
+        None => build(names, columns),
+    }
 }
 
 /// Render a JSON value to the canonical text the inference pipeline expects.

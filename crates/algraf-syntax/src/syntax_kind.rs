@@ -57,6 +57,7 @@ pub enum SyntaxKind {
     LAYOUT_KW,
     LET_KW,
     TABLE_KW,
+    PARSE_KW,
     ALGRAF_KW,
     STDIN_KW,
 
@@ -99,6 +100,8 @@ pub enum SyntaxKind {
     LET_DECL,
     /// A `Table name = <source>` chart-scoped table declaration.
     TABLE_DECL,
+    /// A `Parse(...)` chart-scoped temporal parse declaration.
+    PARSE_DECL,
     /// A `key: value` argument.
     ARG,
     /// A literal value (string, number, boolean, or null).

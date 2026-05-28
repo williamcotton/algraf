@@ -440,6 +440,45 @@ mod tests {
     }
 
     #[test]
+    fn parse_declaration_applies_before_primary_schema_inference() {
+        let dir = temp_dir("parse-policy-primary");
+        fs::write(
+            dir.join("events.csv"),
+            "started,latency\n05/27/2026 2:30 PM,82\n05/27/2026 3:00 PM,91\n",
+        )
+        .unwrap();
+        let chart = parse_chart(
+            r#"Chart(data: "events.csv") {
+                Parse(column: started, as: "datetime", format: "%m/%d/%Y %I:%M %p", timezone: "UTC")
+                Guide(axis: x, timeFormat: "%b %-d %H:%M")
+                Space(started * latency) { Line() Point() }
+            }"#,
+        );
+        let source = SourceInput::Path(dir.join("chart.ag"));
+        let prepared = prepare_chart(
+            &chart,
+            PrepareOptions {
+                source_input: &source,
+                base_dir: None,
+                data_override: None,
+                data_format_override: None,
+                multi_chart: false,
+            },
+        )
+        .unwrap();
+        let frame = &prepared.primary.unwrap().frame;
+        assert_eq!(
+            frame.column_def("started").unwrap().dtype,
+            DataType::Temporal
+        );
+        assert!(
+            prepared.analysis.diagnostics.is_empty(),
+            "{:?}",
+            prepared.analysis.diagnostics
+        );
+    }
+
+    #[test]
     fn in_memory_io_matches_os_for_single_file_primary_sources() {
         let dir = temp_dir("memory-primary");
         let cases = [
