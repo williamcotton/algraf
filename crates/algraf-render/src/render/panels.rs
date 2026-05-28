@@ -57,7 +57,9 @@ pub(super) fn build_render_plan<'t>(
     let width = ir.width as f64;
     let height = ir.height as f64;
 
-    let has_axes = theme.axes;
+    let is_polar = ir.spaces.iter().all(|s| matches!(s.coords, CoordsIr::Polar { .. }));
+    let has_axes = theme.axes && !is_polar;
+
     let margins = Margins {
         top: ir.margin_top.map(f64::from),
         right: ir.margin_right.map(f64::from),

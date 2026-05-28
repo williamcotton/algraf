@@ -1,65 +1,65 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420" role="img" aria-label="Wind rose">
 <title>Wind rose</title>
 <rect class="algraf-background" x="0" y="0" width="420" height="420" fill="#ffffff" />
-<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Wind rose</text>
-<rect class="algraf-plot-area" x="60" y="66" width="210" height="304" fill="#ffffff" />
+<text class="algraf-title" x="10" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Wind rose</text>
+<rect class="algraf-plot-area" x="10" y="36" width="280" height="374" fill="#ffffff" />
 <g class="algraf-polar-grid">
-  <circle cx="165" cy="218" r="13.232" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="165" cy="218" r="26.465" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="165" cy="218" r="39.697" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="165" cy="218" r="52.929" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="165" cy="218" r="66.162" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="165" cy="218" r="78.6" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="195.079" y2="145.383" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="237.617" y2="187.921" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="237.617" y2="248.079" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="195.079" y2="290.617" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="134.921" y2="290.617" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="92.383" y2="248.079" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="92.383" y2="187.921" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="134.921" y2="145.383" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="19.309" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="38.618" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="57.927" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="77.236" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="96.546" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="114.696" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="193.892" y2="117.035" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="255.965" y2="179.108" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="255.965" y2="266.892" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="193.892" y2="328.965" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="106.108" y2="328.965" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="44.035" y2="266.892" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="44.035" y2="179.108" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="106.108" y2="117.035" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-layer algraf-geom-bar">
-  <path d="M 165 184.919 A 33.081 33.081 0 0 1 188.392 194.608 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 165 165.071 A 52.929 52.929 0 0 1 202.427 180.573 L 188.392 194.608 A 33.081 33.081 0 0 0 165 184.919 Z" fill="#F28E2B" opacity="1" />
-  <path d="M 183.713 199.287 A 26.465 26.465 0 0 1 191.465 218 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 193.07 189.93 A 39.697 39.697 0 0 1 204.697 218 L 191.465 218 A 26.465 26.465 0 0 0 183.713 199.287 Z" fill="#F28E2B" opacity="1" />
-  <path d="M 204.697 218 A 39.697 39.697 0 0 1 193.07 246.07 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 211.313 218 A 46.313 46.313 0 0 1 197.748 250.748 L 193.07 246.07 A 39.697 39.697 0 0 0 204.697 218 Z" fill="#F28E2B" opacity="1" />
-  <path d="M 179.035 232.035 A 19.848 19.848 0 0 1 165 237.848 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 188.392 241.392 A 33.081 33.081 0 0 1 165 251.081 L 165 237.848 A 19.848 19.848 0 0 0 179.035 232.035 Z" fill="#F28E2B" opacity="1" />
-  <path d="M 165 264.313 A 46.313 46.313 0 0 1 132.252 250.748 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 165 290.778 A 72.778 72.778 0 0 1 113.538 269.462 L 132.252 250.748 A 46.313 46.313 0 0 0 165 264.313 Z" fill="#F28E2B" opacity="1" />
-  <path d="M 141.608 241.392 A 33.081 33.081 0 0 1 131.919 218 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 127.573 255.427 A 52.929 52.929 0 0 1 112.071 218 L 131.919 218 A 33.081 33.081 0 0 0 141.608 241.392 Z" fill="#F28E2B" opacity="1" />
-  <path d="M 138.535 218 A 26.465 26.465 0 0 1 146.287 199.287 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 125.303 218 A 39.697 39.697 0 0 1 136.93 189.93 L 146.287 199.287 A 26.465 26.465 0 0 0 138.535 218 Z" fill="#F28E2B" opacity="1" />
-  <path d="M 150.965 203.965 A 19.848 19.848 0 0 1 165 198.152 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 146.287 199.287 A 26.465 26.465 0 0 1 165 191.535 L 165 198.152 A 19.848 19.848 0 0 0 150.965 203.965 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 150 174.727 A 48.273 48.273 0 0 1 184.134 188.866 L 150 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 150 145.764 A 77.236 77.236 0 0 1 204.614 168.386 L 184.134 188.866 A 48.273 48.273 0 0 0 150 174.727 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 177.307 195.693 A 38.618 38.618 0 0 1 188.618 223 L 150 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 190.961 182.039 A 57.927 57.927 0 0 1 207.927 223 L 188.618 223 A 38.618 38.618 0 0 0 177.307 195.693 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 207.927 223 A 57.927 57.927 0 0 1 190.961 263.961 L 150 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 217.582 223 A 67.582 67.582 0 0 1 197.788 270.788 L 190.961 263.961 A 57.927 57.927 0 0 0 207.927 223 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 170.48 243.48 A 28.964 28.964 0 0 1 150 251.964 L 150 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 184.134 257.134 A 48.273 48.273 0 0 1 150 271.273 L 150 251.964 A 28.964 28.964 0 0 0 170.48 243.48 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 150 290.582 A 67.582 67.582 0 0 1 102.212 270.788 L 150 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 150 329.2 A 106.2 106.2 0 0 1 74.905 298.095 L 102.212 270.788 A 67.582 67.582 0 0 0 150 290.582 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 115.866 257.134 A 48.273 48.273 0 0 1 101.727 223 L 150 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 95.386 277.614 A 77.236 77.236 0 0 1 72.764 223 L 101.727 223 A 48.273 48.273 0 0 0 115.866 257.134 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 111.382 223 A 38.618 38.618 0 0 1 122.693 195.693 L 150 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 92.073 223 A 57.927 57.927 0 0 1 109.039 182.039 L 122.693 195.693 A 38.618 38.618 0 0 0 111.382 223 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 129.52 202.52 A 28.964 28.964 0 0 1 150 194.036 L 150 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 122.693 195.693 A 38.618 38.618 0 0 1 150 184.382 L 150 194.036 A 28.964 28.964 0 0 0 129.52 202.52 Z" fill="#F28E2B" opacity="1" />
 </g>
 <g class="algraf-polar-theta-labels">
-  <text x="199.671" y="134.297" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">N</text>
-  <text x="248.703" y="183.329" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">NE</text>
-  <text x="248.703" y="252.671" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">E</text>
-  <text x="199.671" y="301.703" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">SE</text>
-  <text x="130.329" y="301.703" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">S</text>
-  <text x="81.297" y="252.671" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">SW</text>
-  <text x="81.297" y="183.329" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">W</text>
-  <text x="130.329" y="134.297" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">NW</text>
+  <text x="198.485" y="105.948" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">N</text>
+  <text x="267.052" y="174.515" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">NE</text>
+  <text x="267.052" y="271.485" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">E</text>
+  <text x="198.485" y="340.052" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">SE</text>
+  <text x="101.515" y="340.052" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">S</text>
+  <text x="32.948" y="271.485" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">SW</text>
+  <text x="32.948" y="174.515" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">W</text>
+  <text x="101.515" y="105.948" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">NW</text>
 </g>
 <g class="algraf-polar-radius-labels">
-  <text x="168" y="216" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
-  <text x="168" y="202.768" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
-  <text x="168" y="189.535" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
-  <text x="168" y="176.303" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
-  <text x="168" y="163.071" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
-  <text x="168" y="149.838" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <text x="153" y="221" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <text x="153" y="201.691" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <text x="153" y="182.382" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <text x="153" y="163.073" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <text x="153" y="143.764" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
+  <text x="153" y="124.454" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
 </g>
 <g class="algraf-legends">
-  <text x="286" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">speed</text>
-  <rect x="286" y="78" width="12" height="12" fill="#4E79A7" />
-  <text x="304" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">low</text>
-  <rect x="286" y="96" width="12" height="12" fill="#F28E2B" />
-  <text x="304" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">high</text>
+  <text x="306" y="40" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">speed</text>
+  <rect x="306" y="48" width="12" height="12" fill="#4E79A7" />
+  <text x="324" y="58" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">low</text>
+  <rect x="306" y="66" width="12" height="12" fill="#F28E2B" />
+  <text x="324" y="76" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">high</text>
 </g>
 </svg>

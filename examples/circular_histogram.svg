@@ -1,38 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420" role="img" aria-label="Events by hour">
 <title>Events by hour</title>
 <rect class="algraf-background" x="0" y="0" width="420" height="420" fill="#ffffff" />
-<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Events by hour</text>
-<rect class="algraf-plot-area" x="60" y="66" width="330" height="304" fill="#ffffff" />
+<text class="algraf-title" x="10" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Events by hour</text>
+<rect class="algraf-plot-area" x="10" y="36" width="400" height="374" fill="#ffffff" />
 <g class="algraf-polar-grid">
-  <circle cx="225" cy="218" r="23.457" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="225" cy="218" r="46.914" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="225" cy="218" r="70.37" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="225" cy="218" r="93.827" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="225" cy="218" r="117.284" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="225" cy="218" r="140.741" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="225" cy="218" r="152" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="210" cy="223" r="28.858" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="210" cy="223" r="57.716" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="210" cy="223" r="86.574" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="210" cy="223" r="115.432" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="210" cy="223" r="144.29" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="210" cy="223" r="173.148" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="210" cy="223" r="187" fill="none" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-layer algraf-geom-rect">
-  <path d="M 225 124.173 A 93.827 93.827 0 0 1 271.914 136.743 L 225 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 248.457 177.372 A 46.914 46.914 0 0 1 265.628 194.543 L 225 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 346.885 147.63 A 140.741 140.741 0 0 1 365.741 218 L 225 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 365.741 218 A 140.741 140.741 0 0 1 346.885 288.37 L 225 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 346.885 288.37 A 140.741 140.741 0 0 1 295.37 339.885 L 225 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 248.457 258.628 A 46.914 46.914 0 0 1 225 264.914 L 225 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 225 264.914 A 46.914 46.914 0 0 1 201.543 258.628 L 225 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 178.086 299.257 A 93.827 93.827 0 0 1 143.743 264.914 L 225 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 184.372 241.457 A 46.914 46.914 0 0 1 178.086 218 L 225 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 131.173 218 A 93.827 93.827 0 0 1 143.743 171.086 L 225 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 103.115 147.63 A 140.741 140.741 0 0 1 154.63 96.115 L 225 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 154.63 96.115 A 140.741 140.741 0 0 1 225 77.259 L 225 218 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 210 107.568 A 115.432 115.432 0 0 1 267.716 123.033 L 210 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 238.858 173.016 A 57.716 57.716 0 0 1 259.984 194.142 L 210 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 359.951 136.426 A 173.148 173.148 0 0 1 383.148 223 L 210 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 383.148 223 A 173.148 173.148 0 0 1 359.951 309.574 L 210 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 359.951 309.574 A 173.148 173.148 0 0 1 296.574 372.951 L 210 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 238.858 272.984 A 57.716 57.716 0 0 1 210 280.716 L 210 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 210 280.716 A 57.716 57.716 0 0 1 181.142 272.984 L 210 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 152.284 322.967 A 115.432 115.432 0 0 1 110.033 280.716 L 210 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 160.016 251.858 A 57.716 57.716 0 0 1 152.284 223 L 210 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 94.568 223 A 115.432 115.432 0 0 1 110.033 165.284 L 210 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 60.049 136.426 A 173.148 173.148 0 0 1 123.426 73.049 L 210 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 123.426 73.049 A 173.148 173.148 0 0 1 210 49.852 L 210 223 Z" fill="#4E79A7" opacity="1" />
 </g>
 <g class="algraf-polar-radius-labels">
-  <text x="228" y="216" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
-  <text x="228" y="192.543" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0.5</text>
-  <text x="228" y="169.086" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
-  <text x="228" y="145.63" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1.5</text>
-  <text x="228" y="122.173" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
-  <text x="228" y="98.716" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2.5</text>
-  <text x="228" y="75.259" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <text x="213" y="221" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <text x="213" y="192.142" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0.5</text>
+  <text x="213" y="163.284" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <text x="213" y="134.426" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1.5</text>
+  <text x="213" y="105.568" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <text x="213" y="76.71" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2.5</text>
+  <text x="213" y="47.852" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
 </g>
 </svg>

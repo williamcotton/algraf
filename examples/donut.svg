@@ -1,23 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="360" height="360" viewBox="0 0 360 360" role="img" aria-label="Revenue share">
 <title>Revenue share</title>
 <rect class="algraf-background" x="0" y="0" width="360" height="360" fill="#ffffff" />
-<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Revenue share</text>
-<rect class="algraf-plot-area" x="60" y="66" width="150" height="244" fill="#ffffff" />
+<text class="algraf-title" x="10" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Revenue share</text>
+<rect class="algraf-plot-area" x="10" y="36" width="220" height="314" fill="#ffffff" />
 <g class="algraf-polar-grid">
-  <circle cx="135" cy="188" r="75" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="120" cy="193" r="110" fill="none" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-layer algraf-geom-bar">
-  <path d="M 135 113 A 75 75 0 0 1 158.176 259.329 L 147.747 227.231 A 41.25 41.25 0 0 0 135 146.75 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 158.176 259.329 A 75 75 0 0 1 60 188 L 93.75 188 A 41.25 41.25 0 0 0 147.747 227.231 Z" fill="#F28E2B" opacity="1" />
-  <path d="M 60 188 A 75 75 0 0 1 135 113 L 135 146.75 A 41.25 41.25 0 0 0 93.75 188 Z" fill="#E15759" opacity="1" />
+  <path d="M 120 83 A 110 110 0 0 1 153.992 297.616 L 138.696 250.539 A 60.5 60.5 0 0 0 120 132.5 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 153.992 297.616 A 110 110 0 0 1 10 193 L 59.5 193 A 60.5 60.5 0 0 0 138.696 250.539 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 10 193 A 110 110 0 0 1 120 83 L 120 132.5 A 60.5 60.5 0 0 0 59.5 193 Z" fill="#E15759" opacity="1" />
 </g>
 <g class="algraf-legends">
-  <text x="226" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">product</text>
-  <rect x="226" y="78" width="12" height="12" fill="#4E79A7" />
-  <text x="244" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Software</text>
-  <rect x="226" y="96" width="12" height="12" fill="#F28E2B" />
-  <text x="244" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Hardware</text>
-  <rect x="226" y="114" width="12" height="12" fill="#E15759" />
-  <text x="244" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Services</text>
+  <text x="246" y="40" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">product</text>
+  <rect x="246" y="48" width="12" height="12" fill="#4E79A7" />
+  <text x="264" y="58" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Software</text>
+  <rect x="246" y="66" width="12" height="12" fill="#F28E2B" />
+  <text x="264" y="76" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Hardware</text>
+  <rect x="246" y="84" width="12" height="12" fill="#E15759" />
+  <text x="264" y="94" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Services</text>
 </g>
 </svg>

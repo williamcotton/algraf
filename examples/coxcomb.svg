@@ -1,91 +1,91 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420" role="img" aria-label="Deaths by month (coxcomb)">
 <title>Deaths by month (coxcomb)</title>
 <rect class="algraf-background" x="0" y="0" width="420" height="420" fill="#ffffff" />
-<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Deaths by month (coxcomb)</text>
-<rect class="algraf-plot-area" x="60" y="66" width="210" height="304" fill="#ffffff" />
+<text class="algraf-title" x="10" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Deaths by month (coxcomb)</text>
+<rect class="algraf-plot-area" x="10" y="36" width="280" height="374" fill="#ffffff" />
 <g class="algraf-polar-grid">
-  <circle cx="165" cy="218" r="11.205" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="165" cy="218" r="22.411" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="165" cy="218" r="33.616" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="165" cy="218" r="44.821" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="165" cy="218" r="56.026" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="165" cy="218" r="67.232" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <circle cx="165" cy="218" r="71.4" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="183.48" y2="149.033" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="215.487" y2="167.513" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="233.967" y2="199.52" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="233.967" y2="236.48" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="215.487" y2="268.487" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="183.48" y2="286.967" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="146.52" y2="286.967" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="114.513" y2="268.487" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="96.033" y2="236.48" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="96.033" y2="199.52" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="114.513" y2="167.513" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="165" y1="218" x2="146.52" y2="149.033" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="16.814" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="33.627" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="50.441" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="67.254" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="84.068" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="100.881" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <circle cx="150" cy="223" r="107.136" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="177.729" y2="119.515" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="225.757" y2="147.243" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="253.485" y2="195.271" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="253.485" y2="250.729" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="225.757" y2="298.757" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="177.729" y2="326.485" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="122.271" y2="326.485" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="74.243" y2="298.757" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="46.515" y2="250.729" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="46.515" y2="195.271" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="74.243" y2="147.243" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150" y1="223" x2="122.271" y2="119.515" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-layer algraf-geom-bar">
-  <path d="M 165 170.938 A 47.062 47.062 0 0 1 188.531 177.243 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 187.411 179.184 A 44.821 44.821 0 0 1 203.816 195.589 L 165 218 Z" fill="#F28E2B" opacity="1" />
-  <path d="M 222.254 184.944 A 66.111 66.111 0 0 1 231.111 218 L 165 218 Z" fill="#E15759" opacity="1" />
-  <path d="M 196.375 218 A 31.375 31.375 0 0 1 192.171 233.687 L 165 218 Z" fill="#76B7B2" opacity="1" />
-  <path d="M 186.349 230.326 A 24.652 24.652 0 0 1 177.326 239.349 L 165 218 Z" fill="#59A14F" opacity="1" />
-  <path d="M 175.085 235.467 A 20.169 20.169 0 0 1 165 238.169 L 165 218 Z" fill="#EDC948" opacity="1" />
-  <path d="M 165 237.049 A 19.049 19.049 0 0 1 155.476 234.497 L 165 218 Z" fill="#B07AA1" opacity="1" />
-  <path d="M 153.795 237.408 A 22.411 22.411 0 0 1 145.592 229.205 L 165 218 Z" fill="#FF9DA7" opacity="1" />
-  <path d="M 141.71 231.446 A 26.893 26.893 0 0 1 138.107 218 L 165 218 Z" fill="#9C755F" opacity="1" />
-  <path d="M 128.023 218 A 36.977 36.977 0 0 1 132.977 199.511 L 165 218 Z" fill="#BAB0AC" opacity="1" />
-  <path d="M 121.332 192.788 A 50.424 50.424 0 0 1 139.788 174.332 L 165 218 Z" fill="#4E79A7" opacity="1" />
-  <path d="M 134.185 164.628 A 61.629 61.629 0 0 1 165 156.371 L 165 218 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 150 152.383 A 70.617 70.617 0 0 1 185.308 161.844 L 150 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 183.627 164.756 A 67.254 67.254 0 0 1 208.244 189.373 L 150 223 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 235.91 173.4 A 99.2 99.2 0 0 1 249.2 223 L 150 223 Z" fill="#E15759" opacity="1" />
+  <path d="M 197.078 223 A 47.078 47.078 0 0 1 190.771 246.539 L 150 223 Z" fill="#76B7B2" opacity="1" />
+  <path d="M 182.034 241.495 A 36.99 36.99 0 0 1 168.495 255.034 L 150 223 Z" fill="#59A14F" opacity="1" />
+  <path d="M 165.132 249.21 A 30.264 30.264 0 0 1 150 253.264 L 150 223 Z" fill="#EDC948" opacity="1" />
+  <path d="M 150 251.583 A 28.583 28.583 0 0 1 135.708 247.754 L 150 223 Z" fill="#B07AA1" opacity="1" />
+  <path d="M 133.186 252.122 A 33.627 33.627 0 0 1 120.878 239.814 L 150 223 Z" fill="#FF9DA7" opacity="1" />
+  <path d="M 115.054 243.176 A 40.353 40.353 0 0 1 109.647 223 L 150 223 Z" fill="#9C755F" opacity="1" />
+  <path d="M 94.515 223 A 55.485 55.485 0 0 1 101.949 195.258 L 150 223 Z" fill="#BAB0AC" opacity="1" />
+  <path d="M 84.476 185.169 A 75.661 75.661 0 0 1 112.169 157.476 L 150 223 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 103.763 142.915 A 92.475 92.475 0 0 1 150 130.525 L 150 223 Z" fill="#F28E2B" opacity="1" />
 </g>
 <g class="algraf-polar-theta-labels">
-  <text x="186.586" y="137.442" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan</text>
-  <text x="223.973" y="159.027" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Feb</text>
-  <text x="245.558" y="196.414" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar</text>
-  <text x="245.558" y="239.586" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr</text>
-  <text x="223.973" y="276.973" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May</text>
-  <text x="186.586" y="298.558" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jun</text>
-  <text x="143.414" y="298.558" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul</text>
-  <text x="106.027" y="276.973" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Aug</text>
-  <text x="84.442" y="239.586" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sep</text>
-  <text x="84.442" y="196.414" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oct</text>
-  <text x="106.027" y="159.027" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Nov</text>
-  <text x="143.414" y="137.442" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Dec</text>
+  <text x="180.835" y="107.923" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan</text>
+  <text x="234.242" y="138.758" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Feb</text>
+  <text x="265.077" y="192.165" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar</text>
+  <text x="265.077" y="253.835" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr</text>
+  <text x="234.242" y="307.242" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May</text>
+  <text x="180.835" y="338.077" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jun</text>
+  <text x="119.165" y="338.077" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul</text>
+  <text x="65.758" y="307.242" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Aug</text>
+  <text x="34.923" y="253.835" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sep</text>
+  <text x="34.923" y="192.165" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oct</text>
+  <text x="65.758" y="138.758" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Nov</text>
+  <text x="119.165" y="107.923" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Dec</text>
 </g>
 <g class="algraf-polar-radius-labels">
-  <text x="168" y="216" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
-  <text x="168" y="204.795" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
-  <text x="168" y="193.589" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
-  <text x="168" y="182.384" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
-  <text x="168" y="171.179" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
-  <text x="168" y="159.974" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
-  <text x="168" y="148.768" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
+  <text x="153" y="221" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <text x="153" y="204.186" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <text x="153" y="187.373" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <text x="153" y="170.559" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <text x="153" y="153.746" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <text x="153" y="136.932" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
+  <text x="153" y="120.119" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
 </g>
 <g class="algraf-legends">
-  <text x="286" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">month</text>
-  <rect x="286" y="78" width="12" height="12" fill="#4E79A7" />
-  <text x="304" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan</text>
-  <rect x="286" y="96" width="12" height="12" fill="#F28E2B" />
-  <text x="304" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Feb</text>
-  <rect x="286" y="114" width="12" height="12" fill="#E15759" />
-  <text x="304" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar</text>
-  <rect x="286" y="132" width="12" height="12" fill="#76B7B2" />
-  <text x="304" y="142" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr</text>
-  <rect x="286" y="150" width="12" height="12" fill="#59A14F" />
-  <text x="304" y="160" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May</text>
-  <rect x="286" y="168" width="12" height="12" fill="#EDC948" />
-  <text x="304" y="178" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jun</text>
-  <rect x="286" y="186" width="12" height="12" fill="#B07AA1" />
-  <text x="304" y="196" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul</text>
-  <rect x="286" y="204" width="12" height="12" fill="#FF9DA7" />
-  <text x="304" y="214" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Aug</text>
-  <rect x="286" y="222" width="12" height="12" fill="#9C755F" />
-  <text x="304" y="232" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sep</text>
-  <rect x="286" y="240" width="12" height="12" fill="#BAB0AC" />
-  <text x="304" y="250" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oct</text>
-  <rect x="286" y="258" width="12" height="12" fill="#4E79A7" />
-  <text x="304" y="268" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Nov</text>
-  <rect x="286" y="276" width="12" height="12" fill="#F28E2B" />
-  <text x="304" y="286" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Dec</text>
+  <text x="306" y="40" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">month</text>
+  <rect x="306" y="48" width="12" height="12" fill="#4E79A7" />
+  <text x="324" y="58" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan</text>
+  <rect x="306" y="66" width="12" height="12" fill="#F28E2B" />
+  <text x="324" y="76" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Feb</text>
+  <rect x="306" y="84" width="12" height="12" fill="#E15759" />
+  <text x="324" y="94" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar</text>
+  <rect x="306" y="102" width="12" height="12" fill="#76B7B2" />
+  <text x="324" y="112" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr</text>
+  <rect x="306" y="120" width="12" height="12" fill="#59A14F" />
+  <text x="324" y="130" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May</text>
+  <rect x="306" y="138" width="12" height="12" fill="#EDC948" />
+  <text x="324" y="148" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jun</text>
+  <rect x="306" y="156" width="12" height="12" fill="#B07AA1" />
+  <text x="324" y="166" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul</text>
+  <rect x="306" y="174" width="12" height="12" fill="#FF9DA7" />
+  <text x="324" y="184" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Aug</text>
+  <rect x="306" y="192" width="12" height="12" fill="#9C755F" />
+  <text x="324" y="202" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sep</text>
+  <rect x="306" y="210" width="12" height="12" fill="#BAB0AC" />
+  <text x="324" y="220" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oct</text>
+  <rect x="306" y="228" width="12" height="12" fill="#4E79A7" />
+  <text x="324" y="238" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Nov</text>
+  <rect x="306" y="246" width="12" height="12" fill="#F28E2B" />
+  <text x="324" y="256" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Dec</text>
 </g>
 </svg>

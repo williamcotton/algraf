@@ -617,16 +617,24 @@ impl ScaledSpace {
             )
         };
 
-        // First pass at the full radius to discover the perimeter (theta)
-        // labels, then inset the circle so those labels stay within the plot
-        // rect (e.g. clear of the legend on the right). A continuous angle
-        // (pie/donut) draws no perimeter labels and keeps the full radius.
         let provisional = assemble(max_r)?;
-        let reserve = provisional.polar_perimeter_reserve(font_size);
-        if reserve <= 0.0 {
+    
+        // Get the exact horizontal and vertical reserve needed for the text
+        let (reserve_x, reserve_y) = provisional.polar_perimeter_reserve(font_size);
+        if reserve_x <= 0.0 && reserve_y <= 0.0 {
             return Some(provisional);
         }
-        assemble((max_r - reserve).max(max_r * 0.5))
+        
+        // The Right Math: Shrink the width and height of the plot rectangle 
+        // independently, then find the new maximum radius.
+        let max_r_x = (plot.width / 2.0) - reserve_x;
+        let max_r_y = (plot.height / 2.0) - reserve_y;
+        
+        // Take the minimum of the two to keep it a perfect circle, 
+        // but ensure it never completely collapses.
+        let final_r = max_r_x.min(max_r_y).max(max_r * 0.25);
+        
+        assemble(final_r)
     }
 
     /// Build the trained axes for a polar space at a fixed radius. Domain
@@ -789,20 +797,29 @@ impl ScaledSpace {
     /// radius, used to inset the circle so they stay within the plot rect (e.g.
     /// clear of the legend). Zero for a continuous angle (pie/donut), which
     /// draws no perimeter labels (spec §16.16, §19).
-    fn polar_perimeter_reserve(&self, font_size: f64) -> f64 {
+/// Horizontal and vertical room (px) the perimeter category labels need beyond 
+/// the outer radius.
+    fn polar_perimeter_reserve(&self, font_size: f64) -> (f64, f64) {
         if !self.polar_theta_is_band() {
-            return 0.0;
+            return (0.0, 0.0);
         }
-        let widest = self
-            .polar_theta_ticks()
-            .iter()
-            .map(|(_, label)| estimate_text_width(label, font_size))
-            .fold(0.0_f64, f64::max);
-        if widest <= 0.0 {
-            0.0
-        } else {
-            POLAR_LABEL_GAP + widest
+        
+        let mut max_dx = 0.0_f64;
+        let mut max_dy = 0.0_f64;
+        
+        for (theta, label) in self.polar_theta_ticks() {
+            let width = estimate_text_width(&label, font_size);
+            let height = font_size; // approximate text height
+            
+            // Calculate the bounding box extension for this specific label's angle
+            let dx = POLAR_LABEL_GAP + (width * theta.cos().abs());
+            let dy = POLAR_LABEL_GAP + (height * theta.sin().abs());
+            
+            max_dx = max_dx.max(dx);
+            max_dy = max_dy.max(dy);
         }
+        
+        (max_dx, max_dy)
     }
 
     /// The data column backing the radius axis, when present.

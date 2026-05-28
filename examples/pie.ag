@@ -1,4 +1,4 @@
-Chart(data: "pie_sales.csv", width: 360, height: 360, title: "Revenue share") {
+Chart(data: "pie_sales.csv", width: 360, height: 360, title: "Revenue share", marginLeft: 30) {
   Space(sales, coords: "polar", theta: "y") {
     Bar(fill: product, layout: "fill")
   }

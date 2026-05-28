@@ -1,45 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420" role="img" aria-label="Player profile">
 <title>Player profile</title>
 <rect class="algraf-background" x="0" y="0" width="420" height="420" fill="#ffffff" />
-<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Player profile</text>
-<rect class="algraf-plot-area" x="60" y="66" width="330" height="304" fill="#ffffff" />
+<text class="algraf-title" x="10" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Player profile</text>
+<rect class="algraf-plot-area" x="10" y="36" width="400" height="374" fill="#ffffff" />
 <g class="algraf-polar-grid">
-  <polygon points="235.837,203.085 242.534,223.697 225,236.436 207.466,223.697 214.163,203.085" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <polygon points="246.673,188.17 260.068,229.394 225,254.872 189.932,229.394 203.327,188.17" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <polygon points="257.51,173.254 277.602,235.091 225,273.309 172.398,235.091 192.49,173.254" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <polygon points="268.346,158.339 295.136,240.788 225,291.745 154.864,240.788 181.654,158.339" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <polygon points="277.666,145.512 310.215,245.688 225,307.6 139.785,245.688 172.334,145.512" fill="none" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="277.666" y2="145.512" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="310.215" y2="245.688" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="225" y2="307.6" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="139.785" y2="245.688" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="225" y1="218" x2="172.334" y2="145.512" stroke="#e6e6e6" stroke-width="1" />
+  <polygon points="226.94,199.684 237.41,231.906 210,251.82 182.59,231.906 193.06,199.684" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <polygon points="243.88,176.368 264.82,240.812 210,280.641 155.18,240.812 176.12,176.368" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <polygon points="260.82,153.052 292.229,249.718 210,309.461 127.771,249.718 159.18,153.052" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <polygon points="277.761,129.735 319.639,258.624 210,338.281 100.361,258.624 142.239,129.735" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <polygon points="292.329,109.684 343.211,266.283 210,363.067 76.789,266.283 127.671,109.684" fill="none" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="210" y1="223" x2="292.329" y2="109.684" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="210" y1="223" x2="343.211" y2="266.283" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="210" y1="223" x2="210" y2="363.067" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="210" y1="223" x2="76.789" y2="266.283" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="210" y1="223" x2="127.671" y2="109.684" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-layer algraf-geom-area">
-  <path d="M268.346 158.339 L277.602 235.091 L225 300.963 L163.631 237.94 L197.909 180.712 Z" fill="#9ec6e0" opacity="0.4" />
+  <path d="M277.761 129.735 L292.229 249.718 L210 352.691 L114.066 254.171 L167.65 164.71 Z" fill="#9ec6e0" opacity="0.4" />
 </g>
 <g class="algraf-layer algraf-geom-line">
-  <path d="M268.346 158.339 L277.602 235.091 L225 300.963 L163.631 237.94 L197.909 180.712Z" fill="none" stroke="#2b6ca3" stroke-width="1.5" opacity="1" />
+  <path d="M277.761 129.735 L292.229 249.718 L210 352.691 L114.066 254.171 L167.65 164.71Z" fill="none" stroke="#2b6ca3" stroke-width="1.5" opacity="1" />
 </g>
 <g class="algraf-layer algraf-geom-point">
-  <circle cx="268.346" cy="158.339" r="3" fill="#2b6ca3" opacity="1" />
-  <circle cx="277.602" cy="235.091" r="3" fill="#2b6ca3" opacity="1" />
-  <circle cx="225" cy="300.963" r="3" fill="#2b6ca3" opacity="1" />
-  <circle cx="163.631" cy="237.94" r="3" fill="#2b6ca3" opacity="1" />
-  <circle cx="197.909" cy="180.712" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="277.761" cy="129.735" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="292.229" cy="249.718" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="210" cy="352.691" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="114.066" cy="254.171" r="3" fill="#2b6ca3" opacity="1" />
+  <circle cx="167.65" cy="164.71" r="3" fill="#2b6ca3" opacity="1" />
 </g>
 <g class="algraf-polar-theta-labels">
-  <text x="284.719" y="135.804" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Speed</text>
-  <text x="321.627" y="249.396" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Power</text>
-  <text x="225" y="319.6" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Range</text>
-  <text x="128.373" y="249.396" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Agility</text>
-  <text x="165.281" y="135.804" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Defense</text>
+  <text x="299.383" y="99.975" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Speed</text>
+  <text x="354.624" y="269.991" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Power</text>
+  <text x="210" y="375.067" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Range</text>
+  <text x="65.376" y="269.991" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Agility</text>
+  <text x="120.617" y="99.975" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Defense</text>
 </g>
 <g class="algraf-polar-radius-labels">
-  <text x="228" y="216" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
-  <text x="228" y="197.564" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
-  <text x="228" y="179.128" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
-  <text x="228" y="160.691" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
-  <text x="228" y="142.255" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
+  <text x="213" y="221" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <text x="213" y="192.18" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <text x="213" y="163.359" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <text x="213" y="134.539" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
+  <text x="213" y="105.719" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
 </g>
 </svg>
