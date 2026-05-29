@@ -224,9 +224,10 @@ Algraf SHOULD be easy to parse incrementally.
 
 Algraf SHOULD produce helpful errors for common grammar-of-graphics mistakes.
 
-Algraf supports declarative, opt-in interactive output (tooltips and hover
-highlighting) through inert mark metadata and a fixed, audited runtime; static
-SVG stays script-free by default (spec §14.25, §24.6, §29.3).
+Algraf supports declarative, opt-in interactive output (tooltips, hover
+highlighting, and Cartesian plot crosshairs with axis value readouts) through
+inert mark metadata, emitted plot/axis geometry, and a fixed, audited runtime;
+static SVG stays script-free by default (spec §14.25, §24.6, §29.3).
 
 Algraf MAY support raster output through a separate backend in later versions.
 
@@ -268,12 +269,13 @@ Algraf does not initially support HTML canvas.
 
 Algraf does not initially support WebGL.
 
-Algraf supports *declarative* interactivity as opt-in metadata (tooltips and
-hover highlighting; spec §14.25, §24.6, §29.3): a chart declares *what* data
-participates, and a viewer interprets inert metadata. Algraf does not support
-event-handler source, an embedded scripting language, or user-authored runtime
-code; static SVG remains script-free unless interactive output is explicitly
-requested.
+Algraf supports *declarative* interactivity as opt-in metadata and emitted
+chart geometry (tooltips, hover highlighting, and Cartesian plot crosshairs;
+spec §14.25, §24.6, §29.3): a chart declares *what* data participates, and a
+viewer interprets inert metadata plus the rendered plot/axis elements. Algraf
+does not support event-handler source, an embedded scripting language, or
+user-authored runtime code; static SVG remains script-free unless interactive
+output is explicitly requested.
 
 Algraf does not initially support automatic statistical inference beyond explicitly specified statistics.
 
@@ -7096,9 +7098,12 @@ true`, the server renders with the opt-in interactive runtime (spec §29.3) and
 the returned SVG carries the single, fixed, Algraf-shipped script — and only
 that script. The preview never executes user-authored script: interaction comes
 solely from the audited runtime reading inert per-mark metadata (§14.25,
-§18.10). A document with no interaction metadata previews identically whether or
-not `interactive` is set. The read-only, superseded, and generation semantics
-above are unchanged by this flag.
+§18.10) and the already-rendered plot rectangles/axis tick labels used for
+crosshair value readouts. A document with no interaction metadata has the same
+static chart body whether or not `interactive` is set; the interactive form may
+still provide plot crosshairs where Cartesian axis ticks are available. The
+read-only, superseded, and generation semantics above are unchanged by this
+flag.
 
 ## 22. CLI Specification
 
@@ -7214,11 +7219,14 @@ Render options:
 
 `--interactive` embeds the fixed, audited interactive runtime (spec §29.3) in
 SVG output, enabling tooltip-on-hover and highlight-on-hover from the inert
-per-mark metadata of §14.25/§18.10. It applies only to `--format svg`; the
-rendered chart body is byte-for-byte identical to the static render, with the
-single Algraf-shipped `<script>` appended before `</svg>`. Without the flag the
-SVG is script-free. The static `<title>`/`data-algraf-highlight` affordances are
-present either way; `--interactive` only adds the script that animates them.
+per-mark metadata of §14.25/§18.10 and Cartesian plot crosshairs/value readouts
+from the emitted plot rectangles and axis tick labels. It applies only to
+`--format svg`; the rendered chart body is byte-for-byte identical to the static
+render, with the single Algraf-shipped `<script>` appended before `</svg>`.
+Without the flag the SVG is script-free. The static
+`<title>`/`data-algraf-highlight` affordances are present either way;
+`--interactive` only adds the script that animates them and the existing
+plot/axis geometry.
 
 `--theme <name>` is a render-time override.
 
@@ -8100,6 +8108,8 @@ missing `=>`/stray separator in a map literal)
 
 `E1017 reserved`
 
+`E1018 reserved`
+
 `E1101 unknown column`
 
 `E1102 ambiguous column`
@@ -8203,6 +8213,12 @@ missing `=>`/stray separator in a map literal)
 `E1906 invalid polar gridShape (expected "circle" or "polygon")`
 
 `E1907 invalid temporal output format`
+
+`E1908 reserved`
+
+`E1909 invalid polar startAngle`
+
+`E1910 invalid polar direction or radius mapping`
 
 ### 26.3 Warning Diagnostics
 
@@ -8646,11 +8662,12 @@ output only when interactive output is explicitly requested (CLI `--interactive`
 spec §22.3; or the interactive LSP preview, §21.18). When it does, the embedded
 script is a single, fixed, audited runtime shipped by Algraf and identical across
 all charts: it reads the inert per-mark metadata (`<title>` tooltips and
-`data-algraf-highlight` groups) and implements tooltip-on-hover and
-highlight-on-hover. Chart source can never supply, extend, or parameterize this
-script — there is no path from `.ag` text to executable code. The script
-performs no network access and is deterministic given the same metadata. Absent
-the opt-in, no `<script>` is emitted.
+`data-algraf-highlight` groups), plus the emitted plot rectangles and Cartesian
+axis tick labels, and implements tooltip-on-hover, highlight-on-hover, and
+crosshair value readouts. Chart source can never supply, extend, or parameterize
+this script — there is no path from `.ag` text to executable code. The script
+performs no network access and is deterministic given the same SVG. Absent the
+opt-in, no `<script>` is emitted.
 
 **URL-valued properties.** URL-valued properties (hyperlinks, image `href`s,
 tooltip links) are **not supported in version 0.30** and are rejected rather than

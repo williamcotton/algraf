@@ -114,8 +114,9 @@ struct RenderArgs {
     #[arg(long, value_enum, default_value_t = RenderFormat::Svg)]
     format: RenderFormat,
     /// Embed the fixed, audited interactive runtime in SVG output (spec §29.3):
-    /// tooltip-on-hover and highlight-on-hover from inert mark metadata. Only
-    /// affects `--format svg`; static SVG stays script-free without it.
+    /// tooltip-on-hover, highlight-on-hover, and plot crosshairs from inert
+    /// metadata plus rendered axes. Only affects `--format svg`; static SVG
+    /// stays script-free without it.
     #[arg(long)]
     interactive: bool,
     #[arg(long)]

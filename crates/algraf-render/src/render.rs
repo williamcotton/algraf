@@ -98,8 +98,9 @@ pub fn render_with_tables(
 /// Render a chart IR to SVG with the opt-in interactive runtime embedded
 /// (spec §29.3). The chart body is byte-for-byte identical to [`render`]; the
 /// only difference is the single fixed, audited `<script>` appended before
-/// `</svg>`. Static affordances (`<title>`, `data-algraf-highlight`) are present
-/// either way.
+/// `</svg>`. Static affordances (`<title>`, `data-algraf-highlight`) and
+/// ordinary plot/axis elements are present either way; the script interprets
+/// them for tooltips, highlighting, and crosshair value readouts.
 pub fn render_interactive(
     ir: &ChartIr,
     primary: &dyn Table,

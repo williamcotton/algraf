@@ -60,8 +60,9 @@ pub(super) trait RenderBackend {
 /// `interactive` opts into the fixed, audited interactive runtime (spec §29.3):
 /// when `true`, the emitted document embeds the single Algraf-shipped script that
 /// reads the inert per-mark metadata (`<title>` tooltips, `data-algraf-highlight`
-/// groups). When `false` (the default), the SVG is byte-for-byte the canonical,
-/// script-free output.
+/// groups) and rendered plot/axis elements for crosshair value readouts. When
+/// `false` (the default), the SVG is byte-for-byte the canonical, script-free
+/// output.
 pub(super) struct SvgBackend {
     pub(super) interactive: bool,
 }

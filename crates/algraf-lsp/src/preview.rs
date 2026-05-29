@@ -107,7 +107,8 @@ pub struct PreviewParams {
     /// Opt into the audited interactive runtime (spec §21.18, §29.3). When
     /// omitted or `false`, the preview SVG is script-free (the default,
     /// script-safe surface). When `true`, the SVG carries only the fixed,
-    /// Algraf-shipped runtime — never user-authored script.
+    /// Algraf-shipped runtime for tooltips, highlighting, and plot crosshairs —
+    /// never user-authored script.
     #[serde(default)]
     pub interactive: bool,
 }

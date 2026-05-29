@@ -1688,9 +1688,37 @@ fn interactive_render_embeds_only_the_audited_script() {
 
     // The script appears only in the interactive output.
     assert!(interactive.contains("<script"), "{interactive}");
+    assert!(interactive.contains("algraf-crosshair"), "{interactive}");
+    assert!(
+        interactive.contains("data-algraf-highlight"),
+        "{interactive}"
+    );
     assert!(!static_svg.contains("<script"), "{static_svg}");
     // The chart body is otherwise identical: the static SVG is a prefix of the
     // interactive one up to the appended script.
+    let body_end = interactive.find("<script").unwrap();
+    let static_body_end = static_svg.find("</svg>").unwrap();
+    assert_eq!(&interactive[..body_end], &static_svg[..static_body_end]);
+}
+
+#[test]
+fn interactive_runtime_is_available_without_mark_interaction() {
+    let frame = read_csv_str(INTERACTION_CSV).expect("csv").frame;
+    let parsed = parse(PLAIN_SRC);
+    let analysis = analyze(&parsed.syntax(), frame.schema());
+    let ir = analysis.ir.expect("ir");
+    let interactive = algraf_render::render_interactive(&ir, &frame, &Theme::minimal(), None)
+        .expect("render")
+        .svg;
+    let static_svg = render(&ir, &frame, &Theme::minimal(), None)
+        .expect("render")
+        .svg;
+
+    assert!(interactive.contains("algraf-crosshair"), "{interactive}");
+    assert!(
+        !interactive.contains("data-algraf-highlight=\""),
+        "{interactive}"
+    );
     let body_end = interactive.find("<script").unwrap();
     let static_body_end = static_svg.find("</svg>").unwrap();
     assert_eq!(&interactive[..body_end], &static_svg[..static_body_end]);
