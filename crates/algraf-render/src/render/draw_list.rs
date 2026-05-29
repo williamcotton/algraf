@@ -1,36 +1,30 @@
 //! The serializable draw-list render model and its backend (spec §24.6).
 //!
-//! This is the second output backend, added in v0.24.0 to prove that the render
-//! execution boundary of §24.6 can drive more than one output format. It
-//! consumes the same planned [`RenderScene`] as the SVG backend — never the
-//! source AST — and produces a [`DrawList`]: a flat, deterministic sequence of
-//! Canvas-drawable primitives (filled rectangles and text). A Canvas, raster, or
-//! WebGL client can replay the list without an SVG parser and without a browser
-//! runtime.
+//! This is the second output backend. It consumes the same planned
+//! [`RenderScene`] as the SVG backend — never the source AST — and produces a
+//! [`DrawList`]: a flat, deterministic sequence of drawable primitives. A
+//! Canvas, raster, or WebGL client can replay the list without an SVG parser and
+//! without a browser runtime.
 //!
-//! # Documented equivalence limits (capstone, v0.24.0)
-//!
-//! The draw list covers the chart *frame* that planning resolves directly from
-//! the scene: canvas size, the chart background, each plot panel (and its facet
-//! strip and label), and the chart title/subtitle/caption. It deliberately does
-//! **not** yet include per-datum geometry marks (points, bars, lines, areas),
-//! axis ticks, or gridlines: those are still emitted as raw SVG by [`crate::geom`]
-//! and [`crate::guide`] and would require routing geometry emission through a
-//! shared primitive sink. Promoting full mark/guide parity is tracked as the
-//! follow-up to the v0.24 backend work. Coordinates and colors that the draw list
-//! does emit match the SVG backend exactly, so the two backends agree on canvas
-//! dimensions, background, and panel placement.
+//! As of v0.29.0 the draw list is a *complete* scene description: the chart
+//! frame (canvas, background, plot panels, facet strips, chart text) plus a
+//! per-datum op for every geometry mark the SVG backend draws. Geometry emission
+//! is shared between the two backends through the [`MarkSink`](crate::sink)
+//! seam, so coordinates and colors agree by construction. Guide primitives
+//! (axes, gridlines, legends) are emitted through the same seam during document
+//! assembly. The draw list remains inert data: no scripts, no embedded behavior.
 
 use std::fmt::Write as _;
 
 use algraf_core::Diagnostic;
 
+use crate::sink::{json_string, DrawListSink, Paint};
 use crate::svg::num;
 
 use super::backend::{RenderBackend, RenderScene};
 use super::panels::panel_slots;
 
-/// Where a [`DrawOp`] sits in the chart frame, so clients and tests can identify
+/// Where a [`DrawOp`] sits in the chart, so clients and tests can identify
 /// primitives without re-deriving them from coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DrawRole {
@@ -48,6 +42,16 @@ pub enum DrawRole {
     Subtitle,
     /// The chart caption.
     Caption,
+    /// A per-datum geometry mark.
+    Mark,
+    /// A gridline (Cartesian or polar).
+    Grid,
+    /// An axis line, tick, tick label, or axis title.
+    Axis,
+    /// A legend swatch or label.
+    Legend,
+    /// A polar perimeter or radius label.
+    PolarLabel,
 }
 
 impl DrawRole {
@@ -61,6 +65,11 @@ impl DrawRole {
             DrawRole::Title => "title",
             DrawRole::Subtitle => "subtitle",
             DrawRole::Caption => "caption",
+            DrawRole::Mark => "mark",
+            DrawRole::Grid => "grid",
+            DrawRole::Axis => "axis",
+            DrawRole::Legend => "legend",
+            DrawRole::PolarLabel => "polar-label",
         }
     }
 }
@@ -83,33 +92,79 @@ impl TextAnchor {
     }
 }
 
-/// A single Canvas-drawable primitive.
+/// A single drawable primitive.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DrawOp {
-    /// A filled rectangle (`ctx.fillRect` after setting `fillStyle`).
+    /// A rectangle.
     Rect {
         role: DrawRole,
         x: f64,
         y: f64,
         width: f64,
         height: f64,
-        fill: String,
+        paint: Paint,
     },
-    /// A run of text (`ctx.fillText` after setting `fillStyle`/`textAlign`).
+    /// A circle.
+    Circle {
+        role: DrawRole,
+        cx: f64,
+        cy: f64,
+        r: f64,
+        paint: Paint,
+    },
+    /// A path, with an SVG path `d` mini-language string (M/L/A/Z commands).
+    Path {
+        role: DrawRole,
+        d: String,
+        paint: Paint,
+    },
+    /// A polygon, with a space-separated `x,y` point list.
+    Polygon {
+        role: DrawRole,
+        points: String,
+        paint: Paint,
+    },
+    /// A single line segment.
+    Line {
+        role: DrawRole,
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+        stroke: String,
+        stroke_width: f64,
+        linecap_round: bool,
+        opacity: Option<f64>,
+        dash: Option<crate::sink::Dash>,
+    },
+    /// A run of text. `content` may contain `\n` for stacked lines.
     Text {
         role: DrawRole,
         x: f64,
         y: f64,
         anchor: TextAnchor,
         fill: String,
+        opacity: Option<f64>,
         content: String,
     },
 }
 
-/// A deterministic, Canvas-drawable description of a chart's frame (spec §24.6).
+impl DrawOp {
+    fn role(&self) -> DrawRole {
+        match self {
+            DrawOp::Rect { role, .. }
+            | DrawOp::Circle { role, .. }
+            | DrawOp::Path { role, .. }
+            | DrawOp::Polygon { role, .. }
+            | DrawOp::Line { role, .. }
+            | DrawOp::Text { role, .. } => *role,
+        }
+    }
+}
+
+/// A deterministic, drawable description of a chart (spec §24.6).
 ///
-/// Produced by [`DrawListBackend`] from a planned [`RenderScene`]. See the module
-/// docs for the documented equivalence limits relative to the SVG backend.
+/// Produced by [`DrawListBackend`] from a planned [`RenderScene`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct DrawList {
     pub width: f64,
@@ -145,83 +200,137 @@ impl DrawList {
 
 impl DrawOp {
     fn write_json(&self, out: &mut String) {
+        let role = self.role().as_str();
         match self {
             DrawOp::Rect {
-                role,
                 x,
                 y,
                 width,
                 height,
-                fill,
+                paint,
+                ..
             } => {
                 let _ = write!(
                     out,
-                    "{{\"op\":\"rect\",\"role\":\"{}\",\"x\":{},\"y\":{},\"width\":{},\"height\":{},\"fill\":{}}}",
-                    role.as_str(),
+                    "{{\"op\":\"rect\",\"role\":\"{}\",\"x\":{},\"y\":{},\"width\":{},\"height\":{}",
+                    role,
                     num(*x),
                     num(*y),
                     num(*width),
                     num(*height),
-                    json_string(fill),
                 );
+                paint.write_json(out);
+                out.push('}');
+            }
+            DrawOp::Circle {
+                cx, cy, r, paint, ..
+            } => {
+                let _ = write!(
+                    out,
+                    "{{\"op\":\"circle\",\"role\":\"{}\",\"cx\":{},\"cy\":{},\"r\":{}",
+                    role,
+                    num(*cx),
+                    num(*cy),
+                    num(*r),
+                );
+                paint.write_json(out);
+                out.push('}');
+            }
+            DrawOp::Path { d, paint, .. } => {
+                let _ = write!(
+                    out,
+                    "{{\"op\":\"path\",\"role\":\"{}\",\"d\":{}",
+                    role,
+                    json_string(d),
+                );
+                paint.write_json(out);
+                out.push('}');
+            }
+            DrawOp::Polygon { points, paint, .. } => {
+                let _ = write!(
+                    out,
+                    "{{\"op\":\"polygon\",\"role\":\"{}\",\"points\":{}",
+                    role,
+                    json_string(points),
+                );
+                paint.write_json(out);
+                out.push('}');
+            }
+            DrawOp::Line {
+                x1,
+                y1,
+                x2,
+                y2,
+                stroke,
+                stroke_width,
+                linecap_round,
+                opacity,
+                dash,
+                ..
+            } => {
+                let _ = write!(
+                    out,
+                    "{{\"op\":\"line\",\"role\":\"{}\",\"x1\":{},\"y1\":{},\"x2\":{},\"y2\":{},\"stroke\":{},\"strokeWidth\":{}",
+                    role,
+                    num(*x1),
+                    num(*y1),
+                    num(*x2),
+                    num(*y2),
+                    json_string(stroke),
+                    num(*stroke_width),
+                );
+                if *linecap_round {
+                    out.push_str(",\"strokeLinecap\":\"round\"");
+                }
+                if let Some(opacity) = opacity {
+                    let _ = write!(out, ",\"opacity\":{}", num(*opacity));
+                }
+                if let Some(dash) = dash {
+                    let _ = write!(out, ",\"strokeDasharray\":\"{}\"", dash.dasharray());
+                }
+                out.push('}');
             }
             DrawOp::Text {
-                role,
                 x,
                 y,
                 anchor,
                 fill,
+                opacity,
                 content,
+                ..
             } => {
                 let _ = write!(
                     out,
-                    "{{\"op\":\"text\",\"role\":\"{}\",\"x\":{},\"y\":{},\"anchor\":\"{}\",\"fill\":{},\"content\":{}}}",
-                    role.as_str(),
+                    "{{\"op\":\"text\",\"role\":\"{}\",\"x\":{},\"y\":{},\"anchor\":\"{}\",\"fill\":{}",
+                    role,
                     num(*x),
                     num(*y),
                     anchor.as_str(),
                     json_string(fill),
-                    json_string(content),
                 );
+                if let Some(opacity) = opacity {
+                    let _ = write!(out, ",\"opacity\":{}", num(*opacity));
+                }
+                let _ = write!(out, ",\"content\":{}}}", json_string(content));
             }
         }
     }
 }
 
-/// Escape a string as a JSON string literal (including surrounding quotes).
-fn json_string(value: &str) -> String {
-    let mut out = String::with_capacity(value.len() + 2);
-    out.push('"');
-    for ch in value.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                let _ = write!(out, "\\u{:04x}", c as u32);
-            }
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-    out
-}
-
-/// The draw-list backend: walks a planned scene and records frame primitives.
+/// The draw-list backend: walks a planned scene and records every primitive the
+/// SVG backend draws (spec §24.6).
 pub(super) struct DrawListBackend;
 
 impl RenderBackend for DrawListBackend {
     type Output = DrawList;
 
-    fn emit(&self, scene: &RenderScene<'_>, _diagnostics: &mut Vec<Diagnostic>) -> DrawList {
+    fn emit(&self, scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> DrawList {
         let RenderScene {
             ir,
             layout,
+            legends,
             panels,
             theme,
-            ..
         } = *scene;
         let width = ir.width as f64;
         let height = ir.height as f64;
@@ -234,7 +343,7 @@ impl RenderBackend for DrawListBackend {
             y: 0.0,
             width,
             height,
-            fill: theme.background.clone(),
+            paint: Paint::fill(theme.background.clone(), None),
         });
 
         // Chart title/subtitle/caption, using the same coordinates as the SVG
@@ -248,6 +357,7 @@ impl RenderBackend for DrawListBackend {
                 y: text_y,
                 anchor: TextAnchor::Start,
                 fill: theme.text_color.clone(),
+                opacity: None,
                 content: title.clone(),
             });
             text_y += theme.title_size + 8.0;
@@ -259,6 +369,7 @@ impl RenderBackend for DrawListBackend {
                 y: text_y,
                 anchor: TextAnchor::Start,
                 fill: theme.text_color.clone(),
+                opacity: None,
                 content: subtitle.clone(),
             });
         }
@@ -272,7 +383,7 @@ impl RenderBackend for DrawListBackend {
                 y: slot.plot.y,
                 width: slot.plot.width,
                 height: slot.plot.height,
-                fill: theme.plot_background.clone(),
+                paint: Paint::fill(theme.plot_background.clone(), None),
             });
         }
         for slot in &slots {
@@ -288,7 +399,7 @@ impl RenderBackend for DrawListBackend {
                     y: strip.y,
                     width: strip.width,
                     height: strip.height,
-                    fill: panel.theme.plot_background.clone(),
+                    paint: Paint::fill(panel.theme.plot_background.clone(), None),
                 });
                 ops.push(DrawOp::Text {
                     role: DrawRole::FacetLabel,
@@ -296,10 +407,20 @@ impl RenderBackend for DrawListBackend {
                     y: strip.y + strip.height - 4.0,
                     anchor: TextAnchor::Middle,
                     fill: panel.theme.text_color.clone(),
+                    opacity: None,
                     content: slot.label.unwrap_or_default().to_string(),
                 });
             }
         }
+
+        // Gridlines, then per-datum geometry marks, then axes/polar labels and
+        // legends — the same walk and order the SVG backend uses, recorded
+        // through the shared mark sink (spec §24.6).
+        let mut sink = DrawListSink::new();
+        super::document::paint_grid(&mut sink, &slots);
+        super::document::paint_geometries(&mut sink, panels, diagnostics);
+        super::document::paint_axes_and_legends(&mut sink, &slots, legends, layout, theme);
+        ops.extend(sink.into_ops());
 
         if let Some(caption) = &ir.caption {
             ops.push(DrawOp::Text {
@@ -308,6 +429,7 @@ impl RenderBackend for DrawListBackend {
                 y: height - 12.0,
                 anchor: TextAnchor::End,
                 fill: theme.text_color.clone(),
+                opacity: None,
                 content: caption.clone(),
             });
         }

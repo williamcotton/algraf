@@ -5,9 +5,10 @@ use algraf_data::DataValueRef;
 use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting};
-use crate::svg::{escape_attr, num, SvgWriter};
+use crate::sink::MarkSink;
+use crate::svg::num;
 
-use super::common::{opacity_attr, render_rows, DEFAULT_FILL};
+use super::common::{opacity_when_translucent, render_rows, DEFAULT_FILL};
 use super::GeometryRenderContext;
 
 // --- Geo: the polymorphic spatial mark (spec §14.x, §16.15) -----------------
@@ -20,7 +21,7 @@ const GEO_POINT_RADIUS: f64 = 2.5;
 /// LineString→polyline, Polygon/MultiPolygon→path (even-odd fill). Features are
 /// drawn in row order and rings in source order, so output is deterministic
 /// (spec §14.x).
-pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
+pub(super) fn render(sink: &mut dyn MarkSink, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
     let space = ctx.space;
     let table = ctx.table;
     let rows = ctx.rows;
@@ -43,7 +44,7 @@ pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderCon
         let fill_color = fill.resolve(table, row);
         let stroke_color = stroke.resolve(table, row);
         emit_geometry(
-            w,
+            sink,
             geometry,
             spatial,
             fill_color.as_deref(),
@@ -55,7 +56,7 @@ pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderCon
 }
 
 fn emit_geometry(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     geometry: &Geometry<f64>,
     spatial: &crate::projection::SpatialScale,
     fill: Option<&str>,
@@ -64,28 +65,28 @@ fn emit_geometry(
     alpha: f64,
 ) {
     match geometry {
-        Geometry::Point(p) => emit_geo_point(w, spatial, p.x(), p.y(), fill, alpha),
+        Geometry::Point(p) => emit_geo_point(sink, spatial, p.x(), p.y(), fill, alpha),
         Geometry::MultiPoint(mp) => {
             for p in &mp.0 {
-                emit_geo_point(w, spatial, p.x(), p.y(), fill, alpha);
+                emit_geo_point(sink, spatial, p.x(), p.y(), fill, alpha);
             }
         }
         Geometry::Line(l) => {
             let d = path_from_rings(spatial, [&LineString::from(vec![l.start, l.end])], false);
-            emit_geo_path(w, &d, None, stroke, stroke_width, alpha, false);
+            emit_geo_path(sink, &d, None, stroke, stroke_width, alpha, false);
         }
         Geometry::LineString(ls) => {
             let d = path_from_rings(spatial, [ls], false);
-            emit_geo_path(w, &d, None, stroke, stroke_width, alpha, false);
+            emit_geo_path(sink, &d, None, stroke, stroke_width, alpha, false);
         }
         Geometry::MultiLineString(mls) => {
             let d = path_from_rings(spatial, mls.0.iter(), false);
-            emit_geo_path(w, &d, None, stroke, stroke_width, alpha, false);
+            emit_geo_path(sink, &d, None, stroke, stroke_width, alpha, false);
         }
         Geometry::Polygon(poly) => {
             let rings = std::iter::once(poly.exterior()).chain(poly.interiors());
             let d = path_from_rings(spatial, rings, true);
-            emit_geo_path(w, &d, fill, stroke, stroke_width, alpha, true);
+            emit_geo_path(sink, &d, fill, stroke, stroke_width, alpha, true);
         }
         Geometry::MultiPolygon(mp) => {
             let mut d = String::new();
@@ -94,23 +95,23 @@ fn emit_geometry(
                     append_ring(spatial, ring, true, &mut d);
                 }
             }
-            emit_geo_path(w, &d, fill, stroke, stroke_width, alpha, true);
+            emit_geo_path(sink, &d, fill, stroke, stroke_width, alpha, true);
         }
         // Rect/Triangle/GeometryCollection are uncommon in feature data; outline
         // them as polygons via their boundary.
         Geometry::Rect(r) => {
             let poly = r.to_polygon();
             let d = path_from_rings(spatial, [poly.exterior()], true);
-            emit_geo_path(w, &d, fill, stroke, stroke_width, alpha, true);
+            emit_geo_path(sink, &d, fill, stroke, stroke_width, alpha, true);
         }
         Geometry::Triangle(t) => {
             let poly = t.to_polygon();
             let d = path_from_rings(spatial, [poly.exterior()], true);
-            emit_geo_path(w, &d, fill, stroke, stroke_width, alpha, true);
+            emit_geo_path(sink, &d, fill, stroke, stroke_width, alpha, true);
         }
         Geometry::GeometryCollection(gc) => {
             for g in &gc.0 {
-                emit_geometry(w, g, spatial, fill, stroke, stroke_width, alpha);
+                emit_geometry(sink, g, spatial, fill, stroke, stroke_width, alpha);
             }
         }
     }
@@ -180,7 +181,7 @@ fn append_ring(
 }
 
 fn emit_geo_point(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     spatial: &crate::projection::SpatialScale,
     lon: f64,
     lat: f64,
@@ -191,18 +192,17 @@ fn emit_geo_point(
         return;
     };
     let fill = fill.unwrap_or(DEFAULT_FILL);
-    w.line(&format!(
-        "<circle cx=\"{}\" cy=\"{}\" r=\"{}\" fill=\"{}\"{}/>",
-        num(cx),
-        num(cy),
-        num(GEO_POINT_RADIUS),
-        escape_attr(fill),
-        opacity_attr(alpha),
-    ));
+    sink.geo_point(
+        cx,
+        cy,
+        GEO_POINT_RADIUS,
+        fill,
+        opacity_when_translucent(alpha),
+    );
 }
 
 fn emit_geo_path(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     d: &str,
     fill: Option<&str>,
     stroke: Option<&str>,
@@ -213,26 +213,12 @@ fn emit_geo_path(
     if d.is_empty() {
         return;
     }
-    let fill_attr = if areal {
-        format!(" fill=\"{}\"", escape_attr(fill.unwrap_or(DEFAULT_FILL)))
-    } else {
-        " fill=\"none\"".to_string()
-    };
-    let fill_rule = if areal { " fill-rule=\"evenodd\"" } else { "" };
-    let stroke_attr = match stroke {
-        Some(color) => format!(
-            " stroke=\"{}\" stroke-width=\"{}\"",
-            escape_attr(color),
-            num(stroke_width.max(0.0)),
-        ),
-        None => String::new(),
-    };
-    w.line(&format!(
-        "<path d=\"{}\"{}{}{}{}/>",
+    sink.geo_path(
         d,
-        fill_attr,
-        fill_rule,
-        stroke_attr,
-        opacity_attr(alpha),
-    ));
+        fill,
+        stroke,
+        stroke_width,
+        opacity_when_translucent(alpha),
+        areal,
+    );
 }

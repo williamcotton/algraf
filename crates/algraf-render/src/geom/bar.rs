@@ -8,15 +8,15 @@ use crate::aes::{color_spec, number_setting, ColorSpec};
 use crate::helpers::{bar_layout, BarLayout};
 use crate::layout::Rect;
 use crate::scale::{cell_category, cell_f64};
+use crate::sink::{Fill, MarkSink, Paint};
 use crate::space::{Polar, ScaledSpace, THETA_END, THETA_START};
-use crate::svg::{escape_attr, num, SvgWriter};
 
-use super::common::{render_rows, stroke_attrs, DEFAULT_FILL};
+use super::common::{render_rows, stroke_style, DEFAULT_FILL};
 use super::polar::annular_segment_path;
 use super::GeometryRenderContext;
 
 pub(super) fn render(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     geo: &GeometryIr,
     ctx: GeometryRenderContext<'_>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -36,7 +36,7 @@ pub(super) fn render(
     // Polar bars draw wedges/annular segments instead of rectangles (spec §16.16).
     if let Some(polar) = space.polar() {
         render_polar(
-            w,
+            sink,
             geo,
             space,
             table,
@@ -103,7 +103,7 @@ pub(super) fn render(
                 continue;
             };
             emit_bar(
-                w,
+                sink,
                 cx - bw / 2.0,
                 bw,
                 y0,
@@ -127,7 +127,7 @@ pub(super) fn render(
                 continue;
             };
             emit_bar(
-                w,
+                sink,
                 cx - bw / 2.0,
                 bw,
                 baseline,
@@ -154,7 +154,7 @@ pub(super) fn render(
 ///   radius (`innerRadius` cuts a donut hole).
 #[allow(clippy::too_many_arguments)]
 fn render_polar(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     geo: &GeometryIr,
     space: &ScaledSpace,
     table: &dyn Table,
@@ -169,7 +169,7 @@ fn render_polar(
 ) {
     if space.polar_theta_is_band() {
         render_polar_coxcomb(
-            w,
+            sink,
             space,
             table,
             rows,
@@ -184,7 +184,7 @@ fn render_polar(
         );
     } else {
         render_polar_pie(
-            w,
+            sink,
             space,
             table,
             rows,
@@ -202,7 +202,7 @@ fn render_polar(
 /// Coxcomb / wind rose: category → angular wedge, value → radius.
 #[allow(clippy::too_many_arguments)]
 fn render_polar_coxcomb(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     space: &ScaledSpace,
     table: &dyn Table,
     rows: Option<&[usize]>,
@@ -266,14 +266,14 @@ fn render_polar_coxcomb(
             continue;
         };
         let d = annular_segment_path(polar, center - bw / 2.0, center + bw / 2.0, r0, r1);
-        emit_polar_path(w, &d, fill, stroke, stroke_width, table, row, alpha);
+        emit_polar_path(sink, &d, fill, stroke, stroke_width, table, row, alpha);
     }
 }
 
 /// Pie / donut: value → angular wedge proportional to the total, full radius.
 #[allow(clippy::too_many_arguments)]
 fn render_polar_pie(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     space: &ScaledSpace,
     table: &dyn Table,
     rows: Option<&[usize]>,
@@ -321,13 +321,13 @@ fn render_polar_pie(
             .map(|(start, width)| (start, start + width))
             .unwrap_or((polar.r_inner, polar.r_outer));
         let d = annular_segment_path(polar, a0, a1, r0, r1);
-        emit_polar_path(w, &d, fill, stroke, stroke_width, table, row, alpha);
+        emit_polar_path(sink, &d, fill, stroke, stroke_width, table, row, alpha);
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn emit_polar_path(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     d: &str,
     fill: &ColorSpec,
     stroke: &ColorSpec,
@@ -339,13 +339,14 @@ fn emit_polar_path(
     let color = fill
         .resolve(table, row)
         .unwrap_or_else(|| DEFAULT_FILL.to_string());
-    w.line(&format!(
-        "<path d=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
+    sink.path(
         d,
-        escape_attr(&color),
-        stroke_attrs(stroke, stroke_width, table, row),
-        num(alpha),
-    ));
+        &Paint {
+            fill: Fill::Color(color),
+            stroke: stroke_style(stroke, stroke_width, table, row),
+            opacity: Some(alpha),
+        },
+    );
 }
 
 fn fill_totals(
@@ -367,7 +368,7 @@ fn fill_totals(
 
 #[allow(clippy::too_many_arguments)]
 fn emit_bar(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     x: f64,
     width: f64,
     y_a: f64,
@@ -385,14 +386,15 @@ fn emit_bar(
     let color = fill
         .resolve(table, row)
         .unwrap_or_else(|| DEFAULT_FILL.to_string());
-    w.line(&format!(
-        "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
-        num(x),
-        num(top),
-        num(width),
-        num(bottom - top),
-        escape_attr(&color),
-        stroke_attrs(stroke, stroke_width, table, row),
-        num(alpha),
-    ));
+    sink.rect(
+        x,
+        top,
+        width,
+        bottom - top,
+        &Paint {
+            fill: Fill::Color(color),
+            stroke: stroke_style(stroke, stroke_width, table, row),
+            opacity: Some(alpha),
+        },
+    );
 }

@@ -5,12 +5,13 @@ use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting, number_spec, ColorSpec, NumberSpec};
 use crate::helpers::{bool_setting, number_setting_opt, string_setting};
+use crate::sink::{Fill, MarkSink, Paint, Stroke};
 use crate::stats;
-use crate::svg::{escape_attr, num, SvgWriter};
+use crate::svg::num;
 
 use super::common::{
     axis_is_continuousish, constant_or, grouped_rows, grouped_rows_by_color, pos, render_rows,
-    stroke_attrs, DEFAULT_FILL, DEFAULT_STROKE, DEFAULT_STROKE_WIDTH_RANGE,
+    stroke_style, DEFAULT_FILL, DEFAULT_STROKE, DEFAULT_STROKE_WIDTH_RANGE,
 };
 use super::GeometryRenderContext;
 
@@ -19,7 +20,7 @@ use super::GeometryRenderContext;
 /// mapping; a mapped width is drawn per segment from its endpoints' scaled
 /// values (spec §13.8).
 pub(super) fn render_polyline(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     geo: &GeometryIr,
     ctx: GeometryRenderContext<'_>,
     sort: bool,
@@ -85,14 +86,17 @@ pub(super) fn render_polyline(
             }
             // A closed radar polygon for `Line`; `Path` stays open.
             let close = if sort { "Z" } else { "" };
-            w.line(&format!(
-                "<path d=\"{}{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\" />",
-                d.trim_end(),
-                close,
-                escape_attr(&group_color),
-                num(const_width),
-                num(alpha),
-            ));
+            sink.path(
+                &format!("{}{}", d.trim_end(), close),
+                &Paint {
+                    fill: Fill::None,
+                    stroke: Stroke::Solid {
+                        color: group_color,
+                        width: const_width,
+                    },
+                    opacity: Some(alpha),
+                },
+            );
         }
         return;
     }
@@ -124,13 +128,17 @@ pub(super) fn render_polyline(
                     let cmd = if i == 0 { 'M' } else { 'L' };
                     let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
                 }
-                w.line(&format!(
-                    "<path d=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\" />",
+                sink.path(
                     d.trim_end(),
-                    escape_attr(&group_color),
-                    num(*width),
-                    num(alpha),
-                ));
+                    &Paint {
+                        fill: Fill::None,
+                        stroke: Stroke::Solid {
+                            color: group_color.clone(),
+                            width: *width,
+                        },
+                        opacity: Some(alpha),
+                    },
+                );
             }
             // Mapped width + taper: a single filled polygon whose half-width at
             // each vertex is the scaled strokeWidth (spec §14.x).
@@ -140,12 +148,14 @@ pub(super) fn render_polyline(
                     .iter()
                     .map(|(_, _, r)| width.at(table, *r, theme.line_width).max(0.0) / 2.0)
                     .collect();
-                w.line(&format!(
-                    "<path d=\"{}\" fill=\"{}\" stroke=\"none\" opacity=\"{}\" />",
-                    tapered_ribbon_path(&pts, &halves),
-                    escape_attr(&group_color),
-                    num(alpha),
-                ));
+                sink.path(
+                    &tapered_ribbon_path(&pts, &halves),
+                    &Paint {
+                        fill: Fill::Color(group_color.clone()),
+                        stroke: Stroke::None,
+                        opacity: Some(alpha),
+                    },
+                );
             }
             // Mapped width: one segment per adjacent pair, each with a width
             // averaged from its endpoints' scaled values (spec §13.8).
@@ -159,16 +169,7 @@ pub(super) fn render_polyline(
                     let color = stroke
                         .resolve(table, r0)
                         .unwrap_or_else(|| group_color.clone());
-                    w.line(&format!(
-                        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\" stroke-linecap=\"round\" opacity=\"{}\" />",
-                        num(x0),
-                        num(y0),
-                        num(x1),
-                        num(y1),
-                        escape_attr(&color),
-                        num(seg_width.max(0.0)),
-                        num(alpha),
-                    ));
+                    sink.line(x0, y0, x1, y1, &color, seg_width, true, Some(alpha), None);
                 }
             }
         }
@@ -250,7 +251,7 @@ fn vertex_offsets(points: &[(f64, f64)]) -> Vec<(f64, f64)> {
 }
 
 pub(super) fn render_smooth(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     geo: &GeometryIr,
     ctx: GeometryRenderContext<'_>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -325,12 +326,14 @@ pub(super) fn render_smooth(
                 let _ = write!(d, "L{} {} ", num(p.x), num(p.y + options.z * p.se));
             }
             d.push('Z');
-            w.line(&format!(
-                "<path d=\"{}\" fill=\"{}\" stroke=\"none\" opacity=\"{}\" />",
+            sink.path(
                 d.trim_end(),
-                escape_attr(&band_color),
-                num(0.2 * alpha),
-            ));
+                &Paint {
+                    fill: Fill::Color(band_color),
+                    stroke: Stroke::None,
+                    opacity: Some(0.2 * alpha),
+                },
+            );
         }
 
         let mut d = String::new();
@@ -338,17 +341,25 @@ pub(super) fn render_smooth(
             let cmd = if i == 0 { 'M' } else { 'L' };
             let _ = write!(d, "{cmd}{} {} ", num(p.x), num(p.y));
         }
-        w.line(&format!(
-            "<path d=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\" />",
+        sink.path(
             d.trim_end(),
-            escape_attr(&color),
-            num(width),
-            num(alpha),
-        ));
+            &Paint {
+                fill: Fill::None,
+                stroke: Stroke::Solid {
+                    color: color.clone(),
+                    width,
+                },
+                opacity: Some(alpha),
+            },
+        );
     }
 }
 
-pub(super) fn render_ribbon(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
+pub(super) fn render_ribbon(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    ctx: GeometryRenderContext<'_>,
+) {
     let space = ctx.space;
     let table = ctx.table;
     let rows = ctx.rows;
@@ -392,18 +403,23 @@ pub(super) fn render_ribbon(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRe
         let fill_color = fill
             .resolve(table, first_row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
-        w.line(&format!(
-            "<path d=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
+        sink.path(
             d.trim_end(),
-            escape_attr(&fill_color),
-            stroke_attrs(&stroke, stroke_width, table, first_row),
-            num(alpha),
-        ));
+            &Paint {
+                fill: Fill::Color(fill_color),
+                stroke: stroke_style(&stroke, stroke_width, table, first_row),
+                opacity: Some(alpha),
+            },
+        );
     }
 }
 
 /// Render an `Area` geometry: fill between y and a baseline (spec §14.14).
-pub(super) fn render_area(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
+pub(super) fn render_area(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    ctx: GeometryRenderContext<'_>,
+) {
     let space = ctx.space;
     let table = ctx.table;
     let rows = ctx.rows;
@@ -451,13 +467,14 @@ pub(super) fn render_area(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
             let fill_color = fill
                 .resolve(table, first_row)
                 .unwrap_or_else(|| DEFAULT_FILL.to_string());
-            w.line(&format!(
-                "<path d=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
+            sink.path(
                 d.trim_end(),
-                escape_attr(&fill_color),
-                stroke_attrs(&stroke, stroke_width, table, first_row),
-                num(alpha),
-            ));
+                &Paint {
+                    fill: Fill::Color(fill_color),
+                    stroke: stroke_style(&stroke, stroke_width, table, first_row),
+                    opacity: Some(alpha),
+                },
+            );
         }
         return;
     }
@@ -498,13 +515,14 @@ pub(super) fn render_area(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
         let fill_color = fill
             .resolve(table, first_row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
-        w.line(&format!(
-            "<path d=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
+        sink.path(
             d.trim_end(),
-            escape_attr(&fill_color),
-            stroke_attrs(&stroke, stroke_width, table, first_row),
-            num(alpha),
-        ));
+            &Paint {
+                fill: Fill::Color(fill_color),
+                stroke: stroke_style(&stroke, stroke_width, table, first_row),
+                opacity: Some(alpha),
+            },
+        );
     }
 }
 

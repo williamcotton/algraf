@@ -4,7 +4,7 @@
 //! v0.24 backend contract.
 
 use algraf_data::{read_csv_str, Table};
-use algraf_render::{render, render_draw_list, DrawList, DrawOp, DrawRole, Theme};
+use algraf_render::{render, render_draw_list, DrawList, DrawOp, DrawRole, Fill, Theme};
 use algraf_semantics::analyze;
 use algraf_syntax::parse;
 
@@ -28,8 +28,14 @@ fn rects(list: &DrawList, role: DrawRole) -> Vec<(f64, f64, f64, f64, String)> {
                 y,
                 width,
                 height,
-                fill,
-            } if *r == role => Some((*x, *y, *width, *height, fill.clone())),
+                paint,
+            } if *r == role => {
+                let fill = match &paint.fill {
+                    Fill::Color(c) => c.clone(),
+                    Fill::None => "none".to_string(),
+                };
+                Some((*x, *y, *width, *height, fill))
+            }
             _ => None,
         })
         .collect()

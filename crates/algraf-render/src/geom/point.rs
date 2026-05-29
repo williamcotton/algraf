@@ -4,13 +4,14 @@ use algraf_semantics::{GeometryIr, PropertyKey, SettingValue};
 
 use crate::aes::{color_spec, number_setting, number_spec};
 use crate::scale::cell_category;
-use crate::svg::{escape_attr, num, SvgWriter};
+use crate::sink::{MarkSink, Paint};
+use crate::svg::num;
 
 use super::common::{render_rows, DEFAULT_FILL, DEFAULT_SIZE_RANGE};
 use super::GeometryRenderContext;
 
 pub(super) fn render(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     geo: &GeometryIr,
     ctx: GeometryRenderContext<'_>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -40,7 +41,7 @@ pub(super) fn render(
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
         let s = size.at(table, row, theme.point_size);
-        emit_point_shape(w, shape.resolve(table, row), cx, cy, s, &color, alpha);
+        emit_point_shape(sink, shape.resolve(table, row), cx, cy, s, &color, alpha);
     }
 }
 
@@ -125,7 +126,7 @@ fn shape_spec(geo: &GeometryIr, table: &dyn Table, diagnostics: &mut Vec<Diagnos
 }
 
 fn emit_point_shape(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     shape: PointShape,
     cx: f64,
     cy: f64,
@@ -133,26 +134,12 @@ fn emit_point_shape(
     color: &str,
     alpha: f64,
 ) {
+    let paint = Paint::fill(color, Some(alpha));
     match shape {
-        PointShape::Circle => w.line(&format!(
-            "<circle cx=\"{}\" cy=\"{}\" r=\"{}\" fill=\"{}\" opacity=\"{}\" />",
-            num(cx),
-            num(cy),
-            num(size),
-            escape_attr(color),
-            num(alpha),
-        )),
+        PointShape::Circle => sink.circle(cx, cy, size, &paint),
         PointShape::Square => {
             let side = size * 2.0;
-            w.line(&format!(
-                "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" opacity=\"{}\" />",
-                num(cx - size),
-                num(cy - size),
-                num(side),
-                num(side),
-                escape_attr(color),
-                num(alpha),
-            ));
+            sink.rect(cx - size, cy - size, side, side, &paint);
         }
         PointShape::Triangle => {
             let d = format!(
@@ -164,12 +151,7 @@ fn emit_point_shape(
                 num(cx - size),
                 num(cy + size)
             );
-            w.line(&format!(
-                "<path d=\"{}\" fill=\"{}\" opacity=\"{}\" />",
-                d,
-                escape_attr(color),
-                num(alpha),
-            ));
+            sink.path(&d, &paint);
         }
         PointShape::Diamond => {
             let d = format!(
@@ -183,12 +165,7 @@ fn emit_point_shape(
                 num(cx - size),
                 num(cy)
             );
-            w.line(&format!(
-                "<path d=\"{}\" fill=\"{}\" opacity=\"{}\" />",
-                d,
-                escape_attr(color),
-                num(alpha),
-            ));
+            sink.path(&d, &paint);
         }
     }
 }

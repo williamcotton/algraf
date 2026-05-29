@@ -93,11 +93,6 @@ impl SvgWriter {
         }
     }
 
-    /// Length of the underlying buffer, for change detection across calls.
-    pub fn byte_len(&self) -> usize {
-        self.buf.len()
-    }
-
     fn indent(&mut self) {
         for _ in 0..self.depth {
             self.buf.push_str("  ");
@@ -138,15 +133,6 @@ impl SvgWriter {
         } else {
             let _ = writeln!(self.buf, "<g {attrs}>");
         }
-        self.depth += 1;
-    }
-
-    /// Open a group with escaped structured attributes.
-    pub fn open_group_attrs(&mut self, attrs: &[SvgAttr]) {
-        self.indent();
-        self.buf.push_str("<g");
-        self.write_attrs(attrs);
-        self.buf.push_str(">\n");
         self.depth += 1;
     }
 

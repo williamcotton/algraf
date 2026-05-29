@@ -6,7 +6,7 @@ mod error;
 mod png;
 
 use std::collections::HashMap;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -17,7 +17,8 @@ use algraf_driver::{
     PreparationReport, PrepareOptions, ReportPhase, SourceInput,
 };
 use algraf_render::{
-    render_draw_list_with_tables, render_with_tables, svg_num, Layout, Rect, Theme,
+    render_draw_list_with_tables, render_raster_with_tables, render_with_tables, svg_num, Layout,
+    Rect, Theme,
 };
 use algraf_semantics::{
     analyze, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
@@ -65,8 +66,11 @@ enum Command {
 enum RenderFormat {
     /// Deterministic SVG (the canonical backend). `.png` outputs rasterize it.
     Svg,
-    /// A serializable, Canvas-drawable JSON draw list of frame primitives.
+    /// A serializable, Canvas-drawable JSON draw list of scene primitives.
     DrawList,
+    /// A PNG rasterized directly from the draw-list scene model (no SVG, no
+    /// system fonts). Shapes only; text glyphs are not rendered (spec §24.6).
+    Raster,
 }
 
 /// Stream/data format override for caller-provided primary data.
@@ -100,11 +104,13 @@ struct RenderArgs {
     /// Inline source text. Mutually exclusive with a source file or `-`.
     #[arg(short = 'e', long = "eval", conflicts_with = "input")]
     eval: Option<String>,
-    /// Output path. With `--format svg`, `.png` paths rasterize to PNG and all
-    /// other paths write SVG; with `--format draw-list`, paths write JSON.
+    /// Output path. With `--format svg`, `.png` paths rasterize the SVG and all
+    /// other paths write SVG; with `--format draw-list`, paths write JSON; with
+    /// `--format raster`, paths write a PNG drawn from the scene model.
     #[arg(long)]
     output: Option<PathBuf>,
-    /// Output backend: `svg` (default) or `draw-list` JSON (spec §24.6).
+    /// Output backend: `svg` (default), `draw-list` JSON, or `raster` PNG drawn
+    /// from the scene model (spec §24.6).
     #[arg(long, value_enum, default_value_t = RenderFormat::Svg)]
     format: RenderFormat,
     #[arg(long)]
@@ -342,21 +348,40 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
     }
 
     for (idx, output) in outputs.into_iter().enumerate() {
-        match chart_output_path(args.output.as_deref(), idx, multi) {
-            // PNG rasterization only applies to SVG output.
-            Some(path) if args.format == RenderFormat::Svg && is_png_path(&path) => {
-                let png_options =
-                    png::PngOptions::new(args.png_scale, args.png_dpi).map_err(CliError::Usage)?;
-                png::write_png(output.as_bytes(), &path, png_options).map_err(|e| {
-                    CliError::Io(format!("failed to write PNG {}: {e}", path.display()))
-                })?;
-            }
-            Some(path) => std::fs::write(&path, output)
-                .map_err(|e| CliError::Io(format!("failed to write {}: {e}", path.display())))?,
-            None => print!("{output}"),
+        let path = chart_output_path(args.output.as_deref(), idx, multi);
+        match output {
+            // Render-model raster (and any future binary backend) writes bytes.
+            RenderOutput::Bytes(bytes) => match path {
+                Some(path) => std::fs::write(&path, bytes).map_err(|e| {
+                    CliError::Io(format!("failed to write {}: {e}", path.display()))
+                })?,
+                None => std::io::stdout()
+                    .write_all(&bytes)
+                    .map_err(|e| CliError::Io(format!("failed to write stdout: {e}")))?,
+            },
+            RenderOutput::Text(text) => match path {
+                // The canonical PNG path rasterizes the SVG backend's output.
+                Some(path) if args.format == RenderFormat::Svg && is_png_path(&path) => {
+                    let png_options = png::PngOptions::new(args.png_scale, args.png_dpi)
+                        .map_err(CliError::Usage)?;
+                    png::write_png(text.as_bytes(), &path, png_options).map_err(|e| {
+                        CliError::Io(format!("failed to write PNG {}: {e}", path.display()))
+                    })?;
+                }
+                Some(path) => std::fs::write(&path, text).map_err(|e| {
+                    CliError::Io(format!("failed to write {}: {e}", path.display()))
+                })?,
+                None => print!("{text}"),
+            },
         }
     }
     Ok(())
+}
+
+/// One rendered chart's output: text (SVG/JSON) or binary (raster PNG).
+enum RenderOutput {
+    Text(String),
+    Bytes(Vec<u8>),
 }
 
 /// Resolve, analyze, and render one chart to the requested output format.
@@ -367,10 +392,17 @@ fn render_chart_output(
     source: &str,
     label: &str,
     multi: bool,
-) -> Result<String, CliError> {
+) -> Result<RenderOutput, CliError> {
     match args.format {
-        RenderFormat::Svg => render_chart_svg(chart, args, input, source, label, multi),
-        RenderFormat::DrawList => render_chart_draw_list(chart, args, input, source, label, multi),
+        RenderFormat::Svg => {
+            render_chart_svg(chart, args, input, source, label, multi).map(RenderOutput::Text)
+        }
+        RenderFormat::DrawList => {
+            render_chart_draw_list(chart, args, input, source, label, multi).map(RenderOutput::Text)
+        }
+        RenderFormat::Raster => {
+            render_chart_raster(chart, args, input, source, label, multi).map(RenderOutput::Bytes)
+        }
     }
 }
 
@@ -479,6 +511,51 @@ fn render_chart_draw_list(
         return Err(CliError::Diagnostics);
     }
     Ok(result.draw_list.to_json())
+}
+
+/// Render one chart block to PNG bytes through the render-model raster backend
+/// (spec §24.6). Honors `--png-scale`/`--png-dpi` like the SVG PNG path.
+fn render_chart_raster(
+    chart: &ChartBlock,
+    args: &RenderArgs,
+    input: &SourceInput,
+    source: &str,
+    label: &str,
+    multi: bool,
+) -> Result<Vec<u8>, CliError> {
+    let png_options =
+        png::PngOptions::new(args.png_scale, args.png_dpi).map_err(CliError::Usage)?;
+    let RenderInputs {
+        ir,
+        frame,
+        named_frames,
+        theme,
+        cli_theme_override,
+        mut report,
+    } = prepare_render_inputs(chart, args, input, source, label, multi)?;
+
+    let result = render_raster_with_tables(
+        &ir,
+        &frame,
+        &named_frames,
+        &theme,
+        cli_theme_override.as_deref(),
+        png_options.scale(),
+    )
+    .map_err(|e| CliError::Internal(e.to_string()))?;
+    report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());
+    let render_diags = report.diagnostics();
+    if !render_diags.is_empty() {
+        eprint!(
+            "{}",
+            diagnostics::render_human(source, label, &render_diags)
+        );
+    }
+    if diagnostics::has_blocking(&render_diags, args.strict) {
+        return Err(CliError::Diagnostics);
+    }
+    png::encode_pixmap(result.image.pixmap(), png_options.dpi())
+        .map_err(|e| CliError::Internal(format!("PNG encoding failed: {e}")))
 }
 
 /// Shared preparation for both render backends: load data, analyze, resolve the

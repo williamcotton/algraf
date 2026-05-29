@@ -1,14 +1,18 @@
 use algraf_semantics::{GeometryIr, PolarThetaIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting};
+use crate::sink::{Fill, MarkSink, Paint};
 use crate::space::ScaledSpace;
-use crate::svg::{escape_attr, num, SvgWriter};
 
-use super::common::{pos_bound, render_rows, stroke_attrs, DEFAULT_FILL};
+use super::common::{pos_bound, render_rows, stroke_style, DEFAULT_FILL};
 use super::polar::annular_segment_path;
 use super::GeometryRenderContext;
 
-pub(super) fn render_rect(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
+pub(super) fn render_rect(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    ctx: GeometryRenderContext<'_>,
+) {
     let space = ctx.space;
     let table = ctx.table;
     let rows = ctx.rows;
@@ -19,7 +23,7 @@ pub(super) fn render_rect(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     if space.is_polar() {
         render_rect_polar(
-            w,
+            sink,
             geo,
             space,
             table,
@@ -56,20 +60,25 @@ pub(super) fn render_rect(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
         let color = fill
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
-        w.line(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
-            num(x),
-            num(y),
-            num(width),
-            num(height),
-            escape_attr(&color),
-            stroke_attrs(&stroke, stroke_width, table, row),
-            num(alpha),
-        ));
+        sink.rect(
+            x,
+            y,
+            width,
+            height,
+            &Paint {
+                fill: Fill::Color(color),
+                stroke: stroke_style(&stroke, stroke_width, table, row),
+                opacity: Some(alpha),
+            },
+        );
     }
 }
 
-pub(super) fn render_tile(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
+pub(super) fn render_tile(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    ctx: GeometryRenderContext<'_>,
+) {
     let space = ctx.space;
     let table = ctx.table;
     let rows = ctx.rows;
@@ -97,13 +106,14 @@ pub(super) fn render_tile(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
                 r_start,
                 r_start + r_w,
             );
-            w.line(&format!(
-                "<path d=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
-                d,
-                escape_attr(&color),
-                stroke_attrs(&stroke, stroke_width, table, row),
-                num(alpha),
-            ));
+            sink.path(
+                &d,
+                &Paint {
+                    fill: Fill::Color(color),
+                    stroke: stroke_style(&stroke, stroke_width, table, row),
+                    opacity: Some(alpha),
+                },
+            );
             continue;
         }
         let (Some(cx), Some(bw), Some(cy), Some(bh)) = (
@@ -117,16 +127,17 @@ pub(super) fn render_tile(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
         let color = fill
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
-        w.line(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
-            num(cx - bw / 2.0),
-            num(cy - bh / 2.0),
-            num(bw),
-            num(bh),
-            escape_attr(&color),
-            stroke_attrs(&stroke, stroke_width, table, row),
-            num(alpha),
-        ));
+        sink.rect(
+            cx - bw / 2.0,
+            cy - bh / 2.0,
+            bw,
+            bh,
+            &Paint {
+                fill: Fill::Color(color),
+                stroke: stroke_style(&stroke, stroke_width, table, row),
+                opacity: Some(alpha),
+            },
+        );
     }
 }
 
@@ -134,7 +145,7 @@ pub(super) fn render_tile(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRend
 /// the `x` bounds map to angles and the `y` bounds to radii (spec §16.16).
 #[allow(clippy::too_many_arguments)]
 fn render_rect_polar(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     geo: &GeometryIr,
     space: &ScaledSpace,
     table: &dyn algraf_data::Table,
@@ -185,12 +196,13 @@ fn render_rect_polar(
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
         let d = annular_segment_path(polar, a0, a1, r0.min(r1), r0.max(r1));
-        w.line(&format!(
-            "<path d=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
-            d,
-            escape_attr(&color),
-            stroke_attrs(stroke, stroke_width, table, row),
-            num(alpha),
-        ));
+        sink.path(
+            &d,
+            &Paint {
+                fill: Fill::Color(color),
+                stroke: stroke_style(stroke, stroke_width, table, row),
+                opacity: Some(alpha),
+            },
+        );
     }
 }

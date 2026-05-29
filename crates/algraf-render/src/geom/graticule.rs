@@ -13,16 +13,17 @@ use algraf_semantics::{GeometryIr, PropertyKey, SettingValue};
 
 use crate::aes::number_setting;
 use crate::projection::SpatialScale;
-use crate::svg::{escape_attr, num, SvgWriter};
+use crate::sink::MarkSink;
+use crate::svg::num;
 
-use super::common::opacity_attr;
+use super::common::opacity_when_translucent;
 use super::GeometryRenderContext;
 
 /// Latitude clamp keeping samples away from projection singularities at the poles.
 const LAT_LIMIT: f64 = 89.5;
 
 /// Render the graticule for the active spatial space.
-pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
+pub(super) fn render(sink: &mut dyn MarkSink, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
     let Some(spatial) = ctx.space.spatial.as_ref() else {
         return;
     };
@@ -51,13 +52,7 @@ pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderCon
     if d.is_empty() {
         return;
     }
-    w.line(&format!(
-        "<path d=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\"{}/>",
-        d,
-        escape_attr(&stroke),
-        num(stroke_width.max(0.0)),
-        opacity_attr(alpha),
-    ));
+    sink.graticule_path(&d, &stroke, stroke_width, opacity_when_translucent(alpha));
 }
 
 /// Read a constant `stroke:` color setting, if present.

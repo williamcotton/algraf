@@ -31,6 +31,20 @@ impl PngOptions {
 
         Ok(PngOptions { scale, dpi })
     }
+
+    pub fn scale(&self) -> f32 {
+        self.scale
+    }
+
+    pub fn dpi(&self) -> u32 {
+        self.dpi
+    }
+}
+
+/// Encode an already-rasterized pixmap (e.g. from the render-model raster
+/// backend) as PNG bytes with the same DPI metadata as the SVG path.
+pub fn encode_pixmap(pixmap: &Pixmap, dpi: u32) -> Result<Vec<u8>, ::png::EncodingError> {
+    encode_png(pixmap, dpi)
 }
 
 /// Rasterize an SVG document and save it as a PNG file.

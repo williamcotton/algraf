@@ -1,13 +1,13 @@
 use std::collections::HashMap;
-use std::fmt::Write;
 
 use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_for_row, number_setting};
 use crate::helpers::{bool_setting, string_setting};
 use crate::layout::Rect;
+use crate::render::TextAnchor;
 use crate::scale::cell_category;
-use crate::svg::{escape_attr, escape_text, num, SvgWriter};
+use crate::sink::{MarkSink, TextRun};
 
 use super::common::{any_mapped, pos_center, render_rows};
 use super::GeometryRenderContext;
@@ -26,7 +26,7 @@ struct PlacedLabel {
 /// `dx`/`dy` may be literals or column mappings (resolved per row). With
 /// `declutter: true`, labels that overlap vertically within a shared x column
 /// are spread apart before emission (spec §14.16).
-pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
+pub(super) fn render(sink: &mut dyn MarkSink, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
     let space = ctx.space;
     let table = ctx.table;
     let rows = ctx.rows;
@@ -36,7 +36,11 @@ pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderCon
     let fill = color_spec(geo, PropertyKey::Fill, table, scales);
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     let size = number_setting(geo, PropertyKey::Size, theme.font_size);
-    let anchor = string_setting(geo, PropertyKey::Anchor).unwrap_or_else(|| "middle".to_string());
+    let anchor = match string_setting(geo, PropertyKey::Anchor).as_deref() {
+        Some("start") => TextAnchor::Start,
+        Some("end") => TextAnchor::End,
+        _ => TextAnchor::Middle,
+    };
     let declutter = bool_setting(geo, PropertyKey::Declutter, false);
 
     let label_mapping = geo
@@ -108,51 +112,30 @@ pub(super) fn render(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderCon
 
     // Phase 3: emit in collection (row) order for deterministic output.
     for label in &labels {
-        emit_label(w, label, &anchor, &theme.font_family, alpha);
+        emit_label(sink, label, anchor, &theme.font_family, alpha);
     }
 }
 
-fn emit_label(w: &mut SvgWriter, label: &PlacedLabel, anchor: &str, font_family: &str, alpha: f64) {
-    let x = num(label.x);
-    let y = num(label.y);
-    let size = num(label.size);
-    let alpha = num(alpha);
-    let anchor = escape_attr(anchor);
-    let font_family = escape_attr(font_family);
-    let color = escape_attr(&label.color);
-
-    if !label.text.contains('\n') {
-        w.line(&format!(
-            "<text x=\"{}\" y=\"{}\" text-anchor=\"{}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\" opacity=\"{}\">{}</text>",
-            x,
-            y,
-            anchor,
-            font_family,
-            size,
-            color,
-            alpha,
-            escape_text(&label.text),
-        ));
-        return;
-    }
-
-    let mut tspans = String::new();
-    for (i, line) in label.text.split('\n').enumerate() {
-        let line = line.strip_suffix('\r').unwrap_or(line);
-        let dy = if i == 0 { "0" } else { "1.2em" };
-        write!(
-            tspans,
-            "<tspan x=\"{}\" dy=\"{}\">{}</tspan>",
-            x,
-            dy,
-            escape_text(line),
-        )
-        .expect("writing to String cannot fail");
-    }
-    w.line(&format!(
-        "<text x=\"{}\" y=\"{}\" text-anchor=\"{}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\" opacity=\"{}\">{}</text>",
-        x, y, anchor, font_family, size, color, alpha, tspans,
-    ));
+fn emit_label(
+    sink: &mut dyn MarkSink,
+    label: &PlacedLabel,
+    anchor: TextAnchor,
+    font_family: &str,
+    alpha: f64,
+) {
+    // The sink stacks `\n`-separated content into tspans, matching the SVG
+    // backend's multiline behavior (spec §14.16).
+    sink.text(&TextRun {
+        x: label.x,
+        y: label.y,
+        anchor,
+        rotate: None,
+        font_family,
+        font_size: label.size,
+        fill: &label.color,
+        opacity: Some(alpha),
+        content: &label.text,
+    });
 }
 
 /// Spread labels that overlap vertically apart, grouped by shared x column

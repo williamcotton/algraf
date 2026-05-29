@@ -17,14 +17,13 @@ rather than invent its own scene walk.
 
 ## What WebGL needs beyond Canvas and raster
 
-1. **A primitive draw list rich enough to include per-datum marks.** The v0.24
-   draw list covers only the chart frame (background, plot panels, facet strips,
-   titles). WebGL is only worth it when there are many marks, so the first
-   prerequisite is promoting geometry emission (`crate::geom`) and guide emission
-   (`crate::guide`) to write structured primitives — rectangles, circles, line
-   strips, polygons, and text runs — into the draw list instead of raw SVG
-   strings. This is the same prerequisite the Canvas/raster backends need for
-   full parity, and it is the largest single piece of work.
+1. **A primitive draw list rich enough to include per-datum marks.** ✅ *Satisfied
+   in v0.29.* Geometry emission (`crate::geom`) and guide emission
+   (`crate::guide`) now write structured primitives — rectangles, circles, paths,
+   polygons, lines, and text runs — through a shared mark sink (`crate::sink`)
+   instead of raw SVG strings, so the draw list carries a per-datum op for every
+   mark plus all guides (spec §24.6). The render-model raster backend already
+   consumes this list. A WebGL backend would consume the same per-mark list.
 
 2. **Batched primitives, not per-element calls.** SVG and Canvas emit one element
    or one call per mark. WebGL wants vertex buffers: all points in one buffer, all
@@ -66,8 +65,11 @@ left to the SVG/overlay path.
 
 ## Recommendation
 
-WebGL is feasible at the existing seam but is gated on the per-mark draw list
-(item 1 above), which is also the prerequisite for full Canvas and raster parity.
-Sequence the per-mark draw list first; treat WebGL as an optional, feature-gated
-client that consumes a batched form of that list. Do not add a GL dependency to
-the core crates.
+WebGL is feasible at the existing seam. Its chief prerequisite — a per-mark draw
+list (item 1) — is satisfied as of v0.29, and the render-model raster backend
+proves a non-SVG, non-Canvas backend can be driven entirely from that list. The
+remaining WebGL-specific work is items 2–5: a batched view of the per-mark list
+(primitives grouped by type/style), glyph-atlas or overlay text, a clip-space +
+DPR transform, and an optional feature-gated host runtime. Treat WebGL as an
+optional client that consumes a batched form of the existing draw list. Do not
+add a GL dependency to the core crates.

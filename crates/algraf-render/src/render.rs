@@ -8,11 +8,12 @@
 //!    derived-table execution, guide/legend discovery, layout and panel planning,
 //!    spatial projection fitting, and scale training all happen here. No output
 //!    bytes are written in this half.
-//! 2. **Emission** hands the scene to a [`RenderBackend`]. Two backends consume
-//!    the same scene: [`SvgBackend`] ([`document`], geometry emission, guide
-//!    emission, final SVG assembly) produces deterministic SVG, and
-//!    [`DrawListBackend`](draw_list::DrawListBackend) records a serializable
-//!    [`DrawList`] of Canvas-drawable frame primitives.
+//! 2. **Emission** hands the scene to a [`RenderBackend`]. Three backends consume
+//!    the same scene through one shared mark sink ([`crate::sink`]):
+//!    [`SvgBackend`] produces deterministic SVG, [`DrawListBackend`] records a
+//!    complete serializable [`DrawList`], and [`RasterBackend`] draws that list
+//!    to a raster image. Because all three observe the same primitive calls,
+//!    they agree on coordinates and colors by construction (spec §24.6).
 //!
 //! See [`backend`] for the seam itself.
 
@@ -23,6 +24,7 @@ mod document;
 mod draw_list;
 mod legend;
 mod panels;
+mod raster;
 mod spatial;
 
 use std::collections::HashMap;
@@ -37,8 +39,10 @@ use crate::theme::Theme;
 
 use backend::{RenderBackend, RenderScene, SvgBackend};
 use draw_list::DrawListBackend;
+use raster::RasterBackend;
 
 pub use draw_list::{DrawList, DrawOp, DrawRole, TextAnchor};
+pub use raster::RasterImage;
 
 /// The result of rendering: an SVG document plus render diagnostics.
 #[derive(Debug, Clone)]
@@ -52,6 +56,14 @@ pub struct RenderResult {
 #[derive(Debug, Clone)]
 pub struct DrawListResult {
     pub draw_list: DrawList,
+    pub diagnostics: Vec<Diagnostic>,
+    pub layout: Layout,
+}
+
+/// The result of rendering through the render-model raster backend (spec §24.6).
+#[derive(Debug)]
+pub struct RasterResult {
+    pub image: RasterImage,
     pub diagnostics: Vec<Diagnostic>,
     pub layout: Layout,
 }
@@ -127,6 +139,50 @@ pub fn render_draw_list_with_tables(
     )?;
     Ok(DrawListResult {
         draw_list,
+        diagnostics,
+        layout,
+    })
+}
+
+/// Render a chart IR to a raster image through the render-model raster backend
+/// (spec §24.6). `scale` multiplies the SVG viewport to the pixel grid. Unlike
+/// the SVG-rasterizing PNG path, this draws from the planned scene's draw list.
+pub fn render_raster(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    scale: f32,
+) -> Result<RasterResult, RenderError> {
+    render_raster_with_tables(
+        ir,
+        primary,
+        &HashMap::new(),
+        theme,
+        cli_theme_override,
+        scale,
+    )
+}
+
+/// Raster counterpart of [`render_with_tables`].
+pub fn render_raster_with_tables(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    scale: f32,
+) -> Result<RasterResult, RenderError> {
+    let (image, diagnostics, layout) = render_with_backend(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        RasterBackend { scale },
+    )?;
+    Ok(RasterResult {
+        image,
         diagnostics,
         layout,
     })

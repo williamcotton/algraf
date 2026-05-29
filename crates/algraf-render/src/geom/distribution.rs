@@ -7,17 +7,18 @@ use algraf_semantics::{GeometryIr, PropertyKey};
 use crate::aes::{color_spec, number_setting, ColorSpec};
 use crate::helpers::{bool_setting, number_array_setting, number_setting_opt};
 use crate::scale::cell_f64;
+use crate::sink::{Fill, MarkSink, Paint, Stroke};
 use crate::stats;
-use crate::svg::{escape_attr, num, SvgWriter};
+use crate::svg::num;
 
 use super::common::{
-    axis_is_continuousish, emit_svg_line, quantile_type7, render_rows, stroke_attrs, x_group_key,
+    axis_is_continuousish, emit_svg_line, quantile_type7, render_rows, stroke_style, x_group_key,
     DEFAULT_FILL, DEFAULT_STROKE,
 };
 use super::GeometryRenderContext;
 
 pub(super) fn render_boxplot(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     geo: &GeometryIr,
     ctx: GeometryRenderContext<'_>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -114,9 +115,18 @@ pub(super) fn render_boxplot(
         let top = y_q3.min(y_q1);
         let height = (y_q1 - y_q3).abs().max(1.0);
 
-        emit_svg_line(w, cx, y_low, cx, y_high, &stroke_color, stroke_width, alpha);
         emit_svg_line(
-            w,
+            sink,
+            cx,
+            y_low,
+            cx,
+            y_high,
+            &stroke_color,
+            stroke_width,
+            alpha,
+        );
+        emit_svg_line(
+            sink,
             cx - half * 0.4,
             y_low,
             cx + half * 0.4,
@@ -126,7 +136,7 @@ pub(super) fn render_boxplot(
             alpha,
         );
         emit_svg_line(
-            w,
+            sink,
             cx - half * 0.4,
             y_high,
             cx + half * 0.4,
@@ -135,19 +145,22 @@ pub(super) fn render_boxplot(
             stroke_width,
             alpha,
         );
-        w.line(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\" />",
-            num(cx - half),
-            num(top),
-            num(box_width),
-            num(height),
-            escape_attr(&fill_color),
-            escape_attr(&stroke_color),
-            num(stroke_width),
-            num(alpha),
-        ));
+        sink.rect(
+            cx - half,
+            top,
+            box_width,
+            height,
+            &Paint {
+                fill: Fill::Color(fill_color),
+                stroke: Stroke::Solid {
+                    color: stroke_color.clone(),
+                    width: stroke_width,
+                },
+                opacity: Some(alpha),
+            },
+        );
         emit_svg_line(
-            w,
+            sink,
             cx - half,
             y_median,
             cx + half,
@@ -165,15 +178,19 @@ pub(super) fn render_boxplot(
             for (_, value) in group.iter() {
                 if *value < lower_bound || *value > upper_bound {
                     if let Some(cy) = space.map_y(*value) {
-                        w.line(&format!(
-                            "<circle cx=\"{}\" cy=\"{}\" r=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\" />",
-                            num(cx),
-                            num(cy),
-                            num(radius),
-                            escape_attr(&stroke_color),
-                            num(stroke_width),
-                            num(alpha),
-                        ));
+                        sink.circle(
+                            cx,
+                            cy,
+                            radius,
+                            &Paint {
+                                fill: Fill::None,
+                                stroke: Stroke::Solid {
+                                    color: stroke_color.clone(),
+                                    width: stroke_width,
+                                },
+                                opacity: Some(alpha),
+                            },
+                        );
                     }
                 }
             }
@@ -182,7 +199,7 @@ pub(super) fn render_boxplot(
 }
 
 pub(super) fn render_violin(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     geo: &GeometryIr,
     ctx: GeometryRenderContext<'_>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -282,13 +299,14 @@ pub(super) fn render_violin(
         let fill_color = fill
             .resolve(table, first_row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
-        w.line(&format!(
-            "<path d=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
+        sink.path(
             d.trim_end(),
-            escape_attr(&fill_color),
-            stroke_attrs(&stroke, stroke_width, table, first_row),
-            num(alpha),
-        ));
+            &Paint {
+                fill: Fill::Color(fill_color),
+                stroke: stroke_style(&stroke, stroke_width, table, first_row),
+                opacity: Some(alpha),
+            },
+        );
 
         let stroke_color = stroke
             .resolve(table, first_row)
@@ -304,7 +322,16 @@ pub(super) fn render_violin(
             };
             let density = interpolate_density(&curve, value);
             let dx = density / max_density * half_width;
-            emit_svg_line(w, cx - dx, y, cx + dx, y, &stroke_color, stroke_width, 1.0);
+            emit_svg_line(
+                sink,
+                cx - dx,
+                y,
+                cx + dx,
+                y,
+                &stroke_color,
+                stroke_width,
+                1.0,
+            );
         }
     }
 }
@@ -332,7 +359,7 @@ fn interpolate_density(curve: &[stats::DensityPoint], x: f64) -> f64 {
 }
 
 pub(super) fn render_hexbin(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     geo: &GeometryIr,
     ctx: GeometryRenderContext<'_>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -413,12 +440,13 @@ pub(super) fn render_hexbin(
                 num(cy + ry * angle.sin())
             );
         }
-        w.line(&format!(
-            "<polygon points=\"{}\" fill=\"{}\"{} opacity=\"{}\" />",
-            points,
-            escape_attr(&color),
-            stroke_attrs(&stroke, stroke_width, table, 0),
-            num(alpha),
-        ));
+        sink.polygon(
+            &points,
+            &Paint {
+                fill: Fill::Color(color),
+                stroke: stroke_style(&stroke, stroke_width, table, 0),
+                opacity: Some(alpha),
+            },
+        );
     }
 }

@@ -4,7 +4,8 @@ use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting};
 use crate::helpers::{number_setting_opt, string_setting};
-use crate::svg::{escape_attr, escape_text, num, SvgWriter};
+use crate::render::TextAnchor;
+use crate::sink::{MarkSink, TextRun};
 
 use super::common::{
     any_mapped, constant_or, emit_svg_line, emit_svg_line_with_dash, pos_center, render_rows,
@@ -12,7 +13,11 @@ use super::common::{
 };
 use super::GeometryRenderContext;
 
-pub(super) fn render_hline(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
+pub(super) fn render_hline(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    ctx: GeometryRenderContext<'_>,
+) {
     let space = ctx.space;
     let plot = ctx.plot;
     let table = ctx.table;
@@ -28,7 +33,7 @@ pub(super) fn render_hline(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRen
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     let dash = string_setting(geo, PropertyKey::Dash);
     emit_svg_line_with_dash(
-        w,
+        sink,
         plot.x,
         y,
         plot.right(),
@@ -39,19 +44,25 @@ pub(super) fn render_hline(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRen
         dash.as_deref(),
     );
     if let Some(label) = string_setting(geo, PropertyKey::Label) {
-        w.line(&format!(
-            "<text x=\"{}\" y=\"{}\" text-anchor=\"end\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
-            num(plot.right() - 4.0),
-            num(y - 4.0),
-            escape_attr(&theme.font_family),
-            num(theme.font_size),
-            escape_attr(&theme.text_color),
-            escape_text(&label),
-        ));
+        sink.text(&TextRun {
+            x: plot.right() - 4.0,
+            y: y - 4.0,
+            anchor: TextAnchor::End,
+            rotate: None,
+            font_family: &theme.font_family,
+            font_size: theme.font_size,
+            fill: &theme.text_color,
+            opacity: None,
+            content: &label,
+        });
     }
 }
 
-pub(super) fn render_vline(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
+pub(super) fn render_vline(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    ctx: GeometryRenderContext<'_>,
+) {
     let space = ctx.space;
     let plot = ctx.plot;
     let table = ctx.table;
@@ -67,7 +78,7 @@ pub(super) fn render_vline(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRen
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     let dash = string_setting(geo, PropertyKey::Dash);
     emit_svg_line_with_dash(
-        w,
+        sink,
         x,
         plot.y,
         x,
@@ -78,19 +89,25 @@ pub(super) fn render_vline(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRen
         dash.as_deref(),
     );
     if let Some(label) = string_setting(geo, PropertyKey::Label) {
-        w.line(&format!(
-            "<text x=\"{}\" y=\"{}\" text-anchor=\"start\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
-            num(x + 4.0),
-            num(plot.y + theme.font_size),
-            escape_attr(&theme.font_family),
-            num(theme.font_size),
-            escape_attr(&theme.text_color),
-            escape_text(&label),
-        ));
+        sink.text(&TextRun {
+            x: x + 4.0,
+            y: plot.y + theme.font_size,
+            anchor: TextAnchor::Start,
+            rotate: None,
+            font_family: &theme.font_family,
+            font_size: theme.font_size,
+            fill: &theme.text_color,
+            opacity: None,
+            content: &label,
+        });
     }
 }
 
-pub(super) fn render_rug(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRenderContext<'_>) {
+pub(super) fn render_rug(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    ctx: GeometryRenderContext<'_>,
+) {
     let space = ctx.space;
     let table = ctx.table;
     let rows = ctx.rows;
@@ -109,7 +126,7 @@ pub(super) fn render_rug(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRende
         if sides.contains('b') {
             if let Some(x) = space.resolve_x(table, row) {
                 emit_svg_line(
-                    w,
+                    sink,
                     x,
                     plot.bottom(),
                     x,
@@ -122,18 +139,18 @@ pub(super) fn render_rug(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRende
         }
         if sides.contains('t') {
             if let Some(x) = space.resolve_x(table, row) {
-                emit_svg_line(w, x, plot.y, x, plot.y + tick, &color, width, alpha);
+                emit_svg_line(sink, x, plot.y, x, plot.y + tick, &color, width, alpha);
             }
         }
         if sides.contains('l') {
             if let Some(y) = space.resolve_y(table, row) {
-                emit_svg_line(w, plot.x, y, plot.x + tick, y, &color, width, alpha);
+                emit_svg_line(sink, plot.x, y, plot.x + tick, y, &color, width, alpha);
             }
         }
         if sides.contains('r') {
             if let Some(y) = space.resolve_y(table, row) {
                 emit_svg_line(
-                    w,
+                    sink,
                     plot.right(),
                     y,
                     plot.right() - tick,
@@ -152,7 +169,7 @@ pub(super) fn render_rug(w: &mut SvgWriter, geo: &GeometryIr, ctx: GeometryRende
 /// segment per row, for slope/dumbbell charts). Mapped categorical endpoints
 /// resolve to band centers; rows missing any endpoint are skipped and reported.
 pub(super) fn render_segment(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     geo: &GeometryIr,
     ctx: GeometryRenderContext<'_>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -195,7 +212,7 @@ pub(super) fn render_segment(
             let color = stroke
                 .resolve(table, row)
                 .unwrap_or_else(|| DEFAULT_STROKE.to_string());
-            emit_svg_line(w, x, y, xend, yend, &color, width, alpha);
+            emit_svg_line(sink, x, y, xend, yend, &color, width, alpha);
         }
         if skipped > 0 {
             diagnostics.push(Diagnostic::warning(
@@ -207,6 +224,6 @@ pub(super) fn render_segment(
     } else if let Some((x, y, xend, yend)) = resolve(table, 0) {
         // Literal endpoints: a single annotation segment.
         let color = constant_or(&stroke, DEFAULT_STROKE);
-        emit_svg_line(w, x, y, xend, yend, &color, width, alpha);
+        emit_svg_line(sink, x, y, xend, yend, &color, width, alpha);
     }
 }

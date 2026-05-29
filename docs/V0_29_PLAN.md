@@ -1,6 +1,6 @@
 # Algraf v0.29.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_28_PLAN.md`](V0_28_PLAN.md)
@@ -132,7 +132,13 @@ Existing SVG examples remain the visual regression baseline.
 
 ### 1. Per-mark draw-list parity
 
-Status: Planned.
+Status: Done. Geometry and guide emission route through a shared backend-neutral
+mark sink (`crate::sink::MarkSink`, spec §18.7, §24.6) with `rect`, `circle`,
+`path`, `polygon`, `line`, and `text` primitives. Every built-in geometry, plus
+gridlines, axes (lines/ticks/tick-labels/titles), facet strips, and legends, now
+emit draw-list ops with coordinates and colors identical to the SVG backend;
+polar charts emit arc/wedge `path` ops. SVG output is byte-for-byte unchanged
+(zero example drift). Covered by `tests/parity.rs`.
 
 Acceptance criteria:
 
@@ -154,7 +160,12 @@ Acceptance criteria:
 
 ### 2. Cross-backend equivalence tests
 
-Status: Planned.
+Status: Done. `tests/parity.rs` plans one scene per representative chart (points,
+line, area, bars, faceting, legend, polar pie) and asserts the SVG primitive
+element counts equal the draw-list op counts per kind — the op-by-op parity
+guard that fails if a new SVG primitive is added without a matching draw-list op.
+Additional tests assert one mark op per datum, that guides/legends reach the
+draw list, and that polar marks are arc `path` ops rather than rectangles.
 
 Acceptance criteria:
 
@@ -169,7 +180,15 @@ Acceptance criteria:
 
 ### 3. Render-crate raster backend
 
-Status: Planned.
+Status: Done. `crate::render::raster::RasterBackend` implements the §24.6 seam
+with `Output = RasterImage`, drawing from the planned scene's draw list via
+`tiny-skia` (already a render-crate dependency) — not by rasterizing SVG bytes.
+It uses the same theme colors and layout, is deterministic on a platform, and
+pulls in no browser runtime or system fonts. Text glyphs are a documented
+equivalence limit (the SVG-rasterizing PNG path remains canonical for text).
+Public API: `render_raster`/`render_raster_with_tables` → `RasterResult`.
+`tests/raster.rs` checks dimensions, background, mark placement, determinism, and
+a full-image comparison against the SVG-rasterized baseline within tolerance.
 
 Acceptance criteria:
 
@@ -185,7 +204,13 @@ Acceptance criteria:
 
 ### 4. CLI and output-selection wiring
 
-Status: Planned.
+Status: Done. `--format` accepts `svg`, `draw-list`, and `raster`. `--format
+raster` selects the render-model raster path and writes a PNG (to `--output` or
+stdout), honoring `--png-scale`/`--png-dpi`. The default PNG path is unchanged:
+`--format svg` with a `.png` `--output` still rasterizes the SVG through the
+system-font wrapper, so the previous behavior is retained and the render-model
+raster is opt-in. Multi-chart suffixing works for every format. Covered by
+`tests/cli.rs::render_raster_writes_png_from_scene_model`.
 
 Acceptance criteria:
 
@@ -200,7 +225,10 @@ Acceptance criteria:
 
 ### 5. WebGL prerequisite groundwork (no WebGL dependency)
 
-Status: Planned.
+Status: Done. [`WEBGL_FEASIBILITY.md`](WEBGL_FEASIBILITY.md) marks the per-mark
+draw-list prerequisite satisfied and re-scopes the remaining WebGL work
+(batching, glyph-atlas text, clip-space transform, optional host runtime). No
+WebGL dependency or backend was added.
 
 Acceptance criteria:
 
@@ -212,7 +240,13 @@ Acceptance criteria:
 
 ### 6. Spec, plan, and example hygiene
 
-Status: Planned.
+Status: Done. Spec §24.6 now describes the draw list as a complete scene
+description and adds the render-model raster backend to the closed backend set
+(the "per-datum marks deferred" language is removed); §18.7 documents the shared
+mark-sink primitive model; §22.3 documents the final `--format`/PNG behavior;
+§26 reserves `R0005`. Workspace `Cargo.toml` and `editors/vscode/package.json`
+are at `0.29.0`. README documents the output formats and their equivalence
+limits. Existing SVG examples regenerate without drift.
 
 Acceptance criteria:
 

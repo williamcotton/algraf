@@ -14,10 +14,11 @@
 //!   guide measurements ([`guide`]'s planning half), and legends. It reads data
 //!   only through the [`Table`] abstraction and writes no output bytes.
 //! - **Emission** takes that scene and serializes it through one of a closed set
-//!   of output backends. The canonical SVG backend writes SVG: geometry
-//!   ([`geom`]) and guide emission write bytes via the [`svg`] writer and make no
-//!   layout or scale decisions. A second backend records a serializable
-//!   [`DrawList`] of Canvas-drawable frame primitives ([`render_draw_list`]).
+//!   of output backends. Geometry ([`geom`]) and guide ([`guide`]) emission
+//!   describe primitives to a shared [`sink`] and make no layout or scale
+//!   decisions. The canonical SVG backend's sink writes SVG; a second backend
+//!   records a complete, serializable [`DrawList`] ([`render_draw_list`]); a
+//!   third draws that list to a raster image ([`render_raster`]).
 //!
 //! Data materialization is eager: stats and scale training run during planning
 //! against in-memory tables. Lazy/streaming execution is deferred (see
@@ -36,6 +37,7 @@ mod layout;
 mod projection;
 mod render;
 mod scale;
+mod sink;
 mod space;
 mod stats;
 mod svg;
@@ -49,9 +51,11 @@ pub use embed::{
 pub use error::RenderError;
 pub use layout::{FacetPanel, Layout, Rect};
 pub use render::{
-    render, render_draw_list, render_draw_list_with_tables, render_with_tables, DrawList,
-    DrawListResult, DrawOp, DrawRole, RenderResult, TextAnchor,
+    render, render_draw_list, render_draw_list_with_tables, render_raster,
+    render_raster_with_tables, render_with_tables, DrawList, DrawListResult, DrawOp, DrawRole,
+    RasterImage, RasterResult, RenderResult, TextAnchor,
 };
+pub use sink::{Dash, Fill, Paint, Stroke};
 pub use svg::num as svg_num;
 pub use theme::Theme;
 

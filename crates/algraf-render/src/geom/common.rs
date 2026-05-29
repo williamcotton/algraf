@@ -3,8 +3,8 @@ use algraf_semantics::{GeometryIr, PropertyKey, SettingValue};
 
 use crate::aes::ColorSpec;
 use crate::scale::{cell_category, cell_f64, cell_micros};
+use crate::sink::{Dash, MarkSink, Stroke};
 use crate::space::{AxisScale, ScaledSpace};
-use crate::svg::{escape_attr, num, SvgWriter};
 
 pub(super) const DEFAULT_FILL: &str = "#4E79A7";
 pub(super) const DEFAULT_STROKE: &str = "#333333";
@@ -236,7 +236,7 @@ fn categorical_bound(
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn emit_svg_line(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     x1: f64,
     y1: f64,
     x2: f64,
@@ -245,12 +245,12 @@ pub(super) fn emit_svg_line(
     width: f64,
     alpha: f64,
 ) {
-    emit_svg_line_with_dash(w, x1, y1, x2, y2, stroke, width, alpha, None);
+    emit_svg_line_with_dash(sink, x1, y1, x2, y2, stroke, width, alpha, None);
 }
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn emit_svg_line_with_dash(
-    w: &mut SvgWriter,
+    sink: &mut dyn MarkSink,
     x1: f64,
     y1: f64,
     x2: f64,
@@ -260,36 +260,27 @@ pub(super) fn emit_svg_line_with_dash(
     alpha: f64,
     dash: Option<&str>,
 ) {
-    let dash_attr = match dash {
-        Some("dotted") => " stroke-dasharray=\"1 2\"",
-        Some("dashed") => " stroke-dasharray=\"4 4\"",
-        _ => "",
+    let dash = match dash {
+        Some("dotted") => Some(Dash::Dotted),
+        Some("dashed") => Some(Dash::Dashed),
+        _ => None,
     };
-    w.line(&format!(
-        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\"{} />",
-        num(x1),
-        num(y1),
-        num(x2),
-        num(y2),
-        escape_attr(stroke),
-        num(width.max(0.0)),
-        num(alpha),
-        dash_attr,
-    ));
+    sink.line(x1, y1, x2, y2, stroke, width, false, Some(alpha), dash);
 }
 
-pub(super) fn stroke_attrs(spec: &ColorSpec, width: f64, table: &dyn Table, row: usize) -> String {
+/// Resolve a geometry's stroke into a [`Stroke`] for paint, matching the SVG
+/// backend's optional `stroke`/`stroke-width` attributes (spec §16.8).
+pub(super) fn stroke_style(spec: &ColorSpec, width: f64, table: &dyn Table, row: usize) -> Stroke {
     if matches!(spec, ColorSpec::None) {
-        return String::new();
+        return Stroke::Omit;
     }
     let Some(color) = spec.resolve(table, row) else {
-        return String::new();
+        return Stroke::Omit;
     };
-    format!(
-        " stroke=\"{}\" stroke-width=\"{}\"",
-        escape_attr(&color),
-        num(width.max(0.0)),
-    )
+    Stroke::Solid {
+        color,
+        width: width.max(0.0),
+    }
 }
 
 pub(super) fn constant_or(spec: &ColorSpec, default: &str) -> String {
@@ -304,10 +295,8 @@ pub(super) fn render_rows(table: &dyn Table, rows: Option<&[usize]>) -> Vec<usiz
         .unwrap_or_else(|| (0..table.row_count()).collect())
 }
 
-pub(super) fn opacity_attr(alpha: f64) -> String {
-    if alpha < 1.0 {
-        format!(" opacity=\"{}\"", num(alpha))
-    } else {
-        String::new()
-    }
+/// An opacity that is omitted from output when fully opaque (matches the SVG
+/// backend's conditional `opacity` attribute).
+pub(super) fn opacity_when_translucent(alpha: f64) -> Option<f64> {
+    (alpha < 1.0).then_some(alpha)
 }

@@ -15,6 +15,25 @@ staged roadmap recorded in [`docs/`](docs/).
 cargo run -p algraf-cli -- render examples/scatter.ag --output /tmp/scatter.svg
 ```
 
+### Output formats
+
+`render` selects its output backend with `--format` (spec §24.6):
+
+| `--format`  | Output | Notes |
+| ----------- | ------ | ----- |
+| `svg` (default) | Deterministic SVG. A `.png` `--output` rasterizes the SVG through a system-font wrapper. | The canonical, pixel-faithful path. |
+| `draw-list` | A serializable JSON draw list of scene primitives (`rect`/`circle`/`path`/`polygon`/`line`/`text`). | A complete scene description — one op per mark plus all guides — for Canvas/WebGL/raster clients. |
+| `raster` | A PNG drawn directly from the draw-list scene model with a CPU rasterizer (no SVG, no system fonts). | Honors `--png-scale`/`--png-dpi`. Renders shapes; **text glyphs are not drawn** (use the `svg`→PNG path for text). Deterministic per platform. |
+
+```bash
+cargo run -p algraf-cli -- render examples/scatter.ag --format svg       --output /tmp/scatter.svg
+cargo run -p algraf-cli -- render examples/scatter.ag --format draw-list  --output /tmp/scatter.json
+cargo run -p algraf-cli -- render examples/scatter.ag --format raster     --output /tmp/scatter.png
+```
+
+All three backends consume the same planned scene, so they agree on coordinates
+and colors; SVG is the source of truth for appearance.
+
 This tutorial walks through every example in [`examples/`](examples/) from
 the simplest scatter plot up through statistical layers, derived tables,
 faceting, and theme overrides. Each section shows the `.ag` source followed

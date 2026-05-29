@@ -6119,6 +6119,14 @@ The realized renderer resolves an equivalent per-panel scene during planning and
 hands it to the SVG backend during emission; see §24.6 for the planning/emission
 boundary these structures sit on.
 
+Geometry and guide emission do not write SVG directly. They describe each
+primitive — rectangle, circle, path, polygon, line, or text — to a shared,
+backend-neutral *mark sink*. The SVG backend's sink serializes each primitive to
+the deterministic SVG of this section; the draw-list backend's sink records an
+equivalent op (§24.6). Because both backends observe the same primitive calls,
+they agree on coordinates and colors by construction, and a new geometry or
+guide primitive reaches every backend at once.
+
 ### 18.8 Path Formatting
 
 Numeric SVG values SHOULD be rounded deterministically.
@@ -7103,7 +7111,7 @@ Render options:
 
 `--output <path>`
 
-`--format <svg|draw-list>`
+`--format <svg|draw-list|raster>`
 
 `--width <px>`
 
@@ -7135,11 +7143,17 @@ Render options:
 
 It does not change source syntax.
 
-`--format <svg|draw-list>` selects the output backend (§24.6); it defaults to
-`svg`. With `svg`, a `.png` `--output` path rasterizes the SVG; with
-`draw-list`, the command emits the serializable draw-list JSON described in
-§24.6, and PNG rasterization does not apply. Draw-list output covers a
-documented subset of the chart frame and is byte-for-byte deterministic.
+`--format <svg|draw-list|raster>` selects the output backend (§24.6); it
+defaults to `svg`. With `svg`, a `.png` `--output` path rasterizes the SVG
+through the canonical PNG wrapper (which uses system fonts); this is the default
+PNG path and is unchanged. With `draw-list`, the command emits the serializable
+draw-list JSON described in §24.6, and PNG rasterization does not apply. With
+`raster`, the command emits a PNG drawn directly from the scene's draw list by
+the render-model raster backend (no SVG parser, no system fonts); it honors
+`--png-scale`/`--png-dpi` and writes binary PNG to `--output` or stdout. The
+render-model raster renders shape primitives; text glyphs are a documented
+equivalence limit (§24.6). The draw list and SVG outputs are byte-for-byte
+deterministic; raster output is deterministic for a given platform.
 
 Source files MUST use `Theme(name: "...")` for persistent theme selection.
 
@@ -7670,27 +7684,41 @@ reservation) and guide emission (writing axes, grids, strips, and legends to
 SVG) are likewise separated, planning before final layout and emission during
 document assembly.
 
-The renderer ships two backends over this seam:
+The renderer ships three backends over this seam:
 
 - The **SVG backend** (§18) is canonical and emits the deterministic SVG
   document. It MUST remain unchanged in escaping, number formatting, ordering,
   and accessibility behavior regardless of any other backend.
 - The **draw-list backend** records a serializable, Canvas-drawable draw list of
-  frame primitives (filled rectangles and text) from the same scene. It is the
-  proof that the seam supports more than one output format. The draw list MUST
-  use the same locale-independent number formatting as §18.8 and MUST be
-  deterministic. In this release it covers a documented subset of the chart —
-  canvas size, background, plot panels (with facet strips and labels), and the
-  chart title/subtitle/caption — and MUST report coordinates and colors
-  identical to the SVG backend for the elements it covers. Per-datum geometry
-  marks, axis ticks, and gridlines are NOT yet part of the draw list; promoting
-  full mark and guide parity is deferred. The draw list MUST NOT execute scripts
-  or embed behavior; it is inert data.
+  drawable primitives from the same scene. It is the proof that the seam supports
+  more than one output format. The draw list MUST use the same locale-independent
+  number formatting as §18.8 and MUST be deterministic. It is a *complete* scene
+  description: every SVG element the renderer emits for the chart body and guides
+  has a corresponding draw-list op with identical coordinates and colors. The op
+  set is `rect`, `circle`, `path`, `polygon`, `line`, and `text`; geometry and
+  guide emission both produce these primitives through one shared mark sink, so
+  the two backends cannot diverge below the panel level. The draw list covers the
+  canvas, background, plot panels (with facet strips and labels), chart
+  title/subtitle/caption, per-datum geometry marks (including polar arc/wedge
+  paths), gridlines, axis lines/ticks/tick-labels/titles, and legends. Each op
+  carries a `role` naming the chart region it belongs to. The draw list MUST NOT
+  execute scripts or embed behavior; it is inert data.
+- The **render-model raster backend** draws the draw list to a raster image with
+  a CPU rasterizer (`tiny-skia`), not by rasterizing SVG bytes. It pulls in no
+  browser runtime and no system fonts, and is deterministic for a given
+  platform; anti-aliasing MAY differ across platforms. It renders the scene's
+  shape primitives (rectangles, circles, paths, polygons, lines); rendering text
+  glyphs is out of scope and is a documented equivalence limit — text positions
+  and content are present in the draw list, and the SVG backend defines the
+  intended text appearance. A backend that cannot represent a scene element emits
+  `R0005` (§26) and continues.
 
-Additional backends (raster, retained DOM, WebGL) and lazy or streaming data
-materialization are deferred to a later release. The canonical CLI rasterizer
-(`--output *.png`) rasterizes the SVG backend's output and is unaffected by the
-draw-list backend (§22).
+The closed backend set is SVG, draw-list, and render-model raster. The canonical
+CLI rasterizer (`--output *.png` with `--format svg`) rasterizes the *SVG*
+backend's output through a system-font wrapper and remains the default,
+pixel-faithful PNG path; it is distinct from the render-model raster backend
+(`--format raster`, §22.3). Retained-DOM and WebGL backends and lazy or streaming
+data materialization are deferred to a later release.
 
 Schema-only planning is outside this render execution boundary: semantic
 analysis may compute built-in derived schemas from typed frames, but it MUST NOT
@@ -8127,6 +8155,13 @@ but they are implementation-oriented rather than authoring-rule diagnostics.
 `R0003 space or facet could not be laid out`
 
 `R0004 scale declaration could not be applied during rendering`
+
+`R0005 scene element could not be represented by the selected backend`
+
+`R0005` is reserved for a non-SVG backend (e.g. the draw-list or raster
+backend) encountering a planned scene primitive it cannot serialize. The
+canonical SVG backend never emits it. A backend that emits `R0005` MUST still
+produce deterministic output for the remainder of the scene.
 
 ## 27. Testing Strategy
 
@@ -8607,7 +8642,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.26.0 | [`V0_26_PLAN.md`](V0_26_PLAN.md) | Coordinate systems — polar transform | Implemented (`radial_bar` deferred) |
 | 0.27.0 | [`V0_27_PLAN.md`](V0_27_PLAN.md) | Embedding and invocation ergonomics | Complete |
 | 0.28.0 | [`V0_28_PLAN.md`](V0_28_PLAN.md) | Temporal I/O ergonomics | Complete |
-| 0.29.0 | [`V0_29_PLAN.md`](V0_29_PLAN.md) | Render-model completeness and raster output | Planned |
+| 0.29.0 | [`V0_29_PLAN.md`](V0_29_PLAN.md) | Render-model completeness and raster output | Implemented |
 | 0.30.0 | [`V0_30_PLAN.md`](V0_30_PLAN.md) | Declarative interactivity and live preview | Planned |
 | 0.31.0 | [`V0_31_PLAN.md`](V0_31_PLAN.md) | Language-surface polish (temporal/coords/algebra) | Planned |
 

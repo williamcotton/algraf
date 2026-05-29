@@ -3,11 +3,12 @@ use algraf_semantics::ChartIr;
 
 use crate::guide;
 use crate::layout::Layout;
+use crate::sink::{MarkSink, SvgSink};
 use crate::svg::{escape_attr, escape_text, num, SvgAttr, SvgWriter};
 use crate::theme::Theme;
 
 use super::backend::RenderScene;
-use super::panels::panel_slots;
+use super::panels::{panel_slots, Panel, PanelSlot};
 
 pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> String {
     let RenderScene {
@@ -72,26 +73,54 @@ pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagn
         );
     }
 
-    for slot in &slots {
-        if let (Some(strip), Some(panel)) = (slot.strip, slot.panel) {
-            guide::render_facet_label(&mut w, slot.label.unwrap_or_default(), strip, &panel.theme);
+    // The chart body and guides are emitted through the shared mark sink so the
+    // SVG and draw-list backends agree on coordinates and colors (spec §24.6).
+    {
+        let mut sink = SvgSink::new(&mut w);
+        for slot in &slots {
+            if let (Some(strip), Some(panel)) = (slot.strip, slot.panel) {
+                guide::render_facet_label(
+                    &mut sink,
+                    slot.label.unwrap_or_default(),
+                    strip,
+                    &panel.theme,
+                );
+            }
         }
+        paint_grid(&mut sink, &slots);
+        paint_geometries(&mut sink, panels, diagnostics);
+        paint_axes_and_legends(&mut sink, &slots, legends, layout, theme);
     }
-    for slot in &slots {
+
+    w.line("</svg>");
+    w.finish()
+}
+
+/// Draw gridlines behind the data marks, for every panel (spec §17.6, §16.16).
+/// Shared by the SVG and draw-list backends.
+pub(super) fn paint_grid(sink: &mut dyn MarkSink, slots: &[PanelSlot<'_>]) {
+    for slot in slots {
         if let Some(panel) = slot.panel {
             if panel.scaled.is_polar() {
-                guide::render_polar_grid(&mut w, &panel.scaled, &panel.guides, &panel.theme);
+                guide::render_polar_grid(sink, &panel.scaled, &panel.guides, &panel.theme);
             } else if panel.guides.grid && !panel.scaled.is_spatial() {
-                guide::render_grid(&mut w, &panel.scaled, panel.plot, &panel.theme);
+                guide::render_grid(sink, &panel.scaled, panel.plot, &panel.theme);
             }
         }
     }
+}
 
-    // Data layers in source order (spec §18.3).
+/// Draw the per-datum geometry marks of every layer in source order (spec
+/// §18.3). Shared by the SVG and draw-list backends.
+pub(super) fn paint_geometries(
+    sink: &mut dyn MarkSink,
+    panels: &[Panel<'_>],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     for panel in panels {
         for geo in panel.geometries {
             crate::geom::render(
-                &mut w,
+                sink,
                 geo,
                 crate::geom::GeometryRenderContext {
                     space: &panel.scaled,
@@ -105,17 +134,26 @@ pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagn
             );
         }
     }
+}
 
-    // Axes, polar labels, and legends.
-    for slot in &slots {
+/// Draw axes (or polar labels) and legends above the data marks. Shared by the
+/// SVG and draw-list backends.
+pub(super) fn paint_axes_and_legends(
+    sink: &mut dyn MarkSink,
+    slots: &[PanelSlot<'_>],
+    legends: &[crate::aes::Legend],
+    layout: &Layout,
+    theme: &Theme,
+) {
+    for slot in slots {
         if let Some(panel) = slot.panel {
             // Spatial spaces have no lat/lon axes (spec §16.15); polar spaces use
             // ring/spoke guides instead of Cartesian axes (§16.16).
             if panel.scaled.is_polar() {
-                guide::render_polar_labels(&mut w, &panel.scaled, &panel.guides, &panel.theme);
+                guide::render_polar_labels(sink, &panel.scaled, &panel.guides, &panel.theme);
             } else if panel.theme.axes && !panel.scaled.is_spatial() {
                 guide::render_axes(
-                    &mut w,
+                    sink,
                     &panel.scaled,
                     panel.plot,
                     &panel.theme,
@@ -132,11 +170,8 @@ pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagn
         }
     }
     if let Some(area) = layout.legend {
-        guide::render_legends(&mut w, legends, area, theme);
+        guide::render_legends(sink, legends, area, theme);
     }
-
-    w.line("</svg>");
-    w.finish()
 }
 
 fn chart_desc(ir: &ChartIr) -> Option<String> {

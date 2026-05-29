@@ -189,6 +189,7 @@ pub mod codes {
     pub const R0002: DiagnosticCode = DiagnosticCode::new("R0002");
     pub const R0003: DiagnosticCode = DiagnosticCode::new("R0003");
     pub const R0004: DiagnosticCode = DiagnosticCode::new("R0004");
+    pub const R0005: DiagnosticCode = DiagnosticCode::new("R0005");
 }
 
 /// Every registered diagnostic code.
@@ -302,6 +303,7 @@ pub const fn all_codes() -> &'static [DiagnosticCode] {
         codes::R0002,
         codes::R0003,
         codes::R0004,
+        codes::R0005,
     ]
 }
 

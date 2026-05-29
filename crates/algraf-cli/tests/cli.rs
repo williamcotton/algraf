@@ -78,6 +78,28 @@ fn render_draw_list_writes_json_to_stdout() {
 }
 
 #[test]
+fn render_raster_writes_png_from_scene_model() {
+    let dir = temp_dir("render-raster");
+    let (chart, _) = write_fixture(&dir);
+    let out_path = dir.join("out.png");
+
+    let output = Command::new(bin())
+        .arg("render")
+        .arg(&chart)
+        .arg("--format")
+        .arg("raster")
+        .arg("--output")
+        .arg(&out_path)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let bytes = fs::read(&out_path).unwrap();
+    // PNG magic number.
+    assert_eq!(&bytes[..8], b"\x89PNG\r\n\x1a\n");
+}
+
+#[test]
 fn render_debug_flags_add_deterministic_svg_content() {
     let dir = temp_dir("render-debug");
     let (chart, _) = write_fixture(&dir);
