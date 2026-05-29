@@ -119,6 +119,8 @@ pub mod codes {
     pub const E1014: DiagnosticCode = DiagnosticCode::new("E1014");
     pub const E1015: DiagnosticCode = DiagnosticCode::new("E1015");
     pub const E1016: DiagnosticCode = DiagnosticCode::new("E1016");
+    pub const E1017: DiagnosticCode = DiagnosticCode::new("E1017");
+    pub const E1018: DiagnosticCode = DiagnosticCode::new("E1018");
     pub const E1101: DiagnosticCode = DiagnosticCode::new("E1101");
     pub const E1102: DiagnosticCode = DiagnosticCode::new("E1102");
     pub const E1103: DiagnosticCode = DiagnosticCode::new("E1103");
@@ -171,6 +173,9 @@ pub mod codes {
     pub const E1905: DiagnosticCode = DiagnosticCode::new("E1905");
     pub const E1906: DiagnosticCode = DiagnosticCode::new("E1906");
     pub const E1907: DiagnosticCode = DiagnosticCode::new("E1907");
+    pub const E1908: DiagnosticCode = DiagnosticCode::new("E1908");
+    pub const E1909: DiagnosticCode = DiagnosticCode::new("E1909");
+    pub const E1910: DiagnosticCode = DiagnosticCode::new("E1910");
 
     pub const W2001: DiagnosticCode = DiagnosticCode::new("W2001");
     pub const W2002: DiagnosticCode = DiagnosticCode::new("W2002");
@@ -238,6 +243,8 @@ pub const fn all_codes() -> &'static [DiagnosticCode] {
         codes::E1014,
         codes::E1015,
         codes::E1016,
+        codes::E1017,
+        codes::E1018,
         codes::E1101,
         codes::E1102,
         codes::E1103,
@@ -290,6 +297,9 @@ pub const fn all_codes() -> &'static [DiagnosticCode] {
         codes::E1905,
         codes::E1906,
         codes::E1907,
+        codes::E1908,
+        codes::E1909,
+        codes::E1910,
         codes::W2001,
         codes::W2002,
         codes::W2003,

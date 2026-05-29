@@ -146,7 +146,7 @@ pub(crate) fn render_polar_labels(
     if !radius_ticks.is_empty() {
         sink.open_layer("algraf-polar-radius-labels");
         for (r, label) in radius_ticks {
-            let (lx, ly) = polar.point(crate::space::THETA_START, r);
+            let (lx, ly) = polar.point(polar.theta_start, r);
             polar_label(sink, lx + 3.0, ly - 2.0, "start", &label, theme);
         }
         sink.close_layer();

@@ -242,6 +242,9 @@ const BAR: &[PropSpec] = &[
         &[Accept::Enum(&["identity", "stack", "fill"])],
     ),
     opt(PropertyKey::Stat, &[Accept::Enum(&["identity", "count"])]),
+    // A categorical `radius:` mapping selects concentric rings for the polar
+    // `radial_bar` mode (spec §16.16); ignored for Cartesian bars.
+    opt(PropertyKey::Radius, &[Accept::Column]),
 ];
 
 const RECT: &[PropSpec] = &[
@@ -535,6 +538,7 @@ pub fn property_doc(name: &str) -> &'static str {
         "shape" => "Point shape setting or data column mapping.",
         "group" => "Series grouping column, independent from color aesthetics.",
         "layout" => "Bar collision layout: `\"identity\"`, `\"stack\"`, or `\"fill\"`.",
+        "radius" => "Categorical column mapping selecting concentric rings for a polar radial bar chart (theta: \"y\").",
         "stat" => "Geometry statistic option.",
         "bins" => "Histogram bin count.",
         "binWidth" => "Histogram bin width.",

@@ -540,10 +540,15 @@ pub enum CoordsIr {
     Cartesian,
     /// A polar transform: one frame axis maps to the angle, the other to the
     /// radius. `inner_radius` is a fraction of the maximum radius in `[0, 1)`
-    /// (`0` = pie, `> 0` = donut).
+    /// (`0` = pie, `> 0` = donut). `start_angle` is the angle (degrees, clockwise
+    /// from 12 o'clock) at which the theta domain minimum is placed and
+    /// `direction` is the sweep sense; the defaults (`0`, clockwise) reproduce the
+    /// fixed 12-o'clock-clockwise behavior of earlier versions (spec §16.16).
     Polar {
         theta: PolarThetaIr,
         inner_radius: f64,
+        start_angle: f64,
+        direction: PolarDirectionIr,
     },
 }
 
@@ -555,6 +560,17 @@ pub enum PolarThetaIr {
     X,
     /// The y (second) frame axis maps to the angle; x maps to radius.
     Y,
+}
+
+/// The angular sweep sense of a polar transform (spec §16.16). Clockwise is the
+/// default and reproduces the fixed behavior of earlier versions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PolarDirectionIr {
+    /// Increasing theta-domain values move clockwise in screen coordinates.
+    #[default]
+    Clockwise,
+    /// Increasing theta-domain values move counterclockwise.
+    CounterClockwise,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -762,6 +778,7 @@ pub enum PropertyKey {
     Xend,
     Yend,
     Step,
+    Radius,
 }
 
 /// Every [`PropertyKey`] variant, in declaration order. Used by registry
@@ -807,6 +824,7 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::Xend,
     PropertyKey::Yend,
     PropertyKey::Step,
+    PropertyKey::Radius,
 ];
 
 impl PropertyKey {
@@ -853,6 +871,7 @@ impl PropertyKey {
             PropertyKey::Xend => "xend",
             PropertyKey::Yend => "yend",
             PropertyKey::Step => "step",
+            PropertyKey::Radius => "radius",
         }
     }
 

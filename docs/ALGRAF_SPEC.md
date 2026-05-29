@@ -8098,6 +8098,8 @@ missing `=>`/stray separator in a map literal)
 
 `E1016 unknown temporal parse target`
 
+`E1017 reserved`
+
 `E1101 unknown column`
 
 `E1102 ambiguous column`
@@ -8762,7 +8764,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.28.0 | [`V0_28_PLAN.md`](V0_28_PLAN.md) | Temporal I/O ergonomics | Complete |
 | 0.29.0 | [`V0_29_PLAN.md`](V0_29_PLAN.md) | Render-model completeness and raster output | Implemented |
 | 0.30.0 | [`V0_30_PLAN.md`](V0_30_PLAN.md) | Declarative interactivity and live preview | Implemented |
-| 0.31.0 | [`V0_31_PLAN.md`](V0_31_PLAN.md) | Language-surface polish (temporal/coords/algebra) | Planned |
+| 0.31.0 | [`V0_31_PLAN.md`](V0_31_PLAN.md) | Language-surface polish (temporal & polar) | Planned |
+| 0.32.0 | [`V0_32_PLAN.md`](V0_32_PLAN.md) | Scope & composition — nested spaces and space-local annotations | Planned |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

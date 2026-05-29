@@ -1,0 +1,6 @@
+Chart(data: "sales_by_rep.csv", width: 460, height: 460, title: "Sales by rep (radial bar)") {
+  Space(amount, coords: "polar", theta: "y", startAngle: 0) {
+    Scale(axis: x, domain: [0, null])
+    Bar(fill: rep, radius: rep)
+  }
+}

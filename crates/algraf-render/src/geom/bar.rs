@@ -7,9 +7,9 @@ use algraf_semantics::{GeometryIr, PropertyKey};
 use crate::aes::{color_spec, number_setting, ColorSpec};
 use crate::helpers::{bar_layout, BarLayout};
 use crate::layout::Rect;
-use crate::scale::{cell_category, cell_f64};
+use crate::scale::{categorical_domain, cell_category, cell_f64};
 use crate::sink::{Fill, MarkSink, Paint};
-use crate::space::{Polar, ScaledSpace, THETA_END, THETA_START};
+use crate::space::{Polar, ScaledSpace};
 
 use super::common::{mark_interaction, render_rows, stroke_style, DEFAULT_FILL};
 use super::polar::annular_segment_path;
@@ -169,6 +169,30 @@ fn render_polar(
     layout: BarLayout,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
+    // A categorical `radius:` mapping selects concentric rings: the radial bar
+    // chart, distinct from the coxcomb and pie paths (spec §16.16).
+    if let Some(radius_col) = geo
+        .mappings
+        .iter()
+        .find(|m| m.aesthetic == PropertyKey::Radius)
+        .map(|m| m.column.name.clone())
+    {
+        render_polar_radial_bar(
+            sink,
+            geo,
+            space,
+            table,
+            rows,
+            polar,
+            &radius_col,
+            fill,
+            stroke,
+            stroke_width,
+            alpha,
+            diagnostics,
+        );
+        return;
+    }
     if space.polar_theta_is_band() {
         render_polar_coxcomb(
             sink,
@@ -304,7 +328,7 @@ fn render_polar_pie(
     if total <= f64::EPSILON {
         return;
     }
-    let span = THETA_END - THETA_START;
+    let span = polar.theta_end - polar.theta_start;
     let mut acc = 0.0;
     for row in row_list {
         let Some(value) = cell_f64(table, &value_col, row) else {
@@ -313,9 +337,9 @@ fn render_polar_pie(
         if value <= 0.0 {
             continue;
         }
-        let a0 = THETA_START + (acc / total) * span;
+        let a0 = polar.theta_start + (acc / total) * span;
         acc += value;
-        let a1 = THETA_START + (acc / total) * span;
+        let a1 = polar.theta_start + (acc / total) * span;
         // A banded radius axis (theta:"y" with a categorical radius) yields
         // concentric ring segments; otherwise the wedge spans the full radius.
         let (r0, r1) = space
@@ -323,6 +347,60 @@ fn render_polar_pie(
             .map(|(start, width)| (start, start + width))
             .unwrap_or((polar.r_inner, polar.r_outer));
         let d = annular_segment_path(polar, a0, a1, r0, r1);
+        emit_polar_path(sink, &d, fill, stroke, stroke_width, table, row, alpha, geo);
+    }
+}
+
+/// Radial bar chart (spec §16.16): a categorical `radius:` mapping puts each
+/// category on its own concentric ring, and the theta axis (the frame value)
+/// drives each bar's independent angular sweep from the start angle. Distinct
+/// from the cumulative pie path (angles accumulate around the circle) and the
+/// coxcomb path (a categorical angle with a value radius).
+#[allow(clippy::too_many_arguments)]
+fn render_polar_radial_bar(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    space: &ScaledSpace,
+    table: &dyn Table,
+    rows: Option<&[usize]>,
+    polar: &Polar,
+    radius_col: &str,
+    fill: &ColorSpec,
+    stroke: &ColorSpec,
+    stroke_width: f64,
+    alpha: f64,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let categories = categorical_domain(table, radius_col);
+    if categories.is_empty() {
+        diagnostics.push(Diagnostic::warning(
+            codes::R0002,
+            "polar radial Bar requires a categorical `radius:` column with values",
+            geo.span,
+        ));
+        return;
+    }
+    // Divide the drawable annulus into one ring per category, leaving a small
+    // gap between rings so adjacent bars read as distinct tracks.
+    let n = categories.len() as f64;
+    let band = (polar.r_outer - polar.r_inner) / n;
+    let gap = (band * 0.2).min(6.0);
+    for row in render_rows(table, rows) {
+        let Some(category) = cell_category(table, radius_col, row) else {
+            continue;
+        };
+        let Some(index) = categories.iter().position(|c| *c == category) else {
+            continue;
+        };
+        // Innermost category is the outermost ring so categories read outside-in
+        // with the longest available track on the outside.
+        let slot = (categories.len() - 1 - index) as f64;
+        let r0 = polar.r_inner + slot * band;
+        let r1 = r0 + (band - gap).max(1.0);
+        let Some(a1) = space.polar_angle(table, row) else {
+            continue;
+        };
+        let d = annular_segment_path(polar, polar.theta_start, a1, r0, r1);
         emit_polar_path(sink, &d, fill, stroke, stroke_width, table, row, alpha, geo);
     }
 }

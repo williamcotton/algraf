@@ -1,0 +1,5 @@
+Chart(data: "coxcomb_deaths.csv", width: 440, height: 440, title: "Deaths by month (rotated, counterclockwise)") {
+  Space(month * deaths, coords: "polar", theta: "x", startAngle: 30, direction: "counterclockwise") {
+    Bar(fill: month)
+  }
+}

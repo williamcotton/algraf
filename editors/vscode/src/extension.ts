@@ -197,7 +197,7 @@ async function showPreview(context: vscode.ExtensionContext): Promise<void> {
             "algrafPreview",
             "Algraf Preview",
             { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
-            { enableScripts: false, retainContextWhenHidden: true },
+            { enableScripts: true, retainContextWhenHidden: true },
         );
         previewPanel.onDidDispose(
             () => {

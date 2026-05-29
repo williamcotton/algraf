@@ -267,6 +267,8 @@ impl Analyzer<'_> {
                 }
                 let theta = self.polar_theta(&args);
                 let inner_radius = self.polar_inner_radius(&args);
+                let start_angle = self.polar_start_angle(&args);
+                let direction = self.polar_direction(&args);
                 // The transform supports 1D and 2D (a * b) frames. Faceted
                 // (nested) polar frames are deferred.
                 match frame {
@@ -282,6 +284,8 @@ impl Analyzer<'_> {
                     _ => CoordsIr::Polar {
                         theta,
                         inner_radius,
+                        start_angle,
+                        direction,
                     },
                 }
             }
@@ -361,6 +365,82 @@ impl Analyzer<'_> {
                 0.0
             }
             None => 0.0,
+        }
+    }
+
+    /// Read the `startAngle:` argument: a finite numeric literal in degrees,
+    /// clockwise from 12 o'clock, placing the theta-domain minimum. The default
+    /// `0` reproduces the fixed 12-o'clock origin of earlier versions (spec
+    /// §16.16). Accepts the full `[-360, 360]` range so any orientation is
+    /// expressible.
+    fn polar_start_angle(&mut self, args: &[Arg]) -> f64 {
+        let Some(arg) = args
+            .iter()
+            .find(|a| a.key().as_deref() == Some("startAngle"))
+        else {
+            return 0.0;
+        };
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Number) => {
+                match lit.text().and_then(|t| t.parse::<f64>().ok()) {
+                    Some(value) if value.is_finite() && (-360.0..=360.0).contains(&value) => value,
+                    _ => {
+                        self.diag(Diagnostic::error(
+                            codes::E1909,
+                            "`startAngle` must be a finite number of degrees in [-360, 360]",
+                            node_span(lit.syntax()),
+                        ));
+                        0.0
+                    }
+                }
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E1909,
+                    "`startAngle` expects a numeric literal in degrees",
+                    node_span(value.syntax()),
+                ));
+                0.0
+            }
+            None => 0.0,
+        }
+    }
+
+    /// Read the `direction:` argument (`"clockwise"` default |
+    /// `"counterclockwise"`), selecting the angular sweep sense (spec §16.16).
+    fn polar_direction(&mut self, args: &[Arg]) -> PolarDirectionIr {
+        let Some(arg) = args
+            .iter()
+            .find(|a| a.key().as_deref() == Some("direction"))
+        else {
+            return PolarDirectionIr::Clockwise;
+        };
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                match string_value(&lit.text().unwrap_or_default()).as_str() {
+                    "clockwise" => PolarDirectionIr::Clockwise,
+                    "counterclockwise" => PolarDirectionIr::CounterClockwise,
+                    other => {
+                        self.diag(Diagnostic::error(
+                            codes::E1910,
+                            format!(
+                                "`direction` must be \"clockwise\" or \"counterclockwise\", not {other:?}"
+                            ),
+                            node_span(lit.syntax()),
+                        ));
+                        PolarDirectionIr::Clockwise
+                    }
+                }
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E1910,
+                    "`direction` expects a string literal: \"clockwise\" or \"counterclockwise\"",
+                    node_span(value.syntax()),
+                ));
+                PolarDirectionIr::Clockwise
+            }
+            None => PolarDirectionIr::Clockwise,
         }
     }
 

@@ -198,6 +198,8 @@ pub(super) fn build_render_plan<'t>(
             let scaled = if let CoordsIr::Polar {
                 theta,
                 inner_radius,
+                start_angle,
+                direction,
             } = space.coords
             {
                 ScaledSpace::build_polar(
@@ -208,6 +210,8 @@ pub(super) fn build_render_plan<'t>(
                     &space_scales,
                     theta,
                     inner_radius,
+                    start_angle,
+                    direction,
                     panel_theme.font_size,
                 )
             } else {

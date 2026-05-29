@@ -4,6 +4,7 @@ Status: Planned
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_30_PLAN.md`](V0_30_PLAN.md)
+Follow-on plan: [`V0_32_PLAN.md`](V0_32_PLAN.md)
 
 ## Purpose
 
@@ -16,9 +17,15 @@ that real charts keep wanting:
   (IANA timezones, temporal literals, off-axis temporal formatting, time-only
   values with an anchor, parse-failure severity);
 - the polar "deferred" items from [`V0_26_PLAN.md`](V0_26_PLAN.md) (the
-  `radial_bar` concentric-ring mode and configurable start angle/direction);
-- the long-standing reserved language items (nested `Space` blocks and
-  space-local annotation declarations).
+  `radial_bar` concentric-ring mode and configurable start angle/direction).
+
+The long-standing reserved language items — nested `Space` blocks and
+space-local scale/guide/annotation declarations (spec §4.2) — were originally
+scoped here but are **promoted to their own release**,
+[`V0_32_PLAN.md`](V0_32_PLAN.md): they are a single coherent grammar/scope
+subsystem rather than independent polish, and conflating them with this release's
+small, mostly-independent items would couple unrelated work. v0.31 keeps its
+language-surface-polish thesis; nested spaces become v0.32's headline.
 
 As with prior releases, items here are planning guidance. A feature becomes
 normative only when the relevant section of [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md) is
@@ -37,8 +44,9 @@ algebra, scale, and coordinate models.
 The unifying decision is to round out *existing* capabilities rather than open
 new ones: polar already exists, so finish its chart family; temporal parsing and
 formatting already exist, so make timezones, literals, and off-axis labels
-consistent; the grammar already reserves nested spaces and space-local
-annotations, so decide and implement (or formally reject) them.
+consistent. The grammar's reserved nested-space and space-local-annotation items
+are a new scope subsystem rather than polish, so they move to
+[`V0_32_PLAN.md`](V0_32_PLAN.md) and are out of scope here.
 
 ## Current Debt Surface
 
@@ -57,7 +65,9 @@ The plan/spec/code audit found:
   12-o'clock clockwise and deferred configurable `startAngle`/`direction`.
 - Spec §4.2 says "Nested spaces are reserved for later versions" and the first
   implementation rejects them with a diagnostic; §4.2 also reserves space-local
-  scale/guide/annotation declarations "in later versions."
+  scale/guide/annotation declarations "in later versions." This release does not
+  resolve that reservation — it is the subject of
+  [`V0_32_PLAN.md`](V0_32_PLAN.md).
 - Temporal formatting (spec §19.4) only applies to axis guides; there is no
   consistent way to format a temporal column used as a text label or categorical
   legend entry, which the v0.28 plan flagged as a candidate surface.
@@ -130,10 +140,11 @@ git diff -- examples
    `Guide(timeFormat: …)`; no second formatting engine.
 5. **IANA zones are an interpretation lens only.** They resolve a declared naive
    datetime to a UTC-equivalent instant; scale spacing stays UTC.
-6. **Reserved language items get a decision.** Nested spaces and space-local
-   annotations either ship with a tested, specified design or are formally
-   rejected with a recorded rationale — they do not stay in indefinite "reserved"
-   limbo.
+6. **Reserved language items move to their own release.** Nested spaces and
+   space-local annotations are a coherent grammar/scope subsystem, not polish, so
+   they are sequenced into [`V0_32_PLAN.md`](V0_32_PLAN.md) rather than decided
+   here. They still do not stay in indefinite "reserved" limbo — v0.32 ships a
+   tested, specified design or records a formal rejection.
 
 ## v0.31.0 Must
 
@@ -225,21 +236,7 @@ Acceptance criteria:
 - Behavior is deterministic and the aggregated-warning wording stays stable for
   the default.
 
-### 7. Nested spaces and space-local annotations decision
-
-Status: Planned.
-
-Acceptance criteria:
-
-- Decide and specify whether nested `Space` blocks and space-local
-  scale/guide/annotation declarations (spec §4.2) ship in v0.31.
-- If they ship: specify scope/inheritance, update the grammar and §9 scope
-  semantics, and add tests + an example.
-- If they do not ship: record a formal rejection/design note in the spec and this
-  plan, replacing the open-ended "reserved for later versions" language with a
-  concrete decision.
-
-### 8. Examples, README, spec, and release hygiene
+### 7. Examples, README, spec, and release hygiene
 
 Status: Planned.
 
@@ -249,7 +246,7 @@ Acceptance criteria:
   temporal-literal reference line, and off-axis temporal formatting; regenerate
   with `./examples/generate.sh`.
 - README gains sections in the temporal and coords/polar tutorial progressions.
-- Spec updates cover §4.2 (nested space decision), §7 (literal/`Format` grammar),
+- Spec updates cover §7 (literal/`Format` grammar),
   §10.3 (temporal literal parsing), §14 (`Text`/reference-mark `timeFormat`,
   `radial_bar` mapping), §16.16 (start angle/direction parameters), §19.4
   (off-axis formatting), and §26 (diagnostics).
@@ -295,7 +292,6 @@ configurable start-angle orientation.
 - IANA timezone names.
 - Off-axis temporal formatting.
 - Parse-failure severity controls.
-- Nested-space / space-local annotation decision.
 - Examples, README, spec, and release hygiene.
 
 ### Consider If Capacity Allows (Should)
@@ -319,16 +315,21 @@ configurable start-angle orientation.
 5. Add IANA timezone interpretation for declared naive datetimes.
 6. Add off-axis `timeFormat` over the §19.4 format model.
 7. Add `Parse(onError: …)` severity handling.
-8. Decide nested spaces / space-local annotations; ship or record the rejection.
-9. Add examples, README, LSP/grammar updates; bump versions; confirm no
+8. Add examples, README, LSP/grammar updates; bump versions; confirm no
    unintended example drift.
 
 ## A note on sequencing
 
-The big still-unimplemented subsystem after this release is **extensibility** —
+The next release after this polish pass is [`V0_32_PLAN.md`](V0_32_PLAN.md),
+which takes on the reserved **nested `Space` blocks and space-local
+scale/guide/annotation declarations** (spec §4.2) as a focused grammar/scope
+subsystem — work that was originally listed here but pulled out so it gets a
+release of its own rather than riding alongside unrelated polish.
+
+The big still-unimplemented subsystem beyond that is **extensibility** —
 plugins, custom stats, custom geometries, user-defined functions, and macros —
 which already has a written but unshipped plan in
 [`V0_25_PLAN.md`](V0_25_PLAN.md). Implementation leapfrogged v0.25 (releases
 0.26–0.28 shipped first), so that plan remains the plan-of-record for
 extensibility and should be slotted in (and renumbered if desired) when the team
-is ready to take it on, after this polish release.
+is ready to take it on, after the nested-spaces release.

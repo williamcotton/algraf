@@ -122,6 +122,7 @@ impl Analyzer<'_> {
         }
 
         self.bar_dodge_hint(def, frame, coords, &mappings, &settings, span);
+        self.check_polar_radius(def, coords, &mappings, span);
 
         Some(GeometryIr {
             kind: def.kind,
@@ -426,6 +427,45 @@ impl Analyzer<'_> {
                 )
                 .with_help("e.g. `Space((x / fill) * y)`, or set `layout: \"stack\"`"),
             );
+        }
+    }
+
+    /// Validate a `radius:` mapping on a `Bar` (the polar `radial_bar` mode,
+    /// spec §16.16). The mapping selects concentric rings, so it requires a polar
+    /// space and a categorical column; otherwise emit `E1910`.
+    fn check_polar_radius(
+        &mut self,
+        def: &GeometryDef,
+        coords: &CoordsIr,
+        mappings: &[AestheticMapping],
+        span: Span,
+    ) {
+        if def.kind != GeometryKind::Bar {
+            return;
+        }
+        let Some(mapping) = mappings.iter().find(|m| m.aesthetic == PropertyKey::Radius) else {
+            return;
+        };
+        if !matches!(coords, CoordsIr::Polar { .. }) {
+            self.diag(
+                Diagnostic::error(
+                    codes::E1910,
+                    "`radius:` is only supported on a polar Bar (radial bar chart)",
+                    span,
+                )
+                .with_help("add `coords: \"polar\", theta: \"y\"` to the enclosing Space"),
+            );
+            return;
+        }
+        if !mapping.column.dtype.is_categorical() {
+            self.diag(Diagnostic::error(
+                codes::E1910,
+                format!(
+                    "polar `radius:` requires a categorical column, but `{}` is not categorical",
+                    mapping.column.name
+                ),
+                mapping.span,
+            ));
         }
     }
 }

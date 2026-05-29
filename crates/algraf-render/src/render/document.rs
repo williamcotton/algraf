@@ -22,11 +22,75 @@ var s=document.currentScript,r=s&&s.closest?s.closest(\"svg\"):null;\
 if(!r){var a=document.getElementsByTagName(\"svg\");r=a[a.length-1];}\
 if(!r)return;\
 var m=r.querySelectorAll(\"[data-algraf-highlight]\");\
-function set(g){for(var i=0;i<m.length;i++){var e=m[i],v=e.getAttribute(\"data-algraf-highlight\");e.style.opacity=(g===null||v===g)?\"\":\"0.15\";}}\
-for(var i=0;i<m.length;i++){(function(e){\
-e.addEventListener(\"mouseenter\",function(){set(e.getAttribute(\"data-algraf-highlight\"));});\
-e.addEventListener(\"mouseleave\",function(){set(null);});\
-})(m[i]);}})();";
+var tip=document.createElementNS(\"http://www.w3.org/2000/svg\",\"g\");\
+tip.setAttribute(\"pointer-events\",\"none\");\
+tip.style.display=\"none\";\
+var bg=document.createElementNS(\"http://www.w3.org/2000/svg\",\"rect\");\
+bg.setAttribute(\"fill\",\"white\");\
+bg.setAttribute(\"stroke\",\"#ccc\");\
+bg.setAttribute(\"rx\",\"4\");\
+var txt=document.createElementNS(\"http://www.w3.org/2000/svg\",\"text\");\
+txt.setAttribute(\"font-family\",\"system-ui, sans-serif\");\
+txt.setAttribute(\"font-size\",\"12\");\
+txt.setAttribute(\"fill\",\"#222\");\
+tip.appendChild(bg);\
+tip.appendChild(txt);\
+r.appendChild(tip);\
+var pt=r.createSVGPoint();\
+var els=r.querySelectorAll(\"title\");\
+var wt=[];\
+for(var i=0;i<els.length;i++){\
+var t=els[i],p=t.parentNode;\
+if(p&&p!==r){\
+p.setAttribute(\"data-title\",t.textContent);\
+p.removeChild(t);\
+if(wt.indexOf(p)===-1)wt.push(p);\
+}\
+}\
+function set(g){\
+for(var i=0;i<m.length;i++){\
+var e=m[i],v=e.getAttribute(\"data-algraf-highlight\");\
+e.style.opacity=(g===null||v===g)?\"\":\"0.15\";\
+}\
+}\
+var ints=[];\
+for(var i=0;i<m.length;i++)if(ints.indexOf(m[i])===-1)ints.push(m[i]);\
+for(var i=0;i<wt.length;i++)if(ints.indexOf(wt[i])===-1)ints.push(wt[i]);\
+for(var i=0;i<ints.length;i++){\
+(function(e){\
+e.addEventListener(\"mouseenter\",function(){\
+if(e.hasAttribute(\"data-algraf-highlight\"))set(e.getAttribute(\"data-algraf-highlight\"));\
+var d=e.getAttribute(\"data-title\");\
+if(d){\
+tip.style.display=\"\";\
+var lines=d.split(\"\\n\");\
+txt.innerHTML=\"\";\
+for(var j=0;j<lines.length;j++){\
+var ts=document.createElementNS(\"http://www.w3.org/2000/svg\",\"tspan\");\
+ts.setAttribute(\"x\",\"8\");\
+ts.setAttribute(\"dy\",j===0?\"16\":\"14\");\
+ts.textContent=lines[j];\
+txt.appendChild(ts);\
+}\
+var bbox=txt.getBBox();\
+bg.setAttribute(\"width\",bbox.width+16);\
+bg.setAttribute(\"height\",bbox.height+10);\
+}\
+});\
+e.addEventListener(\"mousemove\",function(evt){\
+if(tip.style.display!==\"none\"){\
+pt.x=evt.clientX;pt.y=evt.clientY;\
+var loc=pt.matrixTransform(r.getScreenCTM().inverse());\
+tip.setAttribute(\"transform\",\"translate(\"+(loc.x+10)+\",\"+(loc.y+10)+\")\");\
+}\
+});\
+e.addEventListener(\"mouseleave\",function(){\
+if(e.hasAttribute(\"data-algraf-highlight\"))set(null);\
+tip.style.display=\"none\";\
+});\
+})(ints[i]);\
+}\
+})();";
 
 pub(super) fn emit_document(
     scene: &RenderScene<'_>,
