@@ -154,7 +154,7 @@ pipelines `Parse(onError: "error")` makes any failure blocking, and
 ```algraf
 Chart(data: "temporal_parse_custom.csv", width: 760, height: 420, title: "Explicit temporal parsing") {
     Parse(column: started_at, as: "datetime", format: "%m/%d/%Y %I:%M %p", timezone: "UTC")
-    Guide(axis: x, label: "Start time", timeFormat: "%b %-d %H:%M")
+    Guide(axis: x, label: "Start time", timeFormat: "%b %-d %I:%M")
     Guide(axis: y, label: "Latency (ms)")
 
     Space(started_at * latency_ms) {
@@ -237,7 +237,7 @@ Chart(data: "hourly_load.csv", width: 720, height: 360, title: "Requests over th
 You can overlay different geometries mapped to different y-axis columns by defining multiple `Space` blocks inside the same `Chart`. They will share the same trained coordinate system. Here, we layer a forecast range (`Ribbon`), a mean forecast line (`Line`), and actual observed temperatures (`Point`).
 
 ```algraf
-Chart(data: "weather_forecast.csv", width: 760, height: 420, title: "7-Day Weather Forecast & Observations") {
+Chart(data: "weather_forecast.csv", width: 760, height: 420, title: "7-Day Weather Forecast & Observations", marginRight: 50) {
     Theme(name: "minimal")
     Scale(axis: y, domain: [8, 28])
     Guide(axis: x, label: "Date")
@@ -280,7 +280,9 @@ before `Point` draws the points on top of the connecting lines.
 ```algraf
 Chart(data: "timeseries.csv") {
     Space(time * value) {
+        // Renders the connecting lines first
         Line(stroke: series, strokeWidth: 2)
+        // Renders the data points on top of the lines
         Point(fill: series, size: 4)
     }
 }
@@ -455,7 +457,7 @@ Chart(data: "monthly_profit.csv", width: 720, height: 420, title: "Monthly Profi
     Guide(axis: y, label: "Profit / Loss ($)")
 
     Space(month * profit) {
-        Bar(fill: status, layout: "identity", alpha: 0.85)
+        Bar(fill: status, layout: "stack", alpha: 0.85)
         HLine(y: 0, stroke: "#333333", strokeWidth: 1.2)
     }
 }
@@ -560,12 +562,16 @@ splits into one sub-bar per group on a continuous x-axis; there is no
 `position`/`layout` keyword.
 
 ```algraf
-Chart(data: "exam_scores.csv", width: 760, height: 460, title: "Exam scores by cohort (dodged)") {
+Chart(
+    data: "exam_scores.csv",
+    width: 760,
+    height: 460,
+    title: "Exam scores by cohort (dodged)"
+) {
     Guide(axis: x, label: "Score")
     Guide(axis: y, label: "Count")
-
     Space(score / cohort) {
-        Histogram(fill: cohort, bins: 14)
+        Histogram(fill: cohort, binWidth: 5, boundary: 45)
     }
 }
 ```
@@ -605,8 +611,8 @@ Chart(
 
     Space((mission_age + selection_age)) {
         Histogram(binWidth: 1, alpha: 0.8, stroke: "#000000")
-        VLine(x: 34.5, stroke: "#000000", strokeWidth: 1, dash: "dotted")
-        VLine(x: 44.5, stroke: "#000000", strokeWidth: 1, dash: "dotted")
+        VLine(x: 34, stroke: "#000000", strokeWidth: 1, dash: "dotted")
+        VLine(x: 44, stroke: "#000000", strokeWidth: 1, dash: "dotted")
         Text(x: 34, y: 66, label: "Mean age at selection = 34", anchor: "start", dx: 15, dy: 10, size: 14)
         Text(x: 44, y: 49, label: "Mean age at mission = 44", anchor: "start", dx: 15, dy: 10, size: 14)
         Text(
@@ -730,6 +736,8 @@ continuous fill or stroke mapping. Use `Stop(value: ..., color: ...)` when the
 colors should land at explicit domain values.
 
 ```algraf
+Algraf(version: "0.20")
+
 Chart(data: "heatmap.csv", width: 700, height: 460, title: "Custom continuous gradient") {
     Scale(
         fill: value,
@@ -770,8 +778,6 @@ Continuous 2D density heatmap using `Bin2D` overlaid with raw scatter points and
 ```algraf
 Chart(data: "samples.csv", width: 760, height: 500, title: "2D Density Binning with Points Overlay") {
     Theme(name: "minimal")
-    Scale(axis: x, domain: [165, 205])
-    Scale(axis: y, domain: [2000, 4500])
     Guide(axis: x, label: "Variable X")
     Guide(axis: y, label: "Variable Y")
 
@@ -944,7 +950,7 @@ operator in the algebra is *blend*: it tells the y scale to consider
 both columns when training its domain.
 
 ```algraf
-Chart(data: "ribbon.csv", width: 760, height: 460) {
+Chart(data: "ribbon.csv", width: 760, height: 460, marginRight: 50) {
     Space(day * (lower + upper)) {
         Ribbon(ymin: lower, ymax: upper, fill: "steelblue", alpha: 0.25)
     }
@@ -977,6 +983,7 @@ a strip plot — useful for inspecting distributions without binning.
 
 ```algraf
 Chart(data: "demographics.csv") {
+    // Categorical X, Continuous Y
     Space(gender * height) {
         Point(fill: gender, alpha: 0.4, size: 3)
     }
@@ -991,12 +998,14 @@ Chart(data: "demographics.csv") {
 `xmin/xmax/ymin/ymax` from columns or literals.
 
 ```algraf
-Chart(data: "intervals.csv") {
+Chart(data: "intervals.csv", marginRight: 150) {
+    // Both axes must be continuous/temporal
     Space(time * value) {
         Rect(
-            xmin: start_time,
-            xmax: end_time,
-            ymin: 0,
+            xmin: start_time, 
+            xmax: end_time, 
+            // Hardcode a literal baseline if you don't have a column
+            ymin: 0,       
             ymax: peak_value,
             fill: "steelblue",
             alpha: 0.5
@@ -1108,6 +1117,7 @@ sharing the same scales and axes.
 
 ```algraf
 Chart(data: "regional_sales.csv") {
+    // This creates a separate line chart for each 'region'
     Space((time * sales) / region) {
         Line(stroke: product)
     }
@@ -1666,7 +1676,7 @@ Chart(
     title: "Revenue by region (SQLite source)",
 ) {
     Space(region * revenue) {
-        Bar(stat: "identity", fill: region, alpha: 0.85)
+        Bar(stat: "identity", fill: region, alpha: 0.85, layout: "stack")
     }
 }
 ```
@@ -1704,7 +1714,7 @@ Chart(
     title: "Events by category (NDJSON source)",
 ) {
     Space(category * count) {
-        Bar(stat: "identity", fill: category, alpha: 0.85)
+        Bar(stat: "identity", fill: category, alpha: 0.85, layout: "stack")
     }
 }
 ```
@@ -1871,7 +1881,8 @@ county's population.
 
 ```algraf
 Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 600,
-      title: "County Population Centroids") {
+      title: "County Population Centroids",
+      subtitle: "Centroid(geom) reduces each county polygon to a single point") {
     Theme(name: "void")
     Scale(fill: population, gradient: ["#fee5d9", "#a50f15"], label: "Population")
 
@@ -1937,7 +1948,8 @@ object to load.
 
 ```algraf
 Chart(data: TopoJson("grid.topojson", object: "grid"), width: 400, height: 400,
-      title: "TopoJSON Grid") {
+      title: "TopoJSON Grid",
+      subtitle: "Arcs decode to the same geometry column as GeoJSON") {
     Theme(name: "void")
     Scale(fill: value, gradient: ["#edf8e9", "#006d2c"], label: "Value")
 
@@ -1958,7 +1970,8 @@ one space; the joined points, colored by their matched zone, in another.
 
 ```algraf
 Chart(data: GeoJson("sensors.geojson"), width: 500, height: 360,
-      title: "Sensors Tagged by Zone") {
+      title: "Sensors Tagged by Zone",
+      subtitle: "SpatialJoin assigns each point the zone polygon that contains it") {
     Theme(name: "void")
 
     Table zones = GeoJson("zones.geojson")
@@ -2075,7 +2088,7 @@ A **pie** is a 1D space whose value wraps the full angle (`theta: "y"`, a `fill`
 layout), drawn as `Bar` wedges:
 
 ```algraf
-Chart(data: "pie_sales.csv", width: 360, height: 360, title: "Revenue share") {
+Chart(data: "pie_sales.csv", width: 360, height: 360, title: "Revenue share", marginLeft: 30) {
   Space(sales, coords: "polar", theta: "y") {
     Bar(fill: product, layout: "fill")
   }
@@ -2087,7 +2100,7 @@ Chart(data: "pie_sales.csv", width: 360, height: 360, title: "Revenue share") {
 A **donut** is the same chart with `innerRadius` set:
 
 ```algraf
-Chart(data: "pie_sales.csv", width: 360, height: 360, title: "Revenue share") {
+Chart(data: "pie_sales.csv", width: 360, height: 360, title: "Revenue share", marginLeft: 30) {
   Space(sales, coords: "polar", theta: "y", innerRadius: 0.55) {
     Bar(fill: product, layout: "fill")
   }
@@ -2154,6 +2167,7 @@ radius, plus an `innerRadius` hole:
 
 ```algraf
 Chart(data: "activity.csv", width: 420, height: 420, title: "Sessions by day and period") {
+  Scale(fill: sessions, gradient: [Stop(value: 0, color: "#ffffff"), Stop(value: 9, color: "#994422")])
   Space(day * period, coords: "polar", theta: "x", innerRadius: 0.25) {
     Tile(fill: sessions)
   }
@@ -2284,6 +2298,9 @@ writes one file per chart, inserting a 1-based suffix before the extension
 (`out.svg` → `out-1.svg`, `out-2.svg`):
 
 ```algraf
+// A single document with two independent charts. Each renders to its own file:
+// `render --output multi_chart.svg` writes multi_chart-1.svg and multi_chart-2.svg.
+
 Chart(data: "penguins.csv", width: 640, height: 400, title: "Observations") {
     Space(flipper_length * body_mass) {
         Point(fill: species, alpha: 0.8)
