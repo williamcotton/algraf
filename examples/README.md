@@ -50,6 +50,8 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | `smooth.ag` | `penguins.csv` | `smooth.svg`, `smooth.png` | Linear `Smooth(method: "lm")` overlay |
 | `boxplot.ag` | `demographics.csv` | `boxplot.svg`, `boxplot.png` | Boxplot summaries with rug ticks |
 | `violin.ag` | `demographics.csv` | `violin.svg`, `violin.png` | Violin geometry with quantile lines |
+| `density.ag` | `distribution.csv` | `density.svg`, `density.png` | Kernel density estimation (KDE) of a single numeric column |
+| `multiple_density.ag` | `astronauts.csv` | `multiple_density.svg`, `multiple_density.png` | Overlaid kernel density estimates (KDE) of multiple numeric columns using the blend operator |
 | `freqpoly.ag` | `distribution.csv` | `freqpoly.svg`, `freqpoly.png` | Frequency polygon over binned counts |
 | `derived_chain.ag` | `distribution.csv` | `derived_chain.svg`, `derived_chain.png` | Chained `Derive` declarations |
 | `gradient.ag` | `heatmap.csv` | `gradient.svg`, `gradient.png` | Source header and positioned continuous gradient stops |

@@ -4352,7 +4352,7 @@ Density(bandwidth: 0.5, n: 256)
 
 Supported spaces:
 
-1D continuous (numeric) vector
+1D continuous (numeric) vector, or a union of 1D continuous (numeric) vectors (blended space)
 
 Density computes a kernel density estimate of the input column and renders it
 as a filled area from the curve down to a zero baseline.
@@ -4364,7 +4364,35 @@ described in §15.11.
 2) settings, plus the `fill`, `stroke`, `strokeWidth`, and `alpha` visual
 settings.
 
-A `Density` over a non-numeric column MUST emit `E1404`; over a non-vector
+Version 0.31.0 MUST support overlaid densities by blending numeric columns with
+the blend operator:
+
+```ag
+Space((selection_age + mission_age)) {
+    Density(alpha: 0.6)
+}
+```
+
+This form computes kernel density estimates for each blended column independently
+and overlays them. The synthetic `series` column names the source column and
+drives the categorical `fill` scale and legend.
+
+The blended form
+
+```ag
+Space((selection_age + mission_age)) { Density() }
+```
+
+MUST be visually equivalent to a `Density` stat over the union
+`(selection_age + mission_age)` feeding:
+
+```ag
+Area(fill: series)
+```
+
+over the `(density_x, density)` space of the derived table.
+
+A `Density` over a non-numeric column MUST emit `E1404`; over any other non-vector/non-blended
 space it MUST emit `E1302`.
 
 ### 14.10 Smooth

@@ -601,6 +601,54 @@ pub fn density(table: &dyn Table, input_column: &str, options: DensityOptions) -
     )
 }
 
+/// Compute blended kernel density estimates over several numeric columns.
+/// Each column is estimated independently, and all outputs are concatenated
+/// into a shared derived table with a `series` column indicating the source.
+pub fn density_blended(
+    table: &dyn Table,
+    value_columns: &[&str],
+    options: DensityOptions,
+) -> DataFrame {
+    let schema = vec![
+        col_def("density_x", DataType::Float),
+        col_def("density", DataType::Float),
+        col_def("series", DataType::String),
+    ];
+
+    let mut xs = Vec::new();
+    let mut ds = Vec::new();
+    let mut series = Vec::new();
+
+    for column in value_columns {
+        let mut values: Vec<f64> = (0..table.row_count())
+            .filter_map(|row| cell_f64(table, column, row))
+            .filter(|v| v.is_finite())
+            .collect();
+        let points = density_values(&mut values, options);
+        for p in points {
+            xs.push(Some(p.x));
+            ds.push(Some(p.density));
+            series.push(Some(column.to_string()));
+        }
+    }
+
+    if xs.is_empty() {
+        return DataFrame::new(
+            schema,
+            vec![
+                Column::Float(vec![]),
+                Column::Float(vec![]),
+                Column::String(vec![]),
+            ],
+        );
+    }
+
+    DataFrame::new(
+        schema,
+        vec![Column::Float(xs), Column::Float(ds), Column::String(series)],
+    )
+}
+
 pub fn density_values(values: &mut [f64], options: DensityOptions) -> Vec<DensityPoint> {
     values.sort_by(f64::total_cmp);
     if values.len() < 2 {

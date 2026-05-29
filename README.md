@@ -846,6 +846,28 @@ Chart(data: "distribution.csv", width: 760, height: 460, title: "Estimated densi
 
 ![density](examples/density.svg)
 
+## Overlaid Densities: blended distributions
+
+By using the `+` blend operator in the `Space` block, `Density` can compute and overlay density curves for multiple continuous columns. The synthetic `series` column tracks the source variable names, allowing them to drive categorical aesthetics like `fill` and generate matching legends.
+
+```algraf
+Chart(data: "astronauts.csv", width: 760, height: 460, title: "Astronaut Age Distribution", subtitle: "Overlaid densities of age at selection and age at mission") {
+    Scale(
+        fill: series,
+        range: ["selection_age" => "#beaed4", "mission_age" => "#7fc97f"],
+        labels: ["selection_age" => "Age at selection", "mission_age" => "Age at mission"],
+        label: ""
+    )
+    Guide(axis: x, label: "Age of astronaut (years)")
+
+    Space((selection_age + mission_age)) {
+        Density(alpha: 0.6)
+    }
+}
+```
+
+![multiple_density](examples/multiple_density.svg)
+
 ## Ribbon: confidence band
 
 `Ribbon` closes a band between `ymin` and `ymax` per x value. The `+`

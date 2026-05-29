@@ -558,6 +558,27 @@ impl Analyzer<'_> {
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
+        // Overlay: `Space((a + b)) { Density(...) }` blends multiple numeric
+        // columns onto a shared density axis colored by synthetic `series` (spec §14.9).
+        if let FrameIr::Union(members) = frame {
+            if members.len() < 2 {
+                self.diag(Diagnostic::error(
+                    codes::E1302,
+                    "blended Density requires at least two numeric columns",
+                    density.span,
+                ));
+                return None;
+            }
+            let mut columns = Vec::new();
+            for member in members {
+                columns.push(
+                    self.require_numeric_vector(member, density.span, "blended Density", false)?
+                        .clone(),
+                );
+            }
+            return Some(self.blended_density(density, columns, theme, guides, scales));
+        }
+
         let input = self
             .require_numeric_vector(frame, density.span, "Density", false)?
             .clone();
@@ -600,6 +621,61 @@ impl Analyzer<'_> {
             span: density.span,
         };
         Some((derive, space))
+    }
+
+    /// Desugar a blended `Density` into a `Density` over a union of numeric
+    /// columns plus an overlaid `Area` colored by synthetic `series`.
+    fn blended_density(
+        &mut self,
+        density: &GeometryIr,
+        values: Vec<ColumnRef>,
+        theme: Option<ThemeIr>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+    ) -> (DeriveIr, SpaceIr) {
+        let span = density.span;
+        let name = self.next_synthetic("density");
+        let options = self.density_options(density);
+        let derive = DeriveIr {
+            name: name.clone(),
+            data: SpaceDataRef::Primary,
+            stat: StatCallIr {
+                kind: StatKind::Density,
+                input: FrameIr::Union(values.into_iter().map(FrameIr::Vector).collect()),
+                options,
+                span,
+            },
+            output_schema: crate::planning::blended_density_output_schema(),
+            span,
+        };
+
+        let density_x = synthetic_column("density_x", DataType::Float, span);
+        let density_y = synthetic_column("density", DataType::Float, span);
+        let series = synthetic_column("series", DataType::String, span);
+        let mappings = vec![AestheticMapping {
+            aesthetic: PropertyKey::Fill,
+            column: series,
+            span,
+        }];
+        let area = GeometryIr {
+            kind: GeometryKind::Area,
+            mappings,
+            settings: density_area_settings(density),
+            interaction: InteractionIr::default(),
+            span,
+        };
+        let space = SpaceIr {
+            data: SpaceDataRef::Derived(name),
+            frame: FrameIr::Cartesian(vec![FrameIr::Vector(density_x), FrameIr::Vector(density_y)]),
+            geometries: vec![area],
+            guides,
+            scales,
+            theme,
+            projection: None,
+            coords: CoordsIr::Cartesian,
+            span,
+        };
+        (derive, space)
     }
 
     /// Require a single-column numeric vector space for a 1D lowering target,

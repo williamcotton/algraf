@@ -182,17 +182,26 @@ pub(super) fn compute_derived(
                     bandwidth,
                     grid_points,
                 } => {
-                    if let FrameIr::Vector(col) = &d.stat.input {
-                        let options = stats::DensityOptions {
-                            bandwidth: bandwidth.filter(|n| *n > 0.0),
-                            grid_points: grid_points
-                                .filter(|n| *n >= 2.0)
-                                .map(|n| n.round() as usize)
-                                .unwrap_or(256),
-                        };
-                        Some(stats::density(source, &col.name, options))
-                    } else {
-                        None
+                    let options = stats::DensityOptions {
+                        bandwidth: bandwidth.filter(|n| *n > 0.0),
+                        grid_points: grid_points
+                            .filter(|n| *n >= 2.0)
+                            .map(|n| n.round() as usize)
+                            .unwrap_or(256),
+                    };
+                    match &d.stat.input {
+                        FrameIr::Vector(col) => Some(stats::density(source, &col.name, options)),
+                        FrameIr::Union(members) => {
+                            let columns: Option<Vec<&str>> = members
+                                .iter()
+                                .map(|member| match member {
+                                    FrameIr::Vector(column) => Some(column.name.as_str()),
+                                    _ => None,
+                                })
+                                .collect();
+                            columns.map(|columns| stats::density_blended(source, &columns, options))
+                        }
+                        _ => None,
                     }
                 }
                 StatOptionsIr::Smooth { method, span, se } => {

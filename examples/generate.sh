@@ -47,6 +47,7 @@ charts=(
     temporal_histogram
     space_theme
     density
+    multiple_density
     violin
     freqpoly
     derived_chain

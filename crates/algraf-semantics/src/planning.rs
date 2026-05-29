@@ -22,7 +22,11 @@ pub fn stat_output_schema(kind: StatKind, input: &FrameIr) -> Vec<ColumnDefIr> {
         // The plain (no-`se`) schema; the analyzer rebuilds with bands when the
         // `se` option is set (spec §15.x).
         StatKind::Smooth => smooth_output_schema(false),
-        StatKind::Density => density_output_schema(),
+        StatKind::Density => match input {
+            FrameIr::Vector(_) => density_output_schema(),
+            FrameIr::Union(_) => blended_density_output_schema(),
+            _ => density_output_schema(),
+        },
         StatKind::Count => count_output_schema(&frame_group_columns(input)),
         StatKind::Boxplot => Vec::new(),
         // Geometry-producing stats pass scalar columns through, so their real
@@ -278,6 +282,24 @@ pub fn density_output_schema() -> Vec<ColumnDefIr> {
         ColumnDefIr {
             name: "density".into(),
             dtype: DataType::Float,
+        },
+    ]
+}
+
+/// Output schema for blended kernel density estimation.
+pub fn blended_density_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "density_x".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "density".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "series".into(),
+            dtype: DataType::String,
         },
     ]
 }

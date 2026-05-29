@@ -1152,6 +1152,43 @@ fn test_density_rejects_non_vector_space() {
 }
 
 #[test]
+fn test_density_blended_desugars_correctly() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space((selection_age + mission_age)) {\n    Density(alpha: 0.6)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.derived_tables.len(), 1);
+    let derived = &ir.derived_tables[0];
+    assert!(derived.name.starts_with("__density_"));
+    assert_eq!(derived.stat.kind, StatKind::Density);
+    let names: Vec<&str> = derived
+        .output_schema
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(names, vec!["density_x", "density", "series"]);
+    assert_eq!(ir.spaces.len(), 1);
+    assert_eq!(
+        ir.spaces[0].data,
+        SpaceDataRef::Derived(derived.name.clone())
+    );
+    assert!(matches!(ir.spaces[0].frame, FrameIr::Cartesian(ref axes) if axes.len() == 2));
+    assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Area);
+    assert_eq!(ir.spaces[0].geometries[0].mappings.len(), 1);
+    assert_eq!(
+        ir.spaces[0].geometries[0].mappings[0].aesthetic,
+        PropertyKey::Fill
+    );
+    assert_eq!(ir.spaces[0].geometries[0].mappings[0].column.name, "series");
+}
+
+#[test]
 fn test_freqpoly_and_2d_binning_geometries_are_registered() {
     clean("Chart(data: \"p.csv\") {\n  Space(value) { FreqPoly(bins: 8, stroke: \"steelblue\") }\n  Space(flipper_length * body_mass) { Bin2D(bins: 6) HexBin(bins: 6) }\n}");
 }
