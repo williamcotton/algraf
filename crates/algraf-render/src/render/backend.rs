@@ -56,12 +56,20 @@ pub(super) trait RenderBackend {
 }
 
 /// The deterministic SVG backend — the canonical backend (spec §18, §24.6).
-pub(super) struct SvgBackend;
+///
+/// `interactive` opts into the fixed, audited interactive runtime (spec §29.3):
+/// when `true`, the emitted document embeds the single Algraf-shipped script that
+/// reads the inert per-mark metadata (`<title>` tooltips, `data-algraf-highlight`
+/// groups). When `false` (the default), the SVG is byte-for-byte the canonical,
+/// script-free output.
+pub(super) struct SvgBackend {
+    pub(super) interactive: bool,
+}
 
 impl RenderBackend for SvgBackend {
     type Output = String;
 
     fn emit(&self, scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> String {
-        document::emit_document(scene, diagnostics)
+        document::emit_document(scene, self.interactive, diagnostics)
     }
 }

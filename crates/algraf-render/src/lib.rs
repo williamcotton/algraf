@@ -51,11 +51,12 @@ pub use embed::{
 pub use error::RenderError;
 pub use layout::{FacetPanel, Layout, Rect};
 pub use render::{
-    render, render_draw_list, render_draw_list_with_tables, render_raster,
-    render_raster_with_tables, render_with_tables, DrawList, DrawListResult, DrawOp, DrawRole,
-    RasterImage, RasterResult, RenderResult, TextAnchor,
+    render, render_draw_list, render_draw_list_with_tables, render_interactive,
+    render_interactive_with_tables, render_raster, render_raster_with_tables, render_with_tables,
+    DrawList, DrawListResult, DrawOp, DrawRole, RasterImage, RasterResult, RenderResult,
+    TextAnchor,
 };
-pub use sink::{Dash, Fill, Paint, Stroke};
+pub use sink::{Dash, Fill, MarkInteraction, Paint, Stroke};
 pub use svg::num as svg_num;
 pub use theme::Theme;
 

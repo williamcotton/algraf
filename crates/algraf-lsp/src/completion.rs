@@ -257,6 +257,14 @@ pub(crate) fn completion_items(
                     .map(|name| property(name, registry::property_doc(name)))
                     .collect::<Vec<_>>();
                 items.push(property("style", registry::property_doc("style")));
+                // Declarative interactions (spec §14.25) are not in any
+                // geometry's PropSpec list; offer them on geometries that
+                // support them.
+                if registry::supports_interaction(geometry.kind) {
+                    for name in registry::INTERACTION_PROPS {
+                        items.push(property(name, registry::property_doc(name)));
+                    }
+                }
                 items
             } else {
                 all_property_items()

@@ -1891,3 +1891,70 @@ fn polar_invalid_grid_shape_is_e1906() {
         "E1906"
     ));
 }
+
+// --- Declarative interactions (spec §14.25) ---------------------------------
+
+#[test]
+fn test_tooltip_and_highlight_lower_onto_geometry() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point(tooltip: [species, body_mass], highlight: \"species\") } }",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let geo = &ir.spaces[0].geometries[0];
+    let names: Vec<&str> = geo
+        .interaction
+        .tooltip
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(names, vec!["species", "body_mass"]);
+    assert_eq!(
+        geo.interaction.highlight.as_ref().map(|c| c.name.as_str()),
+        Some("species")
+    );
+}
+
+#[test]
+fn test_tooltip_accepts_single_column() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point(tooltip: species) } }",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.spaces[0].geometries[0].interaction.tooltip.len(), 1);
+}
+
+#[test]
+fn test_interaction_on_unsupported_geometry_is_e1206() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Line(tooltip: species) } }",
+        "E1206"
+    ));
+}
+
+#[test]
+fn test_tooltip_unknown_column_is_e1101() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point(tooltip: [nope]) } }",
+        "E1101"
+    ));
+}
+
+#[test]
+fn test_highlight_non_column_value_is_e1207() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point(highlight: 3) } }",
+        "E1207"
+    ));
+}

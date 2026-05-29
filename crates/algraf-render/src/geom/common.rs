@@ -3,7 +3,7 @@ use algraf_semantics::{GeometryIr, PropertyKey, SettingValue};
 
 use crate::aes::ColorSpec;
 use crate::scale::{cell_category, cell_f64, cell_micros};
-use crate::sink::{Dash, MarkSink, Stroke};
+use crate::sink::{Dash, MarkInteraction, MarkSink, Stroke};
 use crate::space::{AxisScale, ScaledSpace};
 
 pub(super) const DEFAULT_FILL: &str = "#4E79A7";
@@ -12,6 +12,33 @@ pub(super) const DEFAULT_STROKE: &str = "#333333";
 pub(crate) const DEFAULT_STROKE_WIDTH_RANGE: (f64, f64) = (0.5, 4.0);
 /// Default output range (radius px) for a mapped `size` scale (spec §16.8).
 pub(crate) const DEFAULT_SIZE_RANGE: (f64, f64) = (2.0, 8.0);
+
+/// Build the inert per-datum interaction metadata for a mark (spec §14.25,
+/// §24.6). Returns an empty [`MarkInteraction`] when the geometry declares none,
+/// so callers can wrap every datum unconditionally. Tooltip text is a stable,
+/// locale-independent sequence of `label: value` lines, one per declared column.
+pub(super) fn mark_interaction(geo: &GeometryIr, table: &dyn Table, row: usize) -> MarkInteraction {
+    let interaction = &geo.interaction;
+    if interaction.is_empty() {
+        return MarkInteraction::default();
+    }
+    let tooltip = (!interaction.tooltip.is_empty()).then(|| {
+        interaction
+            .tooltip
+            .iter()
+            .map(|col| {
+                let value = cell_category(table, &col.name, row).unwrap_or_default();
+                format!("{}: {}", col.name, value)
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    });
+    let highlight = interaction
+        .highlight
+        .as_ref()
+        .and_then(|col| cell_category(table, &col.name, row));
+    MarkInteraction { tooltip, highlight }
+}
 
 pub(super) fn row_category(spec: &ColorSpec, table: &dyn Table, row: usize) -> Option<String> {
     match spec {

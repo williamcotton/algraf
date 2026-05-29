@@ -96,6 +96,8 @@ charts=(
     polar_scatter
     annular_heatmap
     radar
+    tooltips
+    highlight
 )
 
 cd "$repo_root"

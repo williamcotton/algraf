@@ -92,13 +92,56 @@ pub fn render_with_tables(
     theme: &Theme,
     cli_theme_override: Option<&str>,
 ) -> Result<RenderResult, RenderError> {
+    render_svg_with_tables(ir, primary, named_tables, theme, cli_theme_override, false)
+}
+
+/// Render a chart IR to SVG with the opt-in interactive runtime embedded
+/// (spec §29.3). The chart body is byte-for-byte identical to [`render`]; the
+/// only difference is the single fixed, audited `<script>` appended before
+/// `</svg>`. Static affordances (`<title>`, `data-algraf-highlight`) are present
+/// either way.
+pub fn render_interactive(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+) -> Result<RenderResult, RenderError> {
+    render_svg_with_tables(
+        ir,
+        primary,
+        &HashMap::new(),
+        theme,
+        cli_theme_override,
+        true,
+    )
+}
+
+/// Interactive counterpart of [`render_with_tables`].
+pub fn render_interactive_with_tables(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+) -> Result<RenderResult, RenderError> {
+    render_svg_with_tables(ir, primary, named_tables, theme, cli_theme_override, true)
+}
+
+fn render_svg_with_tables(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    interactive: bool,
+) -> Result<RenderResult, RenderError> {
     let (svg, diagnostics, layout) = render_with_backend(
         ir,
         primary,
         named_tables,
         theme,
         cli_theme_override,
-        SvgBackend,
+        SvgBackend { interactive },
     )?;
     Ok(RenderResult {
         svg,

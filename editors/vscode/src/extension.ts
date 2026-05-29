@@ -273,8 +273,17 @@ async function refreshPreview(): Promise<void> {
         return;
     }
     const uri = client.code2ProtocolConverter.asUri(previewUri);
+    // Opt into the audited interactive runtime (server-side, spec §21.18/§29.3).
+    // Off by default keeps the preview script-free; on inlines the SVG so the
+    // single Algraf-shipped script can run (no user script is ever executed).
+    const interactive = vscode.workspace
+        .getConfiguration("algraf")
+        .get<boolean>("preview.interactive", false);
     try {
-        const result = await client.sendRequest<PreviewResult>("algraf/preview", { uri });
+        const result = await client.sendRequest<PreviewResult>("algraf/preview", {
+            uri,
+            interactive,
+        });
         if (!previewPanel) {
             return;
         }
@@ -283,7 +292,7 @@ async function refreshPreview(): Promise<void> {
             return;
         }
         updateDataWatchers(result.dataPaths ?? []);
-        previewPanel.webview.html = renderHtml(result);
+        previewPanel.webview.html = renderHtml(result, interactive);
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (previewPanel) {
@@ -294,11 +303,16 @@ async function refreshPreview(): Promise<void> {
     }
 }
 
-function renderHtml(result: PreviewResult): string {
+function renderHtml(result: PreviewResult, interactive = false): string {
     if (result.svg) {
-        return wrapHtml(
-            `<div class="canvas"><img class="preview-image" alt="Algraf preview" src="${svgDataUri(result.svg)}" /></div>`,
-        );
+        // Static preview shows the SVG via <img> (scripts never run in an
+        // <img>-loaded SVG). The interactive preview inlines the SVG into the
+        // DOM so the audited Algraf runtime can run; CSP is relaxed only here,
+        // and only the Algraf-shipped script is ever present (spec §29.3).
+        const body = interactive
+            ? `<div class="canvas">${result.svg}</div>`
+            : `<div class="canvas"><img class="preview-image" alt="Algraf preview" src="${svgDataUri(result.svg)}" /></div>`;
+        return wrapHtml(body, interactive);
     }
     return renderMessage(escapeHtml(result.message ?? "No preview available."));
 }
@@ -307,15 +321,19 @@ function renderMessage(message: string): string {
     return wrapHtml(`<div class="message">${message}</div>`);
 }
 
-function wrapHtml(body: string): string {
+function wrapHtml(body: string, interactive = false): string {
     // Inline SVG is part of the document DOM, so a strict CSP that forbids
-    // external resources still renders it. Only inline styles are allowed.
+    // external resources still renders it. Only inline styles are allowed. The
+    // interactive surface additionally allows the inline Algraf runtime.
+    const csp = interactive
+        ? "default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'unsafe-inline';"
+        : "default-src 'none'; style-src 'unsafe-inline'; img-src data:;";
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;" />
+          content="${csp}" />
     <style>
         body {
             margin: 0;

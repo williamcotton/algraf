@@ -224,7 +224,9 @@ Algraf SHOULD be easy to parse incrementally.
 
 Algraf SHOULD produce helpful errors for common grammar-of-graphics mistakes.
 
-Algraf MAY support interactive output in later versions.
+Algraf supports declarative, opt-in interactive output (tooltips and hover
+highlighting) through inert mark metadata and a fixed, audited runtime; static
+SVG stays script-free by default (spec §14.25, §24.6, §29.3).
 
 Algraf MAY support raster output through a separate backend in later versions.
 
@@ -266,7 +268,12 @@ Algraf does not initially support HTML canvas.
 
 Algraf does not initially support WebGL.
 
-Algraf does not initially support runtime interactivity.
+Algraf supports *declarative* interactivity as opt-in metadata (tooltips and
+hover highlighting; spec §14.25, §24.6, §29.3): a chart declares *what* data
+participates, and a viewer interprets inert metadata. Algraf does not support
+event-handler source, an embedded scripting language, or user-authored runtime
+code; static SVG remains script-free unless interactive output is explicitly
+requested.
 
 Algraf does not initially support automatic statistical inference beyond explicitly specified statistics.
 
@@ -4794,6 +4801,52 @@ grid covers the rendered data's geographic bounding box.
 A `Graticule` outside a spatial space — a planar Cartesian space with no
 `projection:` — is `E1804`.
 
+### 14.25 Declarative Interactions
+
+> Since version 0.30.
+
+Geometries that draw one filled mark per datum MAY carry declarative
+*interaction* metadata. Interactions are **data attached to marks, never
+executable source**: there is no event-handler syntax, expression language, or
+script text. A chart declares *what* data participates and *how* marks group;
+the renderer attaches that as inert metadata, and a viewer (the opt-in
+interactive runtime of §29.3 or a Canvas/raster host reading the draw list of
+§24.6) interprets it.
+
+Two interaction properties are recognized:
+
+`tooltip` — a column, or an array of columns, whose per-row values describe a
+mark. The renderer formats a deterministic, locale-independent sequence of
+`label: value` lines, one per declared column, in declaration order.
+
+`highlight` — a grouping column (written bare or as a quoted column name) whose
+per-row value identifies the marks that emphasize together on hover (for
+example, the categorical `fill` field also shown in the legend).
+
+Interaction metadata MUST NOT affect scale training, layout, statistics, or the
+geometry's drawn coordinates: it rides the geometry IR and the render scene
+(§24.6) without changing what is drawn. Schema alone is enough to validate it —
+no data rows are materialized during analysis.
+
+Interaction properties are accepted only on the per-datum filled marks `Point`,
+`Bar`, `Rect`, and `Tile`. Using them on any other geometry is `E1206`. A
+`tooltip` value that is neither a column nor an array of columns, or a
+`highlight` value that does not name a column, is `E1207`. A referenced column
+that does not exist is `E1101`.
+
+Example:
+
+```ag
+Point(
+    fill: species,
+    tooltip: [species, flipper_length, body_mass],
+    highlight: "species"
+)
+```
+
+The static SVG affordance is described in §18.10, the opt-in interactive runtime
+in §29.3, and the metadata's representation on both backends in §24.6.
+
 ## 15. Statistics
 
 ### 15.1 Stat Model
@@ -6178,6 +6231,16 @@ The renderer SHOULD preserve meaningful text labels.
 
 Purely decorative groups MAY use `aria-hidden="true"`.
 
+When a mark declares a `tooltip` (spec §14.25), the SVG backend MUST emit the
+tooltip as an accessible `<title>` child of that mark's shape element, with no
+script. When a mark declares a `highlight` grouping key, the backend MUST emit a
+stable `data-algraf-highlight="<group>"` attribute on the shape so a viewer can
+relate marks of the same group. Both the `<title>` text and the attribute value
+are escaped per §29.3. A chart that declares no interaction metadata MUST
+produce byte-for-byte unchanged SVG: shapes stay self-closing and carry no
+interaction attributes. These static affordances are present without any opt-in;
+the opt-in interactive runtime (§29.3) reads the same inert metadata.
+
 ### 18.11 Debug Rendering
 
 CLI MAY support:
@@ -6986,7 +7049,7 @@ filtered to the requested range.
 
 The LSP provides an SVG preview through the `algraf/preview` custom request.
 
-Request params: `{ "uri": <document URI> }`.
+Request params: `{ "uri": <document URI>, "interactive"?: false }`.
 
 Result:
 
@@ -7026,8 +7089,16 @@ also run off the request reactor, using the driver schema cache and either the
 async driver I/O boundary (§10.8) or a blocking task around the synchronous
 provider. This MUST NOT change LSP protocol behavior or diagnostic content.
 
-The preview is read-only and renders inline SVG; the client MUST NOT execute
-scripts in the preview surface.
+The preview is read-only and script-safe by default: when `interactive` is
+omitted or `false`, the server returns script-free SVG and the client MUST NOT
+execute scripts in the preview surface. When the request sets `interactive:
+true`, the server renders with the opt-in interactive runtime (spec §29.3) and
+the returned SVG carries the single, fixed, Algraf-shipped script — and only
+that script. The preview never executes user-authored script: interaction comes
+solely from the audited runtime reading inert per-mark metadata (§14.25,
+§18.10). A document with no interaction metadata previews identically whether or
+not `interactive` is set. The read-only, superseded, and generation semantics
+above are unchanged by this flag.
 
 ## 22. CLI Specification
 
@@ -7138,6 +7209,16 @@ Render options:
 `--emit-metadata`
 
 `--strict`
+
+`--interactive`
+
+`--interactive` embeds the fixed, audited interactive runtime (spec §29.3) in
+SVG output, enabling tooltip-on-hover and highlight-on-hover from the inert
+per-mark metadata of §14.25/§18.10. It applies only to `--format svg`; the
+rendered chart body is byte-for-byte identical to the static render, with the
+single Algraf-shipped `<script>` appended before `</svg>`. Without the flag the
+SVG is script-free. The static `<title>`/`data-algraf-highlight` affordances are
+present either way; `--interactive` only adds the script that animates them.
 
 `--theme <name>` is a render-time override.
 
@@ -7701,8 +7782,13 @@ The renderer ships three backends over this seam:
   canvas, background, plot panels (with facet strips and labels), chart
   title/subtitle/caption, per-datum geometry marks (including polar arc/wedge
   paths), gridlines, axis lines/ticks/tick-labels/titles, and legends. Each op
-  carries a `role` naming the chart region it belongs to. The draw list MUST NOT
-  execute scripts or embed behavior; it is inert data.
+  carries a `role` naming the chart region it belongs to. A shape op for a mark
+  that declares interaction metadata (spec §14.25) also carries an inert
+  `interaction` object with optional `tooltip` and `highlight` fields, recorded
+  through the same shared mark sink that the SVG backend uses for its `<title>`
+  and `data-algraf-highlight` affordances (§18.10) — so the two backends carry
+  the same interaction metadata by construction. The draw list MUST NOT execute
+  scripts or embed behavior; it is inert data.
 - The **render-model raster backend** draws the draw list to a raster image with
   a CPU rasterizer (`tiny-skia`), not by rasterizing SVG bytes. It pulls in no
   browser runtime and no system fonts, and is deterministic for a given
@@ -8037,6 +8123,10 @@ missing `=>`/stray separator in a map literal)
 `E1204 invalid property type`
 
 `E1205 missing required property`
+
+`E1206 interaction property not supported on this geometry`
+
+`E1207 invalid interaction property value`
 
 `E1301 unsupported algebraic space`
 
@@ -8482,7 +8572,10 @@ Render command MAY load full CSV into memory in version 0.1.
 
 Algraf source is declarative.
 
-Algraf MUST NOT execute arbitrary code.
+Algraf MUST NOT execute arbitrary code. Chart source is never executable: the
+only script Algraf can emit is the single fixed, audited interactive runtime
+(spec §29.3), which is shipped by Algraf, identical across charts, opt-in
+(§22.3), and never supplied or extended by `.ag` source.
 
 Algraf MUST NOT shell out during render.
 
@@ -8541,7 +8634,30 @@ All attribute values are escaped.
 
 Color values are validated before insertion.
 
-URL-valued properties are not supported in version 0.1.
+The renderer MUST NOT inject raw user strings into SVG (§18.9). This applies to
+interaction metadata too: tooltip text and highlight group values (spec §14.25)
+are escaped before insertion into `<title>` children and `data-algraf-highlight`
+attributes (§18.10).
+
+**Static SVG is script-free by default.** A `<script>` element MAY appear in the
+output only when interactive output is explicitly requested (CLI `--interactive`,
+spec §22.3; or the interactive LSP preview, §21.18). When it does, the embedded
+script is a single, fixed, audited runtime shipped by Algraf and identical across
+all charts: it reads the inert per-mark metadata (`<title>` tooltips and
+`data-algraf-highlight` groups) and implements tooltip-on-hover and
+highlight-on-hover. Chart source can never supply, extend, or parameterize this
+script — there is no path from `.ag` text to executable code. The script
+performs no network access and is deterministic given the same metadata. Absent
+the opt-in, no `<script>` is emitted.
+
+**URL-valued properties.** URL-valued properties (hyperlinks, image `href`s,
+tooltip links) are **not supported in version 0.30** and are rejected rather than
+embedded. This is a deliberate security decision: allowing chart-supplied URLs
+would create an SVG-injection and exfiltration surface (a `data:`/`javascript:`
+href, or an external fetch) that conflicts with the no-network rule (§29) and the
+script-free-by-default guarantee above. If a future version allows them, they
+MUST be gated by an explicit host/CLI policy that defaults to denied, and the
+policy MUST specify their interaction with this section and previews.
 
 ### 29.4 Denial of Service
 
@@ -8594,11 +8710,13 @@ Version 0.21.0 enables the `sql` feature gate for local SQLite sources only
 (spec §10.12). The `network`, `plugins`, and `experimental` gates remain
 recognized but reserved; they do not enable runtime access in version 0.21.0.
 
+Interactive SVG ships in version 0.30.0 as opt-in *output* (CLI `--interactive`,
+spec §22.3/§29.3), not behind a source feature gate: it adds no gated syntax, so
+no `Algraf(features: [...])` declaration is required.
+
 Future feature gates MAY enable:
 
 remote SQL sources
-
-interactive SVG
 
 plugins
 
@@ -8643,7 +8761,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.27.0 | [`V0_27_PLAN.md`](V0_27_PLAN.md) | Embedding and invocation ergonomics | Complete |
 | 0.28.0 | [`V0_28_PLAN.md`](V0_28_PLAN.md) | Temporal I/O ergonomics | Complete |
 | 0.29.0 | [`V0_29_PLAN.md`](V0_29_PLAN.md) | Render-model completeness and raster output | Implemented |
-| 0.30.0 | [`V0_30_PLAN.md`](V0_30_PLAN.md) | Declarative interactivity and live preview | Planned |
+| 0.30.0 | [`V0_30_PLAN.md`](V0_30_PLAN.md) | Declarative interactivity and live preview | Implemented |
 | 0.31.0 | [`V0_31_PLAN.md`](V0_31_PLAN.md) | Language-surface polish (temporal/coords/algebra) | Planned |
 
 The earliest unreleased plan is the active implementation target; later

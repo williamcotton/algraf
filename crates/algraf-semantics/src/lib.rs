@@ -18,9 +18,9 @@ pub use analyzer::{
 pub use ir::{
     AestheticMapping, AxisSelectorIr, BinClosedIr, BinIntervalIr, ChartIr, ColumnRef, CoordsIr,
     DataSourceIr, DeriveIr, FrameIr, GeometryIr, GeometryKind, GradientIr, GradientStopIr,
-    GridShapeIr, GuideIr, GuideOverridesIr, PolarThetaIr, PropertyKey, ScaleIr, ScaleTargetIr,
-    ScaleTypeIr, SettingValue, SmoothMethodIr, SpaceDataRef, SpaceIr, SpatialPredicateIr,
-    StatCallIr, StatKind, StatOptionsIr, TableDeclIr, TemporalFormatIr, ThemeIr, ThemeOverrides,
-    PROPERTY_KEYS,
+    GridShapeIr, GuideIr, GuideOverridesIr, InteractionIr, PolarThetaIr, PropertyKey, ScaleIr,
+    ScaleTargetIr, ScaleTypeIr, SettingValue, SmoothMethodIr, SpaceDataRef, SpaceIr,
+    SpatialPredicateIr, StatCallIr, StatKind, StatOptionsIr, TableDeclIr, TemporalFormatIr,
+    ThemeIr, ThemeOverrides, PROPERTY_KEYS,
 };
 pub use planning::{geometry_column_name, spatial_join_appended_columns};

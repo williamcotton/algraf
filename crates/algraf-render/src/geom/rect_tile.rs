@@ -4,7 +4,7 @@ use crate::aes::{color_spec, number_setting};
 use crate::sink::{Fill, MarkSink, Paint};
 use crate::space::ScaledSpace;
 
-use super::common::{pos_bound, render_rows, stroke_style, DEFAULT_FILL};
+use super::common::{mark_interaction, pos_bound, render_rows, stroke_style, DEFAULT_FILL};
 use super::polar::annular_segment_path;
 use super::GeometryRenderContext;
 
@@ -60,6 +60,7 @@ pub(super) fn render_rect(
         let color = fill
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
+        sink.begin_mark(mark_interaction(geo, table, row));
         sink.rect(
             x,
             y,
@@ -71,6 +72,7 @@ pub(super) fn render_rect(
                 opacity: Some(alpha),
             },
         );
+        sink.end_mark();
     }
 }
 
@@ -106,6 +108,7 @@ pub(super) fn render_tile(
                 r_start,
                 r_start + r_w,
             );
+            sink.begin_mark(mark_interaction(geo, table, row));
             sink.path(
                 &d,
                 &Paint {
@@ -114,6 +117,7 @@ pub(super) fn render_tile(
                     opacity: Some(alpha),
                 },
             );
+            sink.end_mark();
             continue;
         }
         let (Some(cx), Some(bw), Some(cy), Some(bh)) = (
@@ -127,6 +131,7 @@ pub(super) fn render_tile(
         let color = fill
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
+        sink.begin_mark(mark_interaction(geo, table, row));
         sink.rect(
             cx - bw / 2.0,
             cy - bh / 2.0,
@@ -138,6 +143,7 @@ pub(super) fn render_tile(
                 opacity: Some(alpha),
             },
         );
+        sink.end_mark();
     }
 }
 
@@ -196,6 +202,7 @@ fn render_rect_polar(
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
         let d = annular_segment_path(polar, a0, a1, r0.min(r1), r0.max(r1));
+        sink.begin_mark(mark_interaction(geo, table, row));
         sink.path(
             &d,
             &Paint {
@@ -204,5 +211,6 @@ fn render_rect_polar(
                 opacity: Some(alpha),
             },
         );
+        sink.end_mark();
     }
 }

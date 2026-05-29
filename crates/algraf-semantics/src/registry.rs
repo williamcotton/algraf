@@ -453,6 +453,25 @@ const GEOMETRIES: &[GeometryDef] = &[
     geo(GeometryKind::Graticule, GRATICULE),
 ];
 
+/// Declarative interaction property names accepted on geometries that support
+/// them (spec §14.25). These are not in any geometry's `PropSpec` list because
+/// they carry a distinct value shape (a column, an array of columns, or a
+/// grouping key) handled directly during analysis.
+pub const INTERACTION_PROPS: &[&str] = &["tooltip", "highlight"];
+
+/// Whether a geometry accepts declarative interaction metadata (`tooltip`,
+/// `highlight`; spec §14.25, §24.6).
+///
+/// Interaction metadata attaches to one filled mark per datum, so a per-mark
+/// accessible `<title>` and highlight group attach cleanly. The supported set is
+/// the per-datum filled marks: `Point`, `Bar`, `Rect`, and `Tile`.
+pub fn supports_interaction(kind: GeometryKind) -> bool {
+    matches!(
+        kind,
+        GeometryKind::Point | GeometryKind::Bar | GeometryKind::Rect | GeometryKind::Tile
+    )
+}
+
 /// Look up a geometry definition by exact (case-sensitive) name.
 pub fn geometry(name: &str) -> Option<&'static GeometryDef> {
     GEOMETRIES.iter().find(|g| g.name == name)
@@ -561,6 +580,12 @@ pub fn property_doc(name: &str) -> &'static str {
         "marginRight" => "Minimum right plot margin in pixels (floor over the computed margin).",
         "marginBottom" => "Minimum bottom plot margin in pixels (floor over the computed margin).",
         "marginLeft" => "Minimum left plot margin in pixels (floor over the computed margin).",
+        "tooltip" => {
+            "Declarative tooltip: a column or array of columns whose per-row values describe a mark. Inert metadata — never script."
+        }
+        "highlight" => {
+            "Declarative highlight grouping key: a column whose value identifies marks that emphasize together on hover."
+        }
         _ => "Algraf argument.",
     }
 }

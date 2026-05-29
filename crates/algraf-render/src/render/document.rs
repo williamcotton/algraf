@@ -10,7 +10,29 @@ use crate::theme::Theme;
 use super::backend::RenderScene;
 use super::panels::{panel_slots, Panel, PanelSlot};
 
-pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> String {
+/// The fixed, audited interactive runtime embedded when `--interactive` is set
+/// (spec §29.3). It is identical for every chart and is the *only* path by which
+/// a `<script>` enters Algraf output. It reads the inert per-mark metadata the
+/// SVG backend already emits — `<title>` tooltips (native browser hover) and
+/// `data-algraf-highlight` groups — and dims marks outside the hovered group.
+/// Chart source can never supply or extend it; it performs no network access and
+/// is deterministic given the same metadata.
+const INTERACTIVE_RUNTIME: &str = "(function(){\"use strict\";\
+var s=document.currentScript,r=s&&s.closest?s.closest(\"svg\"):null;\
+if(!r){var a=document.getElementsByTagName(\"svg\");r=a[a.length-1];}\
+if(!r)return;\
+var m=r.querySelectorAll(\"[data-algraf-highlight]\");\
+function set(g){for(var i=0;i<m.length;i++){var e=m[i],v=e.getAttribute(\"data-algraf-highlight\");e.style.opacity=(g===null||v===g)?\"\":\"0.15\";}}\
+for(var i=0;i<m.length;i++){(function(e){\
+e.addEventListener(\"mouseenter\",function(){set(e.getAttribute(\"data-algraf-highlight\"));});\
+e.addEventListener(\"mouseleave\",function(){set(null);});\
+})(m[i]);}})();";
+
+pub(super) fn emit_document(
+    scene: &RenderScene<'_>,
+    interactive: bool,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> String {
     let RenderScene {
         ir,
         layout,
@@ -90,6 +112,14 @@ pub(super) fn emit_document(scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagn
         paint_grid(&mut sink, &slots);
         paint_geometries(&mut sink, panels, diagnostics);
         paint_axes_and_legends(&mut sink, &slots, legends, layout, theme);
+    }
+
+    // Opt-in interactive runtime (spec §29.3). The only path by which a
+    // `<script>` enters Algraf output; absent the opt-in the SVG is script-free.
+    if interactive {
+        w.line("<script type=\"application/ecmascript\"><![CDATA[");
+        w.line(INTERACTIVE_RUNTIME);
+        w.line("]]></script>");
     }
 
     w.line("</svg>");

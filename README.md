@@ -2087,6 +2087,73 @@ Chart(data: "radar_skills.csv", width: 420, height: 420, title: "Player profile"
 
 ---
 
+## Declarative tooltips
+
+Interactions in Algraf are **data attached to marks, never code**. A geometry
+declares *what* data participates; there is no event-handler syntax and no
+scripting language. The `tooltip:` property names a column — or an array of
+columns — whose per-row values describe each mark. In static SVG the renderer
+attaches them as accessible `<title>` elements (which browsers show as native
+hover tooltips), so the output stays completely script-free.
+
+```ag
+Chart(data: "penguins.csv", width: 760, height: 500) {
+    Theme(name: "minimal")
+
+    Space(flipper_length * body_mass) {
+        Point(
+            fill: species,
+            alpha: 0.82,
+            size: 4,
+            tooltip: [species, flipper_length, body_mass]
+        )
+    }
+}
+```
+
+![tooltips](examples/tooltips.svg)
+
+## Highlight-on-hover
+
+The `highlight:` property names a grouping column whose value marks which points
+emphasize together. In static SVG each mark gains a stable
+`data-algraf-highlight="<group>"` attribute (still no script). Pass
+`--interactive` to embed Algraf's fixed, audited runtime, which reads that inert
+metadata and dims the other groups while you hover — the chart body is otherwise
+byte-for-byte identical to the static render, and chart source can never supply
+its own script.
+
+```ag
+Chart(data: "penguins.csv", width: 760, height: 500) {
+    Theme(name: "minimal")
+
+    Space(flipper_length * body_mass) {
+        Point(
+            fill: species,
+            alpha: 0.82,
+            size: 4,
+            tooltip: [species, flipper_length, body_mass],
+            highlight: "species"
+        )
+    }
+}
+```
+
+![highlight](examples/highlight.svg)
+
+```bash
+# Static (script-free) SVG with <title> tooltips and highlight groups.
+cargo run -p algraf-cli -- render examples/highlight.ag --output chart.svg
+
+# Opt-in interactive SVG: adds the single audited runtime for hover highlighting.
+cargo run -p algraf-cli -- render examples/highlight.ag --interactive --output chart.svg
+```
+
+Interaction metadata is accepted on the per-datum filled marks `Point`, `Bar`,
+`Rect`, and `Tile`, and rides through to the draw-list backend as inert data too.
+
+---
+
 ## Multiple charts in one document
 
 A document may hold more than one top-level `Chart`. Each chart is fully
@@ -2141,32 +2208,35 @@ cargo run -p algraf-cli -- schema examples/scatter.ag --json
 
 ## Output modes
 
-`render` drives one of two output backends over a shared planning pipeline
-(spec §24.6). Both consume the same resolved render scene, so they agree on
-layout exactly.
+`render` drives a closed set of output backends over a shared planning pipeline
+(spec §24.6). All consume the same resolved render scene, so they agree on layout
+exactly.
 
 ```bash
 # SVG (default): the canonical, deterministic backend.
 cargo run -p algraf-cli -- render examples/scatter.ag --output chart.svg
 
+# Interactive SVG: appends the single audited runtime for tooltip- and
+# highlight-on-hover. Without this flag the SVG is script-free.
+cargo run -p algraf-cli -- render examples/highlight.ag --interactive --output chart.svg
+
 # PNG: rasterizes the SVG output (a compatibility wrapper around the SVG backend).
 cargo run -p algraf-cli -- render examples/scatter.ag --output chart.png
 
-# Draw list: a serializable, Canvas-drawable JSON description of the chart frame.
+# Draw list: a serializable, Canvas-drawable JSON description of the whole scene.
 cargo run -p algraf-cli -- render examples/scatter.ag --format draw-list
+
+# Raster: a PNG drawn directly from the scene's draw list (no SVG, no system fonts).
+cargo run -p algraf-cli -- render examples/scatter.ag --format raster --output chart.png
 ```
 
-The **draw list** is a flat sequence of inert `rect`/`text` primitives that a
-Canvas, raster, or WebGL client can replay without an SVG parser or a browser
-runtime. It is byte-for-byte deterministic and uses the same number formatting
-as SVG.
-
-**Equivalence limits (v0.24):** the draw list covers the chart *frame* — canvas
-size, background, plot panels (with facet strips and labels), and the chart
-title/subtitle/caption — with coordinates and colors identical to the SVG
-backend. It does **not** yet include per-datum geometry marks (points, bars,
-lines, areas), axis ticks, or gridlines; those remain SVG-only while full
-mark/guide parity is promoted in a later release. See
+The **draw list** is a flat, complete sequence of inert
+`rect`/`circle`/`path`/`polygon`/`line`/`text` primitives — every element the SVG
+backend draws, including per-datum geometry marks, gridlines, axes, and legends —
+that a Canvas, raster, or WebGL client can replay without an SVG parser or a
+browser runtime. It is byte-for-byte deterministic, uses the same number
+formatting as SVG, and carries the same inert interaction metadata (`tooltip`,
+`highlight`) on marks that declare it. See
 [`docs/WEBGL_FEASIBILITY.md`](docs/WEBGL_FEASIBILITY.md) for how a GPU backend
 would build on this.
 

@@ -166,6 +166,7 @@ impl Analyzer<'_> {
                 },
             ],
             settings: histogram_rect_settings(histogram),
+            interaction: InteractionIr::default(),
             span: histogram.span,
         };
         let space = SpaceIr {
@@ -238,6 +239,7 @@ impl Analyzer<'_> {
                 },
             ],
             settings,
+            interaction: InteractionIr::default(),
             span,
         };
         let mut geometries = vec![rect];
@@ -348,6 +350,7 @@ impl Analyzer<'_> {
             kind: GeometryKind::Rect,
             mappings,
             settings,
+            interaction: InteractionIr::default(),
             span,
         };
         let space = SpaceIr {
@@ -404,6 +407,7 @@ impl Analyzer<'_> {
             kind: GeometryKind::Line,
             mappings: Vec::new(),
             settings: line_settings_from(freq_poly),
+            interaction: InteractionIr::default(),
             span: freq_poly.span,
         };
         let space = SpaceIr {
@@ -521,6 +525,7 @@ impl Analyzer<'_> {
             kind: GeometryKind::Rect,
             mappings,
             settings: bin2d_rect_settings(bin2d),
+            interaction: InteractionIr::default(),
             span: bin2d.span,
         };
         let space = SpaceIr {
@@ -579,6 +584,7 @@ impl Analyzer<'_> {
             kind: GeometryKind::Area,
             mappings: Vec::new(),
             settings: density_area_settings(density),
+            interaction: InteractionIr::default(),
             span: density.span,
         };
         let space = SpaceIr {
@@ -786,6 +792,7 @@ impl Analyzer<'_> {
             kind: GeometryKind::Bar,
             mappings,
             settings,
+            interaction: bar.interaction.clone(),
             span: bar.span,
         };
 

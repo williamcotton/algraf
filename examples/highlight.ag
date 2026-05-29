@@ -1,0 +1,13 @@
+Chart(data: "penguins.csv", width: 760, height: 500) {
+    Theme(name: "minimal")
+
+    Space(flipper_length * body_mass) {
+        Point(
+            fill: species,
+            alpha: 0.82,
+            size: 4,
+            tooltip: [species, flipper_length, body_mass],
+            highlight: "species"
+        )
+    }
+}

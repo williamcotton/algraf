@@ -29,6 +29,7 @@ fn rects(list: &DrawList, role: DrawRole) -> Vec<(f64, f64, f64, f64, String)> {
                 width,
                 height,
                 paint,
+                ..
             } if *r == role => {
                 let fill = match &paint.fill {
                     Fill::Color(c) => c.clone(),
@@ -154,4 +155,34 @@ fn draw_list_json_is_deterministic_and_escapes() {
     let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
     assert_eq!(parsed["width"], 800);
     assert_eq!(parsed["ops"][0]["role"], "background");
+}
+
+#[test]
+fn draw_list_records_inert_interaction_metadata() {
+    let list = draw_list(
+        "Chart(data: \"p.csv\", width: 200, height: 200) { Space(x * y) { Point(tooltip: [g], highlight: \"g\") } }",
+        "x,y,g\n1,2,A\n3,4,B\n",
+    );
+    let marks: Vec<_> = list
+        .ops
+        .iter()
+        .filter_map(|op| match op {
+            DrawOp::Circle {
+                role: DrawRole::Mark,
+                interaction,
+                ..
+            } => Some(interaction.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(marks.len(), 2);
+    let first = marks[0].as_ref().expect("interaction");
+    assert_eq!(first.tooltip.as_deref(), Some("g: A"));
+    assert_eq!(first.highlight.as_deref(), Some("A"));
+    // The same metadata is serialized into the JSON, inert.
+    let json = list.to_json();
+    assert!(
+        json.contains("\"interaction\":{\"tooltip\":\"g: A\",\"highlight\":\"A\"}"),
+        "{json}"
+    );
 }

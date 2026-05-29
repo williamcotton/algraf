@@ -56,6 +56,43 @@ fn render_writes_svg_to_stdout() {
 }
 
 #[test]
+fn render_interactive_embeds_script_only_with_flag() {
+    let dir = temp_dir("render-interactive");
+    let data = dir.join("data.csv");
+    let chart = dir.join("chart.ag");
+    fs::write(&data, "x,y,group\n1,2,a\n3,4,b\n").unwrap();
+    fs::write(
+        &chart,
+        "Chart(data: \"data.csv\") {\n  Space(x * y) {\n    Point(tooltip: [group], highlight: \"group\")\n  }\n}\n",
+    )
+    .unwrap();
+
+    let plain = Command::new(bin())
+        .arg("render")
+        .arg(&chart)
+        .output()
+        .unwrap();
+    assert!(plain.status.success(), "stderr: {}", stderr(&plain));
+    let plain_svg = stdout(&plain);
+    // Static affordances are present without the opt-in; the script is not.
+    assert!(plain_svg.contains("data-algraf-highlight=\"a\""));
+    assert!(!plain_svg.contains("<script"));
+
+    let interactive = Command::new(bin())
+        .arg("render")
+        .arg(&chart)
+        .arg("--interactive")
+        .output()
+        .unwrap();
+    assert!(
+        interactive.status.success(),
+        "stderr: {}",
+        stderr(&interactive)
+    );
+    assert!(stdout(&interactive).contains("<script"));
+}
+
+#[test]
 fn render_draw_list_writes_json_to_stdout() {
     let dir = temp_dir("render-draw-list");
     let (chart, _) = write_fixture(&dir);

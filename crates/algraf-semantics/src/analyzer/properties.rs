@@ -4,8 +4,9 @@
 use std::collections::{HashMap, HashSet};
 
 use algraf_core::{codes, Diagnostic, Severity, Span};
-use algraf_syntax::ast::{Arg, GeometryCall};
-use algraf_syntax::node_span;
+use algraf_data::DataType;
+use algraf_syntax::ast::{AlgebraExpr, Arg, GeometryCall, LiteralKind, ValueExpr};
+use algraf_syntax::{node_span, unescape_string_literal};
 
 use super::context::{ActiveTable, Analyzer, StyleFragmentLookup, ValueForm};
 use super::frames::contains_nested;
@@ -57,6 +58,7 @@ impl Analyzer<'_> {
         let mut seen_for_duplicates: HashMap<String, (Span, bool)> = HashMap::new();
         let mut mappings = Vec::new();
         let mut settings = Vec::new();
+        let mut interaction = InteractionIr::default();
 
         for effective in &args {
             let key = &effective.key;
@@ -77,6 +79,14 @@ impl Analyzer<'_> {
             }
             seen_for_duplicates.insert(key.clone(), (key_span, effective.from_style));
             seen.insert(key.clone());
+
+            // Declarative interactions (`tooltip:` / `highlight:`, spec §14.25)
+            // carry a distinct value shape and are not in any geometry's
+            // `PropSpec` list; lower them directly before the property lookup.
+            if registry::INTERACTION_PROPS.contains(&key.as_str()) {
+                self.lower_interaction(def, &effective.arg, key, key_span, table, &mut interaction);
+                continue;
+            }
 
             let Some(prop) = def.prop(key) else {
                 self.unknown_property(def, key, key_span);
@@ -117,8 +127,120 @@ impl Analyzer<'_> {
             kind: def.kind,
             mappings,
             settings,
+            interaction,
             span,
         })
+    }
+
+    /// Lower a declarative interaction property (`tooltip:` / `highlight:`,
+    /// spec §14.25). Interactions are inert data: columns are validated to
+    /// exist, but no callbacks, expressions, or scripts are accepted. Schema
+    /// alone is enough to validate them — no data rows are materialized.
+    fn lower_interaction(
+        &mut self,
+        def: &GeometryDef,
+        arg: &Arg,
+        key: &str,
+        key_span: Span,
+        table: &ActiveTable,
+        interaction: &mut InteractionIr,
+    ) {
+        if !registry::supports_interaction(def.kind) {
+            self.diag(
+                Diagnostic::error(
+                    codes::E1206,
+                    format!("`{key}` is not supported on `{}`", def.name),
+                    key_span,
+                )
+                .with_help("interaction metadata is supported on Point, Bar, Rect, and Tile"),
+            );
+            return;
+        }
+        let Some(value) = arg.value() else {
+            return;
+        };
+        match key {
+            "tooltip" => interaction.tooltip = self.interaction_columns(&value, table),
+            "highlight" => {
+                if let Some(column) = self.interaction_key(&value, table) {
+                    interaction.highlight = Some(column);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Resolve a `tooltip:` value to the ordered columns it names: a single
+    /// column, or an array of columns. Each must reference an existing column.
+    fn interaction_columns(&mut self, value: &ValueExpr, table: &ActiveTable) -> Vec<ColumnRef> {
+        match value {
+            ValueExpr::Algebra(AlgebraExpr::Name(name)) => vec![self.resolve_column(name, table)],
+            ValueExpr::Array(array) => {
+                let mut columns = Vec::new();
+                for item in array.values() {
+                    match &item {
+                        ValueExpr::Algebra(AlgebraExpr::Name(name)) => {
+                            columns.push(self.resolve_column(name, table))
+                        }
+                        other => self.diag(Diagnostic::error(
+                            codes::E1207,
+                            "`tooltip` array entries must be column names",
+                            node_span(other.syntax()),
+                        )),
+                    }
+                }
+                columns
+            }
+            other => {
+                self.diag(
+                    Diagnostic::error(
+                        codes::E1207,
+                        "`tooltip` expects a column or an array of columns",
+                        node_span(other.syntax()),
+                    )
+                    .with_help("e.g. `tooltip: species` or `tooltip: [species, body_mass]`"),
+                );
+                Vec::new()
+            }
+        }
+    }
+
+    /// Resolve a `highlight:` value to the grouping column it names: a bare
+    /// column or a quoted column name. The column must exist.
+    fn interaction_key(&mut self, value: &ValueExpr, table: &ActiveTable) -> Option<ColumnRef> {
+        match value {
+            ValueExpr::Algebra(AlgebraExpr::Name(name)) => Some(self.resolve_column(name, table)),
+            ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::String) => {
+                let name = unescape_string_literal(&lit.text().unwrap_or_default());
+                let span = node_span(lit.syntax());
+                match table.get(&name) {
+                    Some(dtype) => Some(ColumnRef { name, dtype, span }),
+                    None => {
+                        self.diag(Diagnostic::error(
+                            codes::E1101,
+                            format!("unknown column `{name}`"),
+                            span,
+                        ));
+                        Some(ColumnRef {
+                            name,
+                            dtype: DataType::Unknown,
+                            span,
+                        })
+                    }
+                }
+            }
+            other => {
+                self.diag(
+                    Diagnostic::error(
+                        codes::E1207,
+                        "`highlight` expects a column name",
+                        node_span(other.syntax()),
+                    )
+                    .with_help("e.g. `highlight: species` or `highlight: \"species\"`"),
+                );
+                None
+            }
+        }
     }
 
     fn expand_style_args(&mut self, args: &[Arg]) -> Vec<EffectiveArg> {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use algraf_core::Severity;
 use algraf_driver::{data_dependencies, prepare_chart, PrepareOptions, SourceInput};
-use algraf_render::{render_with_tables, Theme};
+use algraf_render::{render_interactive_with_tables, render_with_tables, Theme};
 use algraf_syntax::ast::Root;
 use algraf_syntax::{parse, SourceExpr};
 use serde::{Deserialize, Serialize};
@@ -19,6 +19,7 @@ impl Backend {
     /// generation counter discards output that a newer request superseded.
     pub async fn preview(&self, params: PreviewParams) -> LspResult<PreviewResult> {
         let uri = params.uri;
+        let interactive = params.interactive;
         let generation = {
             let mut counter = self.preview_generations.entry(uri.clone()).or_insert(0);
             *counter += 1;
@@ -69,7 +70,8 @@ impl Backend {
         let text = state.text.clone();
         let source_input = source_input_for_uri(&uri);
         let outcome =
-            tokio::task::spawn_blocking(move || render_preview(&text, source_input)).await;
+            tokio::task::spawn_blocking(move || render_preview(&text, source_input, interactive))
+                .await;
 
         // If a newer request bumped the counter while we rendered, this output
         // is stale; report supersession rather than returning it (spec §21.13).
@@ -102,6 +104,12 @@ fn preview_superseded(
 pub struct PreviewParams {
     /// The document to render.
     pub uri: Url,
+    /// Opt into the audited interactive runtime (spec §21.18, §29.3). When
+    /// omitted or `false`, the preview SVG is script-free (the default,
+    /// script-safe surface). When `true`, the SVG carries only the fixed,
+    /// Algraf-shipped runtime — never user-authored script.
+    #[serde(default)]
+    pub interactive: bool,
 }
 
 /// Result of the `algraf/preview` custom request.
@@ -159,7 +167,11 @@ impl PreviewResult {
 
 /// Render a document to SVG using the full data and the shared render pipeline.
 /// Returns a human-facing message on any condition that blocks rendering.
-fn render_preview(source: &str, source_input: SourceInput) -> Result<String, String> {
+fn render_preview(
+    source: &str,
+    source_input: SourceInput,
+    interactive: bool,
+) -> Result<String, String> {
     let parsed = parse(source);
     let root = parsed.syntax();
     if parsed
@@ -207,8 +219,14 @@ fn render_preview(source: &str, source_input: SourceInput) -> Result<String, Str
         .map(|table| (table.name, table.frame))
         .collect();
 
-    let result =
-        render_with_tables(&ir, &frame, &named_frames, &theme, None).map_err(|e| e.to_string())?;
+    // The preview is script-safe by default; the interactive surface uses only
+    // the vetted, non-user runtime (spec §21.18, §29.3).
+    let result = if interactive {
+        render_interactive_with_tables(&ir, &frame, &named_frames, &theme, None)
+    } else {
+        render_with_tables(&ir, &frame, &named_frames, &theme, None)
+    }
+    .map_err(|e| e.to_string())?;
     Ok(result.svg)
 }
 
@@ -224,7 +242,7 @@ mod tests {
 
     #[test]
     fn parse_errors_block_preview() {
-        let err = render_preview("Chart(", input()).unwrap_err();
+        let err = render_preview("Chart(", input(), false).unwrap_err();
         assert!(err.contains("parse errors"), "got: {err}");
     }
 
@@ -233,7 +251,7 @@ mod tests {
         // A well-formed chart whose data file does not exist must fail to
         // prepare rather than render, and the error is reported (not panicked).
         let source = "Chart(data: \"definitely-missing.csv\") {\n  Space(x * y) { Point() }\n}";
-        assert!(render_preview(source, input()).is_err());
+        assert!(render_preview(source, input(), false).is_err());
     }
 
     #[test]

@@ -592,7 +592,33 @@ pub struct GeometryIr {
     pub kind: GeometryKind,
     pub mappings: Vec<AestheticMapping>,
     pub settings: Vec<GeometrySetting>,
+    /// Declarative interaction metadata (`tooltip:` / `highlight:`, spec §14.25,
+    /// §24.6). Inert data: no callbacks, expressions, or scripts.
+    pub interaction: InteractionIr,
     pub span: Span,
+}
+
+/// Declarative interaction metadata attached to a geometry (spec §14.25, §24.6).
+///
+/// Interactions are *data*, never executable source: `tooltip` names the columns
+/// whose per-row values describe a mark, and `highlight` names a grouping column
+/// whose value identifies marks that emphasize together. Both ride the geometry
+/// IR without affecting scale training or layout, and both are emitted by the SVG
+/// and draw-list backends as inert metadata.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct InteractionIr {
+    /// Columns whose per-row values appear in the mark's tooltip, in order.
+    pub tooltip: Vec<ColumnRef>,
+    /// A grouping column whose per-row value identifies marks that highlight
+    /// together (e.g. a categorical `fill` field shared with the legend).
+    pub highlight: Option<ColumnRef>,
+}
+
+impl InteractionIr {
+    /// Whether this geometry declares any interaction metadata.
+    pub fn is_empty(&self) -> bool {
+        self.tooltip.is_empty() && self.highlight.is_none()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

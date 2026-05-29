@@ -103,6 +103,8 @@ pub enum DrawOp {
         width: f64,
         height: f64,
         paint: Paint,
+        /// Inert per-mark interaction metadata (spec §14.25, §24.6).
+        interaction: Option<crate::sink::MarkInteraction>,
     },
     /// A circle.
     Circle {
@@ -111,18 +113,21 @@ pub enum DrawOp {
         cy: f64,
         r: f64,
         paint: Paint,
+        interaction: Option<crate::sink::MarkInteraction>,
     },
     /// A path, with an SVG path `d` mini-language string (M/L/A/Z commands).
     Path {
         role: DrawRole,
         d: String,
         paint: Paint,
+        interaction: Option<crate::sink::MarkInteraction>,
     },
     /// A polygon, with a space-separated `x,y` point list.
     Polygon {
         role: DrawRole,
         points: String,
         paint: Paint,
+        interaction: Option<crate::sink::MarkInteraction>,
     },
     /// A single line segment.
     Line {
@@ -208,6 +213,7 @@ impl DrawOp {
                 width,
                 height,
                 paint,
+                interaction,
                 ..
             } => {
                 let _ = write!(
@@ -220,10 +226,16 @@ impl DrawOp {
                     num(*height),
                 );
                 paint.write_json(out);
+                write_interaction_json(out, interaction);
                 out.push('}');
             }
             DrawOp::Circle {
-                cx, cy, r, paint, ..
+                cx,
+                cy,
+                r,
+                paint,
+                interaction,
+                ..
             } => {
                 let _ = write!(
                     out,
@@ -234,9 +246,15 @@ impl DrawOp {
                     num(*r),
                 );
                 paint.write_json(out);
+                write_interaction_json(out, interaction);
                 out.push('}');
             }
-            DrawOp::Path { d, paint, .. } => {
+            DrawOp::Path {
+                d,
+                paint,
+                interaction,
+                ..
+            } => {
                 let _ = write!(
                     out,
                     "{{\"op\":\"path\",\"role\":\"{}\",\"d\":{}",
@@ -244,9 +262,15 @@ impl DrawOp {
                     json_string(d),
                 );
                 paint.write_json(out);
+                write_interaction_json(out, interaction);
                 out.push('}');
             }
-            DrawOp::Polygon { points, paint, .. } => {
+            DrawOp::Polygon {
+                points,
+                paint,
+                interaction,
+                ..
+            } => {
                 let _ = write!(
                     out,
                     "{{\"op\":\"polygon\",\"role\":\"{}\",\"points\":{}",
@@ -254,6 +278,7 @@ impl DrawOp {
                     json_string(points),
                 );
                 paint.write_json(out);
+                write_interaction_json(out, interaction);
                 out.push('}');
             }
             DrawOp::Line {
@@ -317,6 +342,31 @@ impl DrawOp {
     }
 }
 
+/// Append a mark's inert interaction metadata to a draw-list op object, when
+/// present (spec §14.25, §24.6). Emits a nested `"interaction"` object with
+/// optional `tooltip` and `highlight` fields; absent when the mark carries none.
+fn write_interaction_json(out: &mut String, interaction: &Option<crate::sink::MarkInteraction>) {
+    let Some(mark) = interaction else {
+        return;
+    };
+    if mark.is_empty() {
+        return;
+    }
+    out.push_str(",\"interaction\":{");
+    let mut first = true;
+    if let Some(tooltip) = &mark.tooltip {
+        let _ = write!(out, "\"tooltip\":{}", json_string(tooltip));
+        first = false;
+    }
+    if let Some(highlight) = &mark.highlight {
+        if !first {
+            out.push(',');
+        }
+        let _ = write!(out, "\"highlight\":{}", json_string(highlight));
+    }
+    out.push('}');
+}
+
 /// The draw-list backend: walks a planned scene and records every primitive the
 /// SVG backend draws (spec §24.6).
 pub(super) struct DrawListBackend;
@@ -344,6 +394,7 @@ impl RenderBackend for DrawListBackend {
             width,
             height,
             paint: Paint::fill(theme.background.clone(), None),
+            interaction: None,
         });
 
         // Chart title/subtitle/caption, using the same coordinates as the SVG
@@ -384,6 +435,7 @@ impl RenderBackend for DrawListBackend {
                 width: slot.plot.width,
                 height: slot.plot.height,
                 paint: Paint::fill(theme.plot_background.clone(), None),
+                interaction: None,
             });
         }
         for slot in &slots {
@@ -400,6 +452,7 @@ impl RenderBackend for DrawListBackend {
                     width: strip.width,
                     height: strip.height,
                     paint: Paint::fill(panel.theme.plot_background.clone(), None),
+                    interaction: None,
                 });
                 ops.push(DrawOp::Text {
                     role: DrawRole::FacetLabel,

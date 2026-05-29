@@ -1,6 +1,6 @@
 # Algraf v0.30.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_29_PLAN.md`](V0_29_PLAN.md)
@@ -134,7 +134,11 @@ Static SVG examples without interaction properties regenerate without drift.
 
 ### 1. Interaction metadata model (source + IR)
 
-Status: Planned.
+Status: Done. `tooltip:` (a column or array of columns) and `highlight:` (a
+grouping column) lower into `InteractionIr` on `GeometryIr` (spec §14.25). They
+ride the geometry IR without touching scale training or layout, are inert data,
+and are validated from schema alone. Analysis validates that referenced columns
+exist (`E1101`) and that the properties appear only on supported geometries.
 
 Acceptance criteria:
 
@@ -151,7 +155,14 @@ Acceptance criteria:
 
 ### 2. Per-mark interaction emission through both backends
 
-Status: Planned.
+Status: Done. Interaction metadata rides the shared mark sink
+(`begin_mark`/`end_mark`). The SVG backend emits accessible per-mark `<title>`
+tooltips and a stable `data-algraf-highlight` group attribute with no script;
+the draw-list backend records the same metadata as an inert `interaction` object
+on the shape op. Ordering is deterministic and locale-independent, and a chart
+with no interaction properties produces byte-for-byte unchanged SVG (covered by
+`render.rs` and `draw_list.rs` tests). Supported on `Point`, `Bar`, `Rect`, and
+`Tile`.
 
 Acceptance criteria:
 
@@ -166,7 +177,12 @@ Acceptance criteria:
 
 ### 3. Opt-in interactive SVG runtime
 
-Status: Planned.
+Status: Done. CLI `--interactive` (and `render_interactive*` in the render
+crate) embed a single fixed, audited script that reads the inert metadata and
+implements tooltip- and highlight-on-hover (spec §29.3). Chart source cannot
+supply or extend it; without the flag the SVG is script-free. The interactive
+chart body is byte-for-byte identical to the static render up to the appended
+script (covered by `render.rs` and `cli.rs`).
 
 Acceptance criteria:
 
@@ -181,7 +197,12 @@ Acceptance criteria:
 
 ### 4. Interactive LSP preview path
 
-Status: Planned.
+Status: Done. `algraf/preview` accepts an optional `interactive` param (default
+`false`, spec §21.18). When set, the server renders with the audited runtime;
+otherwise the preview is script-free, preserving the read-only, superseded, and
+generation semantics. The VS Code client gains an `algraf.preview.interactive`
+setting that inlines the SVG and relaxes CSP only in that mode; all language
+logic stays in `algraf-lsp`.
 
 Acceptance criteria:
 
@@ -197,7 +218,11 @@ Acceptance criteria:
 
 ### 5. URL-valued property policy
 
-Status: Planned.
+Status: Done (rejected). URL-valued properties (hyperlinks, image hrefs, tooltip
+links) are **not supported in v0.30** and are rejected rather than embedded; the
+rationale (SVG-injection/exfiltration surface vs. the no-network and
+script-free-by-default rules) is recorded in spec §29.3, which also states the
+default-denied, explicit-policy requirement for any future support.
 
 Acceptance criteria:
 
@@ -211,7 +236,11 @@ Acceptance criteria:
 
 ### 6. Diagnostics, LSP, and editor metadata
 
-Status: Planned.
+Status: Done. `E1206` (interaction property on an unsupported geometry) and
+`E1207` (invalid interaction value) are reserved in spec §26 and implemented;
+unknown columns reuse `E1101`. LSP completion, hover, and signature help surface
+`tooltip`/`highlight` (with value-shape docs) on supported geometries, and the
+VS Code TextMate grammar recognizes both keywords.
 
 Acceptance criteria:
 
@@ -226,7 +255,11 @@ Acceptance criteria:
 
 ### 7. Examples and README
 
-Status: Planned.
+Status: Done. `examples/tooltips.ag` (declarative tooltips) and
+`examples/highlight.ag` (highlight-on-hover, static + `--interactive`) are added
+and wired into `generate.sh`; regeneration leaves all existing examples drift
+free. README gains "Declarative tooltips" and "Highlight-on-hover" tutorial
+sections and documents `--interactive` under Output modes.
 
 Acceptance criteria:
 
@@ -239,7 +272,12 @@ Acceptance criteria:
 
 ### 8. Spec, plan, and release hygiene
 
-Status: Planned.
+Status: Done. Spec updates cover §2/§3 (interactivity → opt-in supported), §14.25
+(interaction properties), §18.10 (static affordances), §21.18 (interactive
+preview), §24.6 (interaction metadata on both backends), §26 (`E1206`/`E1207`),
+§29.3 (opt-in script + URL policy + no network), and §22.3 (`--interactive`).
+Workspace `Cargo.toml` and `editors/vscode/package.json` are at `0.30.0`; README,
+examples, and rendered artifacts are synchronized.
 
 Acceptance criteria:
 
@@ -256,7 +294,7 @@ Acceptance criteria:
 
 ### Selection / brushing model
 
-Status: Planned.
+Status: Deferred. Not taken up in v0.30.0; remains a candidate for a later release (kept declarative and metadata-driven if implemented).
 
 Design (and implement only if it stays declarative and safe) a selection or
 brushing affordance — e.g. clicking a legend entry filters or emphasizes a
@@ -264,7 +302,7 @@ series. Keep it metadata-driven; no user scripting.
 
 ### Animated SVG design
 
-Status: Planned.
+Status: Deferred. Design carried forward; no animation runtime shipped.
 
 Carry forward the v0.24 animated-SVG design item: decide whether enter/update
 transitions can be expressed declaratively, kept deterministic, script-safe, and
@@ -272,7 +310,7 @@ snapshot-testable. Do not implement animation unless those hold.
 
 ### Browser/WASM playground groundwork
 
-Status: Planned.
+Status: Deferred. No WASM runtime added; the draw list plus inert interaction metadata remain the consumption surface a future playground would build on.
 
 Tie the v0.19 WASM audit, the v0.24 backend work, and this release's interaction
 metadata into a concrete browser-playground design that consumes the draw list

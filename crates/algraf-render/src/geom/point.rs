@@ -7,7 +7,7 @@ use crate::scale::cell_category;
 use crate::sink::{MarkSink, Paint};
 use crate::svg::num;
 
-use super::common::{render_rows, DEFAULT_FILL, DEFAULT_SIZE_RANGE};
+use super::common::{mark_interaction, render_rows, DEFAULT_FILL, DEFAULT_SIZE_RANGE};
 use super::GeometryRenderContext;
 
 pub(super) fn render(
@@ -41,7 +41,9 @@ pub(super) fn render(
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
         let s = size.at(table, row, theme.point_size);
+        sink.begin_mark(mark_interaction(geo, table, row));
         emit_point_shape(sink, shape.resolve(table, row), cx, cy, s, &color, alpha);
+        sink.end_mark();
     }
 }
 

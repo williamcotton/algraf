@@ -11,7 +11,7 @@ use crate::scale::{cell_category, cell_f64};
 use crate::sink::{Fill, MarkSink, Paint};
 use crate::space::{Polar, ScaledSpace, THETA_END, THETA_START};
 
-use super::common::{render_rows, stroke_style, DEFAULT_FILL};
+use super::common::{mark_interaction, render_rows, stroke_style, DEFAULT_FILL};
 use super::polar::annular_segment_path;
 use super::GeometryRenderContext;
 
@@ -115,6 +115,7 @@ pub(super) fn render(
                 table,
                 row,
                 alpha,
+                geo,
             );
         }
     } else {
@@ -139,6 +140,7 @@ pub(super) fn render(
                 table,
                 row,
                 alpha,
+                geo,
             );
         }
     }
@@ -266,7 +268,7 @@ fn render_polar_coxcomb(
             continue;
         };
         let d = annular_segment_path(polar, center - bw / 2.0, center + bw / 2.0, r0, r1);
-        emit_polar_path(sink, &d, fill, stroke, stroke_width, table, row, alpha);
+        emit_polar_path(sink, &d, fill, stroke, stroke_width, table, row, alpha, geo);
     }
 }
 
@@ -321,7 +323,7 @@ fn render_polar_pie(
             .map(|(start, width)| (start, start + width))
             .unwrap_or((polar.r_inner, polar.r_outer));
         let d = annular_segment_path(polar, a0, a1, r0, r1);
-        emit_polar_path(sink, &d, fill, stroke, stroke_width, table, row, alpha);
+        emit_polar_path(sink, &d, fill, stroke, stroke_width, table, row, alpha, geo);
     }
 }
 
@@ -335,10 +337,12 @@ fn emit_polar_path(
     table: &dyn Table,
     row: usize,
     alpha: f64,
+    geo: &GeometryIr,
 ) {
     let color = fill
         .resolve(table, row)
         .unwrap_or_else(|| DEFAULT_FILL.to_string());
+    sink.begin_mark(mark_interaction(geo, table, row));
     sink.path(
         d,
         &Paint {
@@ -347,6 +351,7 @@ fn emit_polar_path(
             opacity: Some(alpha),
         },
     );
+    sink.end_mark();
 }
 
 fn fill_totals(
@@ -380,12 +385,14 @@ fn emit_bar(
     table: &dyn Table,
     row: usize,
     alpha: f64,
+    geo: &GeometryIr,
 ) {
     let top = y_a.min(y_b).clamp(plot.y, plot.bottom());
     let bottom = y_a.max(y_b).clamp(plot.y, plot.bottom());
     let color = fill
         .resolve(table, row)
         .unwrap_or_else(|| DEFAULT_FILL.to_string());
+    sink.begin_mark(mark_interaction(geo, table, row));
     sink.rect(
         x,
         top,
@@ -397,4 +404,5 @@ fn emit_bar(
             opacity: Some(alpha),
         },
     );
+    sink.end_mark();
 }

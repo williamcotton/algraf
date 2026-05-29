@@ -2,7 +2,7 @@
   "name": "algraf-vscode",
   "displayName": "Algraf",
   "description": "VS Code language support for Algraf charts.",
-  "version": "0.29.0",
+  "version": "0.30.0",
   "publisher": "algraf",
   "license": "MIT OR Apache-2.0",
   "repository": {
@@ -142,6 +142,11 @@
             "verbose"
           ],
           "description": "Trace communication between VS Code and the Algraf language server."
+        },
+        "algraf.preview.interactive": {
+          "type": "boolean",
+          "default": false,
+          "description": "Render the preview with the audited interactive runtime (tooltip- and highlight-on-hover). Off by default keeps the preview script-free; when on, only the fixed Algraf-shipped script runs — never user-authored script."
         }
       }
     }

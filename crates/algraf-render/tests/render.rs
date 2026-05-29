@@ -1646,3 +1646,52 @@ fn test_cartesian_bar_unaffected_by_polar_support() {
     assert!(svg.contains("<rect"));
     assert!(!svg.contains(" A "));
 }
+
+// --- Declarative interactions (spec §14.25, §18.10, §29.3) ------------------
+
+const INTERACTION_CSV: &str = "x,y,g\n1,2,A\n3,4,B\n";
+
+const TOOLTIP_SRC: &str = "Chart(data: \"p.csv\", width: 200, height: 200) { Space(x * y) { Point(tooltip: [g, y], highlight: \"g\") } }";
+
+const PLAIN_SRC: &str =
+    "Chart(data: \"p.csv\", width: 200, height: 200) { Space(x * y) { Point() } }";
+
+#[test]
+fn tooltip_emits_accessible_title_and_highlight_group() {
+    let svg = render_svg(TOOLTIP_SRC, INTERACTION_CSV);
+    assert!(svg.contains("data-algraf-highlight=\"A\""), "{svg}");
+    assert!(svg.contains("<title>g: A\ny: 2</title></circle>"), "{svg}");
+    // Static SVG stays script-free without the opt-in.
+    assert!(!svg.contains("<script"), "{svg}");
+}
+
+#[test]
+fn chart_without_interaction_has_no_interaction_markup() {
+    let svg = render_svg(PLAIN_SRC, INTERACTION_CSV);
+    assert!(!svg.contains("data-algraf-highlight"), "{svg}");
+    assert!(!svg.contains("</circle>"), "{svg}");
+    assert!(!svg.contains("<title>"), "{svg}");
+}
+
+#[test]
+fn interactive_render_embeds_only_the_audited_script() {
+    let frame = read_csv_str(INTERACTION_CSV).expect("csv").frame;
+    let parsed = parse(TOOLTIP_SRC);
+    let analysis = analyze(&parsed.syntax(), frame.schema());
+    let ir = analysis.ir.expect("ir");
+    let interactive = algraf_render::render_interactive(&ir, &frame, &Theme::minimal(), None)
+        .expect("render")
+        .svg;
+    let static_svg = render(&ir, &frame, &Theme::minimal(), None)
+        .expect("render")
+        .svg;
+
+    // The script appears only in the interactive output.
+    assert!(interactive.contains("<script"), "{interactive}");
+    assert!(!static_svg.contains("<script"), "{static_svg}");
+    // The chart body is otherwise identical: the static SVG is a prefix of the
+    // interactive one up to the appended script.
+    let body_end = interactive.find("<script").unwrap();
+    let static_body_end = static_svg.find("</svg>").unwrap();
+    assert_eq!(&interactive[..body_end], &static_svg[..static_body_end]);
+}

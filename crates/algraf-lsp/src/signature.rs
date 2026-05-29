@@ -73,6 +73,10 @@ fn signature_params(name: &str) -> Option<Vec<&'static str>> {
     if let Some(geometry) = registry::geometry(name) {
         let mut params: Vec<&'static str> = geometry.prop_names().collect();
         params.push("style");
+        // Declarative interactions (spec §14.25) on supported geometries.
+        if registry::supports_interaction(geometry.kind) {
+            params.extend(registry::INTERACTION_PROPS.iter().copied());
+        }
         return Some(params);
     }
     match name {

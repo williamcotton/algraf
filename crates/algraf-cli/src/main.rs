@@ -17,8 +17,8 @@ use algraf_driver::{
     PreparationReport, PrepareOptions, ReportPhase, SourceInput,
 };
 use algraf_render::{
-    render_draw_list_with_tables, render_raster_with_tables, render_with_tables, svg_num, Layout,
-    Rect, Theme,
+    render_draw_list_with_tables, render_interactive_with_tables, render_raster_with_tables,
+    render_with_tables, svg_num, Layout, Rect, Theme,
 };
 use algraf_semantics::{
     analyze, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
@@ -113,6 +113,11 @@ struct RenderArgs {
     /// from the scene model (spec §24.6).
     #[arg(long, value_enum, default_value_t = RenderFormat::Svg)]
     format: RenderFormat,
+    /// Embed the fixed, audited interactive runtime in SVG output (spec §29.3):
+    /// tooltip-on-hover and highlight-on-hover from inert mark metadata. Only
+    /// affects `--format svg`; static SVG stays script-free without it.
+    #[arg(long)]
+    interactive: bool,
     #[arg(long)]
     width: Option<u32>,
     #[arg(long)]
@@ -436,7 +441,12 @@ fn render_chart_svg(
         mut report,
     } = prepare_render_inputs(chart, args, input, source, label, multi)?;
 
-    let mut result = render_with_tables(
+    let render = if args.interactive {
+        render_interactive_with_tables
+    } else {
+        render_with_tables
+    };
+    let mut result = render(
         &ir,
         &frame,
         &named_frames,
@@ -1162,7 +1172,15 @@ fn geometry_json(geometry: &GeometryIr) -> Value {
         "settings": geometry.settings.iter().map(|s| {
             json!({ "name": s.name.as_str(), "value": setting_value_json(&s.value) })
         }).collect::<Vec<_>>(),
+        "interaction": interaction_json(&geometry.interaction),
         "span": span_json(geometry.span),
+    })
+}
+
+fn interaction_json(interaction: &algraf_semantics::InteractionIr) -> Value {
+    json!({
+        "tooltip": interaction.tooltip.iter().map(column_json).collect::<Vec<_>>(),
+        "highlight": interaction.highlight.as_ref().map(column_json),
     })
 }
 

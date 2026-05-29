@@ -127,6 +127,27 @@ impl Paint {
     }
 }
 
+/// Declarative interaction metadata attached to a per-datum mark (spec §14.25,
+/// §24.6).
+///
+/// This is inert data: the SVG backend turns it into an accessible `<title>`
+/// tooltip and a stable highlight-group attribute, and the draw-list backend
+/// records it verbatim. There is no script and no behavior — a viewer (the
+/// opt-in interactive runtime or a Canvas host) interprets it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct MarkInteraction {
+    /// Tooltip text (newline-separated `label: value` lines), if any.
+    pub tooltip: Option<String>,
+    /// The highlight group value this mark belongs to, if any.
+    pub highlight: Option<String>,
+}
+
+impl MarkInteraction {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.tooltip.is_none() && self.highlight.is_none()
+    }
+}
+
 /// One run of text to draw. Mirrors the SVG `<text>` attribute set used across
 /// geometry and guide emission, in the canonical attribute order (spec §18).
 pub(crate) struct TextRun<'a> {
@@ -154,6 +175,14 @@ pub(crate) trait MarkSink {
     fn open_layer(&mut self, class: &str);
     /// Close the most recently opened layer.
     fn close_layer(&mut self);
+
+    /// Attach interaction metadata to every shape primitive emitted until the
+    /// matching [`MarkSink::end_mark`] (spec §14.25, §24.6). An empty mark is a
+    /// no-op, so geometries can call this unconditionally per datum. Nesting is
+    /// not supported: each `begin_mark` MUST be paired with an `end_mark`.
+    fn begin_mark(&mut self, mark: MarkInteraction);
+    /// Clear the interaction metadata set by [`MarkSink::begin_mark`].
+    fn end_mark(&mut self);
 
     fn rect(&mut self, x: f64, y: f64, width: f64, height: f64, paint: &Paint);
     fn circle(&mut self, cx: f64, cy: f64, r: f64, paint: &Paint);
@@ -225,11 +254,50 @@ pub(crate) fn json_string(value: &str) -> String {
 pub(crate) struct SvgSink<'w> {
     w: &'w mut SvgWriter,
     count: usize,
+    /// Interaction metadata for the mark currently being emitted (spec §14.25).
+    /// `None` (the common case) produces byte-for-byte unchanged SVG.
+    mark: Option<MarkInteraction>,
 }
 
 impl<'w> SvgSink<'w> {
     pub(crate) fn new(w: &'w mut SvgWriter) -> Self {
-        SvgSink { w, count: 0 }
+        SvgSink {
+            w,
+            count: 0,
+            mark: None,
+        }
+    }
+
+    /// Close a shape element `s` (which holds the open tag and all attributes,
+    /// without the terminating `" />"`). With no active mark this writes the
+    /// canonical self-closing form, byte-for-byte unchanged. With an active mark
+    /// it appends a stable `data-algraf-highlight` attribute and/or wraps an
+    /// accessible `<title>` child (spec §14.25, §18.10).
+    fn finish_shape(&mut self, mut s: String, tag: &str) {
+        let mark = match &self.mark {
+            Some(mark) if !mark.is_empty() => mark,
+            _ => {
+                s.push_str(" />");
+                self.w.line(&s);
+                return;
+            }
+        };
+        if let Some(group) = &mark.highlight {
+            s.push_str(" data-algraf-highlight=\"");
+            s.push_str(&escape_attr(group));
+            s.push('"');
+        }
+        match &mark.tooltip {
+            Some(tooltip) => {
+                s.push_str("><title>");
+                s.push_str(&escape_text(tooltip));
+                s.push_str("</title></");
+                s.push_str(tag);
+                s.push('>');
+            }
+            None => s.push_str(" />"),
+        }
+        self.w.line(&s);
     }
 }
 
@@ -243,6 +311,14 @@ impl MarkSink for SvgSink<'_> {
         self.w.close_group();
     }
 
+    fn begin_mark(&mut self, mark: MarkInteraction) {
+        self.mark = (!mark.is_empty()).then_some(mark);
+    }
+
+    fn end_mark(&mut self) {
+        self.mark = None;
+    }
+
     fn rect(&mut self, x: f64, y: f64, width: f64, height: f64, paint: &Paint) {
         self.count += 1;
         let mut s = format!(
@@ -253,8 +329,7 @@ impl MarkSink for SvgSink<'_> {
             num(height),
         );
         paint.write_svg(&mut s);
-        s.push_str(" />");
-        self.w.line(&s);
+        self.finish_shape(s, "rect");
     }
 
     fn circle(&mut self, cx: f64, cy: f64, r: f64, paint: &Paint) {
@@ -266,24 +341,21 @@ impl MarkSink for SvgSink<'_> {
             num(r)
         );
         paint.write_svg(&mut s);
-        s.push_str(" />");
-        self.w.line(&s);
+        self.finish_shape(s, "circle");
     }
 
     fn path(&mut self, d: &str, paint: &Paint) {
         self.count += 1;
         let mut s = format!("<path d=\"{d}\"");
         paint.write_svg(&mut s);
-        s.push_str(" />");
-        self.w.line(&s);
+        self.finish_shape(s, "path");
     }
 
     fn polygon(&mut self, points: &str, paint: &Paint) {
         self.count += 1;
         let mut s = format!("<polygon points=\"{points}\"");
         paint.write_svg(&mut s);
-        s.push_str(" />");
-        self.w.line(&s);
+        self.finish_shape(s, "polygon");
     }
 
     fn line(
@@ -442,6 +514,8 @@ impl MarkSink for SvgSink<'_> {
 pub(crate) struct DrawListSink {
     ops: Vec<DrawOp>,
     role: DrawRole,
+    /// Interaction metadata for the mark currently being emitted (spec §14.25).
+    mark: Option<MarkInteraction>,
 }
 
 impl DrawListSink {
@@ -449,7 +523,13 @@ impl DrawListSink {
         DrawListSink {
             ops: Vec::new(),
             role: DrawRole::Mark,
+            mark: None,
         }
+    }
+
+    /// The interaction metadata to record on the next shape op, if any.
+    fn current_mark(&self) -> Option<MarkInteraction> {
+        self.mark.clone().filter(|m| !m.is_empty())
     }
 
     pub(crate) fn into_ops(self) -> Vec<DrawOp> {
@@ -485,7 +565,16 @@ impl MarkSink for DrawListSink {
         self.role = DrawRole::Mark;
     }
 
+    fn begin_mark(&mut self, mark: MarkInteraction) {
+        self.mark = (!mark.is_empty()).then_some(mark);
+    }
+
+    fn end_mark(&mut self) {
+        self.mark = None;
+    }
+
     fn rect(&mut self, x: f64, y: f64, width: f64, height: f64, paint: &Paint) {
+        let interaction = self.current_mark();
         self.ops.push(DrawOp::Rect {
             role: self.role,
             x,
@@ -493,32 +582,39 @@ impl MarkSink for DrawListSink {
             width,
             height,
             paint: paint.clone(),
+            interaction,
         });
     }
 
     fn circle(&mut self, cx: f64, cy: f64, r: f64, paint: &Paint) {
+        let interaction = self.current_mark();
         self.ops.push(DrawOp::Circle {
             role: self.role,
             cx,
             cy,
             r,
             paint: paint.clone(),
+            interaction,
         });
     }
 
     fn path(&mut self, d: &str, paint: &Paint) {
+        let interaction = self.current_mark();
         self.ops.push(DrawOp::Path {
             role: self.role,
             d: d.to_string(),
             paint: paint.clone(),
+            interaction,
         });
     }
 
     fn polygon(&mut self, points: &str, paint: &Paint) {
+        let interaction = self.current_mark();
         self.ops.push(DrawOp::Polygon {
             role: self.role,
             points: points.to_string(),
             paint: paint.clone(),
+            interaction,
         });
     }
 
@@ -571,6 +667,7 @@ impl MarkSink for DrawListSink {
                 stroke: Stroke::Omit,
                 opacity,
             },
+            interaction: None,
         });
     }
 
@@ -603,6 +700,7 @@ impl MarkSink for DrawListSink {
                 stroke,
                 opacity,
             },
+            interaction: None,
         });
     }
 
@@ -618,6 +716,7 @@ impl MarkSink for DrawListSink {
                 },
                 opacity,
             },
+            interaction: None,
         });
     }
 
