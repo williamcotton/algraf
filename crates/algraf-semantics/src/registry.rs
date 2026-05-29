@@ -56,7 +56,7 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
         "Algraf" => &["version", "features"],
         "Layout" => &["facetColumns"],
         "Parse" => &[
-            "table", "column", "as", "format", "formats", "unit", "timezone",
+            "table", "column", "as", "format", "formats", "unit", "timezone", "onError", "anchor",
         ],
         "Guide" => &[
             "axis",
@@ -404,6 +404,8 @@ const TEXT: &[PropSpec] = &[
     opt(PropertyKey::Dx, &[Accept::Column, Accept::Number]),
     opt(PropertyKey::Dy, &[Accept::Column, Accept::Number]),
     opt(PropertyKey::Declutter, &[Accept::Bool]),
+    // Format a temporal `label:` column using the §19.4 named/custom model.
+    opt(PropertyKey::TimeFormat, &[Accept::Str]),
 ];
 
 const GEO: &[PropSpec] = &[

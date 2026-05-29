@@ -1929,6 +1929,99 @@ fn polar_invalid_grid_shape_is_e1906() {
     ));
 }
 
+#[test]
+fn polar_start_angle_and_direction_accept_valid_arguments() {
+    clean("Chart(data: \"p.csv\") { Space(amount, coords: \"polar\", theta: \"y\", startAngle: 90, direction: \"counterclockwise\") { Bar(fill: species, layout: \"fill\") } }");
+}
+
+#[test]
+fn polar_start_angle_out_of_range_is_e1909() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(amount, coords: \"polar\", startAngle: 999) { Bar() } }",
+        "E1909"
+    ));
+}
+
+#[test]
+fn polar_invalid_direction_is_e1910() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(amount, coords: \"polar\", direction: \"sideways\") { Bar() } }",
+        "E1910"
+    ));
+}
+
+#[test]
+fn radial_bar_categorical_radius_is_clean() {
+    clean("Chart(data: \"p.csv\") { Space(amount, coords: \"polar\", theta: \"y\") { Bar(fill: species, radius: species) } }");
+}
+
+#[test]
+fn radial_bar_radius_outside_polar_is_e1910() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(species * amount) { Bar(radius: species) } }",
+        "E1910"
+    ));
+}
+
+#[test]
+fn radial_bar_non_categorical_radius_is_e1910() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(amount, coords: \"polar\", theta: \"y\") { Bar(radius: amount) } }",
+        "E1910"
+    ));
+}
+
+// --- Temporal literals (spec §7.8, §10.3) -----------------------------------
+
+#[test]
+fn temporal_literal_in_reference_line_is_clean() {
+    clean("Chart(data: \"p.csv\") { Space(time * amount) { Line() VLine(x: datetime(\"2020-01-01T00:00:00Z\")) } }");
+}
+
+#[test]
+fn temporal_literal_in_scale_domain_is_clean() {
+    clean("Chart(data: \"p.csv\") { Space(time * amount) { Scale(axis: x, domain: [date(\"2020-01-01\"), date(\"2020-12-31\")]) Line() } }");
+}
+
+#[test]
+fn invalid_temporal_literal_is_e1017() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(time * amount) { Line() VLine(x: datetime(\"not a date\")) } }",
+        "E1017"
+    ));
+}
+
+#[test]
+fn temporal_literal_in_unsupported_position_is_e1018() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(time * amount) { Point(fill: datetime(\"2020-01-01\")) } }",
+        "E1018"
+    ));
+}
+
+// --- Off-axis temporal formatting (spec §19.4) ------------------------------
+
+#[test]
+fn text_time_format_on_temporal_label_is_clean() {
+    clean("Chart(data: \"p.csv\") { Space(time * amount) { Text(label: time, timeFormat: \"month\") } }");
+}
+
+#[test]
+fn text_time_format_on_non_temporal_label_is_e1907() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(time * amount) { Text(label: species, timeFormat: \"month\") } }",
+        "E1907"
+    ));
+}
+
+#[test]
+fn text_unknown_time_format_is_e1907() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(time * amount) { Text(label: time, timeFormat: \"galactic\") } }",
+        "E1907"
+    ));
+}
+
 // --- Declarative interactions (spec §14.25) ---------------------------------
 
 #[test]

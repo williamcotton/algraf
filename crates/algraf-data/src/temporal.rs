@@ -10,7 +10,7 @@
 //! Anything else remains a string.
 
 use chrono::format::{Item, StrftimeItems};
-use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
 
 use crate::value::{DateTimeValue, TemporalPrecision};
 
@@ -46,6 +46,26 @@ pub struct TemporalColumnParse {
     pub formats: Vec<String>,
     pub unit: Option<EpochUnit>,
     pub timezone: TemporalTimezone,
+    /// How per-cell parse failures are surfaced (spec §10.3).
+    pub on_error: ParseErrorPolicy,
+    /// Anchor date for time-only formats (e.g. `format: "%H:%M"`). A time-only
+    /// value carries no date, so a temporal scale needs this anchor to place it
+    /// (spec §10.3). `None` leaves time-only formats unparseable.
+    pub anchor: Option<NaiveDate>,
+}
+
+/// How an explicit temporal `Parse(...)` treats cells that fail to parse
+/// (spec §10.3). The default preserves the aggregated-warning behavior of
+/// earlier versions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ParseErrorPolicy {
+    /// Coerce failures to missing and emit an aggregated data warning.
+    #[default]
+    Warn,
+    /// Coerce failures to missing and emit no warning.
+    Missing,
+    /// Treat any per-column parse failure as a blocking error.
+    Error,
 }
 
 /// The declared temporal precision.
@@ -64,20 +84,50 @@ pub enum EpochUnit {
     Nanoseconds,
 }
 
-/// Timezone interpretation for naive explicit datetime formats.
+/// Timezone interpretation for naive explicit datetime formats (spec §10.3).
+///
+/// A timezone only changes how a *naive* declared datetime is resolved to a
+/// UTC-equivalent instant; storage stays UTC microseconds and no DST-aware scale
+/// arithmetic is introduced. An IANA zone applies its rules (including DST) at
+/// the specific local datetime being interpreted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TemporalTimezone {
     Utc,
-    FixedOffset { seconds_east: i32 },
+    FixedOffset {
+        seconds_east: i32,
+    },
+    /// A named IANA zone (e.g. `America/Chicago`).
+    Iana(chrono_tz::Tz),
 }
 
 impl TemporalTimezone {
-    fn offset(self) -> FixedOffset {
+    /// Parse a declared `timezone:` string: `"UTC"`, a `±HH:MM` fixed offset, or
+    /// an IANA zone name (e.g. `"America/Chicago"`). Returns `None` for an
+    /// unrecognized value (spec §10.3).
+    pub fn parse_declared(value: &str) -> Option<TemporalTimezone> {
+        if value == "UTC" {
+            return Some(TemporalTimezone::Utc);
+        }
+        if let Some(offset) = parse_fixed_offset(value) {
+            return Some(offset);
+        }
+        value
+            .parse::<chrono_tz::Tz>()
+            .ok()
+            .map(TemporalTimezone::Iana)
+    }
+
+    /// Resolve a naive local datetime to its UTC-equivalent instant under this
+    /// zone. Returns `None` for a local time that is ambiguous or does not exist
+    /// (e.g. across a DST transition), so such cells fail to parse deterministically.
+    fn local_to_utc(self, ndt: NaiveDateTime) -> Option<NaiveDateTime> {
         match self {
-            TemporalTimezone::Utc => FixedOffset::east_opt(0).expect("UTC offset is valid"),
+            TemporalTimezone::Utc => Some(ndt),
             TemporalTimezone::FixedOffset { seconds_east } => {
-                FixedOffset::east_opt(seconds_east).expect("validated fixed offset")
+                let offset = FixedOffset::east_opt(seconds_east).expect("validated fixed offset");
+                Some(offset.from_local_datetime(&ndt).single()?.naive_utc())
             }
+            TemporalTimezone::Iana(tz) => Some(tz.from_local_datetime(&ndt).single()?.naive_utc()),
         }
     }
 }
@@ -144,6 +194,28 @@ pub fn parse_temporal_explicit(text: &str, policy: &TemporalColumnParse) -> Opti
     None
 }
 
+/// Parse the contents of a `datetime("…")` / `date("…")` temporal literal to a
+/// UTC-equivalent instant in microseconds (spec §10.3), using the same
+/// conservative automatic rules as inference. `require_date` truncates the
+/// result to midnight for a `date(...)` constructor. Returns `None` for contents
+/// the rules do not recognize.
+pub fn parse_temporal_literal(text: &str, require_date: bool) -> Option<i64> {
+    let parsed = parse_temporal(text)?;
+    let instant = if require_date {
+        parsed.value.instant.date().and_hms_opt(0, 0, 0)?
+    } else {
+        parsed.value.instant
+    };
+    Some(instant.and_utc().timestamp_micros())
+}
+
+/// Parse a `Parse(anchor: "…")` date string to a [`NaiveDate`], using the same
+/// conservative rules as inference (spec §10.3). Returns `None` for contents the
+/// rules do not recognize as a date.
+pub fn parse_anchor_date(text: &str) -> Option<NaiveDate> {
+    Some(parse_temporal(text.trim())?.value.instant.date())
+}
+
 /// Validate that a chrono-style format string can be consumed deterministically.
 pub fn validate_temporal_format(pattern: &str) -> bool {
     !pattern.is_empty()
@@ -160,9 +232,15 @@ fn parse_with_format(
         return Some(coerce_temporal(dt.naive_utc(), policy.as_type, true));
     }
     if let Ok(ndt) = NaiveDateTime::parse_from_str(text, pattern) {
-        let offset = policy.timezone.offset();
-        let dt = offset.from_local_datetime(&ndt).single()?;
-        return Some(coerce_temporal(dt.naive_utc(), policy.as_type, false));
+        let utc = policy.timezone.local_to_utc(ndt)?;
+        return Some(coerce_temporal(utc, policy.as_type, false));
+    }
+    // A time-only format (e.g. `%H:%M`) carries no date, so it parses only when
+    // an anchor date is supplied; the time is interpreted in the declared zone
+    // on that date (spec §10.3).
+    if let (Some(anchor), Ok(time)) = (policy.anchor, NaiveTime::parse_from_str(text, pattern)) {
+        let utc = policy.timezone.local_to_utc(anchor.and_time(time))?;
+        return Some(coerce_temporal(utc, policy.as_type, false));
     }
     if let Ok(date) = NaiveDate::parse_from_str(text, pattern) {
         return Some(match policy.as_type {
@@ -220,6 +298,24 @@ fn date_to_temporal(date: NaiveDate) -> ParsedTemporal {
         value: DateTimeValue::new(instant, TemporalPrecision::Date),
         offset_aware: false,
     }
+}
+
+/// Parse a `±HH:MM` fixed-offset timezone string.
+fn parse_fixed_offset(value: &str) -> Option<TemporalTimezone> {
+    let sign = match value.as_bytes().first().copied()? {
+        b'+' => 1,
+        b'-' => -1,
+        _ => return None,
+    };
+    let (hour, minute) = value.get(1..)?.split_once(':')?;
+    let hour: i32 = hour.parse().ok()?;
+    let minute: i32 = minute.parse().ok()?;
+    if hour > 23 || minute > 59 {
+        return None;
+    }
+    Some(TemporalTimezone::FixedOffset {
+        seconds_east: sign * (hour * 3600 + minute * 60),
+    })
 }
 
 const OFFSET_DATETIME_PATTERNS: &[&str] = &[

@@ -65,12 +65,17 @@ pub enum DataError {
     },
 }
 
-/// A non-fatal data inference warning (spec §10.3).
+/// A data inference warning (spec §10.3). Usually non-fatal, but a warning may
+/// be marked `fatal` when the user opted into stricter handling (e.g.
+/// `Parse(onError: "error")`); the driver promotes a fatal warning to a blocking
+/// error diagnostic.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DataWarning {
     pub message: String,
     /// The column the warning relates to, if any.
     pub column: Option<String>,
+    /// Whether this should block rendering rather than warn (spec §10.3).
+    pub fatal: bool,
 }
 
 impl DataWarning {
@@ -78,6 +83,16 @@ impl DataWarning {
         DataWarning {
             message: message.into(),
             column: Some(column.into()),
+            fatal: false,
+        }
+    }
+
+    /// A column warning that blocks rendering (`Parse(onError: "error")`).
+    pub fn fatal_for_column(column: impl Into<String>, message: impl Into<String>) -> DataWarning {
+        DataWarning {
+            message: message.into(),
+            column: Some(column.into()),
+            fatal: true,
         }
     }
 }

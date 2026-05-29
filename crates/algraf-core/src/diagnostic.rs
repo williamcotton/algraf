@@ -121,6 +121,7 @@ pub mod codes {
     pub const E1016: DiagnosticCode = DiagnosticCode::new("E1016");
     pub const E1017: DiagnosticCode = DiagnosticCode::new("E1017");
     pub const E1018: DiagnosticCode = DiagnosticCode::new("E1018");
+    pub const E1019: DiagnosticCode = DiagnosticCode::new("E1019");
     pub const E1101: DiagnosticCode = DiagnosticCode::new("E1101");
     pub const E1102: DiagnosticCode = DiagnosticCode::new("E1102");
     pub const E1103: DiagnosticCode = DiagnosticCode::new("E1103");
@@ -245,6 +246,7 @@ pub const fn all_codes() -> &'static [DiagnosticCode] {
         codes::E1016,
         codes::E1017,
         codes::E1018,
+        codes::E1019,
         codes::E1101,
         codes::E1102,
         codes::E1103,

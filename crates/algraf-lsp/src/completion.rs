@@ -458,7 +458,23 @@ fn declaration_value_items(
                 "\"-05:00\"",
                 "Interpret naive datetimes with a fixed offset",
             ),
+            value_item(
+                "\"America/Chicago\"",
+                "Interpret naive datetimes in an IANA zone",
+            ),
         ],
+        ("Parse", "onError") => vec![
+            value_item("\"warn\"", "Coerce failures to missing and warn (default)"),
+            value_item("\"error\"", "Treat any parse failure as a blocking error"),
+            value_item(
+                "\"missing\"",
+                "Coerce failures to missing without a warning",
+            ),
+        ],
+        ("Parse", "anchor") => vec![value_item(
+            "\"2026-01-01\"",
+            "Anchor date for a time-only format",
+        )],
         ("Scale", target) if registry::SCALE_AESTHETIC_TARGETS.contains(&target) => {
             column_items_matching(state, |_| true)
         }

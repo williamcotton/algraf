@@ -43,8 +43,9 @@ pub use schema::{ColumnDef, DataType};
 pub use shapefile::{read_shapefile_bundle, read_shapefile_path, ShapefileBundle};
 pub use sqlite::{read_sqlite_path, read_sqlite_schema_path};
 pub use temporal::{
-    parse_temporal, validate_temporal_format, EpochUnit, ParsedTemporal, TemporalColumnParse,
-    TemporalParsePolicy, TemporalParseType, TemporalTimezone,
+    parse_anchor_date, parse_temporal, parse_temporal_literal, validate_temporal_format, EpochUnit,
+    ParseErrorPolicy, ParsedTemporal, TemporalColumnParse, TemporalParsePolicy, TemporalParseType,
+    TemporalTimezone,
 };
 pub use topojson::{read_topojson, read_topojson_str};
 pub use value::{DataValue, DataValueRef, DateTimeValue, TemporalPrecision};

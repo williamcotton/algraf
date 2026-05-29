@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 
 use algraf_core::{codes, Diagnostic, Span};
-use algraf_data::DataType;
+use algraf_data::{parse_temporal_literal, DataType};
 use algraf_syntax::ast::{AlgebraExpr, CallValue, Decl, LiteralKind, MapValue, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
@@ -420,10 +420,61 @@ impl Analyzer<'_> {
                     Some(LiteralKind::Null) => out[i] = None,
                     _ => return None,
                 },
+                // A `datetime("…")` / `date("…")` temporal literal is a valid
+                // domain bound for a temporal axis (spec §7.8, §16.11); it lowers
+                // to a UTC-equivalent instant in microseconds.
+                ValueExpr::Call(call) => {
+                    out[i] = Some(self.temporal_literal_bound(call)? as f64);
+                }
                 _ => return None,
             }
         }
         Some(out)
+    }
+
+    /// Parse a `datetime("…")` / `date("…")` domain bound to microseconds,
+    /// emitting `E1017` for an unrecognized constructor or contents (spec §10.3).
+    fn temporal_literal_bound(&mut self, call: &CallValue) -> Option<i64> {
+        let name = call.name().unwrap_or_default();
+        let require_date = match name.as_str() {
+            "date" => true,
+            "datetime" => false,
+            _ => return None,
+        };
+        let span = node_span(call.syntax());
+        let args = call.args();
+        let text = match args.first() {
+            Some(arg) if args.len() == 1 && arg.key().is_none() => match arg.value() {
+                Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                    string_value(&lit.text().unwrap_or_default())
+                }
+                _ => return self.reject_temporal_bound(&name, span),
+            },
+            _ => return self.reject_temporal_bound(&name, span),
+        };
+        match parse_temporal_literal(&text, require_date) {
+            Some(micros) => Some(micros),
+            None => {
+                self.diag(Diagnostic::error(
+                    codes::E1017,
+                    format!(
+                        "{text:?} is not a recognized {} literal",
+                        if require_date { "date" } else { "datetime" }
+                    ),
+                    span,
+                ));
+                None
+            }
+        }
+    }
+
+    fn reject_temporal_bound(&mut self, name: &str, span: Span) -> Option<i64> {
+        self.diag(Diagnostic::error(
+            codes::E1017,
+            format!("`{name}(...)` expects a single quoted temporal string"),
+            span,
+        ));
+        None
     }
 
     /// Read a map literal of string keys to string values (used by a categorical

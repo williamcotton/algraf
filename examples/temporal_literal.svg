@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="420" viewBox="0 0 820 420" role="img" aria-label="Request latency around a deploy">
+<title>Request latency around a deploy</title>
+<rect class="algraf-background" x="0" y="0" width="820" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Request latency around a deploy</text>
+<rect class="algraf-plot-area" x="60" y="66" width="730" height="304" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="60" y1="66" x2="60" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="242.5" y1="66" x2="242.5" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="425" y1="66" x2="425" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="607.5" y1="66" x2="607.5" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="790" y1="66" x2="790" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="349.034" x2="790" y2="349.034" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="311.596" x2="790" y2="311.596" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="274.158" x2="790" y2="274.158" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="236.719" x2="790" y2="236.719" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="199.281" x2="790" y2="199.281" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="161.842" x2="790" y2="161.842" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="124.404" x2="790" y2="124.404" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="86.966" x2="790" y2="86.966" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M60 349.034 L242.5 311.596 L425 86.966 L607.5 236.719 L790 292.877" fill="none" stroke="#3b6ea5" stroke-width="1.5" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-vline">
+  <line x1="425" y1="66" x2="425" y2="370" stroke="#c0392b" stroke-width="1.5" opacity="1" stroke-dasharray="4 4" />
+  <text x="429" y="78" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">deploy</text>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="370" x2="790" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="60" y1="370" x2="60" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="60" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-27 23:00</text>
+  <line x1="242.5" y1="370" x2="242.5" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="242.5" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 00:00</text>
+  <line x1="425" y1="370" x2="425" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="425" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 01:00</text>
+  <line x1="607.5" y1="370" x2="607.5" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="607.5" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 02:00</text>
+  <line x1="790" y1="370" x2="790" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="790" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 03:00</text>
+  <text x="425" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">started at</text>
+  <line x1="60" y1="66" x2="60" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="349.034" x2="60" y2="349.034" stroke="#333333" stroke-width="1" />
+  <text x="52" y="353.034" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">120</text>
+  <line x1="55" y1="311.596" x2="60" y2="311.596" stroke="#333333" stroke-width="1" />
+  <text x="52" y="315.596" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">140</text>
+  <line x1="55" y1="274.158" x2="60" y2="274.158" stroke="#333333" stroke-width="1" />
+  <text x="52" y="278.158" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">160</text>
+  <line x1="55" y1="236.719" x2="60" y2="236.719" stroke="#333333" stroke-width="1" />
+  <text x="52" y="240.719" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">180</text>
+  <line x1="55" y1="199.281" x2="60" y2="199.281" stroke="#333333" stroke-width="1" />
+  <text x="52" y="203.281" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">200</text>
+  <line x1="55" y1="161.842" x2="60" y2="161.842" stroke="#333333" stroke-width="1" />
+  <text x="52" y="165.842" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">220</text>
+  <line x1="55" y1="124.404" x2="60" y2="124.404" stroke="#333333" stroke-width="1" />
+  <text x="52" y="128.404" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">240</text>
+  <line x1="55" y1="86.966" x2="60" y2="86.966" stroke="#333333" stroke-width="1" />
+  <text x="52" y="90.966" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">260</text>
+  <text x="24.4" y="218" text-anchor="middle" transform="rotate(-90 24.4 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">latency ms</text>
+</g>
+</svg>

@@ -10,6 +10,7 @@ rust-version.workspace = true
 algraf-core = { workspace = true }
 csv = { workspace = true }
 chrono = { workspace = true }
+chrono-tz = { workspace = true }
 indexmap = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

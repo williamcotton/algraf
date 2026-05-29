@@ -4,8 +4,9 @@ use std::path::Path;
 
 use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::{
-    validate_temporal_format, ColumnDef, DataFrame, EpochUnit, Format, LoadResult, Table,
-    TemporalColumnParse, TemporalParsePolicy, TemporalParseType, TemporalTimezone,
+    validate_temporal_format, ColumnDef, DataFrame, EpochUnit, Format, LoadResult,
+    ParseErrorPolicy, Table, TemporalColumnParse, TemporalParsePolicy, TemporalParseType,
+    TemporalTimezone,
 };
 use algraf_semantics::{analyze_chart_with_tables, Analysis};
 use algraf_syntax::ast::{AlgebraExpr, Arg, ChartBlock, ChartItem, LiteralKind, ValueExpr};
@@ -312,6 +313,8 @@ fn parse_policies(chart: &ChartBlock) -> ChartParsePolicies {
         let mut formats = None;
         let mut unit = None;
         let mut timezone = TemporalTimezone::Utc;
+        let mut on_error = ParseErrorPolicy::Warn;
+        let mut anchor = None;
 
         for arg in decl.args() {
             let Some(key) = arg.key() else { continue };
@@ -322,13 +325,41 @@ fn parse_policies(chart: &ChartBlock) -> ChartParsePolicies {
                 "format" => format = string_arg(&arg),
                 "formats" => formats = string_array_arg(&arg),
                 "unit" => unit = string_arg(&arg).and_then(parse_epoch_unit),
+                "anchor" => {
+                    if let Some(text) = string_arg(&arg) {
+                        match algraf_data::parse_anchor_date(&text) {
+                            Some(date) => anchor = Some(date),
+                            None => out.diagnostics.push(Diagnostic::error(
+                                codes::E1014,
+                                format!("invalid Parse `anchor` date `{text}`; expected a date like \"2026-01-01\""),
+                                node_span(arg.syntax()),
+                            )),
+                        }
+                    }
+                }
+                "onError" => {
+                    if let Some(text) = string_arg(&arg) {
+                        match parse_on_error(&text) {
+                            Some(policy) => on_error = policy,
+                            None => out.diagnostics.push(Diagnostic::error(
+                                codes::E1014,
+                                format!(
+                                    "invalid `onError` {text:?}; expected \"warn\", \"error\", or \"missing\""
+                                ),
+                                node_span(arg.syntax()),
+                            )),
+                        }
+                    }
+                }
                 "timezone" => {
                     if let Some(text) = string_arg(&arg) {
                         match parse_timezone(&text) {
                             Some(tz) => timezone = tz,
                             None => out.diagnostics.push(Diagnostic::error(
                                 codes::E1014,
-                                format!("invalid temporal parse timezone `{text}`"),
+                                format!(
+                                    "invalid temporal parse timezone `{text}`; expected \"UTC\", a ±HH:MM offset, or an IANA zone name (e.g. \"America/Chicago\")"
+                                ),
                                 node_span(arg.syntax()),
                             )),
                         }
@@ -411,6 +442,8 @@ fn parse_policies(chart: &ChartBlock) -> ChartParsePolicies {
             formats: patterns,
             unit,
             timezone,
+            on_error,
+            anchor,
         };
         match table {
             Some(table) => out.by_table.entry(table).or_default().columns.push(entry),
@@ -545,22 +578,15 @@ fn parse_epoch_unit(value: String) -> Option<EpochUnit> {
     }
 }
 
+fn parse_on_error(value: &str) -> Option<ParseErrorPolicy> {
+    match value {
+        "warn" => Some(ParseErrorPolicy::Warn),
+        "error" => Some(ParseErrorPolicy::Error),
+        "missing" => Some(ParseErrorPolicy::Missing),
+        _ => None,
+    }
+}
+
 fn parse_timezone(value: &str) -> Option<TemporalTimezone> {
-    if value == "UTC" {
-        return Some(TemporalTimezone::Utc);
-    }
-    let sign = match value.as_bytes().first().copied()? {
-        b'+' => 1,
-        b'-' => -1,
-        _ => return None,
-    };
-    let (hour, minute) = value[1..].split_once(':')?;
-    let hour: i32 = hour.parse().ok()?;
-    let minute: i32 = minute.parse().ok()?;
-    if hour > 23 || minute > 59 {
-        return None;
-    }
-    Some(TemporalTimezone::FixedOffset {
-        seconds_east: sign * (hour * 3600 + minute * 60),
-    })
+    TemporalTimezone::parse_declared(value)
 }

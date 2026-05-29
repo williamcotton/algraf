@@ -4,8 +4,8 @@
 use std::collections::{HashMap, HashSet};
 
 use algraf_core::{codes, Diagnostic, Severity, Span};
-use algraf_data::DataType;
-use algraf_syntax::ast::{AlgebraExpr, Arg, GeometryCall, LiteralKind, ValueExpr};
+use algraf_data::{parse_temporal_literal, DataType};
+use algraf_syntax::ast::{AlgebraExpr, Arg, CallValue, GeometryCall, LiteralKind, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal};
 
 use super::context::{ActiveTable, Analyzer, StyleFragmentLookup, ValueForm};
@@ -123,6 +123,7 @@ impl Analyzer<'_> {
 
         self.bar_dodge_hint(def, frame, coords, &mappings, &settings, span);
         self.check_polar_radius(def, coords, &mappings, span);
+        self.check_text_time_format(def, &mappings, &mut settings);
 
         Some(GeometryIr {
             kind: def.kind,
@@ -310,6 +311,27 @@ impl Analyzer<'_> {
         let Some(value) = arg.value() else {
             return PropOutcome::Invalid;
         };
+        // A `datetime("…")` / `date("…")` temporal literal (spec §7.8, §10.3) is
+        // a typed value usable wherever a numeric position is accepted (e.g. a
+        // reference-mark `x:`/`y:`); it lowers to a UTC-equivalent instant in
+        // microseconds. Used anywhere else it is rejected (`E1018`).
+        if let ValueExpr::Call(call) = &value {
+            if let Some(require_date) = temporal_literal_kind(call.name().as_deref()) {
+                if prop.accepts.contains(&Accept::Number) {
+                    return self.temporal_literal_setting(call, require_date);
+                }
+                self.diag(Diagnostic::error(
+                    codes::E1018,
+                    format!(
+                        "a temporal literal is not allowed for `{}`; it is only valid where a numeric position or domain bound is accepted",
+                        prop.name
+                    ),
+                    node_span(call.syntax()),
+                ));
+                return PropOutcome::Invalid;
+            }
+        }
+
         // Resolve `let` variables in property value positions before type
         // checking, so a bound constant is checked as its value (spec §9.6).
         let form = self.substitute_var(ValueForm::of(&value));
@@ -467,6 +489,109 @@ impl Analyzer<'_> {
                 mapping.span,
             ));
         }
+    }
+
+    /// Lower a `datetime("…")` / `date("…")` temporal literal to a numeric
+    /// setting holding the UTC-equivalent instant in microseconds (spec §7.8,
+    /// §10.3). Emits `E1017` for the wrong argument shape or unparseable contents.
+    fn temporal_literal_setting(&mut self, call: &CallValue, require_date: bool) -> PropOutcome {
+        let name = call.name().unwrap_or_default();
+        let span = node_span(call.syntax());
+        let args = call.args();
+        let text = match args.first() {
+            Some(arg) if args.len() == 1 && arg.key().is_none() => match arg.value() {
+                Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                    Some(unescape_string_literal(&lit.text().unwrap_or_default()))
+                }
+                _ => None,
+            },
+            _ => None,
+        };
+        let Some(text) = text else {
+            self.diag(Diagnostic::error(
+                codes::E1017,
+                format!(
+                    "`{name}(...)` expects a single quoted temporal string, e.g. {name}(\"2026-01-01\")"
+                ),
+                span,
+            ));
+            return PropOutcome::Invalid;
+        };
+        match parse_temporal_literal(&text, require_date) {
+            Some(micros) => PropOutcome::Setting(SettingValue::Number(micros as f64)),
+            None => {
+                self.diag(Diagnostic::error(
+                    codes::E1017,
+                    format!(
+                        "{text:?} is not a recognized {} literal",
+                        if require_date { "date" } else { "datetime" }
+                    ),
+                    span,
+                ));
+                PropOutcome::Invalid
+            }
+        }
+    }
+
+    /// Validate and resolve a `timeFormat:` on a `Text` label (off-axis temporal
+    /// formatting, spec §19.4). The format must be a known named or valid custom
+    /// format, and `label:` must map a temporal column; otherwise `E1907`. On
+    /// success the stored setting is rewritten to the resolved chrono pattern so
+    /// the renderer formats without re-parsing.
+    fn check_text_time_format(
+        &mut self,
+        def: &GeometryDef,
+        mappings: &[AestheticMapping],
+        settings: &mut [GeometrySetting],
+    ) {
+        if def.kind != GeometryKind::Text {
+            return;
+        }
+        let Some(setting) = settings
+            .iter_mut()
+            .find(|s| s.name == PropertyKey::TimeFormat)
+        else {
+            return;
+        };
+        let SettingValue::String(raw) = &setting.value else {
+            return;
+        };
+        let span = setting.span;
+        let Some(format) = super::guides::temporal_format(raw) else {
+            self.diag(Diagnostic::error(
+                codes::E1907,
+                format!("unknown or invalid temporal format `{raw}`"),
+                span,
+            ));
+            return;
+        };
+        let label_is_temporal = mappings
+            .iter()
+            .find(|m| m.aesthetic == PropertyKey::Label)
+            .is_some_and(|m| m.column.dtype == DataType::Temporal);
+        if !label_is_temporal {
+            self.diag(
+                Diagnostic::error(
+                    codes::E1907,
+                    "`timeFormat` applies only to a temporal `label:` column",
+                    span,
+                )
+                .with_help("map `label:` to a datetime/date column, or remove `timeFormat`"),
+            );
+            return;
+        }
+        setting.value = SettingValue::String(format.chrono_pattern().to_string());
+    }
+}
+
+/// Classify a value-position call name as a temporal literal constructor:
+/// `Some(true)` for `date(...)` (truncated to midnight), `Some(false)` for
+/// `datetime(...)`, `None` for any other call (spec §7.8).
+fn temporal_literal_kind(name: Option<&str>) -> Option<bool> {
+    match name {
+        Some("date") => Some(true),
+        Some("datetime") => Some(false),
+        _ => None,
     }
 }
 

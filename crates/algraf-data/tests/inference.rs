@@ -2,8 +2,9 @@
 
 use algraf_data::{
     parse_temporal, read_csv_schema_str, read_csv_str, read_csv_str_with_temporal_policy,
-    DataError, DataType, DataValueRef, EpochUnit, Table, TemporalColumnParse, TemporalParsePolicy,
-    TemporalParseType, TemporalPrecision, TemporalTimezone, DEFAULT_SCHEMA_SAMPLE,
+    DataError, DataType, DataValueRef, EpochUnit, ParseErrorPolicy, Table, TemporalColumnParse,
+    TemporalParsePolicy, TemporalParseType, TemporalPrecision, TemporalTimezone,
+    DEFAULT_SCHEMA_SAMPLE,
 };
 
 fn load(input: &str) -> algraf_data::LoadResult {
@@ -171,6 +172,8 @@ fn test_explicit_temporal_policy_parses_ambiguous_dates() {
             formats: vec!["%m/%d/%Y %I:%M %p".to_string()],
             unit: None,
             timezone: TemporalTimezone::Utc,
+            on_error: ParseErrorPolicy::Warn,
+            anchor: None,
         }],
     };
     let result = read_csv_str_with_temporal_policy(
@@ -208,6 +211,8 @@ fn test_explicit_epoch_milliseconds_policy() {
             formats: Vec::new(),
             unit: Some(EpochUnit::Milliseconds),
             timezone: TemporalTimezone::Utc,
+            on_error: ParseErrorPolicy::Warn,
+            anchor: None,
         }],
     };
     let result =
@@ -216,6 +221,112 @@ fn test_explicit_epoch_milliseconds_policy() {
         panic!("expected temporal");
     };
     assert_eq!(value.precision, TemporalPrecision::DateTime);
+}
+
+fn temporal_utc(result: &algraf_data::LoadResult, column: &str, row: usize) -> String {
+    let DataValueRef::Temporal(value) = result.frame.value(column, row).unwrap() else {
+        panic!("expected temporal");
+    };
+    value.instant.format("%Y-%m-%d %H:%M").to_string()
+}
+
+#[test]
+fn test_iana_timezone_applies_dst_offset() {
+    // America/Chicago is CDT (UTC-5) in June and CST (UTC-6) in December, so the
+    // same wall-clock noon resolves to different UTC instants (spec §10.3).
+    let policy = TemporalParsePolicy {
+        columns: vec![TemporalColumnParse {
+            column: "t".to_string(),
+            as_type: TemporalParseType::DateTime,
+            formats: vec!["%m/%d/%Y %H:%M".to_string()],
+            unit: None,
+            timezone: TemporalTimezone::parse_declared("America/Chicago").unwrap(),
+            on_error: ParseErrorPolicy::Warn,
+            anchor: None,
+        }],
+    };
+    let result =
+        read_csv_str_with_temporal_policy("t\n06/15/2026 12:00\n12/15/2026 12:00\n", Some(&policy))
+            .unwrap();
+    assert_eq!(temporal_utc(&result, "t", 0), "2026-06-15 17:00"); // noon CDT
+    assert_eq!(temporal_utc(&result, "t", 1), "2026-12-15 18:00"); // noon CST
+}
+
+#[test]
+fn test_time_only_with_anchor_date() {
+    // A time-only format parses only when an anchor date is supplied (spec §10.3).
+    let policy = TemporalParsePolicy {
+        columns: vec![TemporalColumnParse {
+            column: "t".to_string(),
+            as_type: TemporalParseType::DateTime,
+            formats: vec!["%H:%M".to_string()],
+            unit: None,
+            timezone: TemporalTimezone::Utc,
+            on_error: ParseErrorPolicy::Warn,
+            anchor: algraf_data::parse_anchor_date("2026-03-14"),
+        }],
+    };
+    let result = read_csv_str_with_temporal_policy("t\n09:30\n14:45\n", Some(&policy)).unwrap();
+    assert_eq!(temporal_utc(&result, "t", 0), "2026-03-14 09:30");
+    assert_eq!(temporal_utc(&result, "t", 1), "2026-03-14 14:45");
+}
+
+#[test]
+fn test_time_only_without_anchor_fails() {
+    let policy = TemporalParsePolicy {
+        columns: vec![TemporalColumnParse {
+            column: "t".to_string(),
+            as_type: TemporalParseType::DateTime,
+            formats: vec!["%H:%M".to_string()],
+            unit: None,
+            timezone: TemporalTimezone::Utc,
+            on_error: ParseErrorPolicy::Warn,
+            anchor: None,
+        }],
+    };
+    let result = read_csv_str_with_temporal_policy("t\n09:30\n", Some(&policy)).unwrap();
+    assert!(matches!(
+        result.frame.value("t", 0),
+        Some(DataValueRef::Null)
+    ));
+}
+
+#[test]
+fn test_on_error_missing_suppresses_warning() {
+    let policy = TemporalParsePolicy {
+        columns: vec![TemporalColumnParse {
+            column: "t".to_string(),
+            as_type: TemporalParseType::Date,
+            formats: vec!["%Y-%m-%d".to_string()],
+            unit: None,
+            timezone: TemporalTimezone::Utc,
+            on_error: ParseErrorPolicy::Missing,
+            anchor: None,
+        }],
+    };
+    let result = read_csv_str_with_temporal_policy("t\n2020-01-01\nbad\n", Some(&policy)).unwrap();
+    assert!(result.warnings.is_empty());
+    assert!(matches!(
+        result.frame.value("t", 1),
+        Some(DataValueRef::Null)
+    ));
+}
+
+#[test]
+fn test_on_error_error_marks_warning_fatal() {
+    let policy = TemporalParsePolicy {
+        columns: vec![TemporalColumnParse {
+            column: "t".to_string(),
+            as_type: TemporalParseType::Date,
+            formats: vec!["%Y-%m-%d".to_string()],
+            unit: None,
+            timezone: TemporalTimezone::Utc,
+            on_error: ParseErrorPolicy::Error,
+            anchor: None,
+        }],
+    };
+    let result = read_csv_str_with_temporal_policy("t\n2020-01-01\nbad\n", Some(&policy)).unwrap();
+    assert!(result.warnings.iter().any(|w| w.fatal));
 }
 
 #[test]

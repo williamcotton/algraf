@@ -240,6 +240,25 @@ impl TemporalFormatIr {
             TemporalFormatIr::Custom(pattern) => pattern,
         }
     }
+
+    /// The chrono/strftime pattern this format renders with (spec §19.4). Shared
+    /// by axis-label and off-axis (`Text`/reference-mark) temporal formatting so
+    /// both paths produce identical output.
+    pub fn chrono_pattern(&self) -> &str {
+        match self {
+            TemporalFormatIr::IsoDate => "%Y-%m-%d",
+            TemporalFormatIr::IsoMinute => "%Y-%m-%d %H:%M",
+            TemporalFormatIr::IsoSecond => "%Y-%m-%d %H:%M:%S",
+            TemporalFormatIr::IsoMillis => "%Y-%m-%d %H:%M:%S%.3f",
+            TemporalFormatIr::Rfc3339 => "%Y-%m-%dT%H:%M:%SZ",
+            TemporalFormatIr::Year => "%Y",
+            TemporalFormatIr::Month => "%Y-%m",
+            TemporalFormatIr::MonthDay => "%b %-d",
+            TemporalFormatIr::TimeMinute => "%H:%M",
+            TemporalFormatIr::TimeSecond => "%H:%M:%S",
+            TemporalFormatIr::Custom(pattern) => pattern,
+        }
+    }
 }
 
 /// A source-level scale declaration (spec §16.11).
@@ -779,6 +798,7 @@ pub enum PropertyKey {
     Yend,
     Step,
     Radius,
+    TimeFormat,
 }
 
 /// Every [`PropertyKey`] variant, in declaration order. Used by registry
@@ -825,6 +845,7 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::Yend,
     PropertyKey::Step,
     PropertyKey::Radius,
+    PropertyKey::TimeFormat,
 ];
 
 impl PropertyKey {
@@ -872,6 +893,7 @@ impl PropertyKey {
             PropertyKey::Yend => "yend",
             PropertyKey::Step => "step",
             PropertyKey::Radius => "radius",
+            PropertyKey::TimeFormat => "timeFormat",
         }
     }
 

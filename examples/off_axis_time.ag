@@ -1,0 +1,10 @@
+Chart(data: "milestones.csv", width: 720, height: 360, title: "Release milestones") {
+  Parse(column: due, as: "date", format: "%Y-%m-%d")
+
+  Space(due * progress) {
+    Point(size: 4, fill: "#3b6ea5")
+    Text(label: due, timeFormat: "%b %-d, %Y", dy: -10, size: 11)
+  }
+
+  Guide(axis: x, timeFormat: "month")
+}

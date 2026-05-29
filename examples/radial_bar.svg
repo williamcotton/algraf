@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="460" viewBox="0 0 460 460" role="img" aria-label="Sales by rep (radial bar)">
+<title>Sales by rep (radial bar)</title>
+<rect class="algraf-background" x="0" y="0" width="460" height="460" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Sales by rep (radial bar)</text>
+<rect class="algraf-plot-area" x="60" y="66" width="250" height="344" fill="#ffffff" />
+<g class="algraf-polar-grid">
+  <circle cx="185" cy="238" r="125" fill="none" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-bar">
+  <path d="M 185 118 A 120 120 0 1 1 147.885 123.884 L 154.071 142.903 A 100 100 0 1 0 185 138 Z" fill="#4E79A7" opacity="1" />
+  <path d="M 185 143 A 95 95 0 1 1 90.138 243.115 L 110.109 242.038 A 75 75 0 1 0 185 163 Z" fill="#F28E2B" opacity="1" />
+  <path d="M 185 168 A 70 70 0 1 1 125.819 275.384 L 142.728 264.703 A 50 50 0 1 0 185 188 Z" fill="#E15759" opacity="1" />
+  <path d="M 185 193 A 45 45 0 0 1 192.046 282.445 L 188.914 262.692 A 25 25 0 0 0 185 213 Z" fill="#76B7B2" opacity="1" />
+  <path d="M 185 218 A 20 20 0 0 1 202.856 247.01 L 185 238 Z" fill="#59A14F" opacity="1" />
+</g>
+<g class="algraf-legends">
+  <text x="326" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">rep</text>
+  <rect x="326" y="78" width="12" height="12" fill="#4E79A7" />
+  <text x="344" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Alice</text>
+  <rect x="326" y="96" width="12" height="12" fill="#F28E2B" />
+  <text x="344" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Bowman</text>
+  <rect x="326" y="114" width="12" height="12" fill="#E15759" />
+  <text x="344" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Chen</text>
+  <rect x="326" y="132" width="12" height="12" fill="#76B7B2" />
+  <text x="344" y="142" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Diaz</text>
+  <rect x="326" y="150" width="12" height="12" fill="#59A14F" />
+  <text x="344" y="160" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Evans</text>
+</g>
+</svg>

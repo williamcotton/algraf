@@ -146,7 +146,10 @@ Chart(data: "temporal_formats_auto.csv", width: 760, height: 420, title: "Automa
 ## Explicit time parsing and custom labels
 
 Ambiguous local date orders stay explicit. Use `Parse(...)` to declare the input
-format and `Guide(timeFormat: ...)` for project-specific axis labels.
+format and `Guide(timeFormat: ...)` for project-specific axis labels. By default a
+cell that fails to parse becomes missing with an aggregated warning; for stricter
+pipelines `Parse(onError: "error")` makes any failure blocking, and
+`Parse(onError: "missing")` coerces silently.
 
 ```algraf
 Chart(data: "temporal_parse_custom.csv", width: 760, height: 420, title: "Explicit temporal parsing") {
@@ -162,6 +165,72 @@ Chart(data: "temporal_parse_custom.csv", width: 760, height: 420, title: "Explic
 ```
 
 ![temporal_parse_custom](examples/temporal_parse_custom.svg)
+
+## IANA timezones and temporal literals
+
+`Parse(timezone: ...)` accepts named IANA zones (e.g. `"America/Chicago"`), which
+resolve a naive declared datetime — daylight saving and all — to a UTC instant.
+`datetime("…")` and `date("…")` are typed temporal literals usable wherever a
+position or scale-domain bound is accepted, such as a reference line or an
+explicit domain. Here the data is read in Chicago local time and a `VLine` marks
+a deploy at a precise UTC instant:
+
+```algraf
+Chart(data: "deploy_latency.csv", width: 820, height: 420, title: "Request latency around a deploy") {
+  Parse(column: started_at, as: "datetime", format: "%m/%d/%Y %H:%M", timezone: "America/Chicago")
+
+  Space(started_at * latency_ms) {
+    Scale(axis: x, domain: [datetime("2026-05-27T22:30:00Z"), datetime("2026-05-28T03:30:00Z")])
+    Line(stroke: "#3b6ea5")
+    VLine(x: datetime("2026-05-28T01:00:00Z"), stroke: "#c0392b", dash: "dashed", label: "deploy")
+  }
+
+  Guide(axis: x, timeFormat: "iso-minute")
+}
+```
+
+![temporal_literal](examples/temporal_literal.svg)
+
+## Off-axis temporal formatting
+
+A `Text` label that maps a temporal column can format it with `timeFormat:`,
+reusing the same named and custom formats as `Guide(timeFormat: ...)`. The axis
+and the labels can use different formats:
+
+```algraf
+Chart(data: "milestones.csv", width: 720, height: 360, title: "Release milestones") {
+  Parse(column: due, as: "date", format: "%Y-%m-%d")
+
+  Space(due * progress) {
+    Point(size: 4, fill: "#3b6ea5")
+    Text(label: due, timeFormat: "%b %-d, %Y", dy: -10, size: 11)
+  }
+
+  Guide(axis: x, timeFormat: "month")
+}
+```
+
+![off_axis_time](examples/off_axis_time.svg)
+
+## Time-only columns with an anchor date
+
+A time-only column (no date) parses when `Parse(...)` supplies an `anchor:` date;
+each time is placed on that day so a temporal scale has something to span:
+
+```algraf
+Chart(data: "hourly_load.csv", width: 720, height: 360, title: "Requests over the working day") {
+  Parse(column: clock, as: "datetime", format: "%H:%M", anchor: "2026-03-14")
+
+  Space(clock * requests) {
+    Area(fill: "#9ecae1")
+    Line(stroke: "#3b6ea5")
+  }
+
+  Guide(axis: x, timeFormat: "time-minute")
+}
+```
+
+![time_only_anchor](examples/time_only_anchor.svg)
 
 ## Layering multiple space blocks: weather forecast
 
@@ -1997,8 +2066,10 @@ Algraf has no `Pie` or `Donut` geometry. Instead, a `Space` can opt into a
 **polar coordinate system** with `coords: "polar"`, and the *existing* Cartesian
 geometries map into it. One frame axis wraps around the angle (`theta: "x"` or
 `"y"`); the other extends along the radius. `innerRadius` (a fraction in
-`[0, 1)`) cuts a donut hole. The angle starts at 12 o'clock and runs clockwise.
-Cartesian charts are completely unaffected.
+`[0, 1)`) cuts a donut hole. By default the angle starts at 12 o'clock and runs
+clockwise; `startAngle` (degrees) and `direction` (`"clockwise"` /
+`"counterclockwise"`) rotate and reverse it. Cartesian charts are completely
+unaffected.
 
 A **pie** is a 1D space whose value wraps the full angle (`theta: "y"`, a `fill`
 layout), drawn as `Bar` wedges:
@@ -2106,6 +2177,34 @@ Chart(data: "radar_skills.csv", width: 420, height: 420, title: "Player profile"
 ```
 
 ![radar](examples/radar.svg)
+
+A **radial bar chart** puts each category on its own concentric ring with a
+categorical `radius:` mapping, while the value drives each bar's angular sweep.
+Constrain the value axis to start at zero so the bars share a baseline:
+
+```algraf
+Chart(data: "sales_by_rep.csv", width: 460, height: 460, title: "Sales by rep (radial bar)") {
+  Space(amount, coords: "polar", theta: "y", startAngle: 0) {
+    Scale(axis: x, domain: [0, null])
+    Bar(fill: rep, radius: rep)
+  }
+}
+```
+
+![radial_bar](examples/radial_bar.svg)
+
+A **rotated coxcomb** shows `startAngle` and `direction` at work — here the wedges
+begin 30° round from the top and sweep counterclockwise:
+
+```algraf
+Chart(data: "coxcomb_deaths.csv", width: 440, height: 440, title: "Deaths by month (rotated, counterclockwise)") {
+  Space(month * deaths, coords: "polar", theta: "x", startAngle: 30, direction: "counterclockwise") {
+    Bar(fill: month)
+  }
+}
+```
+
+![polar_start_angle](examples/polar_start_angle.svg)
 
 ---
 

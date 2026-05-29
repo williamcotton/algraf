@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="360" viewBox="0 0 720 360" role="img" aria-label="Requests over the working day">
+<title>Requests over the working day</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="360" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Requests over the working day</text>
+<rect class="algraf-plot-area" x="60" y="66" width="630" height="244" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="312" y1="66" x2="312" y2="310" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="690" y1="66" x2="690" y2="310" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="310" x2="690" y2="310" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="254.896" x2="690" y2="254.896" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="199.792" x2="690" y2="199.792" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="144.688" x2="690" y2="144.688" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="89.584" x2="690" y2="89.584" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-area">
+  <path d="M60 243.875 L186 166.73 L312 84.074 L438 100.605 L564 144.688 L690 210.813 L690 310 L60 310 Z" fill="#9ecae1" opacity="0.4" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M60 243.875 L186 166.73 L312 84.074 L438 100.605 L564 144.688 L690 210.813" fill="none" stroke="#3b6ea5" stroke-width="1.5" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="310" x2="690" y2="310" stroke="#333333" stroke-width="1" />
+  <line x1="312" y1="310" x2="312" y2="315" stroke="#333333" stroke-width="1" />
+  <text x="312" y="328" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">12:00</text>
+  <line x1="690" y1="310" x2="690" y2="315" stroke="#333333" stroke-width="1" />
+  <text x="690" y="328" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">18:00</text>
+  <text x="375" y="348" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">clock</text>
+  <line x1="60" y1="66" x2="60" y2="310" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="310" x2="60" y2="310" stroke="#333333" stroke-width="1" />
+  <text x="52" y="314" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="254.896" x2="60" y2="254.896" stroke="#333333" stroke-width="1" />
+  <text x="52" y="258.896" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100</text>
+  <line x1="55" y1="199.792" x2="60" y2="199.792" stroke="#333333" stroke-width="1" />
+  <text x="52" y="203.792" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">200</text>
+  <line x1="55" y1="144.688" x2="60" y2="144.688" stroke="#333333" stroke-width="1" />
+  <text x="52" y="148.688" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">300</text>
+  <line x1="55" y1="89.584" x2="60" y2="89.584" stroke="#333333" stroke-width="1" />
+  <text x="52" y="93.584" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">400</text>
+  <text x="24.4" y="188" text-anchor="middle" transform="rotate(-90 24.4 188)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">requests</text>
+</g>
+</svg>

@@ -1,6 +1,6 @@
 # Algraf v0.31.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_30_PLAN.md`](V0_30_PLAN.md)
@@ -150,7 +150,7 @@ git diff -- examples
 
 ### 1. `radial_bar` concentric-ring mode
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -166,7 +166,7 @@ Acceptance criteria:
 
 ### 2. Configurable polar start angle and direction
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -179,7 +179,7 @@ Acceptance criteria:
 
 ### 3. Temporal literals
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -194,7 +194,7 @@ Acceptance criteria:
 
 ### 4. IANA timezone names
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -210,7 +210,7 @@ Acceptance criteria:
 
 ### 5. Off-axis temporal formatting
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -224,7 +224,7 @@ Acceptance criteria:
 
 ### 6. Parse-failure severity controls
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -238,7 +238,7 @@ Acceptance criteria:
 
 ### 7. Examples, README, spec, and release hygiene
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -257,7 +257,7 @@ Acceptance criteria:
 
 ### Time-only values with an anchor date
 
-Status: Planned.
+Status: Implemented.
 
 Allow explicit parsing of time-only columns when the user supplies an anchor date
 (or pairs the time with a date column). Automatic time-only inference stays
@@ -265,7 +265,9 @@ rejected because a temporal scale needs a date anchor.
 
 ### Polar label legibility follow-up
 
-Status: Planned.
+Status: Deferred. The existing perimeter-label placement (with the new
+configurable start angle flowing through it) is unchanged; a dedicated
+legibility pass is left to a later release.
 
 Continue the v0.26 "polar axis label legibility" item: rotate/anchor perimeter
 labels sensibly and avoid overlap on dense theta axes, now including

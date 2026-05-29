@@ -330,6 +330,11 @@ along a radius (spec §16.16). Polar accepts two further arguments:
 - `innerRadius`: a number in `[0, 1)`, the fraction of the maximum radius left
   empty at the center (`0` = pie, `> 0` = donut). Out-of-range or non-numeric
   values are `E1903`.
+- `startAngle` (since 0.31): a number of degrees in `[-360, 360]` (default `0`),
+  rotating the angular origin clockwise from 12 o'clock. Out-of-range or
+  non-numeric values are `E1909`.
+- `direction` (since 0.31): `"clockwise"` (default) or `"counterclockwise"`, the
+  angular sweep sense. Invalid values are `E1910`.
 
 `coords` MUST be `"cartesian"` or `"polar"` (otherwise `E1901`). Polar requires a
 1D or 2D (`a * b`) frame; a faceted frame is `E1904` and a 3D+ frame is rejected
@@ -1328,6 +1333,16 @@ stray separator — MUST produce diagnostic `E0021`. Maps are accepted only wher
 a property documents map support (currently a categorical color `Scale`'s
 `range:` and `labels:`, spec §16.13); used elsewhere they produce `E1606`.
 
+**Temporal literals (since version 0.31).** `datetime("…")` and `date("…")` are
+typed value constructors written as a call value with a single quoted string
+argument. They parse their contents with the same conservative automatic rules as
+schema inference (§10.3) and yield a UTC-equivalent instant; `date(...)` truncates
+to midnight. A temporal literal is a value, not an algebra primitive: it is valid
+only where a numeric position or scale-domain bound is accepted (at least
+`HLine`/`VLine` `x:`/`y:` and `Scale(domain: [...])` bounds, §16.11). Contents the
+rules do not recognize, or the wrong argument shape, produce `E1017`. A temporal
+literal used in any other value position produces `E1018`.
+
 ### 7.9 Error Items
 
 `ErrorItem` is not written by users.
@@ -2130,9 +2145,32 @@ accepts `"seconds"`, `"milliseconds"`, `"microseconds"`, and `"nanoseconds"`.
 `timezone:` applies to naive datetime parses and MUST support `"UTC"` and fixed
 offsets such as `"+02:00"` or `"-05:30"`.
 
+Version 0.31.0 MUST also support, on `timezone:`, named IANA zones such as
+`"America/Chicago"`. An IANA zone interprets a *naive* declared datetime (one
+whose selected pattern produces no offset) at the specific local instant,
+applying that zone's rules including daylight saving, and resolves it to a
+UTC-equivalent instant. Storage stays UTC-equivalent microseconds and no
+DST-aware scale arithmetic is introduced (§16.4). A local time that is ambiguous
+or does not exist (a DST transition) fails to parse for that cell. An
+unrecognized zone name is `E1014`.
+
+Version 0.31.0 MUST support a time-only `format:` (e.g. `"%H:%M"`) when an
+`anchor:` argument supplies a date (a string parsed by the §10.3 automatic
+rules); each time is combined with the anchor date, interpreted in the declared
+`timezone:`. Without an anchor, a time-only format leaves cells unparsed.
+Automatic inference of time-only columns stays rejected (a temporal scale needs a
+date anchor). An invalid `anchor:` date is `E1014`.
+
+Version 0.31.0 MUST support `onError:` on `Parse(...)` with `"warn"` (default),
+`"error"`, or `"missing"`. `"warn"` keeps the aggregated-warning behavior below;
+`"missing"` coerces failures to missing without a warning; `"error"` turns any
+per-column parse failure into a blocking diagnostic (`E1019`). An invalid
+`onError:` value is `E1014`.
+
 Declared temporal columns MUST remain temporal even when some non-missing cells
-fail to parse. Failed cells become missing values and MUST produce an aggregated
-data warning with the column name and failure count.
+fail to parse. Failed cells become missing values and, under the default
+`onError: "warn"`, MUST produce an aggregated data warning with the column name
+and failure count.
 
 Temporal inference MUST distinguish date-only columns from datetime columns where all non-missing values are date-only.
 
@@ -4100,6 +4138,8 @@ alpha
 
 group
 
+radius (polar radial bar mode only, §16.16)
+
 Optional settings:
 
 layout
@@ -4659,6 +4699,12 @@ targets, with stable ordering. Horizontal de-overlap and connector lines are not
 provided in this version.
 
 Text also accepts `fill`, `alpha`, and `size`.
+
+`timeFormat` (since 0.31) — string literal naming a temporal format (the §19.4
+named or custom chrono-style patterns). When `label:` maps a temporal column,
+each label renders that column's UTC instant with the format instead of its
+default text. Applied to a non-temporal `label:`, or with an unknown/invalid
+format, it emits `E1907`.
 
 ### 14.17 HLine
 
@@ -5844,11 +5890,17 @@ A space with `coords: "polar"` (§4.2) trains its position scales exactly as a
 Cartesian space — continuous, temporal, and band domains are unchanged — and
 remaps only the pixel **range** each axis occupies:
 
-- The **theta axis** (selected by `theta`) maps its domain to the angular range
-  `[-π/2, 3π/2]`, traversed clockwise. `-π/2` is the 12-o'clock origin and
-  increasing values move clockwise in screen coordinates. This origin and
-  direction are fixed in version 0.26; configurable start angle and direction are
-  deferred.
+- The **theta axis** (selected by `theta`) maps its domain to an angular range
+  whose origin and sweep are configurable (since version 0.31). The default
+  origin is the 12-o'clock position (`-π/2`) and the default sweep is clockwise,
+  giving the range `[-π/2, 3π/2]` and reproducing the fixed behavior of versions
+  0.26–0.30. A space MAY rotate the origin with `startAngle` (degrees clockwise
+  from 12 o'clock, in `[-360, 360]`; otherwise `E1909`) and reverse the sweep
+  with `direction` (`"clockwise"` default | `"counterclockwise"`; otherwise
+  `E1910`). The theta-domain minimum maps to `startAngle` and the maximum to one
+  full turn away, clockwise or counterclockwise. These arguments do not change
+  domain training, only the angular range each datum maps into; existing polar
+  output is unchanged when both are absent.
 - The **radius axis** (the other frame axis) maps its domain to
   `[innerRadius · R, R]`, where `R = min(plot.width, plot.height) / 2` and the
   polar center is the plot rectangle's midpoint. When the theta axis is
@@ -5866,6 +5918,18 @@ A 1D polar frame (e.g. `Space(amount)`) has no radius axis: the single value
 wraps around the angle and the radius spans the full `[innerRadius · R, R]`
 annulus — this is the pie/donut form. Polar is opt-in; a space without `coords`
 is Cartesian and its output is unchanged.
+
+**Radial bar chart (since version 0.31).** A `Bar` in a polar space MAY carry a
+categorical `radius:` mapping (idiomatically with `theta: "y"`). This selects the
+*radial bar* mode: each distinct category of the mapped column occupies its own
+concentric ring (the annulus is divided into equal-width rings, outermost first),
+and the theta axis — the frame's value — drives each bar's independent angular
+sweep from `startAngle` to the value's angle. This is distinct from the
+cumulative pie path (continuous angle, no `radius:` mapping, wedges accumulate
+around the circle) and the coxcomb path (categorical angle, value radius). The
+`radius:` mapping MUST resolve to a categorical column and MUST appear on a polar
+`Bar`; otherwise `E1910`. The mode reuses the same wedge/annular-segment emission
+as other polar bars and adds no new geometry.
 
 ## 17. Layout
 
@@ -6403,6 +6467,14 @@ Version 0.28.0 MUST also support named temporal formats `iso-second`,
 as `"%b %-d, %Y"` and `"%Y-%m-%d %H:%M:%S"` after semantic validation. Temporal
 formatting MUST be independent of the host locale, local timezone, and wall
 clock.
+
+Version 0.31.0 MUST support off-axis temporal formatting through a `timeFormat:`
+argument on the `Text` geometry, reusing the same named and custom formats as
+`Guide(timeFormat: …)`. When a `Text` maps `label:` to a temporal column and
+declares `timeFormat:`, each label MUST render the column's UTC instant with that
+format rather than the default label text. A `timeFormat:` whose name/pattern is
+unknown or invalid, or applied where `label:` is not a temporal column, MUST emit
+`E1907`. Output stays locale-, timezone-, and wall-clock-independent.
 
 Version 0.23.0 MUST support `Guide(axis: x, tickLabelAngle: -45)` and
 `Guide(axis: y, tickLabelAngle: 30)` to rotate tick labels by an explicit angle
@@ -8134,9 +8206,11 @@ missing `=>`/stray separator in a map literal)
 
 `E1016 unknown temporal parse target`
 
-`E1017 reserved`
+`E1017 invalid temporal literal`
 
-`E1018 reserved`
+`E1018 temporal literal in an unsupported position`
+
+`E1019 explicit temporal parse failure (onError: "error")`
 
 `E1101 unknown column`
 
@@ -8809,7 +8883,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.28.0 | [`V0_28_PLAN.md`](V0_28_PLAN.md) | Temporal I/O ergonomics | Complete |
 | 0.29.0 | [`V0_29_PLAN.md`](V0_29_PLAN.md) | Render-model completeness and raster output | Implemented |
 | 0.30.0 | [`V0_30_PLAN.md`](V0_30_PLAN.md) | Declarative interactivity and live preview | Implemented |
-| 0.31.0 | [`V0_31_PLAN.md`](V0_31_PLAN.md) | Language-surface polish (temporal & polar) | Planned |
+| 0.31.0 | [`V0_31_PLAN.md`](V0_31_PLAN.md) | Language-surface polish (temporal & polar) | Implemented |
 | 0.32.0 | [`V0_32_PLAN.md`](V0_32_PLAN.md) | Scope & composition — nested spaces and space-local annotations | Planned |
 
 The earliest unreleased plan is the active implementation target; later

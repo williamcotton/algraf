@@ -1,0 +1,10 @@
+Chart(data: "hourly_load.csv", width: 720, height: 360, title: "Requests over the working day") {
+  Parse(column: clock, as: "datetime", format: "%H:%M", anchor: "2026-03-14")
+
+  Space(clock * requests) {
+    Area(fill: "#9ecae1")
+    Line(stroke: "#3b6ea5")
+  }
+
+  Guide(axis: x, timeFormat: "time-minute")
+}

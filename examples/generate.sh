@@ -97,6 +97,11 @@ charts=(
     polar_scatter
     annular_heatmap
     radar
+    radial_bar
+    polar_start_angle
+    temporal_literal
+    off_axis_time
+    time_only_anchor
     tooltips
     highlight
 )

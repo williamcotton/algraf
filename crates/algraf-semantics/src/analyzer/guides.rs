@@ -186,7 +186,7 @@ impl Analyzer<'_> {
     }
 }
 
-fn temporal_format(value: &str) -> Option<TemporalFormatIr> {
+pub(super) fn temporal_format(value: &str) -> Option<TemporalFormatIr> {
     match value {
         "iso-date" => Some(TemporalFormatIr::IsoDate),
         "iso-minute" => Some(TemporalFormatIr::IsoMinute),

@@ -6,8 +6,10 @@ use crate::aes::{color_spec, number_for_row, number_setting};
 use crate::helpers::{bool_setting, string_setting};
 use crate::layout::Rect;
 use crate::render::TextAnchor;
-use crate::scale::cell_category;
+use crate::scale::{cell_category, cell_micros};
 use crate::sink::{MarkSink, TextRun};
+use algraf_data::Table;
+use chrono::DateTime;
 
 use super::common::{any_mapped, pos_center, render_rows};
 use super::GeometryRenderContext;
@@ -48,6 +50,9 @@ pub(super) fn render(sink: &mut dyn MarkSink, geo: &GeometryIr, ctx: GeometryRen
         .iter()
         .find(|m| m.aesthetic == PropertyKey::Label);
     let label_literal = string_setting(geo, PropertyKey::Label);
+    // An off-axis `timeFormat:` (validated and resolved to a chrono pattern in
+    // semantics) formats a temporal `label:` column (spec §19.4).
+    let time_format = string_setting(geo, PropertyKey::TimeFormat);
     let literal_positioned_annotation = label_mapping.is_none()
         && label_literal.is_some()
         && geo.mappings.is_empty()
@@ -82,7 +87,7 @@ pub(super) fn render(sink: &mut dyn MarkSink, geo: &GeometryIr, ctx: GeometryRen
             continue;
         };
         let text = if let Some(mapping) = label_mapping {
-            match cell_category(table, &mapping.column.name, row) {
+            match format_label_cell(table, &mapping.column.name, row, time_format.as_deref()) {
                 Some(s) => s,
                 None => continue,
             }
@@ -114,6 +119,24 @@ pub(super) fn render(sink: &mut dyn MarkSink, geo: &GeometryIr, ctx: GeometryRen
     for label in &labels {
         emit_label(sink, label, anchor, &theme.font_family, alpha);
     }
+}
+
+/// Resolve a label cell to text. When a chrono `pattern` is supplied and the
+/// cell carries a temporal value, format the UTC instant with that pattern;
+/// otherwise fall back to the cell's categorical string (spec §19.4).
+fn format_label_cell(
+    table: &dyn Table,
+    column: &str,
+    row: usize,
+    pattern: Option<&str>,
+) -> Option<String> {
+    if let Some(pattern) = pattern {
+        if let Some(micros) = cell_micros(table, column, row) {
+            return DateTime::from_timestamp_micros(micros)
+                .map(|dt| dt.format(pattern).to_string());
+        }
+    }
+    cell_category(table, column, row)
 }
 
 fn emit_label(

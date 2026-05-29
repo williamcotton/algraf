@@ -8,7 +8,7 @@ use crate::error::DataWarning;
 use crate::frame::Column;
 use crate::schema::{ColumnDef, DataType};
 use crate::temporal::{
-    parse_temporal, parse_temporal_explicit, ParsedTemporal, TemporalColumnParse,
+    parse_temporal, parse_temporal_explicit, ParseErrorPolicy, ParsedTemporal, TemporalColumnParse,
 };
 use crate::value::DateTimeValue;
 
@@ -142,6 +142,16 @@ pub fn infer_column_with_policy(
             "column mixes naive and offset-aware datetime values",
         ));
     }
+    // Per-cell parse failures are surfaced according to the column's declared
+    // `onError` policy (spec §10.3): `Warn` (default) emits an aggregated data
+    // warning, `Missing` stays silent (failures already coerce to missing), and
+    // `Error` marks the warning fatal so the driver blocks rendering.
+    let on_error = temporal_policy.map(|p| p.on_error).unwrap_or_default();
+    let make_warning = |name: &str, message: String| match on_error {
+        ParseErrorPolicy::Error => Some(DataWarning::fatal_for_column(name, message)),
+        ParseErrorPolicy::Warn => Some(DataWarning::for_column(name, message)),
+        ParseErrorPolicy::Missing => None,
+    };
     if temporal_policy.is_some() && n_string > 0 {
         let examples = raw
             .iter()
@@ -152,7 +162,7 @@ pub fn infer_column_with_policy(
             .take(3)
             .cloned()
             .collect::<Vec<_>>();
-        warnings.push(DataWarning::for_column(
+        if let Some(warning) = make_warning(
             name,
             format!(
                 "{} non-missing value(s) failed explicit temporal parsing{}",
@@ -163,13 +173,17 @@ pub fn infer_column_with_policy(
                     format!("; examples: {}", examples.join(", "))
                 }
             ),
-        ));
+        ) {
+            warnings.push(warning);
+        }
     }
     if temporal_policy.is_some() && n_present > 0 && n_temporal == 0 {
-        warnings.push(DataWarning::for_column(
+        if let Some(warning) = make_warning(
             name,
-            "all non-missing values failed explicit temporal parsing",
-        ));
+            "all non-missing values failed explicit temporal parsing".into(),
+        ) {
+            warnings.push(warning);
+        }
     }
 
     InferredColumn {

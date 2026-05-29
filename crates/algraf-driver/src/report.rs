@@ -101,6 +101,25 @@ impl PreparationReport {
         I: IntoIterator<Item = &'a DataWarning>,
     {
         for warning in warnings {
+            // A fatal warning (e.g. `Parse(onError: "error")`) blocks rendering,
+            // so it is promoted to a Load-phase error diagnostic rather than the
+            // non-blocking data-warning bucket (spec §10.3).
+            if warning.fatal {
+                let column = warning
+                    .column
+                    .as_deref()
+                    .map(|c| format!("column `{c}`: "))
+                    .unwrap_or_default();
+                self.diagnostics.push((
+                    ReportPhase::Load,
+                    Diagnostic::error(
+                        codes::E1019,
+                        format!("{column}{}", warning.message),
+                        Span::new(0, 0),
+                    ),
+                ));
+                continue;
+            }
             self.data_warnings.push(DataWarningEntry {
                 context: context.clone(),
                 path: path.map(Path::to_path_buf),
