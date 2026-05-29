@@ -1,0 +1,26 @@
+Chart(data: "flight_routes.csv", width: 900, height: 600,
+      title: "US Commercial Flight Routes & Hubs",
+      subtitle: "Route segments and passenger volumes (Delta, United, American)") {
+    Theme(name: "void")
+    Table counties = GeoJson("us_counties.geojson")
+    Table cities = "us_cities.csv"
+
+    Scale(stroke: airline, palette: "default", label: "Airline")
+    Scale(strokeWidth: passengers, domain: [0, null], range: [1.2, 7.5], label: "Passengers (M)")
+
+    // Basemap
+    Space(geom, data: counties, projection: "albers_usa") {
+        Geo(fill: "#f8f9fa", stroke: "#e9ecef", strokeWidth: 0.25)
+    }
+
+    // Flight routes path segments
+    Space(long * lat, projection: "albers_usa") {
+        Path(group: route_id, stroke: airline, strokeWidth: passengers, alpha: 0.65)
+    }
+
+    // City landmarks overlay
+    Space(long * lat, projection: "albers_usa", data: cities) {
+        Point(size: 6, fill: "#212529", stroke: "#ffffff")
+        Text(label: city, dy: -10, size: 7.5, fill: "#212529", anchor: "middle")
+    }
+}

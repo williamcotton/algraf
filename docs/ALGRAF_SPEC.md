@@ -6483,7 +6483,12 @@ inclusive range `[-90, 90]`; non-numeric, non-finite, or out-of-range values
 MUST emit `E1204`. `tickLabelAngle` without `axis: x` or `axis: y` MUST emit
 `E1204`. The default angle is `0`, preserving existing horizontal tick labels.
 The renderer MUST rotate each tick label around its own anchor point and reserve
-enough guide margin using deterministic approximate text measurements.
+enough guide margin using deterministic approximate text measurements. When
+thinning overlapping labels, the renderer MUST account for the angle: rotated
+labels are parallel strands whose adjacency depends on the perpendicular gap
+between baselines (the tick spacing scaled by `sin|angle|`) rather than their
+length, so a rotated axis keeps more category labels than a horizontal one at the
+same spacing.
 
 ### 19.5 Legend Generation
 

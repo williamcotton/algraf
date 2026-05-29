@@ -102,6 +102,8 @@ charts=(
     temporal_literal
     off_axis_time
     time_only_anchor
+    us_city_bubbles
+    flight_routes_map
     tooltips
     highlight
 )
@@ -116,5 +118,7 @@ done
 
 # Multi-chart documents render one file per chart, with a 1-based suffix
 # inserted before the extension (multi_chart-1.svg, multi_chart-2.svg, ...).
-"$algraf" render "examples/multi_chart.ag" --output "examples/multi_chart.svg"
-"$algraf" render "examples/multi_chart.ag" --output "examples/multi_chart.png"
+for chart in multi_chart map_simplification us_urban_population projection_comparison; do
+    "$algraf" render "examples/$chart.ag" --output "examples/$chart.svg"
+    "$algraf" render "examples/$chart.ag" --output "examples/$chart.png"
+done

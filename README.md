@@ -2019,7 +2019,7 @@ Chart(data: "us_cities.csv", width: 900, height: 400,
       subtitle: "Comparison of top metropolitan areas") {
     Theme(name: "minimal")
     Scale(fill: population, gradient: ["#feb24c", "#f03b20"], label: "Population")
-    Guide(axis: x, label: "City")
+    Guide(axis: x, label: "City", tickLabelAngle: -45)
     Guide(axis: y, label: "Population")
 
     Space(city * population) {

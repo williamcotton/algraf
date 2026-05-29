@@ -1,0 +1,26 @@
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "US Counties - Albers USA Projection",
+      subtitle: "Composite equal-area projection with Alaska & Hawaii insets") {
+    Theme(name: "void")
+    Space(geom, projection: "albers_usa") {
+        Geo(fill: "#f8f9fa", stroke: "#adb5bd", strokeWidth: 0.2)
+    }
+}
+
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "US Counties - Mercator Projection",
+      subtitle: "Web Mercator projection (conformal cylindrical)") {
+    Theme(name: "void")
+    Space(geom, projection: "mercator") {
+        Geo(fill: "#f8f9fa", stroke: "#adb5bd", strokeWidth: 0.2)
+    }
+}
+
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "US Counties - Equirectangular Projection",
+      subtitle: "Plate Carrée planar projection (default)") {
+    Theme(name: "void")
+    Space(geom, projection: "equirectangular") {
+        Geo(fill: "#f8f9fa", stroke: "#adb5bd", strokeWidth: 0.2)
+    }
+}

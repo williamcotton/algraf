@@ -468,6 +468,51 @@ fn test_dense_x_tick_labels_are_thinned_to_avoid_overlap() {
 }
 
 #[test]
+fn test_rotated_x_tick_labels_keep_more_categories_than_horizontal() {
+    // Rotated tick labels are parallel diagonal strands, so adjacency depends on
+    // the perpendicular gap between baselines, not the label length. A dense
+    // categorical axis that thins long horizontal labels should keep many more
+    // (here all) when rotated (spec §19.4).
+    let csv = "city,pop\n\
+        New York,8\nLos Angeles,4\nChicago,3\nHouston,2\nPhoenix,2\nPhiladelphia,2\n\
+        San Antonio,2\nSan Diego,1\nDallas,1\nDenver,1\nSeattle,1\nMiami,1\n";
+    let cities = [
+        "New York",
+        "Los Angeles",
+        "Chicago",
+        "Houston",
+        "Phoenix",
+        "Philadelphia",
+        "San Antonio",
+        "San Diego",
+        "Dallas",
+        "Denver",
+        "Seattle",
+        "Miami",
+    ];
+    let count = |svg: &str| {
+        cities
+            .iter()
+            .filter(|c| svg.contains(&format!(">{c}</text>")))
+            .count()
+    };
+    let horizontal = render_svg(
+        "Chart(data: \"c.csv\", width: 600, height: 360) { Space(city * pop) { Bar() } }",
+        csv,
+    );
+    let rotated = render_svg(
+        "Chart(data: \"c.csv\", width: 600, height: 360) {
+            Guide(axis: x, tickLabelAngle: -45)
+            Space(city * pop) { Bar() }
+        }",
+        csv,
+    );
+    let (h, r) = (count(&horizontal), count(&rotated));
+    assert!(h < 12, "horizontal long labels should be thinned; got {h}");
+    assert_eq!(r, 12, "rotated labels should all fit; got {r}: {rotated}");
+}
+
+#[test]
 fn test_temporal_axis_uses_calendar_month_ticks() {
     let svg = render_svg(
         "Chart(data: \"t.csv\") { Space(day * value) { Line() } }",

@@ -1,0 +1,20 @@
+Chart(data: GeoJson("us_counties.geojson"), width: 800, height: 500,
+      title: "Major US Cities by Population",
+      subtitle: "Proportional symbol (bubble) map overlaid on county boundaries") {
+    Theme(name: "void")
+    Table cities = "us_cities.csv"
+
+    Scale(fill: population, gradient: ["#feb24c", "#f03b20"], label: "Population")
+    Scale(size: population, range: [5, 25], label: "Population Scale")
+
+    // Basemap
+    Space(geom, projection: "albers_usa") {
+        Geo(fill: "#f7f7f7", stroke: "#e0e0e0", strokeWidth: 0.25)
+    }
+
+    // Cities bubble overlay
+    Space(long * lat, projection: "albers_usa", data: cities) {
+        Point(size: population, fill: population, alpha: 0.85)
+        Text(label: city, dy: -14, size: 7, fill: "#222222", anchor: "middle")
+    }
+}

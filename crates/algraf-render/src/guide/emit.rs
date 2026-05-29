@@ -15,7 +15,7 @@ use crate::svg::num;
 use crate::theme::Theme;
 
 use super::plan::{
-    max_x_tick_label_height, max_y_tick_label_width, rotated_text_size, x_axis_title_y,
+    estimate_text_width, max_x_tick_label_height, max_y_tick_label_width, x_axis_title_y,
     y_axis_title_x,
 };
 
@@ -246,10 +246,33 @@ fn non_overlapping_x_tick_labels(ticks: &[(f64, String)], font_size: f64, angle:
     }
 
     const LABEL_GAP: f64 = 4.0;
+    const ROTATION_EPSILON: f64 = 1e-3;
+    let sin = angle.to_radians().sin().abs();
+
+    // Effective horizontal half-extent used for adjacency testing. A horizontal
+    // label collides with its neighbor when their text boxes overlap, so it uses
+    // its full text width. A rotated label is a diagonal strand parallel to its
+    // neighbors: adjacent strands collide only when the perpendicular gap between
+    // baselines (`spacing · sin|θ|`) drops below the text height — the label's
+    // *length* never causes adjacent overlap. Reducing that to a horizontal
+    // spacing gives a constant `textHeight / sin|θ|`, expressed here as a uniform
+    // half-extent so the same greedy selection serves both cases (spec §19.4).
+    let half = |label: &str| -> f64 {
+        if sin > ROTATION_EPSILON {
+            (((font_size + LABEL_GAP) / sin) - LABEL_GAP).max(0.0) / 2.0
+        } else {
+            estimate_text_width(label, font_size) / 2.0
+        }
+    };
+    let bounds = |index: usize| {
+        let h = half(&ticks[index].1);
+        (ticks[index].0 - h, ticks[index].0 + h)
+    };
+
     let mut selected = Vec::new();
     let mut last_right = f64::NEG_INFINITY;
-    for (index, (x, label)) in ticks.iter().enumerate() {
-        let (left, right) = x_tick_label_bounds(*x, label, font_size, angle);
+    for index in 0..ticks.len() {
+        let (left, right) = bounds(index);
         if selected.is_empty() || left >= last_right + LABEL_GAP {
             selected.push(index);
             last_right = right;
@@ -258,20 +281,17 @@ fn non_overlapping_x_tick_labels(ticks: &[(f64, String)], font_size: f64, angle:
 
     let last_index = ticks.len() - 1;
     if selected.last().copied() != Some(last_index) {
-        let (last_left, _) =
-            x_tick_label_bounds(ticks[last_index].0, &ticks[last_index].1, font_size, angle);
+        let (last_left, _) = bounds(last_index);
         while selected.len() > 1 {
             let previous = *selected.last().expect("selected tick");
-            let (_, previous_right) =
-                x_tick_label_bounds(ticks[previous].0, &ticks[previous].1, font_size, angle);
+            let (_, previous_right) = bounds(previous);
             if last_left >= previous_right + LABEL_GAP {
                 break;
             }
             selected.pop();
         }
         if let Some(previous) = selected.last().copied() {
-            let (_, previous_right) =
-                x_tick_label_bounds(ticks[previous].0, &ticks[previous].1, font_size, angle);
+            let (_, previous_right) = bounds(previous);
             if last_left >= previous_right + LABEL_GAP {
                 selected.push(last_index);
             }
@@ -283,11 +303,6 @@ fn non_overlapping_x_tick_labels(ticks: &[(f64, String)], font_size: f64, angle:
         mask[index] = true;
     }
     mask
-}
-
-fn x_tick_label_bounds(x: f64, label: &str, font_size: f64, angle: f64) -> (f64, f64) {
-    let width = rotated_text_size(label, font_size, angle).0;
-    (x - width / 2.0, x + width / 2.0)
 }
 
 /// Draw x and y axes with ticks, labels, and titles (spec §19.1–19.4).

@@ -1,0 +1,29 @@
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "Douglas-Peucker Simplification: 0.02 Degrees Tolerance",
+      subtitle: "Medium-detail county boundaries") {
+    Theme(name: "void")
+    Derive simple = Simplify(geom, tolerance: 0.02)
+    Space(geom, data: simple, projection: "albers_usa") {
+        Geo(fill: "#f8f9fa", stroke: "#212529", strokeWidth: 0.2)
+    }
+}
+
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "Douglas-Peucker Simplification: 0.1 Degrees Tolerance",
+      subtitle: "Low-detail county boundaries") {
+    Theme(name: "void")
+    Derive simple = Simplify(geom, tolerance: 0.1)
+    Space(geom, data: simple, projection: "albers_usa") {
+        Geo(fill: "#f8f9fa", stroke: "#212529", strokeWidth: 0.2)
+    }
+}
+
+Chart(data: GeoJson("us_counties.geojson"), width: 600, height: 400,
+      title: "Douglas-Peucker Simplification: 0.4 Degrees Tolerance",
+      subtitle: "Ultra-coarse outline") {
+    Theme(name: "void")
+    Derive simple = Simplify(geom, tolerance: 0.4)
+    Space(geom, data: simple, projection: "albers_usa") {
+        Geo(fill: "#f8f9fa", stroke: "#212529", strokeWidth: 0.2)
+    }
+}

@@ -1,0 +1,32 @@
+Chart(data: GeoJson("us_counties.geojson"), width: 900, height: 500,
+      title: "US County Populations and Major City Hubs",
+      subtitle: "Population density (Lower 48) with major city markers") {
+    Theme(name: "void")
+    Table cities = "us_cities.csv"
+
+    Scale(fill: population, gradient: ["#f7fbff", "#08306b"], label: "Population")
+
+    // Basemap: Counties filled by population
+    Space(geom, projection: "albers_usa") {
+        Geo(fill: population, stroke: "#ffffff", strokeWidth: 0.25)
+    }
+
+    // Overlay cities
+    Space(long * lat, projection: "albers_usa", data: cities) {
+        Point(size: 6, fill: "#ff3333", stroke: "#ffffff")
+        Text(label: city, dy: -12, size: 7.5, fill: "#212529", anchor: "middle")
+    }
+}
+
+Chart(data: "us_cities.csv", width: 900, height: 400,
+      title: "Urban Population of Major US Cities",
+      subtitle: "Comparison of top metropolitan areas") {
+    Theme(name: "minimal")
+    Scale(fill: population, gradient: ["#feb24c", "#f03b20"], label: "Population")
+    Guide(axis: x, label: "City", tickLabelAngle: -45)
+    Guide(axis: y, label: "Population")
+
+    Space(city * population) {
+        Bar(stat: "identity", fill: population, layout: "stack")
+    }
+}
