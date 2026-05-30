@@ -47,7 +47,7 @@
   <text x="52" y="132.73" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">120</text>
   <line x1="55" y1="88.519" x2="60" y2="88.519" stroke="#333333" stroke-width="1" />
   <text x="52" y="92.519" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">140</text>
-  <text x="24.4" y="218" text-anchor="middle" transform="rotate(-90 24.4 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">revenue</text>
+  <text x="18.4" y="218" text-anchor="middle" transform="rotate(-90 18.4 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">revenue</text>
 </g>
 <g class="algraf-legends">
   <text x="506" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">region</text>

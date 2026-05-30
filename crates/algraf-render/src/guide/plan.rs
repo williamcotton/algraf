@@ -9,7 +9,7 @@ use crate::space::ScaledSpace;
 /// Gap between the plot edge and the right edge of the y tick labels.
 pub(crate) const Y_TICK_GAP: f64 = 8.0;
 /// Gap between the left edge of the y tick labels and the rotated axis title.
-pub(crate) const Y_TITLE_GAP: f64 = 6.0;
+pub(crate) const Y_TITLE_GAP: f64 = 12.0;
 /// Baseline offset for x tick labels below the plot edge.
 pub(crate) const X_TICK_BASELINE: f64 = 18.0;
 /// Gap between x tick labels and the x-axis title.

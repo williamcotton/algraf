@@ -49,6 +49,6 @@
   <text x="52" y="165.707" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
   <line x1="55" y1="109.121" x2="60" y2="109.121" stroke="#333333" stroke-width="1" />
   <text x="52" y="113.121" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
-  <text x="31.6" y="188" text-anchor="middle" transform="rotate(-90 31.6 188)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">progress</text>
+  <text x="25.6" y="188" text-anchor="middle" transform="rotate(-90 25.6 188)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">progress</text>
 </g>
 </svg>

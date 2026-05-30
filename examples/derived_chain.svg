@@ -1,64 +1,64 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="460" viewBox="0 0 760 460" role="img" aria-label="Binned trend">
 <title>Binned trend</title>
 <rect class="algraf-background" x="0" y="0" width="760" height="460" fill="#ffffff" />
-<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Binned trend</text>
-<rect class="algraf-plot-area" x="60" y="66" width="670" height="344" fill="#ffffff" />
+<text class="algraf-title" x="60.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Binned trend</text>
+<rect class="algraf-plot-area" x="60.8" y="66" width="669.2" height="344" fill="#ffffff" />
 <g class="algraf-grid">
-  <line x1="151.364" y1="66" x2="151.364" y2="410" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="273.182" y1="66" x2="273.182" y2="410" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="395" y1="66" x2="395" y2="410" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="516.818" y1="66" x2="516.818" y2="410" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="638.636" y1="66" x2="638.636" y2="410" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="410" x2="730" y2="410" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="342.23" x2="730" y2="342.23" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="274.46" x2="730" y2="274.46" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="206.69" x2="730" y2="206.69" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="138.92" x2="730" y2="138.92" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="71.151" x2="730" y2="71.151" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="152.055" y1="66" x2="152.055" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="273.727" y1="66" x2="273.727" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="395.4" y1="66" x2="395.4" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="517.073" y1="66" x2="517.073" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="638.745" y1="66" x2="638.745" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="410" x2="730" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="342.23" x2="730" y2="342.23" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="274.46" x2="730" y2="274.46" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="206.69" x2="730" y2="206.69" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="138.92" x2="730" y2="138.92" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="71.151" x2="730" y2="71.151" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-layer algraf-geom-rect">
-  <rect x="60" y="376.115" width="55.833" height="33.885" fill="#c7dcef" opacity="1" />
-  <rect x="115.833" y="369.338" width="55.833" height="40.662" fill="#c7dcef" opacity="1" />
-  <rect x="171.667" y="308.345" width="55.833" height="101.655" fill="#c7dcef" opacity="1" />
-  <rect x="227.5" y="294.791" width="55.833" height="115.209" fill="#c7dcef" opacity="1" />
-  <rect x="283.333" y="260.906" width="55.833" height="149.094" fill="#c7dcef" opacity="1" />
-  <rect x="339.167" y="138.92" width="55.833" height="271.08" fill="#c7dcef" opacity="1" />
-  <rect x="395" y="91.481" width="55.833" height="318.519" fill="#c7dcef" opacity="1" />
-  <rect x="450.833" y="145.697" width="55.833" height="264.303" fill="#c7dcef" opacity="1" />
-  <rect x="506.667" y="220.244" width="55.833" height="189.756" fill="#c7dcef" opacity="1" />
-  <rect x="562.5" y="294.791" width="55.833" height="115.209" fill="#c7dcef" opacity="1" />
-  <rect x="618.333" y="396.446" width="55.833" height="13.554" fill="#c7dcef" opacity="1" />
-  <rect x="674.167" y="396.446" width="55.833" height="13.554" fill="#c7dcef" opacity="1" />
+  <rect x="60.8" y="376.115" width="55.767" height="33.885" fill="#c7dcef" opacity="1" />
+  <rect x="116.567" y="369.338" width="55.767" height="40.662" fill="#c7dcef" opacity="1" />
+  <rect x="172.333" y="308.345" width="55.767" height="101.655" fill="#c7dcef" opacity="1" />
+  <rect x="228.1" y="294.791" width="55.767" height="115.209" fill="#c7dcef" opacity="1" />
+  <rect x="283.867" y="260.906" width="55.767" height="149.094" fill="#c7dcef" opacity="1" />
+  <rect x="339.633" y="138.92" width="55.767" height="271.08" fill="#c7dcef" opacity="1" />
+  <rect x="395.4" y="91.481" width="55.767" height="318.519" fill="#c7dcef" opacity="1" />
+  <rect x="451.167" y="145.697" width="55.767" height="264.303" fill="#c7dcef" opacity="1" />
+  <rect x="506.933" y="220.244" width="55.767" height="189.756" fill="#c7dcef" opacity="1" />
+  <rect x="562.7" y="294.791" width="55.767" height="115.209" fill="#c7dcef" opacity="1" />
+  <rect x="618.467" y="396.446" width="55.767" height="13.554" fill="#c7dcef" opacity="1" />
+  <rect x="674.233" y="396.446" width="55.767" height="13.554" fill="#c7dcef" opacity="1" />
 </g>
 <g class="algraf-layer algraf-geom-line">
-  <path d="M106.207 275.006 L683.793 260.305" fill="none" stroke="#333333" stroke-width="2" opacity="1" />
+  <path d="M106.952 275.006 L683.848 260.305" fill="none" stroke="#333333" stroke-width="2" opacity="1" />
 </g>
 <g class="algraf-axes">
-  <line x1="60" y1="410" x2="730" y2="410" stroke="#333333" stroke-width="1" />
-  <line x1="151.364" y1="410" x2="151.364" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="151.364" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
-  <line x1="273.182" y1="410" x2="273.182" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="273.182" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
-  <line x1="395" y1="410" x2="395" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="395" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
-  <line x1="516.818" y1="410" x2="516.818" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="516.818" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
-  <line x1="638.636" y1="410" x2="638.636" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="638.636" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
-  <text x="395" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">bin center</text>
-  <line x1="60" y1="66" x2="60" y2="410" stroke="#333333" stroke-width="1" />
-  <line x1="55" y1="410" x2="60" y2="410" stroke="#333333" stroke-width="1" />
-  <text x="52" y="414" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
-  <line x1="55" y1="342.23" x2="60" y2="342.23" stroke="#333333" stroke-width="1" />
-  <text x="52" y="346.23" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
-  <line x1="55" y1="274.46" x2="60" y2="274.46" stroke="#333333" stroke-width="1" />
-  <text x="52" y="278.46" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
-  <line x1="55" y1="206.69" x2="60" y2="206.69" stroke="#333333" stroke-width="1" />
-  <text x="52" y="210.69" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
-  <line x1="55" y1="138.92" x2="60" y2="138.92" stroke="#333333" stroke-width="1" />
-  <text x="52" y="142.92" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
-  <line x1="55" y1="71.151" x2="60" y2="71.151" stroke="#333333" stroke-width="1" />
-  <text x="52" y="75.151" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
-  <text x="31.6" y="238" text-anchor="middle" transform="rotate(-90 31.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">count</text>
+  <line x1="60.8" y1="410" x2="730" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="152.055" y1="410" x2="152.055" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="152.055" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="273.727" y1="410" x2="273.727" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="273.727" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="395.4" y1="410" x2="395.4" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="395.4" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <line x1="517.073" y1="410" x2="517.073" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="517.073" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
+  <line x1="638.745" y1="410" x2="638.745" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="638.745" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <text x="395.4" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">bin center</text>
+  <line x1="60.8" y1="66" x2="60.8" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="55.8" y1="410" x2="60.8" y2="410" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="414" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55.8" y1="342.23" x2="60.8" y2="342.23" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="346.23" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="55.8" y1="274.46" x2="60.8" y2="274.46" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="278.46" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55.8" y1="206.69" x2="60.8" y2="206.69" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="210.69" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <line x1="55.8" y1="138.92" x2="60.8" y2="138.92" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="142.92" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <line x1="55.8" y1="71.151" x2="60.8" y2="71.151" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="75.151" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
+  <text x="26.4" y="238" text-anchor="middle" transform="rotate(-90 26.4 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">count</text>
 </g>
 </svg>

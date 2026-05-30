@@ -40,6 +40,6 @@
   <text x="52" y="189.129" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
   <line x1="55" y1="85.453" x2="60" y2="85.453" stroke="#333333" stroke-width="1" />
   <text x="52" y="89.453" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
-  <text x="31.6" y="225" text-anchor="middle" transform="rotate(-90 31.6 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">lower + upper</text>
+  <text x="25.6" y="225" text-anchor="middle" transform="rotate(-90 25.6 225)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">lower + upper</text>
 </g>
 </svg>

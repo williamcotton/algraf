@@ -53,6 +53,6 @@
   <text x="52" y="156.483" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">16</text>
   <line x1="55" y1="86.966" x2="60" y2="86.966" stroke="#333333" stroke-width="1" />
   <text x="52" y="90.966" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">18</text>
-  <text x="31.6" y="218" text-anchor="middle" transform="rotate(-90 31.6 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Value</text>
+  <text x="25.6" y="218" text-anchor="middle" transform="rotate(-90 25.6 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Value</text>
 </g>
 </svg>

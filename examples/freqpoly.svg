@@ -39,6 +39,6 @@
   <text x="52" y="229.978" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
   <line x1="55" y1="145.829" x2="60" y2="145.829" stroke="#333333" stroke-width="1" />
   <text x="52" y="149.829" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
-  <text x="31.6" y="238" text-anchor="middle" transform="rotate(-90 31.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">count</text>
+  <text x="25.6" y="238" text-anchor="middle" transform="rotate(-90 25.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">count</text>
 </g>
 </svg>

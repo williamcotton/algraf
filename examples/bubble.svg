@@ -85,7 +85,7 @@
   <text x="52" y="130.56" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">14</text>
   <line x1="55" y1="77.878" x2="60" y2="77.878" stroke="#333333" stroke-width="1" />
   <text x="52" y="81.878" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">16</text>
-  <text x="31.6" y="258" text-anchor="middle" transform="rotate(-90 31.6 258)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">CO2 Emissions per Capita (Tons)</text>
+  <text x="25.6" y="258" text-anchor="middle" transform="rotate(-90 25.6 258)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">CO2 Emissions per Capita (Tons)</text>
 </g>
 <g class="algraf-legends">
   <text x="666" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">continent</text>

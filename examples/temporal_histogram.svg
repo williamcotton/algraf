@@ -60,6 +60,6 @@
   <text x="52" y="175.111" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
   <line x1="55" y1="91.481" x2="60" y2="91.481" stroke="#333333" stroke-width="1" />
   <text x="52" y="95.481" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
-  <text x="31.6" y="238" text-anchor="middle" transform="rotate(-90 31.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">count</text>
+  <text x="25.6" y="238" text-anchor="middle" transform="rotate(-90 25.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">count</text>
 </g>
 </svg>

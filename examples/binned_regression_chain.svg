@@ -1,155 +1,155 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="500" viewBox="0 0 760 500" role="img" aria-label="Binned 2D Regression Chain">
 <title>Binned 2D Regression Chain</title>
 <rect class="algraf-background" x="0" y="0" width="760" height="500" fill="#ffffff" />
-<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Binned 2D Regression Chain</text>
-<rect class="algraf-plot-area" x="60" y="66" width="550" height="384" fill="#ffffff" />
+<text class="algraf-title" x="60.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Binned 2D Regression Chain</text>
+<rect class="algraf-plot-area" x="60.8" y="66" width="549.2" height="384" fill="#ffffff" />
 <g class="algraf-grid">
-  <line x1="75.714" y1="66" x2="75.714" y2="450" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="154.286" y1="66" x2="154.286" y2="450" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="232.857" y1="66" x2="232.857" y2="450" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="311.429" y1="66" x2="311.429" y2="450" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="390" y1="66" x2="390" y2="450" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="468.571" y1="66" x2="468.571" y2="450" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="547.143" y1="66" x2="547.143" y2="450" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="432.978" x2="610" y2="432.978" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="385.674" x2="610" y2="385.674" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="338.37" x2="610" y2="338.37" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="291.066" x2="610" y2="291.066" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="243.761" x2="610" y2="243.761" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="196.457" x2="610" y2="196.457" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="149.153" x2="610" y2="149.153" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="60" y1="101.849" x2="610" y2="101.849" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="76.491" y1="66" x2="76.491" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="154.949" y1="66" x2="154.949" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="233.406" y1="66" x2="233.406" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="311.863" y1="66" x2="311.863" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="390.32" y1="66" x2="390.32" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="468.777" y1="66" x2="468.777" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="547.234" y1="66" x2="547.234" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="432.978" x2="610" y2="432.978" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="385.674" x2="610" y2="385.674" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="338.37" x2="610" y2="338.37" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="291.066" x2="610" y2="291.066" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="243.761" x2="610" y2="243.761" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="196.457" x2="610" y2="196.457" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="149.153" x2="610" y2="149.153" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="101.849" x2="610" y2="101.849" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-layer algraf-geom-rect">
-  <rect x="60" y="390.414" width="55" height="33.103" fill="#41125e" opacity="0.6" />
-  <rect x="115" y="390.414" width="55" height="33.103" fill="#440154" opacity="0.6" />
-  <rect x="170" y="390.414" width="55" height="33.103" fill="#440154" opacity="0.6" />
-  <rect x="60" y="357.31" width="55" height="33.103" fill="#41125e" opacity="0.6" />
-  <rect x="115" y="357.31" width="55" height="33.103" fill="#3e2367" opacity="0.6" />
-  <rect x="170" y="357.31" width="55" height="33.103" fill="#41125e" opacity="0.6" />
-  <rect x="225" y="357.31" width="55" height="33.103" fill="#440154" opacity="0.6" />
-  <rect x="115" y="324.207" width="55" height="33.103" fill="#41125e" opacity="0.6" />
-  <rect x="170" y="324.207" width="55" height="33.103" fill="#393d76" opacity="0.6" />
-  <rect x="225" y="324.207" width="55" height="33.103" fill="#328287" opacity="0.6" />
-  <rect x="280" y="324.207" width="55" height="33.103" fill="#41125e" opacity="0.6" />
-  <rect x="335" y="324.207" width="55" height="33.103" fill="#440154" opacity="0.6" />
-  <rect x="60" y="291.103" width="55" height="33.103" fill="#440154" opacity="0.6" />
-  <rect x="170" y="291.103" width="55" height="33.103" fill="#338985" opacity="0.6" />
-  <rect x="225" y="291.103" width="55" height="33.103" fill="#fde725" opacity="0.6" />
-  <rect x="280" y="291.103" width="55" height="33.103" fill="#32758b" opacity="0.6" />
-  <rect x="335" y="291.103" width="55" height="33.103" fill="#3f1b63" opacity="0.6" />
-  <rect x="170" y="258" width="55" height="33.103" fill="#3f1b63" opacity="0.6" />
-  <rect x="225" y="258" width="55" height="33.103" fill="#316f8c" opacity="0.6" />
-  <rect x="280" y="258" width="55" height="33.103" fill="#316f8c" opacity="0.6" />
-  <rect x="335" y="258" width="55" height="33.103" fill="#31688e" opacity="0.6" />
-  <rect x="390" y="258" width="55" height="33.103" fill="#3e2367" opacity="0.6" />
-  <rect x="225" y="224.897" width="55" height="33.103" fill="#41125e" opacity="0.6" />
-  <rect x="280" y="224.897" width="55" height="33.103" fill="#345784" opacity="0.6" />
-  <rect x="335" y="224.897" width="55" height="33.103" fill="#316f8c" opacity="0.6" />
-  <rect x="390" y="224.897" width="55" height="33.103" fill="#393d76" opacity="0.6" />
-  <rect x="445" y="224.897" width="55" height="33.103" fill="#3f1b63" opacity="0.6" />
-  <rect x="280" y="191.793" width="55" height="33.103" fill="#3e2367" opacity="0.6" />
-  <rect x="335" y="191.793" width="55" height="33.103" fill="#327c89" opacity="0.6" />
-  <rect x="390" y="191.793" width="55" height="33.103" fill="#349d80" opacity="0.6" />
-  <rect x="445" y="191.793" width="55" height="33.103" fill="#3c2c6c" opacity="0.6" />
-  <rect x="280" y="158.69" width="55" height="33.103" fill="#440154" opacity="0.6" />
-  <rect x="335" y="158.69" width="55" height="33.103" fill="#3f1b63" opacity="0.6" />
-  <rect x="390" y="158.69" width="55" height="33.103" fill="#364e80" opacity="0.6" />
-  <rect x="445" y="158.69" width="55" height="33.103" fill="#364e80" opacity="0.6" />
-  <rect x="500" y="158.69" width="55" height="33.103" fill="#41125e" opacity="0.6" />
-  <rect x="335" y="125.586" width="55" height="33.103" fill="#440154" opacity="0.6" />
-  <rect x="390" y="125.586" width="55" height="33.103" fill="#41125e" opacity="0.6" />
-  <rect x="445" y="125.586" width="55" height="33.103" fill="#393d76" opacity="0.6" />
-  <rect x="500" y="125.586" width="55" height="33.103" fill="#41125e" opacity="0.6" />
-  <rect x="555" y="125.586" width="55" height="33.103" fill="#440154" opacity="0.6" />
-  <rect x="445" y="92.483" width="55" height="33.103" fill="#440154" opacity="0.6" />
-  <rect x="500" y="92.483" width="55" height="33.103" fill="#420a59" opacity="0.6" />
-  <rect x="555" y="92.483" width="55" height="33.103" fill="#440154" opacity="0.6" />
+  <rect x="60.8" y="390.414" width="54.92" height="33.103" fill="#41125e" opacity="0.6" />
+  <rect x="115.72" y="390.414" width="54.92" height="33.103" fill="#440154" opacity="0.6" />
+  <rect x="170.64" y="390.414" width="54.92" height="33.103" fill="#440154" opacity="0.6" />
+  <rect x="60.8" y="357.31" width="54.92" height="33.103" fill="#41125e" opacity="0.6" />
+  <rect x="115.72" y="357.31" width="54.92" height="33.103" fill="#3e2367" opacity="0.6" />
+  <rect x="170.64" y="357.31" width="54.92" height="33.103" fill="#41125e" opacity="0.6" />
+  <rect x="225.56" y="357.31" width="54.92" height="33.103" fill="#440154" opacity="0.6" />
+  <rect x="115.72" y="324.207" width="54.92" height="33.103" fill="#41125e" opacity="0.6" />
+  <rect x="170.64" y="324.207" width="54.92" height="33.103" fill="#393d76" opacity="0.6" />
+  <rect x="225.56" y="324.207" width="54.92" height="33.103" fill="#328287" opacity="0.6" />
+  <rect x="280.48" y="324.207" width="54.92" height="33.103" fill="#41125e" opacity="0.6" />
+  <rect x="335.4" y="324.207" width="54.92" height="33.103" fill="#440154" opacity="0.6" />
+  <rect x="60.8" y="291.103" width="54.92" height="33.103" fill="#440154" opacity="0.6" />
+  <rect x="170.64" y="291.103" width="54.92" height="33.103" fill="#338985" opacity="0.6" />
+  <rect x="225.56" y="291.103" width="54.92" height="33.103" fill="#fde725" opacity="0.6" />
+  <rect x="280.48" y="291.103" width="54.92" height="33.103" fill="#32758b" opacity="0.6" />
+  <rect x="335.4" y="291.103" width="54.92" height="33.103" fill="#3f1b63" opacity="0.6" />
+  <rect x="170.64" y="258" width="54.92" height="33.103" fill="#3f1b63" opacity="0.6" />
+  <rect x="225.56" y="258" width="54.92" height="33.103" fill="#316f8c" opacity="0.6" />
+  <rect x="280.48" y="258" width="54.92" height="33.103" fill="#316f8c" opacity="0.6" />
+  <rect x="335.4" y="258" width="54.92" height="33.103" fill="#31688e" opacity="0.6" />
+  <rect x="390.32" y="258" width="54.92" height="33.103" fill="#3e2367" opacity="0.6" />
+  <rect x="225.56" y="224.897" width="54.92" height="33.103" fill="#41125e" opacity="0.6" />
+  <rect x="280.48" y="224.897" width="54.92" height="33.103" fill="#345784" opacity="0.6" />
+  <rect x="335.4" y="224.897" width="54.92" height="33.103" fill="#316f8c" opacity="0.6" />
+  <rect x="390.32" y="224.897" width="54.92" height="33.103" fill="#393d76" opacity="0.6" />
+  <rect x="445.24" y="224.897" width="54.92" height="33.103" fill="#3f1b63" opacity="0.6" />
+  <rect x="280.48" y="191.793" width="54.92" height="33.103" fill="#3e2367" opacity="0.6" />
+  <rect x="335.4" y="191.793" width="54.92" height="33.103" fill="#327c89" opacity="0.6" />
+  <rect x="390.32" y="191.793" width="54.92" height="33.103" fill="#349d80" opacity="0.6" />
+  <rect x="445.24" y="191.793" width="54.92" height="33.103" fill="#3c2c6c" opacity="0.6" />
+  <rect x="280.48" y="158.69" width="54.92" height="33.103" fill="#440154" opacity="0.6" />
+  <rect x="335.4" y="158.69" width="54.92" height="33.103" fill="#3f1b63" opacity="0.6" />
+  <rect x="390.32" y="158.69" width="54.92" height="33.103" fill="#364e80" opacity="0.6" />
+  <rect x="445.24" y="158.69" width="54.92" height="33.103" fill="#364e80" opacity="0.6" />
+  <rect x="500.16" y="158.69" width="54.92" height="33.103" fill="#41125e" opacity="0.6" />
+  <rect x="335.4" y="125.586" width="54.92" height="33.103" fill="#440154" opacity="0.6" />
+  <rect x="390.32" y="125.586" width="54.92" height="33.103" fill="#41125e" opacity="0.6" />
+  <rect x="445.24" y="125.586" width="54.92" height="33.103" fill="#393d76" opacity="0.6" />
+  <rect x="500.16" y="125.586" width="54.92" height="33.103" fill="#41125e" opacity="0.6" />
+  <rect x="555.08" y="125.586" width="54.92" height="33.103" fill="#440154" opacity="0.6" />
+  <rect x="445.24" y="92.483" width="54.92" height="33.103" fill="#440154" opacity="0.6" />
+  <rect x="500.16" y="92.483" width="54.92" height="33.103" fill="#420a59" opacity="0.6" />
+  <rect x="555.08" y="92.483" width="54.92" height="33.103" fill="#440154" opacity="0.6" />
 </g>
 <g class="algraf-layer algraf-geom-point">
-  <circle cx="87.5" cy="406.966" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="142.5" cy="406.966" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="197.5" cy="406.966" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="87.5" cy="373.862" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="142.5" cy="373.862" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="197.5" cy="373.862" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="252.5" cy="373.862" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="142.5" cy="340.759" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="197.5" cy="340.759" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="252.5" cy="340.759" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="307.5" cy="340.759" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="362.5" cy="340.759" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="87.5" cy="307.655" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="197.5" cy="307.655" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="252.5" cy="307.655" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="307.5" cy="307.655" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="362.5" cy="307.655" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="197.5" cy="274.552" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="252.5" cy="274.552" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="307.5" cy="274.552" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="362.5" cy="274.552" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="417.5" cy="274.552" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="252.5" cy="241.448" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="307.5" cy="241.448" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="362.5" cy="241.448" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="417.5" cy="241.448" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="472.5" cy="241.448" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="307.5" cy="208.345" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="362.5" cy="208.345" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="417.5" cy="208.345" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="472.5" cy="208.345" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="307.5" cy="175.241" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="362.5" cy="175.241" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="417.5" cy="175.241" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="472.5" cy="175.241" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="527.5" cy="175.241" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="362.5" cy="142.138" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="417.5" cy="142.138" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="472.5" cy="142.138" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="527.5" cy="142.138" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="582.5" cy="142.138" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="472.5" cy="109.034" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="527.5" cy="109.034" r="4" fill="#333333" opacity="0.8" />
-  <circle cx="582.5" cy="109.034" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="88.26" cy="406.966" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="143.18" cy="406.966" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="198.1" cy="406.966" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="88.26" cy="373.862" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="143.18" cy="373.862" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="198.1" cy="373.862" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="253.02" cy="373.862" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="143.18" cy="340.759" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="198.1" cy="340.759" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="253.02" cy="340.759" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="307.94" cy="340.759" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="362.86" cy="340.759" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="88.26" cy="307.655" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="198.1" cy="307.655" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="253.02" cy="307.655" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="307.94" cy="307.655" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="362.86" cy="307.655" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="198.1" cy="274.552" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="253.02" cy="274.552" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="307.94" cy="274.552" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="362.86" cy="274.552" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="417.78" cy="274.552" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="253.02" cy="241.448" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="307.94" cy="241.448" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="362.86" cy="241.448" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="417.78" cy="241.448" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="472.7" cy="241.448" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="307.94" cy="208.345" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="362.86" cy="208.345" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="417.78" cy="208.345" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="472.7" cy="208.345" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="307.94" cy="175.241" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="362.86" cy="175.241" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="417.78" cy="175.241" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="472.7" cy="175.241" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="527.62" cy="175.241" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="362.86" cy="142.138" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="417.78" cy="142.138" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="472.7" cy="142.138" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="527.62" cy="142.138" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="582.54" cy="142.138" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="472.7" cy="109.034" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="527.62" cy="109.034" r="4" fill="#333333" opacity="0.8" />
+  <circle cx="582.54" cy="109.034" r="4" fill="#333333" opacity="0.8" />
 </g>
 <g class="algraf-layer algraf-geom-line">
-  <path d="M97.931 404.019 L572.069 102.547" fill="none" stroke="red" stroke-width="3" opacity="1" />
+  <path d="M98.676 404.019 L572.124 102.547" fill="none" stroke="red" stroke-width="3" opacity="1" />
 </g>
 <g class="algraf-axes">
-  <line x1="60" y1="450" x2="610" y2="450" stroke="#333333" stroke-width="1" />
-  <line x1="75.714" y1="450" x2="75.714" y2="455" stroke="#333333" stroke-width="1" />
-  <text x="75.714" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">170</text>
-  <line x1="154.286" y1="450" x2="154.286" y2="455" stroke="#333333" stroke-width="1" />
-  <text x="154.286" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">180</text>
-  <line x1="232.857" y1="450" x2="232.857" y2="455" stroke="#333333" stroke-width="1" />
-  <text x="232.857" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">190</text>
-  <line x1="311.429" y1="450" x2="311.429" y2="455" stroke="#333333" stroke-width="1" />
-  <text x="311.429" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">200</text>
-  <line x1="390" y1="450" x2="390" y2="455" stroke="#333333" stroke-width="1" />
-  <text x="390" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">210</text>
-  <line x1="468.571" y1="450" x2="468.571" y2="455" stroke="#333333" stroke-width="1" />
-  <text x="468.571" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">220</text>
-  <line x1="547.143" y1="450" x2="547.143" y2="455" stroke="#333333" stroke-width="1" />
-  <text x="547.143" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">230</text>
-  <text x="335" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">x center</text>
-  <line x1="60" y1="66" x2="60" y2="450" stroke="#333333" stroke-width="1" />
-  <line x1="55" y1="432.978" x2="60" y2="432.978" stroke="#333333" stroke-width="1" />
-  <text x="52" y="436.978" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2500</text>
-  <line x1="55" y1="385.674" x2="60" y2="385.674" stroke="#333333" stroke-width="1" />
-  <text x="52" y="389.674" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3000</text>
-  <line x1="55" y1="338.37" x2="60" y2="338.37" stroke="#333333" stroke-width="1" />
-  <text x="52" y="342.37" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3500</text>
-  <line x1="55" y1="291.066" x2="60" y2="291.066" stroke="#333333" stroke-width="1" />
-  <text x="52" y="295.066" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4000</text>
-  <line x1="55" y1="243.761" x2="60" y2="243.761" stroke="#333333" stroke-width="1" />
-  <text x="52" y="247.761" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4500</text>
-  <line x1="55" y1="196.457" x2="60" y2="196.457" stroke="#333333" stroke-width="1" />
-  <text x="52" y="200.457" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5000</text>
-  <line x1="55" y1="149.153" x2="60" y2="149.153" stroke="#333333" stroke-width="1" />
-  <text x="52" y="153.153" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5500</text>
-  <line x1="55" y1="101.849" x2="60" y2="101.849" stroke="#333333" stroke-width="1" />
-  <text x="52" y="105.849" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6000</text>
-  <text x="17.2" y="258" text-anchor="middle" transform="rotate(-90 17.2 258)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">y center</text>
+  <line x1="60.8" y1="450" x2="610" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="76.491" y1="450" x2="76.491" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="76.491" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">170</text>
+  <line x1="154.949" y1="450" x2="154.949" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="154.949" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">180</text>
+  <line x1="233.406" y1="450" x2="233.406" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="233.406" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">190</text>
+  <line x1="311.863" y1="450" x2="311.863" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="311.863" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">200</text>
+  <line x1="390.32" y1="450" x2="390.32" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="390.32" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">210</text>
+  <line x1="468.777" y1="450" x2="468.777" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="468.777" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">220</text>
+  <line x1="547.234" y1="450" x2="547.234" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="547.234" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">230</text>
+  <text x="335.4" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">x center</text>
+  <line x1="60.8" y1="66" x2="60.8" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="55.8" y1="432.978" x2="60.8" y2="432.978" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="436.978" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2500</text>
+  <line x1="55.8" y1="385.674" x2="60.8" y2="385.674" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="389.674" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3000</text>
+  <line x1="55.8" y1="338.37" x2="60.8" y2="338.37" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="342.37" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3500</text>
+  <line x1="55.8" y1="291.066" x2="60.8" y2="291.066" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="295.066" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4000</text>
+  <line x1="55.8" y1="243.761" x2="60.8" y2="243.761" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="247.761" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4500</text>
+  <line x1="55.8" y1="196.457" x2="60.8" y2="196.457" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="200.457" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5000</text>
+  <line x1="55.8" y1="149.153" x2="60.8" y2="149.153" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="153.153" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5500</text>
+  <line x1="55.8" y1="101.849" x2="60.8" y2="101.849" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="105.849" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6000</text>
+  <text x="12" y="258" text-anchor="middle" transform="rotate(-90 12 258)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">y center</text>
 </g>
 <g class="algraf-legends">
   <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">count</text>

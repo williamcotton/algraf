@@ -1,51 +1,51 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="440" viewBox="0 0 760 440" role="img" aria-label="Flight Ticket Prices by Airline and Class">
 <title>Flight Ticket Prices by Airline and Class</title>
 <rect class="algraf-background" x="0" y="0" width="760" height="440" fill="#ffffff" />
-<text class="algraf-title" x="90.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Flight Ticket Prices by Airline and Class</text>
-<rect class="algraf-plot-area" x="90.8" y="66" width="519.2" height="324" fill="#ffffff" />
+<text class="algraf-title" x="96.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Flight Ticket Prices by Airline and Class</text>
+<rect class="algraf-plot-area" x="96.8" y="66" width="513.2" height="324" fill="#ffffff" />
 <g class="algraf-layer algraf-geom-line">
-  <path d="M177.333 357.6 L523.467 357.6" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
-  <path d="M194.64 292.8 L563.849 292.8" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
-  <path d="M171.564 228 L494.622 228" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
-  <path d="M142.72 163.2 L408.089 163.2" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
-  <path d="M119.644 98.4 L275.404 98.4" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
+  <path d="M182.333 357.6 L524.467 357.6" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
+  <path d="M199.44 292.8 L564.382 292.8" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
+  <path d="M176.631 228 L495.956 228" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
+  <path d="M148.12 163.2 L410.422 163.2" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
+  <path d="M125.311 98.4 L279.271 98.4" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
 </g>
 <g class="algraf-layer algraf-geom-point">
-  <circle cx="177.333" cy="357.6" r="7" fill="#4E79A7" opacity="1" />
-  <circle cx="523.467" cy="357.6" r="7" fill="#F28E2B" opacity="1" />
-  <circle cx="194.64" cy="292.8" r="7" fill="#4E79A7" opacity="1" />
-  <circle cx="563.849" cy="292.8" r="7" fill="#F28E2B" opacity="1" />
-  <circle cx="171.564" cy="228" r="7" fill="#4E79A7" opacity="1" />
-  <circle cx="494.622" cy="228" r="7" fill="#F28E2B" opacity="1" />
-  <circle cx="142.72" cy="163.2" r="7" fill="#4E79A7" opacity="1" />
-  <circle cx="408.089" cy="163.2" r="7" fill="#F28E2B" opacity="1" />
-  <circle cx="119.644" cy="98.4" r="7" fill="#4E79A7" opacity="1" />
-  <circle cx="275.404" cy="98.4" r="7" fill="#F28E2B" opacity="1" />
+  <circle cx="182.333" cy="357.6" r="7" fill="#4E79A7" opacity="1" />
+  <circle cx="524.467" cy="357.6" r="7" fill="#F28E2B" opacity="1" />
+  <circle cx="199.44" cy="292.8" r="7" fill="#4E79A7" opacity="1" />
+  <circle cx="564.382" cy="292.8" r="7" fill="#F28E2B" opacity="1" />
+  <circle cx="176.631" cy="228" r="7" fill="#4E79A7" opacity="1" />
+  <circle cx="495.956" cy="228" r="7" fill="#F28E2B" opacity="1" />
+  <circle cx="148.12" cy="163.2" r="7" fill="#4E79A7" opacity="1" />
+  <circle cx="410.422" cy="163.2" r="7" fill="#F28E2B" opacity="1" />
+  <circle cx="125.311" cy="98.4" r="7" fill="#4E79A7" opacity="1" />
+  <circle cx="279.271" cy="98.4" r="7" fill="#F28E2B" opacity="1" />
 </g>
 <g class="algraf-axes">
-  <line x1="90.8" y1="390" x2="610" y2="390" stroke="#333333" stroke-width="1" />
-  <line x1="148.489" y1="390" x2="148.489" y2="395" stroke="#333333" stroke-width="1" />
-  <text x="148.489" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">200</text>
-  <line x1="263.867" y1="390" x2="263.867" y2="395" stroke="#333333" stroke-width="1" />
-  <text x="263.867" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">400</text>
-  <line x1="379.244" y1="390" x2="379.244" y2="395" stroke="#333333" stroke-width="1" />
-  <text x="379.244" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">600</text>
-  <line x1="494.622" y1="390" x2="494.622" y2="395" stroke="#333333" stroke-width="1" />
-  <text x="494.622" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">800</text>
+  <line x1="96.8" y1="390" x2="610" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="153.822" y1="390" x2="153.822" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="153.822" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">200</text>
+  <line x1="267.867" y1="390" x2="267.867" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="267.867" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">400</text>
+  <line x1="381.911" y1="390" x2="381.911" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="381.911" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">600</text>
+  <line x1="495.956" y1="390" x2="495.956" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="495.956" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">800</text>
   <line x1="610" y1="390" x2="610" y2="395" stroke="#333333" stroke-width="1" />
   <text x="610" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1000</text>
-  <text x="350.4" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Ticket Price ($)</text>
-  <line x1="90.8" y1="66" x2="90.8" y2="390" stroke="#333333" stroke-width="1" />
-  <line x1="85.8" y1="357.6" x2="90.8" y2="357.6" stroke="#333333" stroke-width="1" />
-  <text x="82.8" y="361.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Delta</text>
-  <line x1="85.8" y1="292.8" x2="90.8" y2="292.8" stroke="#333333" stroke-width="1" />
-  <text x="82.8" y="296.8" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">United</text>
-  <line x1="85.8" y1="228" x2="90.8" y2="228" stroke="#333333" stroke-width="1" />
-  <text x="82.8" y="232" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">American</text>
-  <line x1="85.8" y1="163.2" x2="90.8" y2="163.2" stroke="#333333" stroke-width="1" />
-  <text x="82.8" y="167.2" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">JetBlue</text>
-  <line x1="85.8" y1="98.4" x2="90.8" y2="98.4" stroke="#333333" stroke-width="1" />
-  <text x="82.8" y="102.4" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Southwest</text>
+  <text x="353.4" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Ticket Price ($)</text>
+  <line x1="96.8" y1="66" x2="96.8" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="91.8" y1="357.6" x2="96.8" y2="357.6" stroke="#333333" stroke-width="1" />
+  <text x="88.8" y="361.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Delta</text>
+  <line x1="91.8" y1="292.8" x2="96.8" y2="292.8" stroke="#333333" stroke-width="1" />
+  <text x="88.8" y="296.8" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">United</text>
+  <line x1="91.8" y1="228" x2="96.8" y2="228" stroke="#333333" stroke-width="1" />
+  <text x="88.8" y="232" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">American</text>
+  <line x1="91.8" y1="163.2" x2="96.8" y2="163.2" stroke="#333333" stroke-width="1" />
+  <text x="88.8" y="167.2" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">JetBlue</text>
+  <line x1="91.8" y1="98.4" x2="96.8" y2="98.4" stroke="#333333" stroke-width="1" />
+  <text x="88.8" y="102.4" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Southwest</text>
   <text x="12" y="228" text-anchor="middle" transform="rotate(-90 12 228)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Airline</text>
 </g>
 <g class="algraf-legends">

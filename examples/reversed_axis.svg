@@ -49,7 +49,7 @@
   <text x="52" y="232" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
   <line x1="55" y1="367.655" x2="60" y2="367.655" stroke="#333333" stroke-width="1" />
   <text x="52" y="371.655" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
-  <text x="38.8" y="228" text-anchor="middle" transform="rotate(-90 38.8 228)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Rank</text>
+  <text x="32.8" y="228" text-anchor="middle" transform="rotate(-90 32.8 228)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Rank</text>
 </g>
 <g class="algraf-legends">
   <text x="586" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">team</text>

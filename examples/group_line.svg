@@ -64,7 +64,7 @@
   <text x="52" y="116.536" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
   <line x1="55" y1="66.912" x2="60" y2="66.912" stroke="#333333" stroke-width="1" />
   <text x="52" y="70.912" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">22</text>
-  <text x="31.6" y="238" text-anchor="middle" transform="rotate(-90 31.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">value</text>
+  <text x="25.6" y="238" text-anchor="middle" transform="rotate(-90 25.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">value</text>
 </g>
 <g class="algraf-legends">
   <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">series</text>

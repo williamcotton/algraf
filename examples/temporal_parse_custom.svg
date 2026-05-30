@@ -60,6 +60,6 @@
   <text x="52" y="109.685" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">90</text>
   <line x1="55" y1="68.246" x2="60" y2="68.246" stroke="#333333" stroke-width="1" />
   <text x="52" y="72.246" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">92</text>
-  <text x="31.6" y="218" text-anchor="middle" transform="rotate(-90 31.6 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Latency (ms)</text>
+  <text x="25.6" y="218" text-anchor="middle" transform="rotate(-90 25.6 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Latency (ms)</text>
 </g>
 </svg>
