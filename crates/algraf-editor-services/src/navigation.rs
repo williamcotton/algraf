@@ -1,12 +1,12 @@
 // --- Navigation: definition, references, highlight, rename (spec §21.8) -----
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use algraf_core::Span;
 use algraf_syntax::ast::{AlgebraName, Arg, DeriveDecl, LetDecl, LiteralKind, Root, ValueExpr};
 use algraf_syntax::{parse, SyntaxKind, SyntaxNode};
-use tower_lsp::lsp_types::{GotoDefinitionResponse, Location, Range, TextEdit, Url, WorkspaceEdit};
+use lsp_types::{GotoDefinitionResponse, Location, Range, TextEdit, Url, WorkspaceEdit};
 
 use crate::document::DocumentState;
 use crate::positions::{offset_to_position, span_to_range};
@@ -25,8 +25,8 @@ struct NameRef {
 }
 
 /// A `let` declaration site, tagged with its lexical scope (spec §9.6).
-pub(crate) struct LetSite {
-    pub(crate) name: String,
+pub struct LetSite {
+    pub name: String,
     /// Span of the variable-name identifier token (the navigation target).
     name_span: Span,
     /// The start offset of the enclosing `Space` block, or `None` for a
@@ -45,11 +45,11 @@ struct VarRefSite {
 /// An index of all in-document name occurrences, partitioned by namespace
 /// (spec §9.4). Built by walking the CST so spans are byte-accurate.
 #[derive(Default)]
-pub(crate) struct NameIndex {
+pub struct NameIndex {
     /// `Derive` declarations (derived-table definitions).
     derives: Vec<DeriveSite>,
     /// `let` declarations (variable definitions).
-    pub(crate) lets: Vec<LetSite>,
+    pub lets: Vec<LetSite>,
     /// `data:` references to a derived table (e.g. `Space(..., data: binned)`).
     table_refs: Vec<NameRef>,
     /// Column references in frames, aesthetic mappings, and stat inputs.
@@ -58,7 +58,7 @@ pub(crate) struct NameIndex {
     var_refs: Vec<VarRefSite>,
 }
 
-pub(crate) fn build_name_index(root: &SyntaxNode) -> NameIndex {
+pub fn build_name_index(root: &SyntaxNode) -> NameIndex {
     let mut index = NameIndex::default();
 
     // First pass: collect `Derive` and `let` declarations so variable
@@ -271,7 +271,7 @@ fn chart_data_literal_span(root: &SyntaxNode) -> Option<Span> {
     None
 }
 
-pub(crate) fn definition_at(
+pub fn definition_at(
     state: &DocumentState,
     uri: &Url,
     offset: usize,
@@ -281,7 +281,10 @@ pub(crate) fn definition_at(
     match target_at(&index, &root, offset)? {
         Target::DataPath => {
             let path = state.data_path.as_ref()?;
-            let target_uri = Url::from_file_path(path).ok()?;
+            let target_uri = state
+                .virtual_file_for_path(path)
+                .map(|file| file.uri.clone())
+                .or_else(|| file_url_from_path(path))?;
             Some(GotoDefinitionResponse::Scalar(Location {
                 uri: target_uri,
                 range: Range::default(),
@@ -323,7 +326,10 @@ pub(crate) fn definition_at(
                 // A source column opens the CSV header (best effort).
                 _ => {
                     let (path, range) = csv_header_location(state, &name)?;
-                    let target_uri = Url::from_file_path(path).ok()?;
+                    let target_uri = state
+                        .virtual_file_for_path(&path)
+                        .map(|file| file.uri.clone())
+                        .or_else(|| file_url_from_path(&path))?;
                     Some(GotoDefinitionResponse::Scalar(Location {
                         uri: target_uri,
                         range,
@@ -353,7 +359,10 @@ fn derives_producing(state: &DocumentState, column: &str) -> Vec<String> {
 /// Locate a column's header within the resolved CSV file (best effort).
 fn csv_header_location(state: &DocumentState, name: &str) -> Option<(PathBuf, Range)> {
     let path = state.data_path.clone()?;
-    let content = std::fs::read_to_string(&path).ok()?;
+    let content = state
+        .virtual_file_for_path(&path)
+        .map(|file| file.text.clone())
+        .or_else(|| std::fs::read_to_string(&path).ok())?;
     let header = content.lines().next()?;
     let (start, end) = csv_header_field(header, name)?;
     Some((
@@ -363,6 +372,16 @@ fn csv_header_location(state: &DocumentState, name: &str) -> Option<(PathBuf, Ra
             end: offset_to_position(&content, end),
         },
     ))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn file_url_from_path(path: &Path) -> Option<Url> {
+    Url::from_file_path(path).ok()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn file_url_from_path(_path: &Path) -> Option<Url> {
+    None
 }
 
 /// Byte range of the header field equal to `name` in a CSV header line,
@@ -399,12 +418,12 @@ fn csv_header_field(header: &str, name: &str) -> Option<(usize, usize)> {
 }
 
 /// A reference site for highlight/references, flagged if it is a declaration.
-pub(crate) struct RefSite {
-    pub(crate) span: Span,
-    pub(crate) is_decl: bool,
+pub struct RefSite {
+    pub span: Span,
+    pub is_decl: bool,
 }
 
-pub(crate) fn reference_sites(state: &DocumentState, offset: usize) -> Option<Vec<RefSite>> {
+pub fn reference_sites(state: &DocumentState, offset: usize) -> Option<Vec<RefSite>> {
     let root = parse(&state.text).syntax();
     let index = build_name_index(&root);
     match target_at(&index, &root, offset)? {
@@ -468,7 +487,7 @@ pub(crate) fn reference_sites(state: &DocumentState, offset: usize) -> Option<Ve
 
 /// The span of a renameable identifier under the cursor, if one exists. Only
 /// derived-table names are user-introduced and therefore renameable.
-pub(crate) fn renameable_at(state: &DocumentState, offset: usize) -> Option<Span> {
+pub fn renameable_at(state: &DocumentState, offset: usize) -> Option<Span> {
     let root = parse(&state.text).syntax();
     let index = build_name_index(&root);
     for derive in &index.derives {
@@ -494,7 +513,7 @@ pub(crate) fn renameable_at(state: &DocumentState, offset: usize) -> Option<Span
     None
 }
 
-pub(crate) fn rename_edits(
+pub fn rename_edits(
     state: &DocumentState,
     uri: &Url,
     offset: usize,
@@ -534,6 +553,7 @@ mod tests {
             primary_schema: None,
             table_schemas: Default::default(),
             data_path: None,
+            virtual_files: Default::default(),
             has_external_schema_sources: false,
             diagnostics: Vec::new(),
         }

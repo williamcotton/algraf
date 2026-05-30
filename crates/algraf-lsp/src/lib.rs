@@ -8,20 +8,8 @@ use std::io;
 use tokio::runtime::Runtime;
 use tower_lsp::{LspService, Server};
 
-mod analysis;
 mod backend;
-mod code_actions;
-mod completion;
-mod diagnostics;
-mod document;
-mod hover;
-mod inlay;
-mod navigation;
-mod positions;
 mod preview;
-mod semantic_tokens;
-mod signature;
-mod symbols;
 
 pub use backend::Backend;
 

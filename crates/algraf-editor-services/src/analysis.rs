@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use algraf_core::{codes, Diagnostic as CoreDiagnostic};
 use algraf_data::{ColumnDef, DEFAULT_SCHEMA_SAMPLE};
+use algraf_driver::DriverIo;
 use algraf_driver::{
     resolve_named_table_sources, resolve_schema_cached, CachedSchema, InMemorySchemaCache,
     LoadContext, OsDriverIo,
@@ -9,18 +10,38 @@ use algraf_driver::{
 use algraf_semantics::analyze_with_tables;
 use algraf_syntax::ast::Root;
 use algraf_syntax::{parse, SourceExpr, SyntaxNode};
-use tower_lsp::lsp_types::Url;
+use lsp_types::Url;
 
 use crate::document::{
-    source_input_for_uri, AnalysisState, DocumentState, ParseState, SchemaResolution,
+    source_input_for_uri, AnalysisState, DocumentState, ParseState, SchemaResolution, VirtualFile,
 };
 
-pub(crate) fn analyze_document_blocking(
+pub fn analyze_document_blocking(
     schema_cache: &InMemorySchemaCache,
     uri: &Url,
     version: i32,
     text: String,
     fallback_schema: Vec<ColumnDef>,
+) -> (DocumentState, Vec<CoreDiagnostic>) {
+    analyze_document_with_io(
+        schema_cache,
+        &OsDriverIo,
+        uri,
+        version,
+        text,
+        fallback_schema,
+        HashMap::new(),
+    )
+}
+
+pub fn analyze_document_with_io(
+    schema_cache: &InMemorySchemaCache,
+    io: &dyn DriverIo,
+    uri: &Url,
+    version: i32,
+    text: String,
+    fallback_schema: Vec<ColumnDef>,
+    virtual_files: HashMap<String, VirtualFile>,
 ) -> (DocumentState, Vec<CoreDiagnostic>) {
     let parsed = parse(&text);
     let syntax = parsed.syntax();
@@ -36,14 +57,14 @@ pub(crate) fn analyze_document_blocking(
     let schema = if sql_gated_off {
         SchemaResolution::MissingOrInvalid
     } else {
-        resolve_schema(schema_cache, uri, &data_source)
+        resolve_schema(schema_cache, io, uri, &data_source)
     };
     // Resolve chart-scoped named-table schemas so column references inside
     // `Space(..., data: tableName)` resolve in the editor (spec §10.x).
     let table_schema_resolution = if sql_gated_off {
         TableSchemaResolution::default()
     } else {
-        resolve_table_schemas(schema_cache, uri, &syntax)
+        resolve_table_schemas(schema_cache, io, uri, &syntax)
     };
     let table_schemas = table_schema_resolution.schemas;
     let has_external_schema_sources =
@@ -96,6 +117,7 @@ pub(crate) fn analyze_document_blocking(
             primary_schema,
             table_schemas,
             data_path,
+            virtual_files,
             has_external_schema_sources,
             diagnostics: diagnostics.clone(),
         },
@@ -105,6 +127,7 @@ pub(crate) fn analyze_document_blocking(
 
 fn resolve_schema(
     schema_cache: &InMemorySchemaCache,
+    io: &dyn DriverIo,
     uri: &Url,
     data_source: &SourceExpr,
 ) -> SchemaResolution {
@@ -126,7 +149,7 @@ fn resolve_schema(
     let cached = match query {
         Some(query) => algraf_driver::resolve_sqlite_schema_cached(
             schema_cache,
-            &OsDriverIo,
+            io,
             &path,
             query,
             DEFAULT_SCHEMA_SAMPLE,
@@ -134,7 +157,7 @@ fn resolve_schema(
         ),
         None => resolve_schema_cached(
             schema_cache,
-            &OsDriverIo,
+            io,
             &path,
             resolved.format,
             DEFAULT_SCHEMA_SAMPLE,
@@ -166,6 +189,7 @@ struct TableSchemaResolution {
 
 fn resolve_table_schemas(
     schema_cache: &InMemorySchemaCache,
+    io: &dyn DriverIo,
     uri: &Url,
     syntax: &SyntaxNode,
 ) -> TableSchemaResolution {
@@ -183,7 +207,7 @@ fn resolve_table_schemas(
             let cached = match resolved.query.as_deref() {
                 Some(query) => algraf_driver::resolve_sqlite_schema_cached(
                     schema_cache,
-                    &OsDriverIo,
+                    io,
                     &resolved.path,
                     query,
                     DEFAULT_SCHEMA_SAMPLE,
@@ -191,7 +215,7 @@ fn resolve_table_schemas(
                 ),
                 None => resolve_schema_cached(
                     schema_cache,
-                    &OsDriverIo,
+                    io,
                     &resolved.path,
                     resolved.format,
                     DEFAULT_SCHEMA_SAMPLE,

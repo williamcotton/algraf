@@ -5,12 +5,12 @@ use algraf_syntax::{
     node_span, parse, source_constructor_meta, tokenize, unescape_quoted_ident,
     unescape_string_literal, SyntaxKind,
 };
-use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
+use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
 
 use crate::document::DocumentState;
 use crate::positions::span_to_range;
 
-pub(crate) fn hover_at(state: &DocumentState, offset: usize) -> Option<Hover> {
+pub fn hover_at(state: &DocumentState, offset: usize) -> Option<Hover> {
     let lexed = tokenize(&state.text);
     let tokens: Vec<_> = lexed
         .tokens
@@ -236,7 +236,7 @@ fn operator_hover(title: &str, body: &str) -> String {
     format!("**{title}**\n\n{body}")
 }
 
-pub(crate) fn dtype_name(dtype: DataType) -> &'static str {
+pub fn dtype_name(dtype: DataType) -> &'static str {
     match dtype {
         DataType::Boolean => "boolean",
         DataType::Integer => "integer",
@@ -263,6 +263,7 @@ mod tests {
             primary_schema: None,
             table_schemas: Default::default(),
             data_path: None,
+            virtual_files: Default::default(),
             has_external_schema_sources: false,
             diagnostics: Vec::new(),
         }
@@ -273,6 +274,10 @@ mod tests {
             HoverContents::Markup(m) => m.value,
             _ => panic!("expected markup"),
         }
+    }
+
+    fn range(hover: Hover) -> lsp_types::Range {
+        hover.range.expect("hover range")
     }
 
     fn col(name: &str, dtype: DataType, examples: &[&str]) -> ColumnDef {
@@ -320,6 +325,14 @@ mod tests {
     }
 
     #[test]
+    fn hovers_source_constructor_with_shared_docs() {
+        let text = "Chart(data: GeoJson(\"map.geojson\")) {\n  Space() { Geo() }\n}";
+        let offset = text.find("GeoJson").unwrap() + 1;
+        let md = markdown(hover_at(&state(text), offset).expect("hover"));
+        assert!(md.contains("Source `GeoJson`"));
+    }
+
+    #[test]
     fn hovers_primary_column_type_and_examples() {
         let text = "Chart(data: \"p.csv\") {\n  Space(region * sales) {\n    Point()\n  }\n}";
         let mut state = state(text);
@@ -329,6 +342,23 @@ mod tests {
         assert!(md.contains("Column `sales`"));
         assert!(md.contains("Type: `float`"));
         assert!(md.contains("Examples: `10.5`, `12`"));
+    }
+
+    #[test]
+    fn hovers_non_ascii_primary_column_with_utf16_range() {
+        let text = "Chart(data: \"p.csv\") {\n  Space(`café` * mass) {\n    Point()\n  }\n}";
+        let mut state = state(text);
+        state.primary_schema = Some(vec![col("café", DataType::Float, &["1.5"])]);
+        let offset = text.find("café").unwrap() + "caf".len();
+        let hover = hover_at(&state, offset).expect("hover");
+        let md = markdown(hover.clone());
+        assert!(md.contains("Column `café`"));
+        let range = range(hover);
+        assert_eq!(
+            range.start,
+            crate::positions::offset_to_position(text, text.find('`').unwrap())
+        );
+        assert_eq!(range.end.character - range.start.character, 6);
     }
 
     #[test]

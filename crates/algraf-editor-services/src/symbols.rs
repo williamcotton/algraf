@@ -1,10 +1,10 @@
 use algraf_syntax::ast::{ChartItem, Root, SpaceItem};
 use algraf_syntax::{node_span, SyntaxNode};
-use tower_lsp::lsp_types::{DocumentSymbol, SymbolKind};
+use lsp_types::{DocumentSymbol, SymbolKind};
 
 use crate::positions::span_to_range;
 
-pub(crate) fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol> {
+pub fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol> {
     let Some(root) = Root::cast(syntax.clone()) else {
         return Vec::new();
     };

@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use algraf_core::{codes, DiagnosticCode, Span};
 use algraf_syntax::ast::{ChartItem, GeometryCall, Root, SpaceItem};
 use algraf_syntax::{node_span, parse, tokenize, SyntaxKind};
-use tower_lsp::lsp_types::{
+use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     Diagnostic, NumberOrString, Range, TextEdit, Url, WorkspaceEdit,
 };
@@ -12,10 +12,7 @@ use crate::completion::quote_identifier_if_needed;
 use crate::document::DocumentState;
 use crate::positions::{range_to_offsets, span_to_range};
 
-pub(crate) fn code_actions_for(
-    state: &DocumentState,
-    params: CodeActionParams,
-) -> CodeActionResponse {
+pub fn code_actions_for(state: &DocumentState, params: CodeActionParams) -> CodeActionResponse {
     let uri = params.text_document.uri;
     let mut actions = Vec::new();
     for diagnostic in params.context.diagnostics {

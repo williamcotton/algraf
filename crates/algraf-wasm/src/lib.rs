@@ -16,12 +16,17 @@ use std::collections::HashMap;
 use std::io;
 use std::path::Path;
 
+use algraf_driver::InMemorySchemaCache;
 use algraf_driver::{
     document_charts, driver_error_diagnostic, extract_chart_data_source, parse_source,
     prepare_chart_with_io, DriverIo, DriverPathMetadata, PrepareOptions, SourceInput,
 };
+use algraf_editor_services::analysis::analyze_document_with_io;
+use algraf_editor_services::document::VirtualFile;
+use algraf_editor_services::service::{
+    handle_feature_request, EditorFeatureRequest, EditorFeatureResponse,
+};
 use algraf_render::{render_with_tables, Theme};
-#[cfg(target_arch = "wasm32")]
 use serde::{Deserialize, Serialize};
 
 /// Structured outcome of a render: the SVG (when one was produced) plus every
@@ -167,15 +172,15 @@ pub fn render_to_svg(source: &str, files: HashMap<String, Vec<u8>>) -> RenderOut
     outcome
 }
 
-#[cfg(target_arch = "wasm32")]
 #[derive(Debug, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 struct BrowserRenderRequest {
     source: String,
     files: HashMap<String, String>,
 }
 
-#[cfg(target_arch = "wasm32")]
 #[derive(Debug, Serialize)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 struct BrowserRenderResponse<'a> {
     svg: Option<&'a str>,
     sidecar: Option<&'a str>,
@@ -183,7 +188,23 @@ struct BrowserRenderResponse<'a> {
     error: Option<&'a str>,
 }
 
-#[cfg(target_arch = "wasm32")]
+#[derive(Debug, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+struct BrowserEditorRequest {
+    source: String,
+    #[serde(default)]
+    files: HashMap<String, String>,
+    #[serde(default = "default_editor_uri")]
+    uri: String,
+    request: EditorFeatureRequest,
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn default_editor_uri() -> String {
+    "inmemory://algraf/demo.ag".to_string()
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 fn render_browser_json(input: &[u8]) -> String {
     let request = match serde_json::from_slice::<BrowserRenderRequest>(input) {
         Ok(request) => request,
@@ -219,6 +240,79 @@ fn render_browser_json(input: &[u8]) -> String {
         })
         .to_string()
     })
+}
+
+pub fn editor_service_response(
+    source: String,
+    files: HashMap<String, String>,
+    uri: lsp_types::Url,
+    request: EditorFeatureRequest,
+) -> EditorFeatureResponse {
+    let io = MemoryIo::new(
+        files
+            .iter()
+            .map(|(name, text)| (name.clone(), text.as_bytes().to_vec()))
+            .collect(),
+    );
+    let virtual_files = files
+        .into_iter()
+        .map(|(name, text)| {
+            (
+                name.clone(),
+                VirtualFile {
+                    uri: virtual_file_uri(&name),
+                    text,
+                },
+            )
+        })
+        .collect();
+    let cache = InMemorySchemaCache::new();
+    let (state, _) =
+        analyze_document_with_io(&cache, &io, &uri, 0, source, Vec::new(), virtual_files);
+    handle_feature_request(&state, &uri, request)
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn editor_service_browser_json(input: &[u8]) -> String {
+    let request = match serde_json::from_slice::<BrowserEditorRequest>(input) {
+        Ok(request) => request,
+        Err(err) => {
+            return serde_json::to_string(&EditorFeatureResponse::error(format!(
+                "invalid editor-service request JSON: {err}"
+            )))
+            .unwrap_or_else(|_| {
+                "{\"diagnostics\":[],\"result\":null,\"error\":\"serialization failed\"}"
+                    .to_string()
+            });
+        }
+    };
+    let uri = match lsp_types::Url::parse(&request.uri) {
+        Ok(uri) => uri,
+        Err(err) => {
+            return serde_json::to_string(&EditorFeatureResponse::error(format!(
+                "invalid editor-service URI: {err}"
+            )))
+            .unwrap_or_else(|_| {
+                "{\"diagnostics\":[],\"result\":null,\"error\":\"serialization failed\"}"
+                    .to_string()
+            });
+        }
+    };
+    let response = editor_service_response(request.source, request.files, uri, request.request);
+    serde_json::to_string(&response).unwrap_or_else(|err| {
+        serde_json::json!({
+            "diagnostics": [],
+            "result": null,
+            "error": format!("failed to serialize editor-service response: {err}")
+        })
+        .to_string()
+    })
+}
+
+fn virtual_file_uri(name: &str) -> lsp_types::Url {
+    let mut uri = lsp_types::Url::parse("inmemory://algraf/").expect("valid in-memory URI");
+    uri.set_path(&format!("/{}", name));
+    uri
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -290,9 +384,34 @@ pub unsafe extern "C" fn algraf_render_json(ptr: *const u8, len: usize) -> u64 {
     leak_bytes(render_browser_json(input).into_bytes())
 }
 
+/// Serve a browser editor-service request through the shared Rust feature
+/// helpers used by the native LSP server.
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub unsafe extern "C" fn algraf_editor_service_json(ptr: *const u8, len: usize) -> u64 {
+    if ptr.is_null() {
+        return leak_bytes(
+            serde_json::to_string(&EditorFeatureResponse::error(
+                "editor-service request pointer was null",
+            ))
+            .unwrap_or_else(|_| {
+                "{\"diagnostics\":[],\"result\":null,\"error\":\"serialization failed\"}"
+                    .to_string()
+            })
+            .into_bytes(),
+        );
+    }
+
+    let input = std::slice::from_raw_parts(ptr, len);
+    leak_bytes(editor_service_browser_json(input).into_bytes())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use algraf_editor_services::positions::offset_to_position;
+    use algraf_editor_services::service::EditorFeatureRequest;
+    use lsp_types::{CompletionResponse, Hover, HoverContents};
 
     const CSV: &str = "flipper_length,body_mass,species\n181,3750,Adelie\n186,3800,Adelie\n";
     const SOURCE: &str = "Chart(data: \"penguins.csv\", width: 760, height: 500) {\n    Space(flipper_length * body_mass) { Point(fill: species) }\n}\n";
@@ -319,5 +438,55 @@ mod tests {
             !outcome.diagnostics.is_empty(),
             "missing data should report a diagnostic"
         );
+    }
+
+    #[test]
+    fn editor_service_hover_uses_same_in_memory_schema_as_render() {
+        let source = "Chart(data: \"penguins.csv\") {\n    Space(flipper_length * body_mass) { Point() }\n}\n";
+        let offset = source.find("body_mass").unwrap();
+        let response = editor_service_response(
+            source.to_string(),
+            files()
+                .into_iter()
+                .map(|(name, bytes)| (name, String::from_utf8(bytes).unwrap()))
+                .collect(),
+            lsp_types::Url::parse("inmemory://algraf/demo.ag").unwrap(),
+            EditorFeatureRequest::Hover {
+                position: offset_to_position(source, offset),
+            },
+        );
+        assert!(response.error.is_none(), "{:?}", response.error);
+        let hover: Option<Hover> = serde_json::from_value(response.result).unwrap();
+        let hover = hover.expect("hover");
+        let HoverContents::Markup(markup) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(markup.value.contains("Column `body_mass`"));
+        assert!(markup.value.contains("Type: `integer`"));
+    }
+
+    #[test]
+    fn editor_service_json_accepts_camel_case_feature_fields() {
+        let request = serde_json::json!({
+            "source": "Chart(data: \"penguins.csv\") {\n    Space(flipper_length * body_mass) { Point() }\n}\n",
+            "files": { "penguins.csv": CSV },
+            "uri": "inmemory://algraf/demo.ag",
+            "request": {
+                "kind": "completion",
+                "position": { "line": 1, "character": 10 }
+            }
+        });
+        let response = editor_service_browser_json(request.to_string().as_bytes());
+        let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
+        assert!(parsed["error"].is_null(), "{parsed}");
+        let completion: Option<CompletionResponse> =
+            serde_json::from_value(parsed["result"].clone()).unwrap();
+        let labels: Vec<String> = match completion.expect("completion") {
+            CompletionResponse::Array(items) => items.into_iter().map(|item| item.label).collect(),
+            CompletionResponse::List(list) => {
+                list.items.into_iter().map(|item| item.label).collect()
+            }
+        };
+        assert!(labels.contains(&"flipper_length".to_string()));
     }
 }

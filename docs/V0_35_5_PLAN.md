@@ -1,6 +1,6 @@
 # Algraf v0.35.5 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md) §21, §24.7, §27.7
 Predecessor plan: [`V0_35_PLAN.md`](V0_35_PLAN.md)
@@ -121,7 +121,7 @@ documented.
 
 ### 1. Define the browser editor-service boundary
 
-Status: Planned.
+Status: Implemented.
 
 - Add a Rust-facing API that takes current source text, an in-memory file map,
   a URI-like document id, and a feature request, then returns LSP-shaped JSON or
@@ -141,7 +141,7 @@ Status: Planned.
 
 ### 2. Share document analysis with the browser editor service
 
-Status: Planned.
+Status: Implemented.
 
 - The browser editor service must parse and analyze the same source text that
   Monaco is editing.
@@ -157,7 +157,7 @@ Status: Planned.
 
 ### 3. Wire Monaco providers in `AlgrafEditor.tsx`
 
-Status: Planned.
+Status: Implemented.
 
 Register Monaco providers for every native LSP feature that has a practical
 Monaco/browser equivalent:
@@ -183,7 +183,7 @@ appear in the deferred list with a specific reason.
 
 ### 4. Preserve the existing playground flow
 
-Status: Planned.
+Status: Implemented.
 
 - The editor must still render diagnostics as squiggles while authors type.
 - Preview rendering and chart interactivity must keep using the existing WASM
@@ -197,7 +197,7 @@ Status: Planned.
 
 ### 5. Add parity and offset tests
 
-Status: Planned.
+Status: Implemented.
 
 - Add Rust tests that compare browser editor-service responses against the
   native LSP feature helpers for representative documents.
@@ -215,7 +215,7 @@ Status: Planned.
 
 ### 6. Document the shipped browser editor contract
 
-Status: Planned.
+Status: Implemented.
 
 - Update spec §24.7 or a nearby browser-runtime section to describe the
   playground editor-service boundary once it exists.
@@ -229,16 +229,21 @@ Status: Planned.
 
 ### Browser worker isolation
 
-Status: Planned.
+Status: Not required for v0.35.5; documented as the latency fallback.
 
 Run editor-service requests in a worker if hover/completion/semantic-token
 requests create visible typing latency. This should share the existing WASM
 module rather than load separate copies unless measurement proves the simpler
 shape is too slow.
 
+The shipped provider set runs scoped synchronous requests through the same WASM
+instance as preview rendering. Focused Rust tests, `npm run check`, and the demo
+build keep this path covered; `demo/README.md` records the worker fallback if
+larger documents make latency visible.
+
 ### LSP-shaped JSON compatibility audit
 
-Status: Planned.
+Status: Implemented.
 
 Prefer response shapes that stay close to `lsp_types` JSON so native LSP tests,
 browser editor-service tests, and future clients can reuse fixtures. Document
@@ -246,7 +251,7 @@ any intentional differences caused by Monaco APIs.
 
 ### Demo smoke coverage
 
-Status: Planned.
+Status: Not applicable; no Playwright or equivalent browser harness exists in the project.
 
 Add a small browser smoke test if the project gains a Playwright or equivalent
 test harness. The smoke should verify that diagnostics, hover, completion, and

@@ -3,16 +3,14 @@ use std::collections::HashSet;
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::registry;
 use algraf_syntax::{parse, tokenize, SOURCE_CONSTRUCTORS};
-use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, InsertTextFormat, MarkupContent, MarkupKind,
-};
+use lsp_types::{CompletionItem, CompletionItemKind, InsertTextFormat, MarkupContent, MarkupKind};
 
 use crate::document::DocumentState;
 use crate::hover::dtype_name;
 use crate::navigation::build_name_index;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum CompletionContext {
+pub enum CompletionContext {
     TopLevel,
     ChartArgs {
         active_key: Option<String>,
@@ -35,13 +33,13 @@ pub(crate) enum CompletionContext {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LastTokenKind {
+pub enum LastTokenKind {
     Operator(char),
     Identifier,
     Other,
 }
 
-pub(crate) fn completion_context(text: &str, offset: usize) -> CompletionContext {
+pub fn completion_context(text: &str, offset: usize) -> CompletionContext {
     let prefix = &text[..offset.min(text.len())];
     if prefix.trim().is_empty() {
         return CompletionContext::TopLevel;
@@ -174,10 +172,7 @@ fn last_token_kind(tokens: &[algraf_syntax::TokenWithSpan]) -> LastTokenKind {
     LastTokenKind::Other
 }
 
-pub(crate) fn completion_items(
-    state: &DocumentState,
-    context: CompletionContext,
-) -> Vec<CompletionItem> {
+pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Vec<CompletionItem> {
     match context {
         CompletionContext::TopLevel => vec![
             snippet(
@@ -720,13 +715,13 @@ fn snippet(label: &str, insert_text: &str, doc: &str) -> CompletionItem {
     }
 }
 
-pub(crate) fn markup(content: impl Into<String>) -> tower_lsp::lsp_types::Documentation {
-    tower_lsp::lsp_types::Documentation::MarkupContent(MarkupContent {
+pub fn markup(content: impl Into<String>) -> lsp_types::Documentation {
+    lsp_types::Documentation::MarkupContent(MarkupContent {
         kind: MarkupKind::Markdown,
         value: content.into(),
     })
 }
-pub(crate) fn quote_identifier_if_needed(name: &str) -> String {
+pub fn quote_identifier_if_needed(name: &str) -> String {
     if is_plain_identifier(name) {
         return name.to_string();
     }
@@ -767,6 +762,7 @@ mod tests {
             primary_schema: None,
             table_schemas: Default::default(),
             data_path: None,
+            virtual_files: Default::default(),
             has_external_schema_sources: false,
             diagnostics: Vec::new(),
         }

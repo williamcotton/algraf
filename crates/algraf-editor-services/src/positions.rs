@@ -1,14 +1,14 @@
 use algraf_core::Span;
-use tower_lsp::lsp_types::{Position, Range};
+use lsp_types::{Position, Range};
 
-pub(crate) fn span_to_range(source: &str, span: Span) -> Range {
+pub fn span_to_range(source: &str, span: Span) -> Range {
     Range {
         start: offset_to_position(source, span.start),
         end: offset_to_position(source, span.end),
     }
 }
 
-pub(crate) fn offset_to_position(source: &str, offset: usize) -> Position {
+pub fn offset_to_position(source: &str, offset: usize) -> Position {
     let offset = offset.min(source.len());
     let mut line = 0;
     let mut line_start = 0;
@@ -28,7 +28,7 @@ pub(crate) fn offset_to_position(source: &str, offset: usize) -> Position {
     Position::new(line as u32, character as u32)
 }
 
-pub(crate) fn position_to_offset(source: &str, position: Position) -> usize {
+pub fn position_to_offset(source: &str, position: Position) -> usize {
     let mut line = 0u32;
     let mut line_start = 0usize;
     for (i, ch) in source.char_indices() {
@@ -61,7 +61,7 @@ pub(crate) fn position_to_offset(source: &str, position: Position) -> usize {
     source.len()
 }
 
-pub(crate) fn range_to_offsets(source: &str, range: Range) -> Option<(usize, usize)> {
+pub fn range_to_offsets(source: &str, range: Range) -> Option<(usize, usize)> {
     let start = position_to_offset(source, range.start);
     let end = position_to_offset(source, range.end);
     (start <= end && end <= source.len()).then_some((start, end))

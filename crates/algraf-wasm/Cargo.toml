@@ -20,6 +20,8 @@ algraf-data = { workspace = true }
 algraf-semantics = { workspace = true }
 algraf-driver = { workspace = true }
 algraf-render = { workspace = true }
+algraf-editor-services = { workspace = true }
+lsp-types = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

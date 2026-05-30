@@ -9,7 +9,8 @@ import { loadWASM as loadOnigasm } from "onigasm";
 import onigasmWasmUrl from "onigasm/lib/onigasm.wasm?url";
 
 import algrafGrammar from "../../editors/vscode/syntaxes/algraf.tmLanguage.json";
-import type { AlgrafDiagnostic } from "./algrafWasm";
+import type { AlgrafDiagnostic, AlgrafRuntime } from "./algrafWasm";
+import { registerAlgrafEditorProviders } from "./editorProviders";
 
 const LANGUAGE_ID = "algraf";
 const SCOPE_NAME = "source.algraf";
@@ -22,21 +23,33 @@ let setupPromise: Promise<void> | null = null;
 
 export interface AlgrafEditorProps {
   value: string;
+  files: Record<string, string>;
   diagnostics: AlgrafDiagnostic[];
+  runtime: AlgrafRuntime | null;
   onChange: (value: string) => void;
 }
 
-export function AlgrafEditor({ value, diagnostics, onChange }: AlgrafEditorProps): React.ReactElement {
+export function AlgrafEditor({ value, files, diagnostics, runtime, onChange }: AlgrafEditorProps): React.ReactElement {
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   const editorRef = React.useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const modelRef = React.useRef<monaco.editor.ITextModel | null>(null);
   const onChangeRef = React.useRef(onChange);
   const diagnosticsRef = React.useRef(diagnostics);
+  const filesRef = React.useRef(files);
+  const runtimeRef = React.useRef(runtime);
   const [setupError, setSetupError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  React.useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
+
+  React.useEffect(() => {
+    runtimeRef.current = runtime;
+  }, [runtime]);
 
   React.useEffect(() => {
     diagnosticsRef.current = diagnostics;
@@ -63,6 +76,7 @@ export function AlgrafEditor({ value, diagnostics, onChange }: AlgrafEditorProps
     let editor: monaco.editor.IStandaloneCodeEditor | null = null;
     let model: monaco.editor.ITextModel | null = null;
     let contentDisposable: monaco.IDisposable | null = null;
+    let providerDisposable: monaco.IDisposable | null = null;
 
     setupAlgrafMonaco()
       .then(() => {
@@ -94,6 +108,12 @@ export function AlgrafEditor({ value, diagnostics, onChange }: AlgrafEditorProps
         editorRef.current = editor;
         setAlgrafMarkers(model, diagnosticsRef.current);
 
+        providerDisposable = registerAlgrafEditorProviders(
+          LANGUAGE_ID,
+          () => runtimeRef.current,
+          () => filesRef.current,
+        );
+
         contentDisposable = model.onDidChangeContent(() => {
           onChangeRef.current(model?.getValue() ?? "");
         });
@@ -107,6 +127,7 @@ export function AlgrafEditor({ value, diagnostics, onChange }: AlgrafEditorProps
     return () => {
       cancelled = true;
       contentDisposable?.dispose();
+      providerDisposable?.dispose();
       if (model) {
         monaco.editor.setModelMarkers(model, MARKER_OWNER, []);
       }

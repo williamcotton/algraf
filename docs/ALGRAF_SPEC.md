@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.35.0
+Status: Draft 0.35.5
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.35.0 specification.
+This working copy is the active Draft 0.35.5 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -8102,6 +8102,52 @@ runtime contract; hosts that need diagnostics call `render` and consume the
 returned diagnostics. A future release MAY add convenience exports if their
 diagnostic and span behavior is specified.
 
+Since version 0.35.5, the WASM runtime also exposes a browser editor-service
+JSON ABI for Monaco-style clients. The ABI is an adapter over the same editor
+feature helpers used by the native LSP server, not a TypeScript language
+implementation and not a JSON-RPC transport. A request supplies current source
+text, an optional document URI, the same in-memory text data-source map used by
+browser rendering, and one feature request:
+
+```json
+{
+  "source": "Chart(...) { ... }",
+  "uri": "inmemory://algraf/demo.ag",
+  "files": { "data.csv": "x,y\n1,2\n" },
+  "request": { "kind": "hover", "position": { "line": 1, "character": 12 } }
+}
+```
+
+The response is:
+
+```json
+{
+  "diagnostics": [],
+  "result": "LSP-shaped feature result or null",
+  "error": "string or null"
+}
+```
+
+`diagnostics` are LSP-shaped diagnostics derived from the same parse/analyze
+state used by the requested feature. `result` MUST remain close to `lsp-types`
+serialization for hover, completion, signature help, formatting edits, semantic
+tokens, code actions, definition, references, document highlights, prepare
+rename, rename, document symbols, and inlay hints. Hosts MAY map those values
+into editor-native provider APIs, but MUST NOT reimplement Algraf parsing,
+semantic analysis, registry documentation, formatting, code actions, or hover
+decision logic in the browser client.
+
+The editor-service ABI uses UTF-16 LSP positions and ranges at the boundary.
+Internal Algraf spans remain byte offsets. Implementations MUST test
+byte-offset ↔ UTF-16 conversion with non-ASCII text because browser editors
+typically expose UTF-16 columns.
+
+The browser editor service sees only host-supplied in-memory files. Completion
+and hover MUST use those files for primary and named-table schema samples when
+available. Navigation to host-supplied data MAY return synthetic
+`inmemory://algraf/...` locations. Navigation that would require arbitrary host
+filesystem access MUST fail gracefully in the browser rather than reading files.
+
 The WASM runtime does not enable the native `sql` Cargo feature, so SQLite
 sources are unavailable in that build. A SQLite source in a no-`sql` build MUST
 fail through the same data/driver diagnostic path used for SQLite data errors.
@@ -9103,6 +9149,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.33.0 | [`V0_33_PLAN.md`](V0_33_PLAN.md) | Cartesian transpose for orientation-locked geoms | Implemented |
 | 0.34.0 | [`V0_34_PLAN.md`](V0_34_PLAN.md) | Browser/WASM runtime and live playground | Implemented out of order |
 | 0.35.0 | [`V0_35_PLAN.md`](V0_35_PLAN.md) | Internal architecture hardening: stats/parser decomposition, registry generation, determinism harness | Implemented |
+| 0.35.5 | [`V0_35_5_PLAN.md`](V0_35_5_PLAN.md) | Browser editor parity for Monaco via shared editor services | Implemented |
 | 0.36.0 | [`V0_36_PLAN.md`](V0_36_PLAN.md) | ggplot2 comparability: primitive construction and exact sugar lowerings | Planned |
 | 0.37.0 | [`V0_37_PLAN.md`](V0_37_PLAN.md) | ggplot2 comparability: uncertainty construction and exact sugar lowerings | Planned |
 | 0.38.0 | [`V0_38_PLAN.md`](V0_38_PLAN.md) | ggplot2 comparability: z-field statistics | Planned |

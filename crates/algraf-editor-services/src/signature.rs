@@ -2,9 +2,7 @@
 
 use algraf_semantics::registry;
 use algraf_syntax::tokenize;
-use tower_lsp::lsp_types::{
-    ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
-};
+use lsp_types::{ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation};
 
 use crate::completion::markup;
 
@@ -18,7 +16,7 @@ struct CallFrame {
     commas: usize,
 }
 
-pub(crate) fn signature_help_at(text: &str, offset: usize) -> Option<SignatureHelp> {
+pub fn signature_help_at(text: &str, offset: usize) -> Option<SignatureHelp> {
     let prefix = &text[..offset.min(text.len())];
     let tokens: Vec<_> = tokenize(prefix)
         .tokens

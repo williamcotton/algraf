@@ -1,15 +1,11 @@
 use algraf_core::{Diagnostic as CoreDiagnostic, Severity};
-use tower_lsp::lsp_types::{
+use lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Location, NumberOrString, Url,
 };
 
 use crate::positions::span_to_range;
 
-pub(crate) fn diagnostic_to_lsp(
-    source: &str,
-    uri: &Url,
-    diagnostic: &CoreDiagnostic,
-) -> Diagnostic {
+pub fn diagnostic_to_lsp(source: &str, uri: &Url, diagnostic: &CoreDiagnostic) -> Diagnostic {
     let related_information = diagnostic
         .related
         .iter()

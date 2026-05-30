@@ -181,7 +181,13 @@ export function App(): React.ReactElement {
       <section className="workspace-grid">
         <div className="pane editor-pane">
           <PaneHeader icon={<Code2 size={17} aria-hidden="true" />} title="Algraf" detail={`${source.length} bytes`} />
-          <AlgrafEditor diagnostics={diagnostics} onChange={setSource} value={source} />
+          <AlgrafEditor
+            diagnostics={diagnostics}
+            files={{ [DATA_FILE]: dataText }}
+            onChange={setSource}
+            runtime={runtime}
+            value={source}
+          />
         </div>
 
         <div className="pane data-pane">

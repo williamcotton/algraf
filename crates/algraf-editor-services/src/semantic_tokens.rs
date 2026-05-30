@@ -1,6 +1,6 @@
 use algraf_semantics::registry;
 use algraf_syntax::tokenize;
-use tower_lsp::lsp_types::{SemanticToken, SemanticTokenType, SemanticTokensLegend};
+use lsp_types::{SemanticToken, SemanticTokenType, SemanticTokensLegend};
 
 use crate::positions::span_to_range;
 
@@ -15,14 +15,14 @@ const SEMANTIC_TYPES: &[SemanticTokenType] = &[
     SemanticTokenType::COMMENT,
 ];
 
-pub(crate) fn semantic_tokens_legend() -> SemanticTokensLegend {
+pub fn semantic_tokens_legend() -> SemanticTokensLegend {
     SemanticTokensLegend {
         token_types: SEMANTIC_TYPES.to_vec(),
         token_modifiers: Vec::new(),
     }
 }
 
-pub(crate) fn semantic_tokens_for(source: &str) -> Vec<SemanticToken> {
+pub fn semantic_tokens_for(source: &str) -> Vec<SemanticToken> {
     let lexed = tokenize(source);
     let tokens = lexed.tokens;
     let mut semantic = Vec::new();

@@ -2,7 +2,7 @@
 
 use algraf_syntax::ast::DeriveDecl;
 use algraf_syntax::{node_span, parse, SyntaxKind};
-use tower_lsp::lsp_types::{InlayHint, InlayHintKind, InlayHintLabel, Range};
+use lsp_types::{InlayHint, InlayHintKind, InlayHintLabel, Range};
 
 use crate::document::DocumentState;
 use crate::hover::dtype_name;
@@ -10,7 +10,7 @@ use crate::positions::{offset_to_position, range_to_offsets};
 
 /// Inlay hints showing the output columns each in-document `Derive` produces
 /// (e.g. `bin_start`, `bin_end`, `bin_center`, `count`).
-pub(crate) fn inlay_hints_for(state: &DocumentState, range: Range) -> Vec<InlayHint> {
+pub fn inlay_hints_for(state: &DocumentState, range: Range) -> Vec<InlayHint> {
     let Some(ir) = state
         .analysis
         .as_ref()
@@ -69,8 +69,8 @@ mod tests {
     use crate::document::{AnalysisState, DocumentState};
     use algraf_data::{ColumnDef, DataType};
     use algraf_semantics::analyze_with_tables;
+    use lsp_types::Position;
     use std::collections::HashMap;
-    use tower_lsp::lsp_types::Position;
 
     fn col(name: &str, dtype: DataType) -> ColumnDef {
         ColumnDef {
@@ -98,6 +98,7 @@ mod tests {
             primary_schema: Some(schema),
             table_schemas: Default::default(),
             data_path: None,
+            virtual_files: Default::default(),
             has_external_schema_sources: false,
             diagnostics: Vec::new(),
         };

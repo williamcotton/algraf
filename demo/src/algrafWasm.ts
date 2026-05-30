@@ -23,15 +23,70 @@ export interface AlgrafRenderResult {
   error: string | null;
 }
 
+export interface LspPosition {
+  line: number;
+  character: number;
+}
+
+export interface LspRange {
+  start: LspPosition;
+  end: LspPosition;
+}
+
+export interface LspDiagnostic {
+  range: LspRange;
+  severity?: number;
+  code?: string | number;
+  source?: string;
+  message: string;
+  relatedInformation?: Array<{
+    location: {
+      uri: string;
+      range: LspRange;
+    };
+    message: string;
+  }>;
+}
+
+export type AlgrafEditorFeatureRequest =
+  | { kind: "diagnostics" }
+  | { kind: "hover"; position: LspPosition }
+  | { kind: "completion"; position: LspPosition }
+  | { kind: "signatureHelp"; position: LspPosition }
+  | { kind: "formatting" }
+  | { kind: "rangeFormatting"; range: LspRange }
+  | { kind: "semanticTokens" }
+  | { kind: "codeActions"; range: LspRange; diagnostics: LspDiagnostic[] }
+  | { kind: "definition"; position: LspPosition }
+  | { kind: "references"; position: LspPosition; includeDeclaration: boolean }
+  | { kind: "documentHighlights"; position: LspPosition }
+  | { kind: "prepareRename"; position: LspPosition }
+  | { kind: "rename"; position: LspPosition; newName: string }
+  | { kind: "documentSymbols" }
+  | { kind: "inlayHints"; range: LspRange };
+
+export interface AlgrafEditorServiceResult<T = unknown> {
+  diagnostics: LspDiagnostic[];
+  result: T;
+  error: string | null;
+}
+
 interface AlgrafWasmExports extends WebAssembly.Exports {
   memory: WebAssembly.Memory;
   algraf_alloc(len: number): number;
   algraf_dealloc(ptr: number, len: number): void;
   algraf_render_json(ptr: number, len: number): bigint;
+  algraf_editor_service_json(ptr: number, len: number): bigint;
 }
 
 export interface AlgrafRuntime {
   render(source: string, files: Record<string, string>): AlgrafRenderResult;
+  editorService<T = unknown>(
+    source: string,
+    files: Record<string, string>,
+    request: AlgrafEditorFeatureRequest,
+    uri?: string,
+  ): AlgrafEditorServiceResult<T>;
 }
 
 const encoder = new TextEncoder();
@@ -50,6 +105,9 @@ export async function loadAlgrafRuntime(url = "/wasm/algraf.wasm"): Promise<Algr
   return {
     render(source, files) {
       return renderWithExports(exports, source, files);
+    },
+    editorService<T = unknown>(source: string, files: Record<string, string>, request: AlgrafEditorFeatureRequest, uri = "inmemory://algraf/demo.ag") {
+      return editorServiceWithExports<T>(exports, source, files, request, uri);
     },
   };
 }
@@ -117,12 +175,36 @@ function renderWithExports(
   }
 }
 
+function editorServiceWithExports<T>(
+  exports: AlgrafWasmExports,
+  source: string,
+  files: Record<string, string>,
+  request: AlgrafEditorFeatureRequest,
+  uri: string,
+): AlgrafEditorServiceResult<T> {
+  const inputBytes = encoder.encode(JSON.stringify({ source, files, uri, request }));
+  const inputPtr = exports.algraf_alloc(inputBytes.length);
+
+  try {
+    new Uint8Array(exports.memory.buffer, inputPtr, inputBytes.length).set(inputBytes);
+    const packed = exports.algraf_editor_service_json(inputPtr, inputBytes.length);
+    const outputPtr = Number(packed & 0xffffffffn);
+    const outputLen = Number(packed >> 32n);
+    const output = new Uint8Array(exports.memory.buffer, outputPtr, outputLen).slice();
+    exports.algraf_dealloc(outputPtr, outputLen);
+    return JSON.parse(decoder.decode(output)) as AlgrafEditorServiceResult<T>;
+  } finally {
+    exports.algraf_dealloc(inputPtr, inputBytes.length);
+  }
+}
+
 function assertAlgrafExports(exports: WebAssembly.Exports): asserts exports is AlgrafWasmExports {
   if (
     !(exports.memory instanceof WebAssembly.Memory) ||
     typeof exports.algraf_alloc !== "function" ||
     typeof exports.algraf_dealloc !== "function" ||
-    typeof exports.algraf_render_json !== "function"
+    typeof exports.algraf_render_json !== "function" ||
+    typeof exports.algraf_editor_service_json !== "function"
   ) {
     throw new Error("algraf.wasm does not expose the expected browser ABI");
   }

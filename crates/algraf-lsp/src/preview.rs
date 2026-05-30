@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use tower_lsp::jsonrpc::Result as LspResult;
 use tower_lsp::lsp_types::Url;
 
-use crate::document::source_input_for_uri;
+use algraf_editor_services::document::source_input_for_uri;
+
 use crate::Backend;
 
 impl Backend {

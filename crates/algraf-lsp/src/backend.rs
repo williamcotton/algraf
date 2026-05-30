@@ -1,6 +1,20 @@
 use std::sync::Arc;
 
 use algraf_driver::InMemorySchemaCache;
+use algraf_editor_services::analysis::analyze_document_blocking;
+use algraf_editor_services::code_actions::code_actions_for;
+use algraf_editor_services::completion::{completion_context, completion_items};
+use algraf_editor_services::diagnostics::diagnostic_to_lsp;
+use algraf_editor_services::document::DocumentState;
+use algraf_editor_services::hover::hover_at;
+use algraf_editor_services::inlay::inlay_hints_for;
+use algraf_editor_services::navigation::{
+    definition_at, reference_sites, rename_edits, renameable_at,
+};
+use algraf_editor_services::positions::{offset_to_position, position_to_offset, span_to_range};
+use algraf_editor_services::semantic_tokens::{semantic_tokens_for, semantic_tokens_legend};
+use algraf_editor_services::signature::signature_help_at;
+use algraf_editor_services::symbols::document_symbols;
 use algraf_syntax::{format, parse};
 use dashmap::DashMap;
 use tower_lsp::jsonrpc::Result as LspResult;
@@ -20,19 +34,6 @@ use tower_lsp::lsp_types::{
     TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions, WorkspaceEdit,
 };
 use tower_lsp::{Client, LanguageServer};
-
-use crate::analysis::analyze_document_blocking;
-use crate::code_actions::code_actions_for;
-use crate::completion::{completion_context, completion_items};
-use crate::diagnostics::diagnostic_to_lsp;
-use crate::document::DocumentState;
-use crate::hover::hover_at;
-use crate::inlay::inlay_hints_for;
-use crate::navigation::{definition_at, reference_sites, rename_edits, renameable_at};
-use crate::positions::{offset_to_position, position_to_offset, span_to_range};
-use crate::semantic_tokens::{semantic_tokens_for, semantic_tokens_legend};
-use crate::signature::signature_help_at;
-use crate::symbols::document_symbols;
 
 /// The Algraf LSP backend state (spec §21.3).
 pub struct Backend {
