@@ -136,7 +136,7 @@ fn draw_op(
                 return;
             };
             let path = PathBuilder::from_rect(rect);
-            fill_and_stroke(pixmap, transform, &path, paint);
+            fill_and_stroke(pixmap, transform, &path, paint, None);
         }
         DrawOp::Circle {
             cx, cy, r, paint, ..
@@ -144,18 +144,18 @@ fn draw_op(
             let mut pb = PathBuilder::new();
             pb.push_circle(*cx as f32, *cy as f32, *r as f32);
             if let Some(path) = pb.finish() {
-                fill_and_stroke(pixmap, transform, &path, paint);
+                fill_and_stroke(pixmap, transform, &path, paint, None);
             }
         }
         DrawOp::Polygon { points, paint, .. } => {
             if let Some(path) = polygon_path(points) {
-                fill_and_stroke(pixmap, transform, &path, paint);
+                fill_and_stroke(pixmap, transform, &path, paint, None);
             } else {
                 unrepresentable(diagnostics, "polygon points");
             }
         }
-        DrawOp::Path { d, paint, .. } => match path_from_d(d) {
-            Some(path) => fill_and_stroke(pixmap, transform, &path, paint),
+        DrawOp::Path { d, paint, dash, .. } => match path_from_d(d) {
+            Some(path) => fill_and_stroke(pixmap, transform, &path, paint, *dash),
             None => unrepresentable(diagnostics, "path data"),
         },
         DrawOp::Line {
@@ -203,6 +203,7 @@ fn fill_and_stroke(
     transform: Transform,
     path: &tiny_skia::Path,
     paint: &crate::sink::Paint,
+    dash: Option<Dash>,
 ) {
     let opacity = paint.opacity.unwrap_or(1.0);
     if let Fill::Color(color) = &paint.fill {
@@ -219,10 +220,13 @@ fn fill_and_stroke(
             ..SkPaint::default()
         };
         sk.set_color(parse_color(color, opacity));
-        let s = SkStroke {
+        let mut s = SkStroke {
             width: (*width as f32).max(0.0),
             ..SkStroke::default()
         };
+        if let Some(dash) = dash {
+            s.dash = stroke_dash(dash, *width as f32);
+        }
         pixmap.stroke_path(path, &sk, &s, transform, None);
     }
 }

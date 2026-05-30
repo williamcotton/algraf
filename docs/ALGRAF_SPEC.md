@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.35.5
+Status: Draft 0.36.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.35.5 specification.
+This working copy is the active Draft 0.36.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -2322,9 +2322,10 @@ Derived tables MAY be lazily computed by the renderer.
 Derived table schemas SHOULD be computed without running expensive full-data transforms where possible.
 
 Schema-only stat planning lives in semantic planning helpers. The built-in
-schemas for `Bin`, `Smooth`, `Bin2D`, `HexBin`, `Density`, and `Count` MUST be
-derivable from typed input frames and options without reading row values. Full
-stat execution remains a render/runtime responsibility.
+schemas for `Bin`, `Smooth`, `StepVertices`, `VectorEndpoints`, `CurveSample`,
+`Bin2D`, `HexBin`, `Density`, and `Count` MUST be derivable from typed input
+frames and options without reading row values. Full stat execution remains a
+render/runtime responsibility.
 
 Derived table names are chart-scoped.
 
@@ -3461,8 +3462,14 @@ pub enum StatKind {
     HexBin,
     Count,
     Smooth,
+    StepVertices,
+    VectorEndpoints,
+    CurveSample,
     Boxplot,
     Density,
+    Centroid,
+    Simplify,
+    SpatialJoin,
 }
 ```
 
@@ -3474,13 +3481,21 @@ pub enum StatOptionsIr {
     Bin2D { bins: Option<f64> },
     HexBin { bins: Option<f64> },
     Smooth { method: SmoothMethodIr, span: Option<f64>, se: bool },
+    StepVertices { direction: StepDirectionIr },
+    VectorEndpoints { length_scale: Option<f64> },
+    CurveSample { curvature: f64, points: usize },
     Density { bandwidth: Option<f64>, grid_points: Option<f64> },
     Count,
+    Centroid,
+    Simplify { tolerance: Option<f64> },
+    SpatialJoin { table: String, predicate: SpatialPredicateIr },
 }
 
 pub enum BinClosedIr { Left, Right }
 
 pub enum SmoothMethodIr { Lm, Loess }
+
+pub enum StepDirectionIr { Hv, Vh }
 ```
 
 The explicit `Derive` stat-option parser and high-level geometry lowering MUST produce `StatOptionsIr` through the same defaulting path, so invalid settings keep identical diagnostic codes and spans regardless of which surface produced them. The renderer MUST read `StatOptionsIr` directly rather than looking up string keys.
@@ -3989,7 +4004,7 @@ strokeWidth number
 
 alpha number
 
-curve string option
+dash string option
 
 Default grouping:
 
@@ -4005,10 +4020,16 @@ Line MUST sort rows by x within each group unless `sort: false`.
 
 Line MUST skip rows with missing x, or with missing y in 2D spaces.
 
-Line SHOULD break paths on missing coordinates rather than connecting across gaps.
+Line MUST break paths on missing coordinates rather than connecting across gaps.
 
 `Line` MUST accept a column-mapped `strokeWidth` (spec §13.8, §16.8); when
 mapped, the width is drawn per segment as in `Path`.
+
+Since version 0.36.0, `Line` MUST accept `dash: "solid" | "dotted" |
+"dashed"`. The default is solid. The presets map to deterministic backend
+dash patterns; arbitrary SVG dash arrays are not accepted. User-facing
+`lineCap`, `lineJoin`, and miter-limit properties are deferred and MUST NOT be
+accepted as geometry properties in this version.
 
 #### 14.3.1 Path
 
@@ -4040,25 +4061,24 @@ rendering. `taper` has no effect when `strokeWidth` is constant (the series
 falls back to a plain stroked line). Grouping, missing values, and group
 boundaries follow the same rules as the per-segment path.
 
-### 14.4 Step
+Since version 0.36.0, `Path` MUST accept the same `dash` presets as `Line`.
 
-Syntax:
+### 14.4 Step Lines as Path Vertices
+
+Algraf does not expose a `Step` geometry in version 0.36.0. Step lines are
+expressed as a derived primitive table plus `Path`:
 
 ```ag
-Step(direction: "mid", strokeWidth: 2)
+Derive step_rows = StepVertices(day, units, direction: "hv")
+Space(day * units, data: step_rows) {
+    Path(group: step_group)
+}
 ```
 
-Supported spaces:
-
-2D Cartesian
-
-Properties:
-
-`direction`: `hv`, `vh`, or `mid`
-
-Step uses line grouping behavior.
-
-Step renders SVG paths with orthogonal segments.
+`StepVertices` is specified as a derived stat in §15.15. It is the normative
+source-level feature for step lines in this version. A future `Step` convenience
+geometry MAY be added only if it lowers byte-for-byte to `StepVertices` plus
+`Path`.
 
 ### 14.5 Rect
 
@@ -4520,6 +4540,10 @@ When `group` is absent, Smooth grouping SHOULD follow stroke or fill mappings.
 
 Smooth MUST report diagnostic if x or y is non-continuous for `lm`.
 
+Since version 0.36.0, Smooth MUST accept `dash: "solid" | "dotted" |
+"dashed"` for the fitted line. The confidence band emitted by `se: true` is a
+filled polygon and is not dashed. The default dash style is solid.
+
 ### 14.11 Boxplot
 
 Syntax:
@@ -4748,6 +4772,11 @@ each label renders that column's UTC instant with the format instead of its
 default text. Applied to a non-temporal `label:`, or with an unknown/invalid
 format, it emits `E1907`.
 
+Label boxes are expressed as `Rect` plus `Text` in version 0.36.0. The rectangle
+bounds MUST be data columns or literals supplied by the author. Auto-sized
+padded labels are deferred until the renderer has text measurement semantics;
+there is no `Label` geometry in this version.
+
 ### 14.17 HLine
 
 Syntax:
@@ -4809,6 +4838,10 @@ a column mapping, colored per segment. Rows missing any endpoint value MUST be
 skipped, with a single aggregated `R0002` warning reporting the skipped count.
 This makes Segment suitable for slope and dumbbell charts where `Line` is not a
 natural fit.
+
+Since version 0.36.0, Segment MUST accept `dash: "solid" | "dotted" |
+"dashed"`. The default is solid. Dash is a literal stroke style only; mapped
+stroke-style scales and legends are deferred.
 
 ### 14.20 Rug
 
@@ -4888,6 +4921,12 @@ Rendering MUST be deterministic: features are drawn in row order and rings in
 source order. A `Geo` mark outside a spatial space is a semantic error — `E1801`
 when the space frames a single non-geometry column, `E1804` when the space is a
 planar Cartesian space.
+
+Cartesian polygon recipes SHOULD use geometry-typed data: prebuild GeoJSON,
+TopoJSON, Shapefile, or another geometry source, then render with
+`Space(geom) { Geo(...) }`. A row-oriented x/y `Polygon` geometry is deferred in
+version 0.36.0 because hole policy, missing-value breaks, subgroup ordering, and
+backend parity are not specified for that surface.
 
 ### 14.24 Graticule
 
@@ -5402,6 +5441,51 @@ Chart(data: GeoJson("stations.geojson")) {
   no geometry or no match gets missing cells for the appended columns. Behavior
   is deterministic.
 
+### 15.15 Primitive-Construction Stats
+
+> Since version 0.36.0.
+
+Primitive-construction stats generate ordinary rows for existing primitive marks
+instead of introducing ggplot-compatible mark aliases.
+
+`StepVertices(x, y, direction: "hv")` expands source-ordered coordinate rows
+into orthogonal path vertices. `direction` defaults to `"hv"` and MUST be
+either `"hv"` (horizontal to the new x, then vertical to the new y) or `"vh"`
+(vertical at the previous x, then horizontal to the new x); any other value is
+`E1404`. The output columns are the input x column name, the input y column
+name, and integer `step_group`. The x/y output dtypes match the input column
+dtypes. For each contiguous valid run, output order is source order: the first
+valid row emits one vertex; every following valid row emits the intermediate
+orthogonal vertex followed by the source vertex. A row missing x or y emits one
+null sentinel between valid runs, increments `step_group`, and causes `Line`/
+`Path` renderers to break the path instead of connecting across the gap.
+
+`VectorEndpoints(x, y, angle, length, lengthScale: n)` emits primitive Segment
+columns `x`, `y`, `xend`, and `yend`, all floats. The angle is in radians.
+`lengthScale` defaults to `1.0` and MUST be a non-negative finite number.
+Required inputs MUST be numeric or unknown at analysis time; non-numeric inputs
+are `E1404`. Runtime rows missing any required numeric cell are dropped. The
+endpoint formula is `xend = x + cos(angle) * length * lengthScale` and
+`yend = y + sin(angle) * length * lengthScale`. Non-conflicting source columns
+MUST be passed through unchanged so downstream Segment aesthetics can reference
+columns such as speed or cohort.
+
+`CurveSample(x0, y0, x1, y1, curvature: c, points: k)` emits sampled path
+vertices for one quadratic curve per source row. Output columns are float `x`,
+float `y`, integer `link_id`, followed by non-conflicting source columns
+repeated on every sampled vertex. The `link_id` is the source row index, so
+`Path(group: link_id)` draws one curve per input row. Required inputs MUST be
+numeric or unknown at analysis time; non-numeric inputs are `E1404`. Runtime
+rows missing any endpoint are dropped. `curvature` defaults to `0.35` and MUST
+be finite; negative values bend the opposite way. `points` defaults to `16` and
+MUST be an integer in `[2, 1024]`. The control point is the source segment
+midpoint plus `curvature * segment_length` along the left-hand perpendicular;
+sampling includes both endpoints and is deterministic.
+
+These stats are pure, read no external resources, and MUST preserve deterministic
+output ordering. They do not create stroke-style legends, position adjustments,
+or source-level aliases such as `geom_step`, `geom_curve`, or `linetype`.
+
 ## 16. Scale Training
 
 ### 16.1 Scale Training Overview
@@ -5753,6 +5837,12 @@ is reserved for a `null` bound used where data inference is not meaningful.)
 Version 0.6.0 MUST support a numeric output `range: [lo, hi]` on `size` and
 `strokeWidth` scales, mapping the trained domain into that pixel range
 (spec §16.8). Either bound MAY be `null` to use the default range end.
+
+Algraf does not expose a visible no-op `Blank` mark in version 0.36.0. The
+limit-anchor use case MUST be expressed with explicit scale domains, for
+example `Scale(axis: x, domain: [0, 100])` or `Scale(axis: y, domain: [0,
+null])`. Exact scale expansion controls are deferred to the stroke/scale release
+tracked after v0.36.
 
 Version 0.2.0 MUST support `reverse: true` for position axes.
 
@@ -9150,7 +9240,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.34.0 | [`V0_34_PLAN.md`](V0_34_PLAN.md) | Browser/WASM runtime and live playground | Implemented out of order |
 | 0.35.0 | [`V0_35_PLAN.md`](V0_35_PLAN.md) | Internal architecture hardening: stats/parser decomposition, registry generation, determinism harness | Implemented |
 | 0.35.5 | [`V0_35_5_PLAN.md`](V0_35_5_PLAN.md) | Browser editor parity for Monaco via shared editor services | Implemented |
-| 0.36.0 | [`V0_36_PLAN.md`](V0_36_PLAN.md) | ggplot2 comparability: primitive construction and exact sugar lowerings | Planned |
+| 0.36.0 | [`V0_36_PLAN.md`](V0_36_PLAN.md) | ggplot2 comparability: primitive construction and stroke styling | Implemented |
 | 0.37.0 | [`V0_37_PLAN.md`](V0_37_PLAN.md) | ggplot2 comparability: uncertainty construction and exact sugar lowerings | Planned |
 | 0.38.0 | [`V0_38_PLAN.md`](V0_38_PLAN.md) | ggplot2 comparability: z-field statistics | Planned |
 | 0.39.0 | [`V0_39_PLAN.md`](V0_39_PLAN.md) | ggplot2 comparability: model and summary stats | Planned |

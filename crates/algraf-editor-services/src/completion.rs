@@ -112,7 +112,8 @@ pub fn completion_context(text: &str, offset: usize) -> CompletionContext {
         },
         Some(
             "Algraf" | "Scale" | "Guide" | "Theme" | "Layout" | "Parse" | "Style" | "Stop" | "Bin"
-            | "Smooth" | "Bin2D" | "HexBin" | "Simplify" | "SpatialJoin",
+            | "Smooth" | "StepVertices" | "VectorEndpoints" | "CurveSample" | "Bin2D" | "HexBin"
+            | "Simplify" | "SpatialJoin",
         ) => CompletionContext::DeclArgs {
             decl: call_name_stack
                 .last()
@@ -512,6 +513,13 @@ fn declaration_value_items(
             .map(|value| value_item(&format!("\"{value}\""), "Bin closure"))
             .collect(),
         ("Bin", "bins" | "binWidth" | "boundary") => vec![value_item("30", "Number literal")],
+        ("StepVertices", "direction") => ["hv", "vh"]
+            .iter()
+            .map(|value| value_item(&format!("\"{value}\""), "Step direction"))
+            .collect(),
+        ("VectorEndpoints", "lengthScale") => vec![value_item("1", "Length scale")],
+        ("CurveSample", "curvature") => vec![value_item("0.35", "Curve bend amount")],
+        ("CurveSample", "points") => vec![value_item("16", "Sample count")],
         ("Theme", "axisText") => vec![value_item(
             "Text(size: 12, fill: \"#333333\")",
             "Axis text style",

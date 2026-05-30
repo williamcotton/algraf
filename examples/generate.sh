@@ -85,6 +85,8 @@ charts=(
     variables
     custom_theme
     path
+    step_vertices
+    primitive_links
     manual_colors
     minard
     sales_tsv

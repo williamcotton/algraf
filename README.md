@@ -1830,6 +1830,69 @@ Chart(data: "route.csv", title: "Path with variable width") {
 
 ![path](examples/path.svg)
 
+## Step lines with `StepVertices`
+
+`StepVertices` expands source rows into the intermediate vertices that a
+source-order `Path` needs for horizontal-then-vertical steps. Missing values
+split the path into separate runs, and the derived `step_group` column can be
+used as the `Path` group.
+
+```algraf
+Chart(data: "step_vertices.csv", width: 760, height: 420,
+      title: "Inventory step vertices") {
+    Guide(axis: x, label: "Day")
+    Guide(axis: y, label: "Units on hand")
+
+    Derive step_rows = StepVertices(day, units, direction: "hv")
+
+    Space(day * units, data: step_rows) {
+        Path(group: step_group, stroke: "#2f6fbb", strokeWidth: 2, dash: "dashed")
+    }
+
+    Space(day * units) {
+        Point(fill: "#2f6fbb", size: 3)
+    }
+}
+```
+
+![step_vertices](examples/step_vertices.svg)
+
+## Vectors and sampled curves as primitive rows
+
+`VectorEndpoints` turns angle-and-length rows into `Segment` endpoints.
+`CurveSample` turns paired endpoints into grouped `Path` vertices. Both derived
+tables pass through non-conflicting source columns, so aesthetics like
+`stroke: cohort` remain available on the primitive marks.
+
+```algraf
+Chart(data: "primitive_links.csv", width: 760, height: 460,
+      title: "Vectors and sampled curves") {
+    Scale(fill: cohort, palette: "accent", label: "Cohort")
+    Scale(stroke: cohort, palette: "accent", label: "Cohort")
+    Guide(axis: x, label: "x")
+    Guide(axis: y, label: "y")
+
+    Derive vectors = VectorEndpoints(x, y, angle, speed, lengthScale: 0.4)
+    Derive curves = CurveSample(x, y, x1, y1, curvature: 0.28, points: 18)
+
+    Space(x * y, data: curves) {
+        Path(group: link_id, stroke: cohort, strokeWidth: 1.4, dash: "dashed", alpha: 0.55)
+    }
+
+    Space(x * y, data: vectors) {
+        Segment(x: x, y: y, xend: xend, yend: yend,
+                stroke: cohort, strokeWidth: 2, dash: "dotted")
+    }
+
+    Space(x * y) {
+        Point(fill: cohort, size: 4)
+        Text(label: cohort, dx: 5, dy: -6, size: 10)
+    }
+}
+```
+
+![primitive_links](examples/primitive_links.svg)
+
 ## Manual colors and renamed legend entries
 
 A categorical `fill`/`stroke` scale can take a `=>` map for `range:`, assigning

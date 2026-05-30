@@ -119,9 +119,31 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
         "Stop" => &["value", "color"],
         "Bin" => &["bins", "binWidth", "boundary", "closed", "interval"],
         "Smooth" => &["method", "span", "se"],
+        "StepVertices" => &["direction"],
+        "VectorEndpoints" => &["lengthScale"],
+        "CurveSample" => &["curvature", "points"],
         "Simplify" => &["tolerance"],
         "SpatialJoin" => &["table", "predicate"],
         _ => &[],
+    }
+}
+
+/// Human-facing stat documentation shared by editor completion and hover.
+pub fn stat_doc(name: &str) -> &'static str {
+    match name {
+        "Bin" => "Derives one-dimensional bin boundaries and counts.",
+        "Smooth" => "Derives fitted x/y rows for linear or loess smoothing.",
+        "Bin2D" => "Derives rectangular two-dimensional bins.",
+        "HexBin" => "Derives hexagonal two-dimensional bins.",
+        "StepVertices" => "Expands source x/y rows into orthogonal Path vertices.",
+        "VectorEndpoints" => {
+            "Computes Segment endpoint columns from x/y, angle in radians, and length."
+        }
+        "CurveSample" => "Samples grouped Path vertices for one quadratic curve per row.",
+        "Centroid" => "Derives centroid geometries from a geometry column.",
+        "Simplify" => "Derives simplified geometries from a geometry column.",
+        "SpatialJoin" => "Joins point geometries to a chart-scoped polygon table.",
+        _ => "Algraf stat.",
     }
 }
 
@@ -219,6 +241,7 @@ const POINT: &[PropSpec] = &[
 const LINE: &[PropSpec] = &[
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, LINE_STROKE_WIDTH),
+    opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Group, GROUP),
     opt(PropertyKey::Taper, &[Accept::Bool]),
@@ -227,6 +250,7 @@ const LINE: &[PropSpec] = &[
 const PATH: &[PropSpec] = &[
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, LINE_STROKE_WIDTH),
+    opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Group, GROUP),
     opt(PropertyKey::Taper, &[Accept::Bool]),
@@ -308,6 +332,7 @@ const SMOOTH: &[PropSpec] = &[
     opt(PropertyKey::Fill, &[Accept::Color]),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Group, GROUP),
 ];
@@ -429,6 +454,7 @@ const SEGMENT: &[PropSpec] = &[
     req(PropertyKey::Yend, POS),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
+    opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
 ];
 
@@ -534,7 +560,7 @@ pub fn property_doc(name: &str) -> &'static str {
         "fill" => "Fill color setting or data column mapping.",
         "stroke" => "Stroke color setting or data column mapping.",
         "strokeWidth" => "Stroke width numeric setting.",
-        "dash" => "Reference-line dash style: `\"solid\"`, `\"dotted\"`, or `\"dashed\"`.",
+        "dash" => "Line dash style: `\"solid\"`, `\"dotted\"`, or `\"dashed\"`.",
         "alpha" => "Opacity setting or data column mapping.",
         "size" => "Point or text size setting or data column mapping.",
         "shape" => "Point shape setting or data column mapping.",
@@ -564,6 +590,9 @@ pub fn property_doc(name: &str) -> &'static str {
         "method" => "Smooth fitting method: `\"lm\"` (linear) or `\"loess\"` (local regression).",
         "span" => "Loess neighborhood fraction in (0, 1]; larger values are smoother.",
         "se" => "Draw a confidence band around the smooth (boolean).",
+        "curvature" => "CurveSample bend amount; negative values bend the opposite way.",
+        "points" => "CurveSample vertices per source row, from 2 to 1024.",
+        "lengthScale" => "Scale factor applied to VectorEndpoints lengths.",
         "width" => "Geometry width setting.",
         "baseline" => "Area or bar baseline.",
         "label" => "Text label or reference-line label.",

@@ -377,6 +377,9 @@ pub enum StatKind {
     HexBin,
     Count,
     Smooth,
+    StepVertices,
+    VectorEndpoints,
+    CurveSample,
     Boxplot,
     Density,
     /// Geometry-producing centroid stat (spec §15.13).
@@ -397,6 +400,9 @@ impl StatKind {
             StatKind::HexBin => "HexBin",
             StatKind::Count => "Count",
             StatKind::Smooth => "Smooth",
+            StatKind::StepVertices => "StepVertices",
+            StatKind::VectorEndpoints => "VectorEndpoints",
+            StatKind::CurveSample => "CurveSample",
             StatKind::Boxplot => "Boxplot",
             StatKind::Density => "Density",
             StatKind::Centroid => "Centroid",
@@ -432,6 +438,16 @@ pub enum StatOptionsIr {
         /// Emit `ymin`/`ymax`/`se` confidence-band columns (spec §15.x).
         se: bool,
     },
+    StepVertices {
+        direction: StepDirectionIr,
+    },
+    VectorEndpoints {
+        length_scale: Option<f64>,
+    },
+    CurveSample {
+        curvature: f64,
+        points: usize,
+    },
     Density {
         bandwidth: Option<f64>,
         grid_points: Option<f64>,
@@ -450,6 +466,24 @@ pub enum StatOptionsIr {
         table: String,
         predicate: SpatialPredicateIr,
     },
+}
+
+/// Orthogonal step expansion order for `StepVertices`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepDirectionIr {
+    /// Horizontal to the new x, then vertical to the new y.
+    Hv,
+    /// Vertical at the previous x, then horizontal to the new x.
+    Vh,
+}
+
+impl StepDirectionIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            StepDirectionIr::Hv => "hv",
+            StepDirectionIr::Vh => "vh",
+        }
+    }
 }
 
 /// The spatial predicate a [`StatKind::SpatialJoin`] matches on (spec §15.14).

@@ -20,7 +20,7 @@ pub use ir::{
     DataSourceIr, DeriveIr, FrameIr, GeometryIr, GeometryKind, GradientIr, GradientStopIr,
     GridShapeIr, GuideIr, GuideOverridesIr, InteractionIr, PolarDirectionIr, PolarThetaIr,
     PropertyKey, ScaleIr, ScaleTargetIr, ScaleTypeIr, SettingValue, SmoothMethodIr, SpaceDataRef,
-    SpaceIr, SpatialPredicateIr, StatCallIr, StatKind, StatOptionsIr, TableDeclIr,
+    SpaceIr, SpatialPredicateIr, StatCallIr, StatKind, StatOptionsIr, StepDirectionIr, TableDeclIr,
     TemporalFormatIr, ThemeIr, ThemeOverrides, PROPERTY_KEYS,
 };
 pub use planning::{geometry_column_name, spatial_join_appended_columns};

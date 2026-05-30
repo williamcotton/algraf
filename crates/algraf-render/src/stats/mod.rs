@@ -7,6 +7,7 @@
 
 mod bin;
 mod density;
+mod primitive;
 mod smooth;
 mod summary;
 pub(crate) mod util;
@@ -16,5 +17,9 @@ pub use bin::{
     BinClosed, BinInterval, BinOptions,
 };
 pub use density::{density, density_blended, density_values, DensityOptions, DensityPoint};
+pub use primitive::{
+    curve_sample, step_vertices, vector_endpoints, CurveSampleOptions, StepDirection,
+    StepVerticesOptions, VectorEndpointsOptions,
+};
 pub use smooth::{smooth, smooth_points, SmoothMethod, SmoothOptions};
 pub use summary::count_by;

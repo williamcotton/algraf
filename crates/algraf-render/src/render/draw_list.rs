@@ -121,6 +121,7 @@ pub enum DrawOp {
         role: DrawRole,
         d: String,
         paint: Paint,
+        dash: Option<crate::sink::Dash>,
         interaction: Option<crate::sink::MarkInteraction>,
     },
     /// A polygon, with a space-separated `x,y` point list.
@@ -255,6 +256,7 @@ impl DrawOp {
             DrawOp::Path {
                 d,
                 paint,
+                dash,
                 interaction,
                 ..
             } => {
@@ -265,6 +267,9 @@ impl DrawOp {
                     json_string(d),
                 );
                 paint.write_json(out);
+                if let Some(dash) = dash {
+                    let _ = write!(out, ",\"strokeDasharray\":\"{}\"", dash.dasharray());
+                }
                 write_interaction_json(out, interaction);
                 out.push('}');
             }

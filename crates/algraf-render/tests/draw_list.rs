@@ -4,7 +4,7 @@
 //! v0.24 backend contract.
 
 use algraf_data::{read_csv_str, Table};
-use algraf_render::{render, render_draw_list, DrawList, DrawOp, DrawRole, Fill, Theme};
+use algraf_render::{render, render_draw_list, Dash, DrawList, DrawOp, DrawRole, Fill, Theme};
 use algraf_semantics::analyze;
 use algraf_syntax::parse;
 
@@ -156,6 +156,24 @@ fn draw_list_json_is_deterministic_and_escapes() {
     assert_eq!(parsed["width"], 800);
     assert_eq!(parsed["interactions"]["version"], 1);
     assert_eq!(parsed["ops"][0]["role"], "background");
+}
+
+#[test]
+fn draw_list_records_path_dash() {
+    let list = draw_list(
+        "Chart(data: \"p.csv\") { Space(x * y) { Path(dash: \"dashed\") } }",
+        "x,y\n1,1\n2,2\n",
+    );
+    assert!(list.ops.iter().any(|op| {
+        matches!(
+            op,
+            DrawOp::Path {
+                dash: Some(Dash::Dashed),
+                ..
+            }
+        )
+    }));
+    assert!(list.to_json().contains("\"strokeDasharray\":\"4 4\""));
 }
 
 #[test]

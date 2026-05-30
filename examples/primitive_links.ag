@@ -1,0 +1,24 @@
+Chart(data: "primitive_links.csv", width: 760, height: 460,
+      title: "Vectors and sampled curves") {
+    Scale(fill: cohort, palette: "accent", label: "Cohort")
+    Scale(stroke: cohort, palette: "accent", label: "Cohort")
+    Guide(axis: x, label: "x")
+    Guide(axis: y, label: "y")
+
+    Derive vectors = VectorEndpoints(x, y, angle, speed, lengthScale: 0.4)
+    Derive curves = CurveSample(x, y, x1, y1, curvature: 0.28, points: 18)
+
+    Space(x * y, data: curves) {
+        Path(group: link_id, stroke: cohort, strokeWidth: 1.4, dash: "dashed", alpha: 0.55)
+    }
+
+    Space(x * y, data: vectors) {
+        Segment(x: x, y: y, xend: xend, yend: yend,
+                stroke: cohort, strokeWidth: 2, dash: "dotted")
+    }
+
+    Space(x * y) {
+        Point(fill: cohort, size: 4)
+        Text(label: cohort, dx: 5, dy: -6, size: 10)
+    }
+}

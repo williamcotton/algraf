@@ -77,6 +77,9 @@ fn hover_for_ident(
             registry::geometry_doc(name)
         ));
     }
+    if next_significant_is_lparen(tokens, idx) && is_stat_name(name) {
+        return Some(format!("**Stat `{name}`**\n\n{}", registry::stat_doc(name)));
+    }
     if name == "transpose" && next_significant_is_lparen(tokens, idx) {
         return Some(
             "**Frame operator `transpose`**\n\nSwaps the two axes of a two-dimensional Cartesian frame."
@@ -134,6 +137,22 @@ fn hover_for_ident(
         ));
     }
     None
+}
+
+fn is_stat_name(name: &str) -> bool {
+    matches!(
+        name,
+        "Bin"
+            | "Smooth"
+            | "Bin2D"
+            | "HexBin"
+            | "StepVertices"
+            | "VectorEndpoints"
+            | "CurveSample"
+            | "Centroid"
+            | "Simplify"
+            | "SpatialJoin"
+    )
 }
 
 trait HoverSchemaLookup {

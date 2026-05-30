@@ -1493,6 +1493,59 @@ fn test_path_preserves_row_order_unlike_line() {
 }
 
 #[test]
+fn test_step_vertices_derive_expands_path_vertices() {
+    let csv = "x,y\n1,1\n2,3\n3,2\n";
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Derive steps = StepVertices(x, y, direction: \"hv\") Space(x * y, data: steps) { Path(dash: \"dashed\", stroke: \"#123456\") } }",
+        csv,
+    );
+    let d = first_path_d(&svg, "algraf-geom-path");
+    // Three source rows become five vertices: the first point, then
+    // horizontal+vertical vertices for each following row.
+    assert_eq!(d.matches('L').count(), 4);
+    assert!(svg.contains("stroke-dasharray=\"4 4\""));
+}
+
+#[test]
+fn test_step_vertices_missing_rows_break_paths() {
+    let csv = "x,y\n1,1\n2,3\n3,\n4,2\n5,4\n";
+    let svg = render_svg(
+        "Chart(data: \"t.csv\") { Derive steps = StepVertices(x, y) Space(x * y, data: steps) { Path(stroke: \"#123456\") } }",
+        csv,
+    );
+    let data_layer = svg
+        .split_once("algraf-geom-path")
+        .map(|(_, after)| after)
+        .unwrap_or(svg.as_str());
+    assert!(
+        data_layer.matches("<path d=\"M").count() >= 2,
+        "missing StepVertices rows should split the rendered path"
+    );
+}
+
+#[test]
+fn test_vector_endpoints_and_curve_sample_feed_primitives() {
+    let csv = "x,y,angle,speed,x1,y1,cohort\n1,1,0,1,2,2,a\n2,2,1.57079632679,1,3,1,b\n";
+    let svg = render_svg(
+        "Chart(data: \"v.csv\") {
+  Derive vectors = VectorEndpoints(x, y, angle, speed, lengthScale: 0.5)
+  Derive curves = CurveSample(x, y, x1, y1, curvature: 0.25, points: 5)
+  Space(x * y, data: vectors) {
+    Segment(x: x, y: y, xend: xend, yend: yend, stroke: cohort, dash: \"dotted\")
+  }
+  Space(x * y, data: curves) {
+    Path(group: link_id, stroke: cohort, dash: \"dashed\")
+  }
+}",
+        csv,
+    );
+    assert!(svg.contains("algraf-geom-segment"));
+    assert!(svg.contains("algraf-geom-path"));
+    assert!(svg.contains("stroke-dasharray=\"1 2\""));
+    assert!(svg.contains("stroke-dasharray=\"4 4\""));
+}
+
+#[test]
 fn test_mapped_strokewidth_emits_per_segment_lines() {
     let csv = "x,y,w\n1,1,1\n2,2,50\n3,1,100\n";
     let svg = render_svg(

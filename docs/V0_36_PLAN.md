@@ -1,6 +1,6 @@
 # Algraf v0.36.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_35_PLAN.md`](V0_35_PLAN.md)
@@ -256,7 +256,11 @@ sidecar bytes.
 
 ### 1. Add primitive-ready path and segment table transforms
 
-Status: Planned.
+Status: Implemented.
+
+`StepVertices`, `VectorEndpoints`, and `CurveSample` are implemented as
+`Derive` stats. Convenience `Step`/`Curve` marks were not promoted; the
+primitive lowering remains explicit.
 
 - Add a step-vertex transform that emits source-ordered x/y rows suitable for
   `Path`.
@@ -271,7 +275,11 @@ Status: Planned.
 
 ### 2. Generalize stroke style for line-like primitives
 
-Status: Planned.
+Status: Implemented.
+
+`dash: "solid" | "dotted" | "dashed"` is promoted for `Line`, `Path`,
+`Segment`, `HLine`, `VLine`, and `Smooth`. User-facing cap/join/miter controls
+remain deferred.
 
 - Promote a coherent `dash` or stroke-style property for existing line-like
   geometries first: `Line`, `Path`, `Segment`, `HLine`, `VLine`, and `Smooth`.
@@ -285,7 +293,10 @@ Status: Planned.
 
 ### 3. Audit Cartesian polygon needs against `Geo`
 
-Status: Planned.
+Status: Completed.
+
+No Cartesian x/y `Polygon` mark was promoted. The normative recipe remains
+geometry-typed data rendered through `Geo`.
 
 - Document the current geometry-column recipe: prebuild GeoJSON/TopoJSON or
   another geometry source, then render with `Space(geom) { Geo(...) }`.
@@ -297,7 +308,10 @@ Status: Planned.
 
 ### 4. Keep curve, abline, and spoke rendering data-driven
 
-Status: Planned.
+Status: Implemented.
+
+Spokes and curves are data-driven through `VectorEndpoints` and `CurveSample`;
+ablines remain ordinary endpoint tables plus `Segment`.
 
 - Document `Segment` endpoint recipes for ablines and spokes.
 - Document sampled-curve `Path` recipes for Bezier-like curves.
@@ -307,7 +321,10 @@ Status: Planned.
 
 ### 5. Keep label boxes as `Rect` plus `Text` until auto-measurement is needed
 
-Status: Planned.
+Status: Completed.
+
+No `Label` geometry was promoted. Boxed labels remain `Rect` plus `Text` with
+author-supplied bounds.
 
 - Document the current `Rect` plus `Text` recipe for labels with precomputed
   bounds.
@@ -318,7 +335,10 @@ Status: Planned.
 
 ### 6. Spec, examples, README, LSP, and release hygiene
 
-Status: Planned.
+Status: Implemented.
+
+Spec, examples, README, LSP/editor services, semantic tokens, and TextMate
+grammar were updated for the promoted stat and dash names.
 
 - Update spec geometry sections, property registry, diagnostics, LSP completion,
   hover text, semantic tokens, and TextMate grammar only where names/properties
@@ -332,7 +352,10 @@ Status: Planned.
 
 ### Limit anchors
 
-Status: Planned.
+Status: Completed.
+
+No `Blank` mark was promoted. The spec maps the use case to explicit
+`Scale(axis: ..., domain: ...)`; exact expansion remains deferred.
 
 - Decide whether `Blank` is useful in Algraf or whether explicit
   `Scale(axis: ..., domain: ...)` and future scale expansion make it redundant.
@@ -341,7 +364,10 @@ Status: Planned.
 
 ### Stroke caps and joins
 
-Status: Planned.
+Status: Completed.
+
+Audited and deferred. Existing renderer internals still choose caps where
+needed for parity, but no source-level cap/join/miter properties are promoted.
 
 - Audit whether `lineend`, `linejoin`, and mitre limits are worth exposing for
   SVG/draw-list/raster parity. If promoted, keep values tightly enumerated.

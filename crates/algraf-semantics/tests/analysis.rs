@@ -5,7 +5,7 @@ use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
     analyze_source, planning, AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef, FrameIr,
     GeometryKind, GradientIr, PropertyKey, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef,
-    StatKind, StatOptionsIr, TemporalFormatIr,
+    StatKind, StatOptionsIr, StepDirectionIr, TemporalFormatIr,
 };
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
@@ -1022,6 +1022,24 @@ fn test_schema_only_stat_planning_covers_builtin_outputs() {
         bin2d_names,
         vec!["x_start", "x_end", "x_center", "y_start", "y_end", "y_center", "count", "density",]
     );
+
+    let step_names: Vec<String> = planning::stat_output_schema(StatKind::StepVertices, &xy)
+        .into_iter()
+        .map(|column| column.name)
+        .collect();
+    assert_eq!(step_names, vec!["x", "y", "step_group"]);
+
+    let vector_names: Vec<String> = planning::stat_output_schema(StatKind::VectorEndpoints, &xy)
+        .into_iter()
+        .map(|column| column.name)
+        .collect();
+    assert_eq!(vector_names, vec!["x", "y", "xend", "yend"]);
+
+    let curve_names: Vec<String> = planning::stat_output_schema(StatKind::CurveSample, &xy)
+        .into_iter()
+        .map(|column| column.name)
+        .collect();
+    assert_eq!(curve_names, vec!["x", "y", "link_id"]);
 }
 
 #[test]
@@ -1066,6 +1084,102 @@ fn test_smooth_derive_defaults_to_lm_method() {
         ir.derived_tables[0].stat.options,
         StatOptionsIr::Smooth { .. }
     ));
+}
+
+#[test]
+fn test_primitive_construction_stats_are_typed() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {
+  Derive steps = StepVertices(value, amount, direction: \"vh\")
+  Derive vectors = VectorEndpoints(value, amount, lower, upper, lengthScale: 0.5)
+  Derive curves = CurveSample(value, amount, lower, upper, curvature: -0.2, points: 8)
+  Space(value * amount, data: steps) { Path(group: step_group) }
+  Space(x * y, data: vectors) { Segment(x: x, y: y, xend: xend, yend: yend, stroke: group) }
+  Space(x * y, data: curves) { Path(group: link_id, stroke: group) }
+}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.derived_tables.len(), 3);
+    assert_eq!(ir.derived_tables[0].stat.kind, StatKind::StepVertices);
+    assert!(matches!(
+        &ir.derived_tables[0].stat.options,
+        StatOptionsIr::StepVertices {
+            direction: StepDirectionIr::Vh
+        }
+    ));
+    assert_eq!(
+        ir.derived_tables[0]
+            .output_schema
+            .iter()
+            .map(|column| column.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["value", "amount", "step_group"]
+    );
+
+    assert!(matches!(
+        &ir.derived_tables[1].stat.options,
+        StatOptionsIr::VectorEndpoints {
+            length_scale: Some(0.5)
+        }
+    ));
+    assert!(
+        ir.derived_tables[1]
+            .output_schema
+            .iter()
+            .any(|column| column.name == "group"),
+        "VectorEndpoints should pass source aesthetics through"
+    );
+
+    match &ir.derived_tables[2].stat.options {
+        StatOptionsIr::CurveSample { curvature, points } => {
+            assert_eq!(*curvature, -0.2);
+            assert_eq!(*points, 8);
+        }
+        other => panic!("expected CurveSample options, got {other:?}"),
+    }
+    assert!(
+        ir.derived_tables[2]
+            .output_schema
+            .iter()
+            .any(|column| column.name == "group"),
+        "CurveSample should pass source aesthetics through"
+    );
+}
+
+#[test]
+fn test_primitive_construction_stats_validate_inputs_and_settings() {
+    assert!(has(
+        "Chart(data: \"d.csv\") { Derive s = StepVertices(value, geom) }",
+        "E1404"
+    ));
+    assert!(has(
+        "Chart(data: \"d.csv\") { Derive v = VectorEndpoints(value, amount, species, upper) }",
+        "E1404"
+    ));
+    assert!(has(
+        "Chart(data: \"d.csv\") { Derive c = CurveSample(value, amount, lower, upper, points: 1) }",
+        "E1404"
+    ));
+}
+
+#[test]
+fn test_dash_is_registered_on_line_like_primitives() {
+    clean(
+        "Chart(data: \"d.csv\") {
+  Space(value * amount) {
+    Line(dash: \"dotted\")
+    Path(dash: \"dashed\")
+    Segment(x: value, y: amount, xend: lower, yend: upper, dash: \"dotted\")
+    Smooth(dash: \"dashed\")
+  }
+}",
+    );
 }
 
 // --- Count stat ---

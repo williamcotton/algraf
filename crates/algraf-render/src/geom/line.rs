@@ -5,7 +5,7 @@ use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting, number_spec, ColorSpec, NumberSpec};
 use crate::helpers::{bool_setting, number_setting_opt, string_setting};
-use crate::sink::{Fill, MarkSink, Paint, Stroke};
+use crate::sink::{Dash, Fill, MarkSink, Paint, Stroke};
 use crate::stats;
 use crate::svg::num;
 
@@ -41,6 +41,8 @@ pub(super) fn render_polyline(
         theme.line_width,
     );
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
+    let dash_setting = string_setting(geo, PropertyKey::Dash);
+    let dash = Dash::from_setting(dash_setting.as_deref());
     // A mapped `strokeWidth` may render as a filled tapered ribbon instead of
     // per-segment strokes (spec §14.x). With a constant width it has no effect.
     let taper = bool_setting(geo, PropertyKey::Taper, false);
@@ -70,7 +72,7 @@ pub(super) fn render_polyline(
                     .unwrap_or_else(|| DEFAULT_STROKE.to_string())
             };
             // A closed radar polygon for `Line`; `Path` stays open.
-            sink.path(
+            sink.path_with_dash(
                 &point_path(&points, sort),
                 &Paint {
                     fill: Fill::None,
@@ -80,80 +82,93 @@ pub(super) fn render_polyline(
                     },
                     opacity: Some(alpha),
                 },
+                dash,
             );
         }
         return;
     }
 
     for (cat, rows) in groups {
-        let mut points: Vec<(f64, f64, usize)> = rows
-            .iter()
-            .filter_map(|&r| Some((space.resolve_x(table, r)?, space.resolve_y(table, r)?, r)))
-            .collect();
-        if sort {
-            points.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut runs: Vec<Vec<(f64, f64, usize)>> = Vec::new();
+        let mut current = Vec::new();
+        for &r in &rows {
+            if let (Some(x), Some(y)) = (space.resolve_x(table, r), space.resolve_y(table, r)) {
+                current.push((x, y, r));
+            } else if !current.is_empty() {
+                runs.push(std::mem::take(&mut current));
+            }
         }
-        if points.is_empty() {
-            continue;
+        if !current.is_empty() {
+            runs.push(current);
         }
-        let group_color = if cat.is_empty() {
-            constant_or(&stroke, DEFAULT_STROKE)
-        } else {
-            stroke
-                .resolve(table, points[0].2)
-                .unwrap_or_else(|| DEFAULT_STROKE.to_string())
-        };
 
-        match &width {
-            // Constant width: a single polyline path (compact output).
-            NumberSpec::Constant(width) => {
-                let mut d = String::new();
-                for (i, (x, y, _)) in points.iter().enumerate() {
-                    let cmd = if i == 0 { 'M' } else { 'L' };
-                    let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
-                }
-                sink.path(
-                    d.trim_end(),
-                    &Paint {
-                        fill: Fill::None,
-                        stroke: Stroke::Solid {
-                            color: group_color.clone(),
-                            width: *width,
+        for mut points in runs {
+            if sort {
+                points.sort_by(|a, b| a.0.total_cmp(&b.0));
+            }
+            if points.is_empty() {
+                continue;
+            }
+            let group_color = if cat.is_empty() {
+                constant_or(&stroke, DEFAULT_STROKE)
+            } else {
+                stroke
+                    .resolve(table, points[0].2)
+                    .unwrap_or_else(|| DEFAULT_STROKE.to_string())
+            };
+
+            match &width {
+                // Constant width: a single polyline path (compact output).
+                NumberSpec::Constant(width) => {
+                    let mut d = String::new();
+                    for (i, (x, y, _)) in points.iter().enumerate() {
+                        let cmd = if i == 0 { 'M' } else { 'L' };
+                        let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
+                    }
+                    sink.path_with_dash(
+                        d.trim_end(),
+                        &Paint {
+                            fill: Fill::None,
+                            stroke: Stroke::Solid {
+                                color: group_color.clone(),
+                                width: *width,
+                            },
+                            opacity: Some(alpha),
                         },
-                        opacity: Some(alpha),
-                    },
-                );
-            }
-            // Mapped width + taper: a single filled polygon whose half-width at
-            // each vertex is the scaled strokeWidth (spec §14.x).
-            NumberSpec::Scaled { .. } if taper && points.len() >= 2 => {
-                let pts: Vec<(f64, f64)> = points.iter().map(|(x, y, _)| (*x, *y)).collect();
-                let halves: Vec<f64> = points
-                    .iter()
-                    .map(|(_, _, r)| width.at(table, *r, theme.line_width).max(0.0) / 2.0)
-                    .collect();
-                sink.path(
-                    &tapered_ribbon_path(&pts, &halves),
-                    &Paint {
-                        fill: Fill::Color(group_color.clone()),
-                        stroke: Stroke::None,
-                        opacity: Some(alpha),
-                    },
-                );
-            }
-            // Mapped width: one segment per adjacent pair, each with a width
-            // averaged from its endpoints' scaled values (spec §13.8).
-            NumberSpec::Scaled { .. } => {
-                for pair in points.windows(2) {
-                    let (x0, y0, r0) = pair[0];
-                    let (x1, y1, r1) = pair[1];
-                    let seg_width = (width.at(table, r0, theme.line_width)
-                        + width.at(table, r1, theme.line_width))
-                        / 2.0;
-                    let color = stroke
-                        .resolve(table, r0)
-                        .unwrap_or_else(|| group_color.clone());
-                    sink.line(x0, y0, x1, y1, &color, seg_width, true, Some(alpha), None);
+                        dash,
+                    );
+                }
+                // Mapped width + taper: a single filled polygon whose half-width
+                // at each vertex is the scaled strokeWidth (spec §14.x).
+                NumberSpec::Scaled { .. } if taper && points.len() >= 2 => {
+                    let pts: Vec<(f64, f64)> = points.iter().map(|(x, y, _)| (*x, *y)).collect();
+                    let halves: Vec<f64> = points
+                        .iter()
+                        .map(|(_, _, r)| width.at(table, *r, theme.line_width).max(0.0) / 2.0)
+                        .collect();
+                    sink.path(
+                        &tapered_ribbon_path(&pts, &halves),
+                        &Paint {
+                            fill: Fill::Color(group_color.clone()),
+                            stroke: Stroke::None,
+                            opacity: Some(alpha),
+                        },
+                    );
+                }
+                // Mapped width: one segment per adjacent pair, each with a width
+                // averaged from its endpoints' scaled values (spec §13.8).
+                NumberSpec::Scaled { .. } => {
+                    for pair in points.windows(2) {
+                        let (x0, y0, r0) = pair[0];
+                        let (x1, y1, r1) = pair[1];
+                        let seg_width = (width.at(table, r0, theme.line_width)
+                            + width.at(table, r1, theme.line_width))
+                            / 2.0;
+                        let color = stroke
+                            .resolve(table, r0)
+                            .unwrap_or_else(|| group_color.clone());
+                        sink.line(x0, y0, x1, y1, &color, seg_width, true, Some(alpha), dash);
+                    }
                 }
             }
         }
@@ -258,6 +273,8 @@ pub(super) fn render_smooth(
     let fill = color_spec(geo, PropertyKey::Fill, table, scales);
     let width = number_setting(geo, PropertyKey::StrokeWidth, theme.line_width);
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
+    let dash_setting = string_setting(geo, PropertyKey::Dash);
+    let dash = Dash::from_setting(dash_setting.as_deref());
 
     // Fitting happens in pixel space; for linear position scales this is an
     // affine image of data space, so the fit is identical (spec §15.x).
@@ -325,7 +342,7 @@ pub(super) fn render_smooth(
             let cmd = if i == 0 { 'M' } else { 'L' };
             let _ = write!(d, "{cmd}{} {} ", num(p.x), num(p.y));
         }
-        sink.path(
+        sink.path_with_dash(
             d.trim_end(),
             &Paint {
                 fill: Fill::None,
@@ -335,6 +352,7 @@ pub(super) fn render_smooth(
                 },
                 opacity: Some(alpha),
             },
+            dash,
         );
     }
 }

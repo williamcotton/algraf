@@ -1,0 +1,15 @@
+Chart(data: "step_vertices.csv", width: 760, height: 420,
+      title: "Inventory step vertices") {
+    Guide(axis: x, label: "Day")
+    Guide(axis: y, label: "Units on hand")
+
+    Derive step_rows = StepVertices(day, units, direction: "hv")
+
+    Space(day * units, data: step_rows) {
+        Path(group: step_group, stroke: "#2f6fbb", strokeWidth: 2, dash: "dashed")
+    }
+
+    Space(day * units) {
+        Point(fill: "#2f6fbb", size: 3)
+    }
+}

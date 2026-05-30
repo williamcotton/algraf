@@ -181,6 +181,7 @@ pub(super) fn render_segment(
     let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
     let width = number_setting(geo, PropertyKey::StrokeWidth, theme.line_width);
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
+    let dash = string_setting(geo, PropertyKey::Dash);
 
     let x_axis = space.x_axis();
     let Some(y_axis) = space.y_axis() else {
@@ -212,7 +213,17 @@ pub(super) fn render_segment(
             let color = stroke
                 .resolve(table, row)
                 .unwrap_or_else(|| DEFAULT_STROKE.to_string());
-            emit_svg_line(sink, x, y, xend, yend, &color, width, alpha);
+            emit_svg_line_with_dash(
+                sink,
+                x,
+                y,
+                xend,
+                yend,
+                &color,
+                width,
+                alpha,
+                dash.as_deref(),
+            );
         }
         if skipped > 0 {
             diagnostics.push(Diagnostic::warning(
@@ -224,6 +235,16 @@ pub(super) fn render_segment(
     } else if let Some((x, y, xend, yend)) = resolve(table, 0) {
         // Literal endpoints: a single annotation segment.
         let color = constant_or(&stroke, DEFAULT_STROKE);
-        emit_svg_line(sink, x, y, xend, yend, &color, width, alpha);
+        emit_svg_line_with_dash(
+            sink,
+            x,
+            y,
+            xend,
+            yend,
+            &color,
+            width,
+            alpha,
+            dash.as_deref(),
+        );
     }
 }

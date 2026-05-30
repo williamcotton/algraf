@@ -372,11 +372,7 @@ pub(super) fn emit_svg_line_with_dash(
     alpha: f64,
     dash: Option<&str>,
 ) {
-    let dash = match dash {
-        Some("dotted") => Some(Dash::Dotted),
-        Some("dashed") => Some(Dash::Dashed),
-        _ => None,
-    };
+    let dash = Dash::from_setting(dash);
     sink.line(x1, y1, x2, y2, stroke, width, false, Some(alpha), dash);
 }
 

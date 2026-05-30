@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="460" viewBox="0 0 760 460" role="img" aria-label="Vectors and sampled curves">
+<title>Vectors and sampled curves</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="460" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Vectors and sampled curves</text>
+<rect class="algraf-plot-area" x="60" y="66" width="550" height="344" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="97.931" y1="66" x2="97.931" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="213.574" y1="66" x2="213.574" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="329.218" y1="66" x2="329.218" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="444.861" y1="66" x2="444.861" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="560.505" y1="66" x2="560.505" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="386.276" x2="610" y2="386.276" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="303.9" x2="610" y2="303.9" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="221.525" x2="610" y2="221.525" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="139.149" x2="610" y2="139.149" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-path">
+  <path d="M97.931 386.276 L104.513 366.474 L111.632 347.693 L119.289 329.934 L127.485 313.197 L136.217 297.481 L145.488 282.787 L155.297 269.115 L165.643 256.464 L176.527 244.834 L187.949 234.226 L199.909 224.64 L212.406 216.075 L225.441 208.532 L239.014 202.01 L253.125 196.51 L267.774 192.032 L282.96 188.575" fill="none" stroke="#006BA4" stroke-width="1.4" opacity="0.55" stroke-dasharray="4 4" />
+  <path d="M213.574 221.525 L225.249 220.189 L236.655 219.746 L247.792 220.198 L258.66 221.543 L269.259 223.782 L279.59 226.916 L289.651 230.943 L299.443 235.863 L308.967 241.678 L318.222 248.387 L327.207 255.989 L335.924 264.486 L344.372 273.876 L352.551 284.16 L360.462 295.338 L368.103 307.41 L375.475 320.375" fill="none" stroke="#FF800E" stroke-width="1.4" opacity="0.55" stroke-dasharray="4 4" />
+  <path d="M329.218 320.375 L332.361 300.678 L336.132 281.747 L340.531 263.583 L345.557 246.184 L351.21 229.552 L357.491 213.685 L364.399 198.585 L371.935 184.251 L380.098 170.684 L388.888 157.882 L398.306 145.847 L408.352 134.577 L419.024 124.074 L430.325 114.338 L442.252 105.367 L454.807 97.162 L467.99 89.724" fill="none" stroke="#006BA4" stroke-width="1.4" opacity="0.55" stroke-dasharray="4 4" />
+  <path d="M444.861 155.625 L454.854 156.79 L464.533 158.657 L473.898 161.227 L482.949 164.499 L491.687 168.474 L500.111 173.151 L508.221 178.53 L516.018 184.612 L523.5 191.395 L530.669 198.882 L537.525 207.07 L544.066 215.961 L550.294 225.554 L556.209 235.85 L561.809 246.848 L567.096 258.548 L572.069 270.95" fill="none" stroke="#FF800E" stroke-width="1.4" opacity="0.55" stroke-dasharray="4 4" />
+</g>
+<g class="algraf-layer algraf-geom-segment">
+  <line x1="97.931" y1="386.276" x2="161.4" y2="367.947" stroke="#006BA4" stroke-width="2" opacity="1" stroke-dasharray="1 2" />
+  <line x1="213.574" y1="221.525" x2="238.567" y2="166.072" stroke="#FF800E" stroke-width="2" opacity="1" stroke-dasharray="1 2" />
+  <line x1="329.218" y1="320.375" x2="367.891" y2="377.104" stroke="#006BA4" stroke-width="2" opacity="1" stroke-dasharray="1 2" />
+  <line x1="444.861" y1="155.625" x2="477.337" y2="130.349" stroke="#FF800E" stroke-width="2" opacity="1" stroke-dasharray="1 2" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="97.931" cy="386.276" r="4" fill="#006BA4" opacity="1" />
+  <circle cx="213.574" cy="221.525" r="4" fill="#FF800E" opacity="1" />
+  <circle cx="329.218" cy="320.375" r="4" fill="#006BA4" opacity="1" />
+  <circle cx="444.861" cy="155.625" r="4" fill="#FF800E" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="102.931" y="380.276" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">A</text>
+  <text x="218.574" y="215.525" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">B</text>
+  <text x="334.218" y="314.375" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">A</text>
+  <text x="449.861" y="149.625" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">B</text>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="410" x2="610" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="97.931" y1="410" x2="97.931" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="97.931" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="213.574" y1="410" x2="213.574" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="213.574" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="329.218" y1="410" x2="329.218" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="329.218" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <line x1="444.861" y1="410" x2="444.861" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="444.861" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="560.505" y1="410" x2="560.505" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="560.505" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <text x="335" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">x</text>
+  <line x1="60" y1="66" x2="60" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="386.276" x2="60" y2="386.276" stroke="#333333" stroke-width="1" />
+  <text x="52" y="390.276" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="55" y1="303.9" x2="60" y2="303.9" stroke="#333333" stroke-width="1" />
+  <text x="52" y="307.9" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1.5</text>
+  <line x1="55" y1="221.525" x2="60" y2="221.525" stroke="#333333" stroke-width="1" />
+  <text x="52" y="225.525" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="55" y1="139.149" x2="60" y2="139.149" stroke="#333333" stroke-width="1" />
+  <text x="52" y="143.149" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2.5</text>
+  <text x="18.4" y="238" text-anchor="middle" transform="rotate(-90 18.4 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">y</text>
+</g>
+<g class="algraf-legends">
+  <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Cohort</text>
+  <rect x="626" y="78" width="12" height="12" fill="#006BA4" stroke="#006BA4" stroke-width="2" />
+  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">A</text>
+  <rect x="626" y="96" width="12" height="12" fill="#FF800E" stroke="#FF800E" stroke-width="2" />
+  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">B</text>
+</g>
+</svg>

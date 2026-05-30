@@ -27,6 +27,14 @@ pub enum Dash {
 }
 
 impl Dash {
+    pub fn from_setting(value: Option<&str>) -> Option<Self> {
+        match value {
+            Some("dotted") => Some(Dash::Dotted),
+            Some("dashed") => Some(Dash::Dashed),
+            _ => None,
+        }
+    }
+
     /// The SVG `stroke-dasharray` value for this preset.
     pub fn dasharray(self) -> &'static str {
         match self {
@@ -187,6 +195,7 @@ pub(crate) trait MarkSink {
     fn rect(&mut self, x: f64, y: f64, width: f64, height: f64, paint: &Paint);
     fn circle(&mut self, cx: f64, cy: f64, r: f64, paint: &Paint);
     fn path(&mut self, d: &str, paint: &Paint);
+    fn path_with_dash(&mut self, d: &str, paint: &Paint, dash: Option<Dash>);
     fn polygon(&mut self, points: &str, paint: &Paint);
     #[allow(clippy::too_many_arguments)]
     fn line(
@@ -345,9 +354,16 @@ impl MarkSink for SvgSink<'_> {
     }
 
     fn path(&mut self, d: &str, paint: &Paint) {
+        self.path_with_dash(d, paint, None);
+    }
+
+    fn path_with_dash(&mut self, d: &str, paint: &Paint, dash: Option<Dash>) {
         self.count += 1;
         let mut s = format!("<path d=\"{d}\"");
         paint.write_svg(&mut s);
+        if let Some(dash) = dash {
+            s.push_str(&format!(" stroke-dasharray=\"{}\"", dash.dasharray()));
+        }
         self.finish_shape(s, "path");
     }
 
@@ -599,11 +615,16 @@ impl MarkSink for DrawListSink {
     }
 
     fn path(&mut self, d: &str, paint: &Paint) {
+        self.path_with_dash(d, paint, None);
+    }
+
+    fn path_with_dash(&mut self, d: &str, paint: &Paint, dash: Option<Dash>) {
         let interaction = self.current_mark();
         self.ops.push(DrawOp::Path {
             role: self.role,
             d: d.to_string(),
             paint: paint.clone(),
+            dash,
             interaction,
         });
     }
@@ -700,6 +721,7 @@ impl MarkSink for DrawListSink {
                 stroke,
                 opacity,
             },
+            dash: None,
             interaction: None,
         });
     }
@@ -716,6 +738,7 @@ impl MarkSink for DrawListSink {
                 },
                 opacity,
             },
+            dash: None,
             interaction: None,
         });
     }

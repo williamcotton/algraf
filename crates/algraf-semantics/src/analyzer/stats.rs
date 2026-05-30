@@ -133,6 +133,9 @@ impl Analyzer<'_> {
         let kind = match stat_name.as_str() {
             "Bin" => StatKind::Bin,
             "Smooth" => StatKind::Smooth,
+            "StepVertices" => StatKind::StepVertices,
+            "VectorEndpoints" => StatKind::VectorEndpoints,
+            "CurveSample" => StatKind::CurveSample,
             "Bin2D" => StatKind::Bin2D,
             "HexBin" => StatKind::HexBin,
             "Centroid" => StatKind::Centroid,
@@ -141,7 +144,7 @@ impl Analyzer<'_> {
             _ => {
                 self.diag(Diagnostic::error(
                     codes::E1403,
-                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `Bin2D`, `HexBin`, `Centroid`, `Simplify`, and `SpatialJoin`"),
+                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `StepVertices`, `VectorEndpoints`, `CurveSample`, `Bin2D`, `HexBin`, `Centroid`, `Simplify`, and `SpatialJoin`"),
                     stat_span,
                 ));
                 return None;
@@ -194,6 +197,53 @@ impl Analyzer<'_> {
                 let options = self.collect_smooth_options(&stat.args(), stat_span);
                 let se = matches!(&options, StatOptionsIr::Smooth { se: true, .. });
                 let output_schema = crate::planning::smooth_output_schema(se);
+                (input_frame, options, output_schema)
+            }
+            StatKind::StepVertices => {
+                let input_frame =
+                    self.n_stat_inputs(&inputs, table, stat_span, "StepVertices", 2)?;
+                if let FrameIr::Cartesian(columns) = &input_frame {
+                    for frame in columns {
+                        if let FrameIr::Vector(col) = frame {
+                            if matches!(col.dtype, DataType::Geometry) {
+                                self.diag(Diagnostic::error(
+                                    codes::E1404,
+                                    format!(
+                                        "StepVertices input column `{}` is a geometry column",
+                                        col.name
+                                    ),
+                                    col.span,
+                                ));
+                            }
+                        }
+                    }
+                }
+                let options = self.collect_step_vertices_options(&stat.args());
+                let output_schema = stat_output_schema(kind, &input_frame);
+                (input_frame, options, output_schema)
+            }
+            StatKind::VectorEndpoints => {
+                let input_frame =
+                    self.n_stat_inputs(&inputs, table, stat_span, "VectorEndpoints", 4)?;
+                self.require_numeric_stat_inputs(&input_frame, "VectorEndpoints");
+                let options = self.collect_vector_endpoints_options(&stat.args());
+                let output_schema = primitive_output_schema(
+                    crate::planning::vector_endpoints_output_schema(),
+                    table,
+                    &["x", "y", "xend", "yend"],
+                );
+                (input_frame, options, output_schema)
+            }
+            StatKind::CurveSample => {
+                let input_frame =
+                    self.n_stat_inputs(&inputs, table, stat_span, "CurveSample", 4)?;
+                self.require_numeric_stat_inputs(&input_frame, "CurveSample");
+                let options = self.collect_curve_sample_options(&stat.args());
+                let output_schema = primitive_output_schema(
+                    crate::planning::curve_sample_output_schema(),
+                    table,
+                    &["x", "y", "link_id"],
+                );
                 (input_frame, options, output_schema)
             }
             StatKind::Bin2D | StatKind::HexBin => {
@@ -496,6 +546,168 @@ impl Analyzer<'_> {
             }
         }
         Some(FrameIr::Cartesian(frames))
+    }
+
+    fn n_stat_inputs(
+        &mut self,
+        inputs: &[AlgebraExpr],
+        table: &ActiveTable,
+        stat_span: Span,
+        stat_name: &str,
+        count: usize,
+    ) -> Option<FrameIr> {
+        if inputs.len() != count {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                format!("{stat_name} requires exactly {count} input columns"),
+                stat_span,
+            ));
+            return None;
+        }
+        let mut frames = Vec::with_capacity(count);
+        for input in inputs {
+            match input {
+                AlgebraExpr::Name(n) => frames.push(FrameIr::Vector(self.resolve_column(n, table))),
+                _ => {
+                    self.diag(Diagnostic::error(
+                        codes::E1404,
+                        format!("{stat_name} requires column inputs"),
+                        stat_span,
+                    ));
+                    frames.push(FrameIr::Invalid);
+                }
+            }
+        }
+        Some(FrameIr::Cartesian(frames))
+    }
+
+    fn require_numeric_stat_inputs(&mut self, frame: &FrameIr, stat_name: &str) {
+        if let FrameIr::Cartesian(columns) = frame {
+            for frame in columns {
+                if let FrameIr::Vector(col) = frame {
+                    if !matches!(
+                        col.dtype,
+                        DataType::Integer | DataType::Float | DataType::Unknown
+                    ) {
+                        self.diag(Diagnostic::error(
+                            codes::E1404,
+                            format!("{stat_name} input column `{}` is not numeric", col.name),
+                            col.span,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    fn collect_step_vertices_options(&mut self, args: &[Arg]) -> StatOptionsIr {
+        let mut direction = StepDirectionIr::Hv;
+        let mut dup = DupGuard::new(codes::E1404, "StepVertices setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "direction" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Str(s) if s == "hv" => direction = StepDirectionIr::Hv,
+                        ValueForm::Str(s) if s == "vh" => direction = StepDirectionIr::Vh,
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`direction` expects \"hv\" or \"vh\"",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown StepVertices setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        StatOptionsIr::StepVertices { direction }
+    }
+
+    fn collect_vector_endpoints_options(&mut self, args: &[Arg]) -> StatOptionsIr {
+        let mut length_scale = None;
+        let mut dup = DupGuard::new(codes::E1404, "VectorEndpoints setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "lengthScale" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Number(n) if n.is_finite() && n >= 0.0 => length_scale = Some(n),
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`lengthScale` expects a non-negative number",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown VectorEndpoints setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        StatOptionsIr::VectorEndpoints { length_scale }
+    }
+
+    fn collect_curve_sample_options(&mut self, args: &[Arg]) -> StatOptionsIr {
+        let mut curvature = 0.35;
+        let mut points = 16usize;
+        let mut dup = DupGuard::new(codes::E1404, "CurveSample setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "curvature" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Number(n) if n.is_finite() => curvature = n,
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`curvature` expects a finite number",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                "points" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Number(n)
+                            if n.is_finite() && n.fract() == 0.0 && (2.0..=1024.0).contains(&n) =>
+                        {
+                            points = n as usize
+                        }
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`points` expects an integer from 2 to 1024",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown CurveSample setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        StatOptionsIr::CurveSample { curvature, points }
     }
 
     fn collect_smooth_options(&mut self, args: &[Arg], stat_span: Span) -> StatOptionsIr {
@@ -806,6 +1018,26 @@ fn geometry_stat_output_schema(table: &ActiveTable) -> Vec<ColumnDefIr> {
         .collect()
 }
 
+/// Output schema for primitive-construction stats: fixed primitive columns
+/// first, followed by non-conflicting source columns so aesthetics such as
+/// `stroke: cohort` remain available in the derived table (spec §15.15).
+fn primitive_output_schema(
+    mut fixed: Vec<ColumnDefIr>,
+    table: &ActiveTable,
+    reserved: &[&str],
+) -> Vec<ColumnDefIr> {
+    for name in table.names() {
+        if reserved.contains(&name) || fixed.iter().any(|column| column.name == name) {
+            continue;
+        }
+        fixed.push(ColumnDefIr {
+            name: name.to_string(),
+            dtype: table.get(name).unwrap_or(DataType::Unknown),
+        });
+    }
+    fixed
+}
+
 pub(super) fn parse_bin_interval(value: &str) -> Option<BinIntervalIr> {
     match value {
         "minute" => Some(BinIntervalIr::Minute),
@@ -823,7 +1055,21 @@ pub(super) fn derive_output_names(derive: &DeriveDecl) -> Vec<String> {
     let Some(stat) = derive.stat() else {
         return Vec::new();
     };
-    stat_output_names_for_source(&stat.name().unwrap_or_default())
+    let stat_name = stat.name().unwrap_or_default();
+    if stat_name == "StepVertices" {
+        let mut names: Vec<String> = stat
+            .inputs()
+            .into_iter()
+            .filter_map(|input| match input {
+                AlgebraExpr::Name(name) => name.name(),
+                _ => None,
+            })
+            .take(2)
+            .collect();
+        names.push("step_group".into());
+        return names;
+    }
+    stat_output_names_for_source(&stat_name)
 }
 
 fn derive_input_names(derive: &DeriveDecl) -> Vec<String> {

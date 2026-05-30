@@ -22,6 +22,21 @@ pub fn stat_output_schema(kind: StatKind, input: &FrameIr) -> Vec<ColumnDefIr> {
         // The plain (no-`se`) schema; the analyzer rebuilds with bands when the
         // `se` option is set (spec §15.x).
         StatKind::Smooth => smooth_output_schema(false),
+        StatKind::StepVertices => match input {
+            FrameIr::Cartesian(columns) => {
+                let x_dtype = vector_dtype(columns.first());
+                let y_dtype = vector_dtype(columns.get(1));
+                step_vertices_output_schema(
+                    vector_name(columns.first()).unwrap_or("x"),
+                    x_dtype,
+                    vector_name(columns.get(1)).unwrap_or("y"),
+                    y_dtype,
+                )
+            }
+            _ => step_vertices_output_schema("x", DataType::Float, "y", DataType::Float),
+        },
+        StatKind::VectorEndpoints => vector_endpoints_output_schema(),
+        StatKind::CurveSample => curve_sample_output_schema(),
         StatKind::Density => match input {
             FrameIr::Vector(_) => density_output_schema(),
             FrameIr::Union(_) => blended_density_output_schema(),
@@ -50,6 +65,22 @@ pub(crate) fn stat_output_names_for_source(stat_name: &str) -> Vec<String> {
         "Smooth" => smooth_output_schema(false),
         "Bin2D" => bin2d_output_schema(),
         "HexBin" => hexbin_output_schema(),
+        "StepVertices" => vec![
+            ColumnDefIr {
+                name: "x".into(),
+                dtype: DataType::Float,
+            },
+            ColumnDefIr {
+                name: "y".into(),
+                dtype: DataType::Float,
+            },
+            ColumnDefIr {
+                name: "step_group".into(),
+                dtype: DataType::Integer,
+            },
+        ],
+        "VectorEndpoints" => vector_endpoints_output_schema(),
+        "CurveSample" => curve_sample_output_schema(),
         // Geometry stats keep the upstream `geom` column name.
         "Centroid" | "Simplify" | "SpatialJoin" => vec![ColumnDefIr {
             name: "geom".into(),
@@ -60,6 +91,20 @@ pub(crate) fn stat_output_names_for_source(stat_name: &str) -> Vec<String> {
     .into_iter()
     .map(|column| column.name)
     .collect()
+}
+
+fn vector_name(frame: Option<&FrameIr>) -> Option<&str> {
+    match frame {
+        Some(FrameIr::Vector(column)) => Some(&column.name),
+        _ => None,
+    }
+}
+
+fn vector_dtype(frame: Option<&FrameIr>) -> DataType {
+    match frame {
+        Some(FrameIr::Vector(column)) => column.dtype,
+        _ => DataType::Float,
+    }
 }
 
 /// Output schema for one-dimensional binning.
@@ -206,6 +251,71 @@ pub fn smooth_output_schema(se: bool) -> Vec<ColumnDefIr> {
         ]);
     }
     schema
+}
+
+/// Output schema for step-vertex expansion.
+pub fn step_vertices_output_schema(
+    x_name: &str,
+    x_dtype: DataType,
+    y_name: &str,
+    y_dtype: DataType,
+) -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: x_name.into(),
+            dtype: x_dtype,
+        },
+        ColumnDefIr {
+            name: y_name.into(),
+            dtype: y_dtype,
+        },
+        ColumnDefIr {
+            name: "step_group".into(),
+            dtype: DataType::Integer,
+        },
+    ]
+}
+
+/// Output schema for vector endpoint construction. The renderer appends
+/// non-conflicting source columns at execution time; these four primitive
+/// columns are always available during analysis.
+pub fn vector_endpoints_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "x".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "xend".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "yend".into(),
+            dtype: DataType::Float,
+        },
+    ]
+}
+
+/// Output schema for sampled curve vertices.
+pub fn curve_sample_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "x".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "link_id".into(),
+            dtype: DataType::Integer,
+        },
+    ]
 }
 
 /// Output schema for rectangular two-dimensional bins.

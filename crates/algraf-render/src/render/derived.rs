@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use algraf_data::{DataFrame, Table};
 use algraf_semantics::{
     BinClosedIr, BinIntervalIr, ChartIr, FrameIr, SmoothMethodIr, SpaceDataRef, StatOptionsIr,
+    StepDirectionIr,
 };
 
 use crate::stats;
@@ -211,6 +212,82 @@ pub(super) fn compute_derived(
                         {
                             let options = smooth_options(*method, *span, *se);
                             Some(stats::smooth(source, &x.name, &y.name, options))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::StepVertices { direction } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
+                            (cols.first(), cols.get(1))
+                        {
+                            Some(stats::step_vertices(
+                                source,
+                                &x.name,
+                                &y.name,
+                                stats::StepVerticesOptions {
+                                    direction: match direction {
+                                        StepDirectionIr::Hv => stats::StepDirection::Hv,
+                                        StepDirectionIr::Vh => stats::StepDirection::Vh,
+                                    },
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::VectorEndpoints { length_scale } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (
+                            Some(FrameIr::Vector(x)),
+                            Some(FrameIr::Vector(y)),
+                            Some(FrameIr::Vector(angle)),
+                            Some(FrameIr::Vector(length)),
+                        ) = (cols.first(), cols.get(1), cols.get(2), cols.get(3))
+                        {
+                            Some(stats::vector_endpoints(
+                                source,
+                                &x.name,
+                                &y.name,
+                                &angle.name,
+                                &length.name,
+                                stats::VectorEndpointsOptions {
+                                    length_scale: length_scale.unwrap_or(1.0),
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::CurveSample { curvature, points } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (
+                            Some(FrameIr::Vector(x0)),
+                            Some(FrameIr::Vector(y0)),
+                            Some(FrameIr::Vector(x1)),
+                            Some(FrameIr::Vector(y1)),
+                        ) = (cols.first(), cols.get(1), cols.get(2), cols.get(3))
+                        {
+                            Some(stats::curve_sample(
+                                source,
+                                &x0.name,
+                                &y0.name,
+                                &x1.name,
+                                &y1.name,
+                                stats::CurveSampleOptions {
+                                    curvature: *curvature,
+                                    points: *points,
+                                },
+                            ))
                         } else {
                             None
                         }

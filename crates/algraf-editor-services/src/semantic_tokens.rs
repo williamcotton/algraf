@@ -142,6 +142,12 @@ fn declaration_name(name: &str) -> bool {
             | "Bin2D"
             | "HexBin"
             | "Smooth"
+            | "StepVertices"
+            | "VectorEndpoints"
+            | "CurveSample"
+            | "Centroid"
+            | "Simplify"
+            | "SpatialJoin"
     )
 }
 

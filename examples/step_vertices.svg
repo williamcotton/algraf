@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420" viewBox="0 0 760 420" role="img" aria-label="Inventory step vertices">
+<title>Inventory step vertices</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Inventory step vertices</text>
+<rect class="algraf-plot-area" x="60" y="66" width="670" height="304" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="106.207" y1="66" x2="106.207" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="188.719" y1="66" x2="188.719" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="271.232" y1="66" x2="271.232" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="353.744" y1="66" x2="353.744" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="436.256" y1="66" x2="436.256" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="518.768" y1="66" x2="518.768" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="601.281" y1="66" x2="601.281" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="683.793" y1="66" x2="683.793" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="309.724" x2="730" y2="309.724" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="244.207" x2="730" y2="244.207" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="178.69" x2="730" y2="178.69" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="113.172" x2="730" y2="113.172" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-path">
+  <path d="M106.207 349.034 L188.719 349.034 L188.719 178.69 L353.744 178.69 L353.744 270.414" fill="none" stroke="#2f6fbb" stroke-width="2" opacity="1" stroke-dasharray="4 4" />
+  <path d="M601.281 86.966 L683.793 86.966 L683.793 231.103" fill="none" stroke="#2f6fbb" stroke-width="2" opacity="1" stroke-dasharray="4 4" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="106.207" cy="349.034" r="3" fill="#2f6fbb" opacity="1" />
+  <circle cx="188.719" cy="178.69" r="3" fill="#2f6fbb" opacity="1" />
+  <circle cx="353.744" cy="270.414" r="3" fill="#2f6fbb" opacity="1" />
+  <circle cx="601.281" cy="86.966" r="3" fill="#2f6fbb" opacity="1" />
+  <circle cx="683.793" cy="231.103" r="3" fill="#2f6fbb" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="370" x2="730" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="106.207" y1="370" x2="106.207" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="106.207" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="188.719" y1="370" x2="188.719" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="188.719" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="271.232" y1="370" x2="271.232" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="271.232" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <line x1="353.744" y1="370" x2="353.744" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="353.744" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="436.256" y1="370" x2="436.256" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="436.256" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <line x1="518.768" y1="370" x2="518.768" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="518.768" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <line x1="601.281" y1="370" x2="601.281" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="601.281" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">7</text>
+  <line x1="683.793" y1="370" x2="683.793" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="683.793" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
+  <text x="395" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Day</text>
+  <line x1="60" y1="66" x2="60" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="309.724" x2="60" y2="309.724" stroke="#333333" stroke-width="1" />
+  <text x="52" y="313.724" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <line x1="55" y1="244.207" x2="60" y2="244.207" stroke="#333333" stroke-width="1" />
+  <text x="52" y="248.207" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <line x1="55" y1="178.69" x2="60" y2="178.69" stroke="#333333" stroke-width="1" />
+  <text x="52" y="182.69" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">35</text>
+  <line x1="55" y1="113.172" x2="60" y2="113.172" stroke="#333333" stroke-width="1" />
+  <text x="52" y="117.172" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <text x="25.6" y="218" text-anchor="middle" transform="rotate(-90 25.6 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Units on hand</text>
+</g>
+</svg>

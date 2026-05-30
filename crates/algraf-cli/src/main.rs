@@ -1370,6 +1370,19 @@ fn stat_options_json(options: &StatOptionsIr) -> Value {
             "span": span,
             "se": se,
         }),
+        StatOptionsIr::StepVertices { direction } => json!({
+            "kind": "stepVertices",
+            "direction": direction.as_str(),
+        }),
+        StatOptionsIr::VectorEndpoints { length_scale } => json!({
+            "kind": "vectorEndpoints",
+            "lengthScale": length_scale,
+        }),
+        StatOptionsIr::CurveSample { curvature, points } => json!({
+            "kind": "curveSample",
+            "curvature": curvature,
+            "points": points,
+        }),
         StatOptionsIr::Density {
             bandwidth,
             grid_points,
