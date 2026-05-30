@@ -13,8 +13,8 @@ use std::collections::HashMap;
 
 use algraf_data::{DataFrame, Table};
 use algraf_semantics::{
-    BinClosedIr, BinIntervalIr, ChartIr, FrameIr, SmoothMethodIr, SpaceDataRef, StatOptionsIr,
-    StepDirectionIr,
+    BinClosedIr, BinIntervalIr, ChartIr, FrameIr, IntervalOrientationIr, SmoothMethodIr,
+    SpaceDataRef, StatOptionsIr, StepDirectionIr,
 };
 
 use crate::stats;
@@ -295,6 +295,80 @@ pub(super) fn compute_derived(
                         None
                     }
                 }
+                StatOptionsIr::IntervalSegments {
+                    orientation,
+                    cap_width,
+                } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (
+                            Some(FrameIr::Vector(position)),
+                            Some(FrameIr::Vector(lower)),
+                            Some(FrameIr::Vector(upper)),
+                        ) = (cols.first(), cols.get(1), cols.get(2))
+                        {
+                            Some(stats::interval_segments(
+                                source,
+                                &position.name,
+                                &lower.name,
+                                &upper.name,
+                                stats::IntervalSegmentsOptions {
+                                    orientation: render_interval_orientation(*orientation),
+                                    cap_width: *cap_width,
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::IntervalRects { orientation, width } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (
+                            Some(FrameIr::Vector(position)),
+                            Some(FrameIr::Vector(lower)),
+                            Some(FrameIr::Vector(upper)),
+                        ) = (cols.first(), cols.get(1), cols.get(2))
+                        {
+                            Some(stats::interval_rects(
+                                source,
+                                &position.name,
+                                &lower.name,
+                                &upper.name,
+                                stats::IntervalWidthOptions {
+                                    orientation: render_interval_orientation(*orientation),
+                                    width: *width,
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::IntervalMiddles { orientation, width } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (Some(FrameIr::Vector(position)), Some(FrameIr::Vector(middle))) =
+                            (cols.first(), cols.get(1))
+                        {
+                            Some(stats::interval_middles(
+                                source,
+                                &position.name,
+                                &middle.name,
+                                stats::IntervalWidthOptions {
+                                    orientation: render_interval_orientation(*orientation),
+                                    width: *width,
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
                 StatOptionsIr::Centroid => {
                     if let FrameIr::Vector(col) = &d.stat.input {
                         Some(crate::geo_stats::centroid(source, &col.name))
@@ -330,6 +404,13 @@ pub(super) fn compute_derived(
         }
     }
     derived
+}
+
+fn render_interval_orientation(orientation: IntervalOrientationIr) -> stats::IntervalOrientation {
+    match orientation {
+        IntervalOrientationIr::Vertical => stats::IntervalOrientation::Vertical,
+        IntervalOrientationIr::Horizontal => stats::IntervalOrientation::Horizontal,
+    }
 }
 
 fn render_bin_interval(interval: BinIntervalIr) -> stats::BinInterval {

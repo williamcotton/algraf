@@ -1,0 +1,11 @@
+Chart(data: "horizontal_intervals.csv", width: 720, height: 440, title: "Metric estimates and intervals") {
+    Theme(name: "minimal")
+    Scale(fill: domain, palette: "accent")
+    Guide(axis: x, label: "Estimate")
+    Guide(axis: y, label: "Metric")
+
+    Space(estimate * metric) {
+        LineRange(xmin: lower, xmax: upper, orientation: "horizontal", stroke: "#444444", strokeWidth: 1.4)
+        Point(fill: domain, stroke: "#333333", size: 4)
+    }
+}

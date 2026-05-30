@@ -56,12 +56,7 @@ impl Analyzer<'_> {
         let projection = self.space_projection(space);
         let coords = self.space_coords(space, &frame, projection.is_some(), transpose_span);
 
-        let mut geometries = Vec::new();
-        let mut histograms = Vec::new();
-        let mut freq_polys = Vec::new();
-        let mut bin2ds = Vec::new();
-        let mut densities = Vec::new();
-        let mut count_bars = Vec::new();
+        let mut geometry_layers = Vec::new();
         let mut theme: Option<ThemeIr> = None;
         let mut guides = GuideOverridesIr::default();
         let mut scales = Vec::new();
@@ -71,19 +66,7 @@ impl Analyzer<'_> {
                 SpaceItem::Geometry(call) => {
                     saw_geometry = true;
                     if let Some(geo) = self.geometry(&call, &frame, &coords, &table) {
-                        if geo.kind == GeometryKind::Histogram {
-                            histograms.push(geo);
-                        } else if geo.kind == GeometryKind::FreqPoly {
-                            freq_polys.push(geo);
-                        } else if geo.kind == GeometryKind::Bin2D {
-                            bin2ds.push(geo);
-                        } else if geo.kind == GeometryKind::Density {
-                            densities.push(geo);
-                        } else if geo.kind == GeometryKind::Bar && has_count_stat(&geo) {
-                            count_bars.push(geo);
-                        } else {
-                            geometries.push(geo);
-                        }
+                        geometry_layers.push(geo);
                     }
                 }
                 SpaceItem::Theme(decl) => {
@@ -104,87 +87,199 @@ impl Analyzer<'_> {
         if !saw_geometry {
             self.diag(Diagnostic::warning(codes::W2001, "empty Space block", span));
         }
-        self.check_spatial_geometries(&geometries, &frame, projection.is_some());
-        let histogram_annotations = if histograms.len() == 1
-            && freq_polys.is_empty()
-            && bin2ds.is_empty()
-            && densities.is_empty()
-            && count_bars.is_empty()
-            && geometries.iter().all(is_histogram_annotation)
-        {
-            std::mem::take(&mut geometries)
+
+        let primitive_geometries: Vec<GeometryIr> = geometry_layers
+            .iter()
+            .filter(|geo| !is_lowered_geometry(geo))
+            .cloned()
+            .collect();
+        self.check_spatial_geometries(&primitive_geometries, &frame, projection.is_some());
+
+        let histogram_count = geometry_layers
+            .iter()
+            .filter(|geo| geo.kind == GeometryKind::Histogram)
+            .count();
+        let histogram_annotation_mode = histogram_count == 1
+            && geometry_layers
+                .iter()
+                .all(|geo| geo.kind == GeometryKind::Histogram || is_histogram_annotation(geo));
+        let histogram_annotations = if histogram_annotation_mode {
+            geometry_layers
+                .iter()
+                .filter(|geo| geo.kind != GeometryKind::Histogram)
+                .cloned()
+                .collect()
         } else {
             Vec::new()
         };
 
         let mut analysis = SpaceAnalysis::default();
-        for histogram in histograms {
-            if let Some((derive, histogram_space)) = self.desugar_histogram(
-                &histogram,
-                &frame,
-                theme.clone(),
-                guides.clone(),
-                scales.clone(),
-                histogram_annotations.clone(),
-            ) {
-                analysis.derived.push(derive);
-                analysis.spaces.push(histogram_space);
+        let mut pending = Vec::new();
+        for geo in geometry_layers {
+            if histogram_annotation_mode && geo.kind != GeometryKind::Histogram {
+                continue;
+            }
+            match geo.kind {
+                GeometryKind::Histogram => {
+                    push_pending_space(
+                        &mut analysis,
+                        &mut pending,
+                        &data_ref,
+                        &frame,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                        projection.clone(),
+                        span,
+                    );
+                    if let Some((derive, histogram_space)) = self.desugar_histogram(
+                        &geo,
+                        &frame,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                        histogram_annotations.clone(),
+                    ) {
+                        analysis.derived.push(derive);
+                        analysis.spaces.push(histogram_space);
+                    }
+                }
+                GeometryKind::FreqPoly => {
+                    push_pending_space(
+                        &mut analysis,
+                        &mut pending,
+                        &data_ref,
+                        &frame,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                        projection.clone(),
+                        span,
+                    );
+                    if let Some((derive, freq_space)) = self.desugar_freq_poly(
+                        &geo,
+                        &frame,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                    ) {
+                        analysis.derived.push(derive);
+                        analysis.spaces.push(freq_space);
+                    }
+                }
+                GeometryKind::Bin2D => {
+                    push_pending_space(
+                        &mut analysis,
+                        &mut pending,
+                        &data_ref,
+                        &frame,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                        projection.clone(),
+                        span,
+                    );
+                    if let Some((derive, bin2d_space)) = self.desugar_bin2d(
+                        &geo,
+                        &frame,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                    ) {
+                        analysis.derived.push(derive);
+                        analysis.spaces.push(bin2d_space);
+                    }
+                }
+                GeometryKind::Density => {
+                    push_pending_space(
+                        &mut analysis,
+                        &mut pending,
+                        &data_ref,
+                        &frame,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                        projection.clone(),
+                        span,
+                    );
+                    if let Some((derive, density_space)) = self.desugar_density(
+                        &geo,
+                        &frame,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                    ) {
+                        analysis.derived.push(derive);
+                        analysis.spaces.push(density_space);
+                    }
+                }
+                GeometryKind::Bar if has_count_stat(&geo) => {
+                    push_pending_space(
+                        &mut analysis,
+                        &mut pending,
+                        &data_ref,
+                        &frame,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                        projection.clone(),
+                        span,
+                    );
+                    if let Some((derive, count_space)) = self.desugar_count_bar(
+                        &geo,
+                        &frame,
+                        &data_ref,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                    ) {
+                        analysis.derived.push(derive);
+                        analysis.spaces.push(count_space);
+                    }
+                }
+                _ if is_interval_sugar(&geo) => {
+                    push_pending_space(
+                        &mut analysis,
+                        &mut pending,
+                        &data_ref,
+                        &frame,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                        projection.clone(),
+                        span,
+                    );
+                    if let Some((derives, spaces)) = self.desugar_interval_sugar(
+                        &geo,
+                        &frame,
+                        &data_ref,
+                        theme.clone(),
+                        guides.clone(),
+                        scales.clone(),
+                    ) {
+                        analysis.derived.extend(derives);
+                        analysis.spaces.extend(spaces);
+                    }
+                }
+                _ => pending.push(geo),
             }
         }
-        for freq_poly in freq_polys {
-            if let Some((derive, freq_space)) = self.desugar_freq_poly(
-                &freq_poly,
-                &frame,
-                theme.clone(),
-                guides.clone(),
-                scales.clone(),
-            ) {
-                analysis.derived.push(derive);
-                analysis.spaces.push(freq_space);
-            }
-        }
-        for bin2d in bin2ds {
-            if let Some((derive, bin2d_space)) = self.desugar_bin2d(
-                &bin2d,
-                &frame,
-                theme.clone(),
-                guides.clone(),
-                scales.clone(),
-            ) {
-                analysis.derived.push(derive);
-                analysis.spaces.push(bin2d_space);
-            }
-        }
-        for density in densities {
-            if let Some((derive, density_space)) = self.desugar_density(
-                &density,
-                &frame,
-                theme.clone(),
-                guides.clone(),
-                scales.clone(),
-            ) {
-                analysis.derived.push(derive);
-                analysis.spaces.push(density_space);
-            }
-        }
-        for bar in count_bars {
-            if let Some((derive, count_space)) = self.desugar_count_bar(
-                &bar,
-                &frame,
-                &data_ref,
-                theme.clone(),
-                guides.clone(),
-                scales.clone(),
-            ) {
-                analysis.derived.push(derive);
-                analysis.spaces.push(count_space);
-            }
-        }
-        if !geometries.is_empty() || analysis.spaces.is_empty() {
+        push_pending_space(
+            &mut analysis,
+            &mut pending,
+            &data_ref,
+            &frame,
+            theme.clone(),
+            guides.clone(),
+            scales.clone(),
+            projection.clone(),
+            span,
+        );
+        if analysis.spaces.is_empty() {
             analysis.spaces.push(SpaceIr {
                 data: data_ref,
                 frame,
-                geometries,
+                geometries: Vec::new(),
                 guides,
                 scales,
                 theme,
@@ -827,6 +922,55 @@ fn is_histogram_annotation(geo: &GeometryIr) -> bool {
         geo.kind,
         GeometryKind::HLine | GeometryKind::VLine | GeometryKind::Text | GeometryKind::Segment
     )
+}
+
+fn is_interval_sugar(geo: &GeometryIr) -> bool {
+    matches!(
+        geo.kind,
+        GeometryKind::ErrorBar
+            | GeometryKind::LineRange
+            | GeometryKind::PointRange
+            | GeometryKind::CrossBar
+    )
+}
+
+fn is_lowered_geometry(geo: &GeometryIr) -> bool {
+    matches!(
+        geo.kind,
+        GeometryKind::Histogram
+            | GeometryKind::FreqPoly
+            | GeometryKind::Bin2D
+            | GeometryKind::Density
+    ) || has_count_stat(geo)
+        || is_interval_sugar(geo)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_pending_space(
+    analysis: &mut SpaceAnalysis,
+    pending: &mut Vec<GeometryIr>,
+    data_ref: &SpaceDataRef,
+    frame: &FrameIr,
+    theme: Option<ThemeIr>,
+    guides: GuideOverridesIr,
+    scales: Vec<ScaleIr>,
+    projection: Option<String>,
+    span: Span,
+) {
+    if pending.is_empty() {
+        return;
+    }
+    analysis.spaces.push(SpaceIr {
+        data: data_ref.clone(),
+        frame: frame.clone(),
+        geometries: std::mem::take(pending),
+        guides,
+        scales,
+        theme,
+        projection,
+        coords: CoordsIr::Cartesian,
+        span,
+    });
 }
 
 pub(super) fn contains_nested(frame: &FrameIr) -> bool {

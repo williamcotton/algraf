@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="440" viewBox="0 0 720 440" role="img" aria-label="Metric estimates and intervals">
+<title>Metric estimates and intervals</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="440" fill="#ffffff" />
+<text class="algraf-title" x="118.4" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Metric estimates and intervals</text>
+<rect class="algraf-plot-area" x="118.4" y="66" width="451.6" height="324" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="186.272" y1="66" x2="186.272" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="259.727" y1="66" x2="259.727" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="333.182" y1="66" x2="333.182" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="406.637" y1="66" x2="406.637" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="480.091" y1="66" x2="480.091" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="553.546" y1="66" x2="553.546" y2="390" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-segment">
+  <line x1="149.545" y1="357.6" x2="267.072" y2="357.6" stroke="#444444" stroke-width="1.4" opacity="1" />
+  <line x1="325.836" y1="292.8" x2="458.055" y2="292.8" stroke="#444444" stroke-width="1.4" opacity="1" />
+  <line x1="237.691" y1="228" x2="362.564" y2="228" stroke="#444444" stroke-width="1.4" opacity="1" />
+  <line x1="369.909" y1="163.2" x2="494.782" y2="163.2" stroke="#444444" stroke-width="1.4" opacity="1" />
+  <line x1="436.018" y1="98.4" x2="538.855" y2="98.4" stroke="#444444" stroke-width="1.4" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="200.963" cy="357.6" r="4" fill="#006BA4" opacity="1" />
+  <circle cx="391.946" cy="292.8" r="4" fill="#006BA4" opacity="1" />
+  <circle cx="296.454" cy="228" r="4" fill="#FF800E" opacity="1" />
+  <circle cx="428.673" cy="163.2" r="4" fill="#FF800E" opacity="1" />
+  <circle cx="487.437" cy="98.4" r="4" fill="#ABABAB" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="118.4" y1="390" x2="570" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="186.272" y1="390" x2="186.272" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="186.272" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <line x1="259.727" y1="390" x2="259.727" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="259.727" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
+  <line x1="333.182" y1="390" x2="333.182" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="333.182" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
+  <line x1="406.637" y1="390" x2="406.637" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="406.637" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">70</text>
+  <line x1="480.091" y1="390" x2="480.091" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="480.091" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
+  <line x1="553.546" y1="390" x2="553.546" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="553.546" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">90</text>
+  <text x="344.2" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Estimate</text>
+  <line x1="118.4" y1="66" x2="118.4" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="113.4" y1="357.6" x2="118.4" y2="357.6" stroke="#333333" stroke-width="1" />
+  <text x="110.4" y="361.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Latency</text>
+  <line x1="113.4" y1="292.8" x2="118.4" y2="292.8" stroke="#333333" stroke-width="1" />
+  <text x="110.4" y="296.8" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Throughput</text>
+  <line x1="113.4" y1="228" x2="118.4" y2="228" stroke="#333333" stroke-width="1" />
+  <text x="110.4" y="232" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Conversion</text>
+  <line x1="113.4" y1="163.2" x2="118.4" y2="163.2" stroke="#333333" stroke-width="1" />
+  <text x="110.4" y="167.2" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Retention</text>
+  <line x1="113.4" y1="98.4" x2="118.4" y2="98.4" stroke="#333333" stroke-width="1" />
+  <text x="110.4" y="102.4" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Satisfaction</text>
+  <text x="12" y="228" text-anchor="middle" transform="rotate(-90 12 228)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Metric</text>
+</g>
+<g class="algraf-legends">
+  <text x="586" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">domain</text>
+  <rect x="586" y="78" width="12" height="12" fill="#006BA4" />
+  <text x="604" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Platform</text>
+  <rect x="586" y="96" width="12" height="12" fill="#FF800E" />
+  <text x="604" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Product</text>
+  <rect x="586" y="114" width="12" height="12" fill="#ABABAB" />
+  <text x="604" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Support</text>
+</g>
+</svg>

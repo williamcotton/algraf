@@ -1,0 +1,11 @@
+Chart(data: "uncertainty_intervals.csv", width: 720, height: 440, title: "Dose response intervals") {
+    Theme(name: "minimal")
+    Scale(fill: cohort, palette: "accent")
+    Guide(axis: x, label: "Dose")
+    Guide(axis: y, label: "Estimated response")
+
+    Space(dose * estimate) {
+        ErrorBar(ymin: lower, ymax: upper, capWidth: 0.35, stroke: "#333333", strokeWidth: 1.2)
+        Point(fill: cohort, stroke: "#333333", size: 4)
+    }
+}

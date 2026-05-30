@@ -73,6 +73,8 @@ charts=(
     scale_label
     satisfaction_slope
     dumbbell
+    uncertainty_intervals
+    horizontal_intervals
     labeled_points
     flight_dumbbell
     violin_boxplot

@@ -1,0 +1,6 @@
+metric,estimate,lower,upper,domain
+Latency,42,35,51,Platform
+Throughput,68,59,77,Platform
+Conversion,55,47,64,Product
+Retention,73,65,82,Product
+Satisfaction,81,74,88,Support

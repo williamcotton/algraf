@@ -177,6 +177,432 @@ impl Analyzer<'_> {
         Some((derive, space))
     }
 
+    pub(super) fn desugar_interval_sugar(
+        &mut self,
+        geometry: &GeometryIr,
+        frame: &FrameIr,
+        data_ref: &SpaceDataRef,
+        theme: Option<ThemeIr>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+    ) -> Option<(Vec<DeriveIr>, Vec<SpaceIr>)> {
+        match geometry.kind {
+            GeometryKind::ErrorBar => {
+                self.desugar_error_bar(geometry, frame, data_ref, theme, guides, scales)
+            }
+            GeometryKind::LineRange => {
+                self.desugar_line_range(geometry, frame, data_ref, theme, guides, scales)
+            }
+            GeometryKind::PointRange => {
+                self.desugar_point_range(geometry, frame, data_ref, theme, guides, scales)
+            }
+            GeometryKind::CrossBar => {
+                self.desugar_cross_bar(geometry, frame, data_ref, theme, guides, scales)
+            }
+            _ => None,
+        }
+    }
+
+    fn desugar_error_bar(
+        &mut self,
+        geometry: &GeometryIr,
+        frame: &FrameIr,
+        data_ref: &SpaceDataRef,
+        theme: Option<ThemeIr>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+    ) -> Option<(Vec<DeriveIr>, Vec<SpaceIr>)> {
+        let parts = self.interval_parts(geometry, frame)?;
+        let cap_width = number_setting_from_geometry(geometry, PropertyKey::CapWidth);
+        let (derive, space) = self.interval_segment_space(
+            geometry,
+            data_ref,
+            parts.position,
+            parts.lower,
+            parts.upper,
+            parts.orientation,
+            cap_width,
+            theme,
+            guides,
+            scales,
+        );
+        Some((vec![derive], vec![space]))
+    }
+
+    fn desugar_line_range(
+        &mut self,
+        geometry: &GeometryIr,
+        frame: &FrameIr,
+        data_ref: &SpaceDataRef,
+        theme: Option<ThemeIr>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+    ) -> Option<(Vec<DeriveIr>, Vec<SpaceIr>)> {
+        let parts = self.interval_parts(geometry, frame)?;
+        let (derive, space) = self.interval_segment_space(
+            geometry,
+            data_ref,
+            parts.position,
+            parts.lower,
+            parts.upper,
+            parts.orientation,
+            None,
+            theme,
+            guides,
+            scales,
+        );
+        Some((vec![derive], vec![space]))
+    }
+
+    fn desugar_point_range(
+        &mut self,
+        geometry: &GeometryIr,
+        frame: &FrameIr,
+        data_ref: &SpaceDataRef,
+        theme: Option<ThemeIr>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+    ) -> Option<(Vec<DeriveIr>, Vec<SpaceIr>)> {
+        let parts = self.interval_parts(geometry, frame)?;
+        let (derive, segment_space) = self.interval_segment_space(
+            geometry,
+            data_ref,
+            parts.position,
+            parts.lower,
+            parts.upper,
+            parts.orientation,
+            None,
+            theme.clone(),
+            guides.clone(),
+            scales.clone(),
+        );
+        let point = GeometryIr {
+            kind: GeometryKind::Point,
+            mappings: passthrough_mappings(geometry, POINT_RANGE_POINT_MAPPINGS),
+            settings: passthrough_settings(geometry, POINT_RANGE_POINT_SETTINGS),
+            interaction: InteractionIr::default(),
+            span: geometry.span,
+        };
+        let point_space = SpaceIr {
+            data: data_ref.clone(),
+            frame: frame.clone(),
+            geometries: vec![point],
+            guides,
+            scales,
+            theme,
+            projection: None,
+            coords: CoordsIr::Cartesian,
+            span: geometry.span,
+        };
+        Some((vec![derive], vec![segment_space, point_space]))
+    }
+
+    fn desugar_cross_bar(
+        &mut self,
+        geometry: &GeometryIr,
+        frame: &FrameIr,
+        data_ref: &SpaceDataRef,
+        theme: Option<ThemeIr>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+    ) -> Option<(Vec<DeriveIr>, Vec<SpaceIr>)> {
+        let parts = self.interval_parts(geometry, frame)?;
+        let middle = self.interval_middle_column(frame, parts.orientation, geometry.span)?;
+        let width = number_setting_from_geometry(geometry, PropertyKey::Width);
+        let rect_name = self.next_synthetic("interval_rects");
+        let middle_name = self.next_synthetic("interval_middles");
+        let rect_input = FrameIr::Cartesian(vec![
+            FrameIr::Vector(parts.position.clone()),
+            FrameIr::Vector(parts.lower.clone()),
+            FrameIr::Vector(parts.upper.clone()),
+        ]);
+        let middle_input = FrameIr::Cartesian(vec![
+            FrameIr::Vector(parts.position),
+            FrameIr::Vector(middle),
+        ]);
+        let rect_output =
+            crate::planning::interval_rects_output_schema(&rect_input, parts.orientation);
+        let middle_output =
+            crate::planning::interval_middles_output_schema(&middle_input, parts.orientation);
+        let rect_derive = stat_derive_for_data(
+            rect_name.clone(),
+            data_ref.clone(),
+            StatKind::IntervalRects,
+            rect_input,
+            StatOptionsIr::IntervalRects {
+                orientation: parts.orientation,
+                width,
+            },
+            rect_output.clone(),
+            geometry.span,
+        );
+        let middle_derive = stat_derive_for_data(
+            middle_name.clone(),
+            data_ref.clone(),
+            StatKind::IntervalMiddles,
+            middle_input,
+            StatOptionsIr::IntervalMiddles {
+                orientation: parts.orientation,
+                width,
+            },
+            middle_output.clone(),
+            geometry.span,
+        );
+
+        let xmin_dtype = schema_dtype(&rect_output, "xmin");
+        let xmax_dtype = schema_dtype(&rect_output, "xmax");
+        let ymin_dtype = schema_dtype(&rect_output, "ymin");
+        let ymax_dtype = schema_dtype(&rect_output, "ymax");
+        let middle_x_dtype = schema_dtype(&middle_output, "x");
+        let middle_y_dtype = schema_dtype(&middle_output, "y");
+        let xmin = synthetic_column("xmin", xmin_dtype, geometry.span);
+        let xmax = synthetic_column("xmax", xmax_dtype, geometry.span);
+        let ymin = synthetic_column("ymin", ymin_dtype, geometry.span);
+        let ymax = synthetic_column("ymax", ymax_dtype, geometry.span);
+        let rect = GeometryIr {
+            kind: GeometryKind::Rect,
+            mappings: vec![
+                mapping(PropertyKey::Xmin, "xmin", xmin_dtype, geometry.span),
+                mapping(PropertyKey::Xmax, "xmax", xmax_dtype, geometry.span),
+                mapping(PropertyKey::Ymin, "ymin", ymin_dtype, geometry.span),
+                mapping(PropertyKey::Ymax, "ymax", ymax_dtype, geometry.span),
+            ]
+            .into_iter()
+            .chain(passthrough_mappings(geometry, CROSS_BAR_RECT_MAPPINGS))
+            .collect(),
+            settings: passthrough_settings(geometry, CROSS_BAR_RECT_SETTINGS),
+            interaction: InteractionIr::default(),
+            span: geometry.span,
+        };
+        let rect_space = derived_space(
+            rect_name,
+            FrameIr::Cartesian(vec![
+                FrameIr::Union(vec![FrameIr::Vector(xmin), FrameIr::Vector(xmax)]),
+                FrameIr::Union(vec![FrameIr::Vector(ymin), FrameIr::Vector(ymax)]),
+            ]),
+            vec![rect],
+            theme.clone(),
+            guides.clone(),
+            scales.clone(),
+            geometry.span,
+        );
+
+        let segment = GeometryIr {
+            kind: GeometryKind::Segment,
+            mappings: segment_endpoint_mappings(geometry.span, middle_x_dtype, middle_y_dtype)
+                .into_iter()
+                .chain(passthrough_mappings(geometry, INTERVAL_SEGMENT_MAPPINGS))
+                .collect(),
+            settings: passthrough_settings(geometry, INTERVAL_SEGMENT_SETTINGS),
+            interaction: InteractionIr::default(),
+            span: geometry.span,
+        };
+        let middle_space = derived_space(
+            middle_name,
+            FrameIr::Cartesian(vec![
+                FrameIr::Vector(synthetic_column("x", middle_x_dtype, geometry.span)),
+                FrameIr::Vector(synthetic_column("y", middle_y_dtype, geometry.span)),
+            ]),
+            vec![segment],
+            theme,
+            guides,
+            scales,
+            geometry.span,
+        );
+        Some((
+            vec![rect_derive, middle_derive],
+            vec![rect_space, middle_space],
+        ))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn interval_segment_space(
+        &mut self,
+        geometry: &GeometryIr,
+        data_ref: &SpaceDataRef,
+        position: ColumnRef,
+        lower: ColumnRef,
+        upper: ColumnRef,
+        orientation: IntervalOrientationIr,
+        cap_width: Option<f64>,
+        theme: Option<ThemeIr>,
+        guides: GuideOverridesIr,
+        scales: Vec<ScaleIr>,
+    ) -> (DeriveIr, SpaceIr) {
+        let name = self.next_synthetic("interval_segments");
+        let input = FrameIr::Cartesian(vec![
+            FrameIr::Vector(position),
+            FrameIr::Vector(lower),
+            FrameIr::Vector(upper),
+        ]);
+        let output_schema = crate::planning::interval_segments_output_schema(&input, orientation);
+        let x_dtype = schema_dtype(&output_schema, "x");
+        let y_dtype = schema_dtype(&output_schema, "y");
+        let derive = stat_derive_for_data(
+            name.clone(),
+            data_ref.clone(),
+            StatKind::IntervalSegments,
+            input,
+            StatOptionsIr::IntervalSegments {
+                orientation,
+                cap_width,
+            },
+            output_schema,
+            geometry.span,
+        );
+        let segment = GeometryIr {
+            kind: GeometryKind::Segment,
+            mappings: segment_endpoint_mappings(geometry.span, x_dtype, y_dtype)
+                .into_iter()
+                .chain(passthrough_mappings(geometry, INTERVAL_SEGMENT_MAPPINGS))
+                .collect(),
+            settings: passthrough_settings(geometry, INTERVAL_SEGMENT_SETTINGS),
+            interaction: InteractionIr::default(),
+            span: geometry.span,
+        };
+        let space = derived_space(
+            name,
+            FrameIr::Cartesian(vec![
+                FrameIr::Vector(synthetic_column("x", x_dtype, geometry.span)),
+                FrameIr::Vector(synthetic_column("y", y_dtype, geometry.span)),
+            ]),
+            vec![segment],
+            theme,
+            guides,
+            scales,
+            geometry.span,
+        );
+        (derive, space)
+    }
+
+    fn interval_parts(&mut self, geometry: &GeometryIr, frame: &FrameIr) -> Option<IntervalParts> {
+        let orientation = self.interval_orientation_from_geometry(geometry)?;
+        let position = self.interval_position_column(frame, orientation, geometry.span)?;
+        let (lower_key, upper_key) = match orientation {
+            IntervalOrientationIr::Vertical => (PropertyKey::Ymin, PropertyKey::Ymax),
+            IntervalOrientationIr::Horizontal => (PropertyKey::Xmin, PropertyKey::Xmax),
+        };
+        let Some(lower) = mapping_column(geometry, lower_key) else {
+            self.diag(Diagnostic::error(
+                codes::E1205,
+                format!(
+                    "`{}` requires property `{}`",
+                    geometry.kind.display_name(),
+                    lower_key.as_str()
+                ),
+                geometry.span,
+            ));
+            return None;
+        };
+        let Some(upper) = mapping_column(geometry, upper_key) else {
+            self.diag(Diagnostic::error(
+                codes::E1205,
+                format!(
+                    "`{}` requires property `{}`",
+                    geometry.kind.display_name(),
+                    upper_key.as_str()
+                ),
+                geometry.span,
+            ));
+            return None;
+        };
+        Some(IntervalParts {
+            orientation,
+            position,
+            lower,
+            upper,
+        })
+    }
+
+    fn interval_orientation_from_geometry(
+        &mut self,
+        geometry: &GeometryIr,
+    ) -> Option<IntervalOrientationIr> {
+        if let Some(setting) = geometry
+            .settings
+            .iter()
+            .find(|setting| setting.name == PropertyKey::Orientation)
+        {
+            if let SettingValue::String(value) = &setting.value {
+                return match value.as_str() {
+                    "vertical" => Some(IntervalOrientationIr::Vertical),
+                    "horizontal" => Some(IntervalOrientationIr::Horizontal),
+                    _ => None,
+                };
+            }
+        }
+        let has_y = mapping_column(geometry, PropertyKey::Ymin).is_some()
+            || mapping_column(geometry, PropertyKey::Ymax).is_some();
+        let has_x = mapping_column(geometry, PropertyKey::Xmin).is_some()
+            || mapping_column(geometry, PropertyKey::Xmax).is_some();
+        match (has_y, has_x) {
+            (true, false) => Some(IntervalOrientationIr::Vertical),
+            (false, true) => Some(IntervalOrientationIr::Horizontal),
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1205,
+                    format!(
+                        "`{}` needs either `ymin`/`ymax` or `xmin`/`xmax` bounds",
+                        geometry.kind.display_name()
+                    ),
+                    geometry.span,
+                ));
+                None
+            }
+        }
+    }
+
+    fn interval_position_column(
+        &mut self,
+        frame: &FrameIr,
+        orientation: IntervalOrientationIr,
+        span: Span,
+    ) -> Option<ColumnRef> {
+        let (x, y) = self.interval_frame_axes(frame, span)?;
+        Some(match orientation {
+            IntervalOrientationIr::Vertical => x,
+            IntervalOrientationIr::Horizontal => y,
+        })
+    }
+
+    fn interval_middle_column(
+        &mut self,
+        frame: &FrameIr,
+        orientation: IntervalOrientationIr,
+        span: Span,
+    ) -> Option<ColumnRef> {
+        let (x, y) = self.interval_frame_axes(frame, span)?;
+        Some(match orientation {
+            IntervalOrientationIr::Vertical => y,
+            IntervalOrientationIr::Horizontal => x,
+        })
+    }
+
+    fn interval_frame_axes(
+        &mut self,
+        frame: &FrameIr,
+        span: Span,
+    ) -> Option<(ColumnRef, ColumnRef)> {
+        let FrameIr::Cartesian(axes) = frame else {
+            self.diag(Diagnostic::error(
+                codes::E1302,
+                "interval sugar requires a two-dimensional Cartesian space",
+                span,
+            ));
+            return None;
+        };
+        let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) = (axes.first(), axes.get(1))
+        else {
+            self.diag(Diagnostic::error(
+                codes::E1302,
+                "interval sugar requires two vector dimensions",
+                span,
+            ));
+            return None;
+        };
+        Some((x.clone(), y.clone()))
+    }
+
     /// Desugar a blended `Histogram` into a `Bin` over a union of numeric
     /// columns plus overlaid `Rect`s colored by synthetic `series`.
     #[allow(clippy::too_many_arguments)]
@@ -931,9 +1357,29 @@ fn stat_derive(
     output_schema: Vec<ColumnDefIr>,
     span: Span,
 ) -> DeriveIr {
+    stat_derive_for_data(
+        name,
+        SpaceDataRef::Primary,
+        kind,
+        input,
+        options,
+        output_schema,
+        span,
+    )
+}
+
+fn stat_derive_for_data(
+    name: String,
+    data: SpaceDataRef,
+    kind: StatKind,
+    input: FrameIr,
+    options: StatOptionsIr,
+    output_schema: Vec<ColumnDefIr>,
+    span: Span,
+) -> DeriveIr {
     DeriveIr {
         name,
-        data: SpaceDataRef::Primary,
+        data,
         stat: StatCallIr {
             kind,
             input,
@@ -993,8 +1439,46 @@ const GROUPED_RECT_SETTINGS: &[PropertyKey] = &[
 const STROKE_SETTINGS: &[PropertyKey] = &[
     PropertyKey::Stroke,
     PropertyKey::StrokeWidth,
+    PropertyKey::Dash,
     PropertyKey::Alpha,
 ];
+
+const INTERVAL_SEGMENT_SETTINGS: &[PropertyKey] = &[
+    PropertyKey::Stroke,
+    PropertyKey::StrokeWidth,
+    PropertyKey::Dash,
+    PropertyKey::Alpha,
+];
+const INTERVAL_SEGMENT_MAPPINGS: &[PropertyKey] = &[PropertyKey::Stroke, PropertyKey::Alpha];
+const POINT_RANGE_POINT_SETTINGS: &[PropertyKey] = &[
+    PropertyKey::Fill,
+    PropertyKey::Stroke,
+    PropertyKey::Alpha,
+    PropertyKey::Size,
+    PropertyKey::Shape,
+];
+const POINT_RANGE_POINT_MAPPINGS: &[PropertyKey] = &[
+    PropertyKey::Fill,
+    PropertyKey::Stroke,
+    PropertyKey::Alpha,
+    PropertyKey::Size,
+    PropertyKey::Shape,
+];
+const CROSS_BAR_RECT_SETTINGS: &[PropertyKey] = &[
+    PropertyKey::Fill,
+    PropertyKey::Stroke,
+    PropertyKey::StrokeWidth,
+    PropertyKey::Alpha,
+];
+const CROSS_BAR_RECT_MAPPINGS: &[PropertyKey] =
+    &[PropertyKey::Fill, PropertyKey::Stroke, PropertyKey::Alpha];
+
+struct IntervalParts {
+    orientation: IntervalOrientationIr,
+    position: ColumnRef,
+    lower: ColumnRef,
+    upper: ColumnRef,
+}
 
 /// Copy the `allow`-listed settings from `geometry` in source order, preserving
 /// their values and spans. Used to pass a high-level geometry's visual settings
@@ -1006,6 +1490,64 @@ fn passthrough_settings(geometry: &GeometryIr, allow: &[PropertyKey]) -> Vec<Geo
         .filter(|setting| allow.contains(&setting.name))
         .cloned()
         .collect()
+}
+
+fn passthrough_mappings(geometry: &GeometryIr, allow: &[PropertyKey]) -> Vec<AestheticMapping> {
+    geometry
+        .mappings
+        .iter()
+        .filter(|mapping| allow.contains(&mapping.aesthetic))
+        .cloned()
+        .collect()
+}
+
+fn mapping_column(geometry: &GeometryIr, key: PropertyKey) -> Option<ColumnRef> {
+    geometry
+        .mappings
+        .iter()
+        .find(|mapping| mapping.aesthetic == key)
+        .map(|mapping| mapping.column.clone())
+}
+
+fn number_setting_from_geometry(geometry: &GeometryIr, key: PropertyKey) -> Option<f64> {
+    geometry
+        .settings
+        .iter()
+        .find_map(|setting| match &setting.value {
+            SettingValue::Number(n) if setting.name == key && n.is_finite() && *n >= 0.0 => {
+                Some(*n)
+            }
+            _ => None,
+        })
+}
+
+fn segment_endpoint_mappings(
+    span: Span,
+    x_dtype: DataType,
+    y_dtype: DataType,
+) -> Vec<AestheticMapping> {
+    vec![
+        mapping(PropertyKey::X, "x", x_dtype, span),
+        mapping(PropertyKey::Y, "y", y_dtype, span),
+        mapping(PropertyKey::Xend, "xend", x_dtype, span),
+        mapping(PropertyKey::Yend, "yend", y_dtype, span),
+    ]
+}
+
+fn mapping(aesthetic: PropertyKey, name: &str, dtype: DataType, span: Span) -> AestheticMapping {
+    AestheticMapping {
+        aesthetic,
+        column: synthetic_column(name, dtype, span),
+        span,
+    }
+}
+
+fn schema_dtype(schema: &[ColumnDefIr], name: &str) -> DataType {
+    schema
+        .iter()
+        .find(|column| column.name == name)
+        .map(|column| column.dtype)
+        .unwrap_or(DataType::Float)
 }
 
 fn fixed_setting(name: PropertyKey, value: f64, span: Span) -> GeometrySetting {

@@ -7,7 +7,7 @@
 
 use algraf_data::DataType;
 
-use crate::ir::{ColumnDefIr, ColumnRef, FrameIr, StatKind};
+use crate::ir::{ColumnDefIr, ColumnRef, FrameIr, IntervalOrientationIr, StatKind};
 
 /// Return the output schema for a built-in stat from its typed input frame.
 pub fn stat_output_schema(kind: StatKind, input: &FrameIr) -> Vec<ColumnDefIr> {
@@ -37,6 +37,15 @@ pub fn stat_output_schema(kind: StatKind, input: &FrameIr) -> Vec<ColumnDefIr> {
         },
         StatKind::VectorEndpoints => vector_endpoints_output_schema(),
         StatKind::CurveSample => curve_sample_output_schema(),
+        StatKind::IntervalSegments => {
+            interval_segments_output_schema(input, IntervalOrientationIr::Vertical)
+        }
+        StatKind::IntervalRects => {
+            interval_rects_output_schema(input, IntervalOrientationIr::Vertical)
+        }
+        StatKind::IntervalMiddles => {
+            interval_middles_output_schema(input, IntervalOrientationIr::Vertical)
+        }
         StatKind::Density => match input {
             FrameIr::Vector(_) => density_output_schema(),
             FrameIr::Union(_) => blended_density_output_schema(),
@@ -81,6 +90,34 @@ pub(crate) fn stat_output_names_for_source(stat_name: &str) -> Vec<String> {
         ],
         "VectorEndpoints" => vector_endpoints_output_schema(),
         "CurveSample" => curve_sample_output_schema(),
+        "IntervalSegments" => vec![
+            ColumnDefIr {
+                name: "x".into(),
+                dtype: DataType::Float,
+            },
+            ColumnDefIr {
+                name: "y".into(),
+                dtype: DataType::Float,
+            },
+            ColumnDefIr {
+                name: "xend".into(),
+                dtype: DataType::Float,
+            },
+            ColumnDefIr {
+                name: "yend".into(),
+                dtype: DataType::Float,
+            },
+            ColumnDefIr {
+                name: "interval_role".into(),
+                dtype: DataType::String,
+            },
+            ColumnDefIr {
+                name: "interval_id".into(),
+                dtype: DataType::Integer,
+            },
+        ],
+        "IntervalRects" => interval_rects_fixed_schema(DataType::Float, DataType::Float),
+        "IntervalMiddles" => interval_middles_fixed_schema(DataType::Float, DataType::Float),
         // Geometry stats keep the upstream `geom` column name.
         "Centroid" | "Simplify" | "SpatialJoin" => vec![ColumnDefIr {
             name: "geom".into(),
@@ -316,6 +353,155 @@ pub fn curve_sample_output_schema() -> Vec<ColumnDefIr> {
             dtype: DataType::Integer,
         },
     ]
+}
+
+/// Output schema for interval segment endpoints. A vertical interval uses
+/// position values on x and lower/upper values on y; horizontal swaps them.
+pub fn interval_segments_output_schema(
+    input: &FrameIr,
+    orientation: IntervalOrientationIr,
+) -> Vec<ColumnDefIr> {
+    let (position_dtype, value_dtype) = interval_input_dtypes(input, 3);
+    let position_dtype = interval_coord_dtype(position_dtype);
+    let value_dtype = interval_coord_dtype(value_dtype);
+    let (x_dtype, y_dtype) = match orientation {
+        IntervalOrientationIr::Vertical => (position_dtype, value_dtype),
+        IntervalOrientationIr::Horizontal => (value_dtype, position_dtype),
+    };
+    vec![
+        ColumnDefIr {
+            name: "x".into(),
+            dtype: x_dtype,
+        },
+        ColumnDefIr {
+            name: "y".into(),
+            dtype: y_dtype,
+        },
+        ColumnDefIr {
+            name: "xend".into(),
+            dtype: x_dtype,
+        },
+        ColumnDefIr {
+            name: "yend".into(),
+            dtype: y_dtype,
+        },
+        ColumnDefIr {
+            name: "interval_role".into(),
+            dtype: DataType::String,
+        },
+        ColumnDefIr {
+            name: "interval_id".into(),
+            dtype: DataType::Integer,
+        },
+    ]
+}
+
+/// Output schema for interval rectangle bounds.
+pub fn interval_rects_output_schema(
+    input: &FrameIr,
+    orientation: IntervalOrientationIr,
+) -> Vec<ColumnDefIr> {
+    let (position_dtype, value_dtype) = interval_input_dtypes(input, 3);
+    let position_dtype = interval_coord_dtype(position_dtype);
+    let value_dtype = interval_coord_dtype(value_dtype);
+    let (x_dtype, y_dtype) = match orientation {
+        IntervalOrientationIr::Vertical => (position_dtype, value_dtype),
+        IntervalOrientationIr::Horizontal => (value_dtype, position_dtype),
+    };
+    interval_rects_fixed_schema(x_dtype, y_dtype)
+}
+
+/// Output schema for interval middle-line endpoints.
+pub fn interval_middles_output_schema(
+    input: &FrameIr,
+    orientation: IntervalOrientationIr,
+) -> Vec<ColumnDefIr> {
+    let (position_dtype, value_dtype) = interval_input_dtypes(input, 2);
+    let position_dtype = interval_coord_dtype(position_dtype);
+    let value_dtype = interval_coord_dtype(value_dtype);
+    let (x_dtype, y_dtype) = match orientation {
+        IntervalOrientationIr::Vertical => (position_dtype, value_dtype),
+        IntervalOrientationIr::Horizontal => (value_dtype, position_dtype),
+    };
+    interval_middles_fixed_schema(x_dtype, y_dtype)
+}
+
+fn interval_rects_fixed_schema(x_dtype: DataType, y_dtype: DataType) -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "xmin".into(),
+            dtype: x_dtype,
+        },
+        ColumnDefIr {
+            name: "xmax".into(),
+            dtype: x_dtype,
+        },
+        ColumnDefIr {
+            name: "ymin".into(),
+            dtype: y_dtype,
+        },
+        ColumnDefIr {
+            name: "ymax".into(),
+            dtype: y_dtype,
+        },
+        ColumnDefIr {
+            name: "interval_role".into(),
+            dtype: DataType::String,
+        },
+        ColumnDefIr {
+            name: "interval_id".into(),
+            dtype: DataType::Integer,
+        },
+    ]
+}
+
+fn interval_middles_fixed_schema(x_dtype: DataType, y_dtype: DataType) -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "x".into(),
+            dtype: x_dtype,
+        },
+        ColumnDefIr {
+            name: "y".into(),
+            dtype: y_dtype,
+        },
+        ColumnDefIr {
+            name: "xend".into(),
+            dtype: x_dtype,
+        },
+        ColumnDefIr {
+            name: "yend".into(),
+            dtype: y_dtype,
+        },
+        ColumnDefIr {
+            name: "interval_role".into(),
+            dtype: DataType::String,
+        },
+        ColumnDefIr {
+            name: "interval_id".into(),
+            dtype: DataType::Integer,
+        },
+    ]
+}
+
+fn interval_input_dtypes(input: &FrameIr, expected: usize) -> (DataType, DataType) {
+    match input {
+        FrameIr::Cartesian(columns) if columns.len() >= expected => {
+            (vector_dtype(columns.first()), vector_dtype(columns.get(1)))
+        }
+        _ => (DataType::Float, DataType::Float),
+    }
+}
+
+fn interval_coord_dtype(dtype: DataType) -> DataType {
+    match dtype {
+        DataType::Integer | DataType::Float => DataType::Float,
+        DataType::Temporal => DataType::Temporal,
+        DataType::Geometry => DataType::Unknown,
+        DataType::Boolean | DataType::String | DataType::Mixed | DataType::Unknown => {
+            DataType::String
+        }
+    }
 }
 
 /// Output schema for rectangular two-dimensional bins.

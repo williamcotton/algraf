@@ -380,6 +380,9 @@ pub enum StatKind {
     StepVertices,
     VectorEndpoints,
     CurveSample,
+    IntervalSegments,
+    IntervalRects,
+    IntervalMiddles,
     Boxplot,
     Density,
     /// Geometry-producing centroid stat (spec §15.13).
@@ -403,6 +406,9 @@ impl StatKind {
             StatKind::StepVertices => "StepVertices",
             StatKind::VectorEndpoints => "VectorEndpoints",
             StatKind::CurveSample => "CurveSample",
+            StatKind::IntervalSegments => "IntervalSegments",
+            StatKind::IntervalRects => "IntervalRects",
+            StatKind::IntervalMiddles => "IntervalMiddles",
             StatKind::Boxplot => "Boxplot",
             StatKind::Density => "Density",
             StatKind::Centroid => "Centroid",
@@ -448,6 +454,18 @@ pub enum StatOptionsIr {
         curvature: f64,
         points: usize,
     },
+    IntervalSegments {
+        orientation: IntervalOrientationIr,
+        cap_width: Option<f64>,
+    },
+    IntervalRects {
+        orientation: IntervalOrientationIr,
+        width: Option<f64>,
+    },
+    IntervalMiddles {
+        orientation: IntervalOrientationIr,
+        width: Option<f64>,
+    },
     Density {
         bandwidth: Option<f64>,
         grid_points: Option<f64>,
@@ -466,6 +484,25 @@ pub enum StatOptionsIr {
         table: String,
         predicate: SpatialPredicateIr,
     },
+}
+
+/// Orientation of a primitive interval construction (spec §15.15).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum IntervalOrientationIr {
+    /// Position is x; lower/upper or middle values are y.
+    #[default]
+    Vertical,
+    /// Position is y; lower/upper or middle values are x.
+    Horizontal,
+}
+
+impl IntervalOrientationIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IntervalOrientationIr::Vertical => "vertical",
+            IntervalOrientationIr::Horizontal => "horizontal",
+        }
+    }
 }
 
 /// Orthogonal step expansion order for `StepVertices`.
@@ -705,6 +742,10 @@ pub enum GeometryKind {
     Boxplot,
     Violin,
     Density,
+    ErrorBar,
+    LineRange,
+    PointRange,
+    CrossBar,
     Ribbon,
     Tile,
     HLine,
@@ -738,6 +779,10 @@ pub const GEOMETRY_KINDS: &[GeometryKind] = &[
     GeometryKind::Boxplot,
     GeometryKind::Violin,
     GeometryKind::Density,
+    GeometryKind::ErrorBar,
+    GeometryKind::LineRange,
+    GeometryKind::PointRange,
+    GeometryKind::CrossBar,
     GeometryKind::Ribbon,
     GeometryKind::Tile,
     GeometryKind::HLine,
@@ -768,6 +813,10 @@ impl GeometryKind {
             GeometryKind::Boxplot => "Boxplot",
             GeometryKind::Violin => "Violin",
             GeometryKind::Density => "Density",
+            GeometryKind::ErrorBar => "ErrorBar",
+            GeometryKind::LineRange => "LineRange",
+            GeometryKind::PointRange => "PointRange",
+            GeometryKind::CrossBar => "CrossBar",
             GeometryKind::Ribbon => "Ribbon",
             GeometryKind::Tile => "Tile",
             GeometryKind::HLine => "HLine",
@@ -797,6 +846,10 @@ impl GeometryKind {
             GeometryKind::Boxplot => "boxplot",
             GeometryKind::Violin => "violin",
             GeometryKind::Density => "density",
+            GeometryKind::ErrorBar => "errorbar",
+            GeometryKind::LineRange => "linerange",
+            GeometryKind::PointRange => "pointrange",
+            GeometryKind::CrossBar => "crossbar",
             GeometryKind::Ribbon => "ribbon",
             GeometryKind::Tile => "tile",
             GeometryKind::HLine => "hline",
@@ -850,6 +903,8 @@ pub enum PropertyKey {
     Quantiles,
     Outliers,
     Width,
+    CapWidth,
+    Orientation,
     Baseline,
     Label,
     Anchor,
@@ -897,6 +952,8 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::Quantiles,
     PropertyKey::Outliers,
     PropertyKey::Width,
+    PropertyKey::CapWidth,
+    PropertyKey::Orientation,
     PropertyKey::Baseline,
     PropertyKey::Label,
     PropertyKey::Anchor,
@@ -945,6 +1002,8 @@ impl PropertyKey {
             PropertyKey::Quantiles => "quantiles",
             PropertyKey::Outliers => "outliers",
             PropertyKey::Width => "width",
+            PropertyKey::CapWidth => "capWidth",
+            PropertyKey::Orientation => "orientation",
             PropertyKey::Baseline => "baseline",
             PropertyKey::Label => "label",
             PropertyKey::Anchor => "anchor",

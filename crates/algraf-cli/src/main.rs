@@ -1383,6 +1383,24 @@ fn stat_options_json(options: &StatOptionsIr) -> Value {
             "curvature": curvature,
             "points": points,
         }),
+        StatOptionsIr::IntervalSegments {
+            orientation,
+            cap_width,
+        } => json!({
+            "kind": "intervalSegments",
+            "orientation": orientation.as_str(),
+            "capWidth": cap_width,
+        }),
+        StatOptionsIr::IntervalRects { orientation, width } => json!({
+            "kind": "intervalRects",
+            "orientation": orientation.as_str(),
+            "width": width,
+        }),
+        StatOptionsIr::IntervalMiddles { orientation, width } => json!({
+            "kind": "intervalMiddles",
+            "orientation": orientation.as_str(),
+            "width": width,
+        }),
         StatOptionsIr::Density {
             bandwidth,
             grid_points,

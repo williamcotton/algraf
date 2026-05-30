@@ -113,7 +113,7 @@
   <circle cx="582.54" cy="109.034" r="4" fill="#333333" opacity="0.8" />
 </g>
 <g class="algraf-layer algraf-geom-line">
-  <path d="M98.676 404.019 L572.124 102.547" fill="none" stroke="red" stroke-width="3" opacity="1" />
+  <path d="M122.348 389.417 L548.452 118.092" fill="none" stroke="red" stroke-width="3" opacity="1" />
 </g>
 <g class="algraf-axes">
   <line x1="60.8" y1="450" x2="610" y2="450" stroke="#333333" stroke-width="1" />

@@ -53,6 +53,42 @@ impl Default for CurveSampleOptions {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntervalOrientation {
+    Vertical,
+    Horizontal,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IntervalSegmentsOptions {
+    pub orientation: IntervalOrientation,
+    pub cap_width: Option<f64>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IntervalWidthOptions {
+    pub orientation: IntervalOrientation,
+    pub width: Option<f64>,
+}
+
+impl Default for IntervalSegmentsOptions {
+    fn default() -> Self {
+        IntervalSegmentsOptions {
+            orientation: IntervalOrientation::Vertical,
+            cap_width: None,
+        }
+    }
+}
+
+impl Default for IntervalWidthOptions {
+    fn default() -> Self {
+        IntervalWidthOptions {
+            orientation: IntervalOrientation::Vertical,
+            width: None,
+        }
+    }
+}
+
 /// Expand source-ordered `(x, y)` rows into orthogonal vertices for `Path`.
 /// Missing required cells emit a single null sentinel between valid runs, which
 /// causes line/path rendering to break rather than connect across the gap.
@@ -181,6 +217,260 @@ pub fn vector_endpoints(
     deterministic_frame(schema, columns)
 }
 
+/// Emit primitive `Segment` rows for an interval. Vertical intervals use the
+/// position column on x and lower/upper values on y; horizontal intervals swap
+/// those axes. Optional caps are generated only when the position column is
+/// numeric because the derived table is still in data coordinates.
+pub fn interval_segments(
+    table: &dyn Table,
+    position_col: &str,
+    lower_col: &str,
+    upper_col: &str,
+    options: IntervalSegmentsOptions,
+) -> DataFrame {
+    let position_dtype = interval_coord_dtype(column_dtype(table, position_col));
+    let value_dtype = interval_coord_dtype(column_dtype(table, lower_col));
+    let (x_dtype, y_dtype) = interval_xy_dtypes(position_dtype, value_dtype, options.orientation);
+    let passthrough = passthrough_columns(
+        table,
+        &["x", "y", "xend", "yend", "interval_role", "interval_id"],
+    );
+    let mut xs = ColumnBuilder::new(x_dtype);
+    let mut ys = ColumnBuilder::new(y_dtype);
+    let mut xends = ColumnBuilder::new(x_dtype);
+    let mut yends = ColumnBuilder::new(y_dtype);
+    let mut roles = Vec::new();
+    let mut ids = Vec::new();
+    let mut passthrough_builders = builders_for_schema(&passthrough);
+    let cap_width = options.cap_width.filter(|value| *value > 0.0);
+
+    for row in 0..table.row_count() {
+        let Some(position) = typed_cell(table, position_col, row, position_dtype) else {
+            continue;
+        };
+        let Some(lower) = typed_cell(table, lower_col, row, value_dtype) else {
+            continue;
+        };
+        let Some(upper) = typed_cell(table, upper_col, row, value_dtype) else {
+            continue;
+        };
+        push_oriented_segment(
+            options.orientation,
+            &mut xs,
+            &mut ys,
+            &mut xends,
+            &mut yends,
+            &mut roles,
+            &mut ids,
+            position.clone(),
+            lower.clone(),
+            position.clone(),
+            upper.clone(),
+            "stem",
+            row as i64,
+        );
+        push_passthrough(table, row, &passthrough, &mut passthrough_builders);
+
+        if let (Some(width), Some(position_value)) = (cap_width, cell_f64(table, position_col, row))
+        {
+            let half = width / 2.0;
+            let low = position_value - half;
+            let high = position_value + half;
+            for (role, value) in [("lower_cap", lower), ("upper_cap", upper)] {
+                push_cap_segment(
+                    options.orientation,
+                    &mut xs,
+                    &mut ys,
+                    &mut xends,
+                    &mut yends,
+                    &mut roles,
+                    &mut ids,
+                    low,
+                    high,
+                    value,
+                    role,
+                    row as i64,
+                );
+                push_passthrough(table, row, &passthrough, &mut passthrough_builders);
+            }
+        }
+    }
+
+    let mut schema = vec![
+        output_col("x", x_dtype, false),
+        output_col("y", y_dtype, false),
+        output_col("xend", x_dtype, false),
+        output_col("yend", y_dtype, false),
+        output_col("interval_role", DataType::String, false),
+        output_col("interval_id", DataType::Integer, false),
+    ];
+    schema.extend(passthrough);
+    let mut columns = vec![
+        xs.finish(),
+        ys.finish(),
+        xends.finish(),
+        yends.finish(),
+        Column::String(roles),
+        Column::Int(ids),
+    ];
+    columns.extend(finish_builders(passthrough_builders));
+    deterministic_frame(schema, columns)
+}
+
+/// Emit primitive `Rect` bounds for interval bodies. Numeric position columns
+/// use `width` in data units; categorical positions are passed through for both
+/// bounds so `Rect` resolves the category to the full band.
+pub fn interval_rects(
+    table: &dyn Table,
+    position_col: &str,
+    lower_col: &str,
+    upper_col: &str,
+    options: IntervalWidthOptions,
+) -> DataFrame {
+    let position_dtype = interval_coord_dtype(column_dtype(table, position_col));
+    let value_dtype = interval_coord_dtype(column_dtype(table, lower_col));
+    let (x_dtype, y_dtype) = interval_xy_dtypes(position_dtype, value_dtype, options.orientation);
+    let passthrough = passthrough_columns(
+        table,
+        &[
+            "xmin",
+            "xmax",
+            "ymin",
+            "ymax",
+            "interval_role",
+            "interval_id",
+        ],
+    );
+    let mut xmins = ColumnBuilder::new(x_dtype);
+    let mut xmaxs = ColumnBuilder::new(x_dtype);
+    let mut ymins = ColumnBuilder::new(y_dtype);
+    let mut ymaxs = ColumnBuilder::new(y_dtype);
+    let mut roles = Vec::new();
+    let mut ids = Vec::new();
+    let mut passthrough_builders = builders_for_schema(&passthrough);
+    let width = options.width.filter(|value| *value > 0.0).unwrap_or(0.8);
+
+    for row in 0..table.row_count() {
+        let Some(position) = typed_cell(table, position_col, row, position_dtype) else {
+            continue;
+        };
+        let Some(lower) = typed_cell(table, lower_col, row, value_dtype) else {
+            continue;
+        };
+        let Some(upper) = typed_cell(table, upper_col, row, value_dtype) else {
+            continue;
+        };
+        let (low_pos, high_pos) = position_bounds(table, position_col, row, position, width);
+        match options.orientation {
+            IntervalOrientation::Vertical => {
+                xmins.push_value(Some(low_pos));
+                xmaxs.push_value(Some(high_pos));
+                ymins.push_value(Some(lower));
+                ymaxs.push_value(Some(upper));
+            }
+            IntervalOrientation::Horizontal => {
+                xmins.push_value(Some(lower));
+                xmaxs.push_value(Some(upper));
+                ymins.push_value(Some(low_pos));
+                ymaxs.push_value(Some(high_pos));
+            }
+        }
+        roles.push(Some("body".to_string()));
+        ids.push(Some(row as i64));
+        push_passthrough(table, row, &passthrough, &mut passthrough_builders);
+    }
+
+    let mut schema = vec![
+        output_col("xmin", x_dtype, false),
+        output_col("xmax", x_dtype, false),
+        output_col("ymin", y_dtype, false),
+        output_col("ymax", y_dtype, false),
+        output_col("interval_role", DataType::String, false),
+        output_col("interval_id", DataType::Integer, false),
+    ];
+    schema.extend(passthrough);
+    let mut columns = vec![
+        xmins.finish(),
+        xmaxs.finish(),
+        ymins.finish(),
+        ymaxs.finish(),
+        Column::String(roles),
+        Column::Int(ids),
+    ];
+    columns.extend(finish_builders(passthrough_builders));
+    deterministic_frame(schema, columns)
+}
+
+/// Emit primitive `Segment` rows for interval middle lines.
+pub fn interval_middles(
+    table: &dyn Table,
+    position_col: &str,
+    middle_col: &str,
+    options: IntervalWidthOptions,
+) -> DataFrame {
+    let position_dtype = interval_coord_dtype(column_dtype(table, position_col));
+    let value_dtype = interval_coord_dtype(column_dtype(table, middle_col));
+    let (x_dtype, y_dtype) = interval_xy_dtypes(position_dtype, value_dtype, options.orientation);
+    let passthrough = passthrough_columns(
+        table,
+        &["x", "y", "xend", "yend", "interval_role", "interval_id"],
+    );
+    let mut xs = ColumnBuilder::new(x_dtype);
+    let mut ys = ColumnBuilder::new(y_dtype);
+    let mut xends = ColumnBuilder::new(x_dtype);
+    let mut yends = ColumnBuilder::new(y_dtype);
+    let mut roles = Vec::new();
+    let mut ids = Vec::new();
+    let mut passthrough_builders = builders_for_schema(&passthrough);
+    let width = options.width.filter(|value| *value > 0.0).unwrap_or(0.8);
+
+    for row in 0..table.row_count() {
+        let Some(position) = typed_cell(table, position_col, row, position_dtype) else {
+            continue;
+        };
+        let Some(middle) = typed_cell(table, middle_col, row, value_dtype) else {
+            continue;
+        };
+        let (low_pos, high_pos) = position_bounds(table, position_col, row, position, width);
+        push_oriented_segment(
+            options.orientation,
+            &mut xs,
+            &mut ys,
+            &mut xends,
+            &mut yends,
+            &mut roles,
+            &mut ids,
+            low_pos,
+            middle.clone(),
+            high_pos,
+            middle,
+            "middle",
+            row as i64,
+        );
+        push_passthrough(table, row, &passthrough, &mut passthrough_builders);
+    }
+
+    let mut schema = vec![
+        output_col("x", x_dtype, false),
+        output_col("y", y_dtype, false),
+        output_col("xend", x_dtype, false),
+        output_col("yend", y_dtype, false),
+        output_col("interval_role", DataType::String, false),
+        output_col("interval_id", DataType::Integer, false),
+    ];
+    schema.extend(passthrough);
+    let mut columns = vec![
+        xs.finish(),
+        ys.finish(),
+        xends.finish(),
+        yends.finish(),
+        Column::String(roles),
+        Column::Int(ids),
+    ];
+    columns.extend(finish_builders(passthrough_builders));
+    deterministic_frame(schema, columns)
+}
+
 /// Sample one quadratic Bezier-like curve per source row and emit grouped
 /// primitive path vertices. Source scalar columns are repeated on every sampled
 /// vertex when their names do not collide with the primitive columns.
@@ -258,12 +548,135 @@ fn column_dtype(table: &dyn Table, name: &str) -> DataType {
         .unwrap_or(DataType::Unknown)
 }
 
+fn interval_coord_dtype(dtype: DataType) -> DataType {
+    match dtype {
+        DataType::Integer | DataType::Float => DataType::Float,
+        DataType::Temporal => DataType::Temporal,
+        DataType::Geometry => DataType::Unknown,
+        DataType::Boolean | DataType::String | DataType::Mixed | DataType::Unknown => {
+            DataType::String
+        }
+    }
+}
+
+fn interval_xy_dtypes(
+    position_dtype: DataType,
+    value_dtype: DataType,
+    orientation: IntervalOrientation,
+) -> (DataType, DataType) {
+    match orientation {
+        IntervalOrientation::Vertical => (position_dtype, value_dtype),
+        IntervalOrientation::Horizontal => (value_dtype, position_dtype),
+    }
+}
+
 fn output_col(name: &str, dtype: DataType, nullable: bool) -> ColumnDef {
     ColumnDef {
         name: name.to_string(),
         dtype,
         nullable,
         examples: vec![],
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_oriented_segment(
+    orientation: IntervalOrientation,
+    xs: &mut ColumnBuilder,
+    ys: &mut ColumnBuilder,
+    xends: &mut ColumnBuilder,
+    yends: &mut ColumnBuilder,
+    roles: &mut Vec<Option<String>>,
+    ids: &mut Vec<Option<i64>>,
+    position0: DataValue,
+    value0: DataValue,
+    position1: DataValue,
+    value1: DataValue,
+    role: &str,
+    id: i64,
+) {
+    match orientation {
+        IntervalOrientation::Vertical => {
+            xs.push_value(Some(position0));
+            ys.push_value(Some(value0));
+            xends.push_value(Some(position1));
+            yends.push_value(Some(value1));
+        }
+        IntervalOrientation::Horizontal => {
+            xs.push_value(Some(value0));
+            ys.push_value(Some(position0));
+            xends.push_value(Some(value1));
+            yends.push_value(Some(position1));
+        }
+    }
+    roles.push(Some(role.to_string()));
+    ids.push(Some(id));
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_cap_segment(
+    orientation: IntervalOrientation,
+    xs: &mut ColumnBuilder,
+    ys: &mut ColumnBuilder,
+    xends: &mut ColumnBuilder,
+    yends: &mut ColumnBuilder,
+    roles: &mut Vec<Option<String>>,
+    ids: &mut Vec<Option<i64>>,
+    low_position: f64,
+    high_position: f64,
+    value: DataValue,
+    role: &str,
+    id: i64,
+) {
+    push_oriented_segment(
+        orientation,
+        xs,
+        ys,
+        xends,
+        yends,
+        roles,
+        ids,
+        DataValue::Float(low_position),
+        value.clone(),
+        DataValue::Float(high_position),
+        value,
+        role,
+        id,
+    );
+}
+
+fn position_bounds(
+    table: &dyn Table,
+    position_col: &str,
+    row: usize,
+    position: DataValue,
+    width: f64,
+) -> (DataValue, DataValue) {
+    if let Some(value) = cell_f64(table, position_col, row) {
+        let half = width / 2.0;
+        (
+            DataValue::Float(value - half),
+            DataValue::Float(value + half),
+        )
+    } else {
+        (position.clone(), position)
+    }
+}
+
+fn typed_cell(table: &dyn Table, column: &str, row: usize, dtype: DataType) -> Option<DataValue> {
+    match dtype {
+        DataType::Float => cell_f64(table, column, row).map(DataValue::Float),
+        DataType::Temporal => match table.value(column, row)? {
+            DataValueRef::Temporal(value) => Some(DataValue::Temporal(value)),
+            DataValueRef::Null => None,
+            _ => None,
+        },
+        DataType::String
+        | DataType::Boolean
+        | DataType::Integer
+        | DataType::Mixed
+        | DataType::Unknown => owned_cell(table, column, row),
+        DataType::Geometry => None,
     }
 }
 

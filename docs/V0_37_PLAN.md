@@ -1,6 +1,6 @@
 # Algraf v0.37.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_36_PLAN.md`](V0_36_PLAN.md)
@@ -219,7 +219,12 @@ fixture must be byte-for-byte identical.
 
 ### 1. Add derived interval-parts transforms
 
-Status: Planned.
+Status: Implemented.
+
+Implemented as `IntervalSegments`, `IntervalRects`, and `IntervalMiddles`.
+The transforms emit primitive-ready endpoint/bound columns, stable
+`interval_role`/`interval_id` columns, and non-conflicting source-column
+passthrough for downstream aesthetics.
 
 - Add a transform that emits segment endpoint rows for vertical and horizontal
   intervals, with optional caps.
@@ -232,7 +237,13 @@ Status: Planned.
 
 ### 2. Promote sugar only as exact lowerings
 
-Status: Planned.
+Status: Implemented.
+
+Promoted `ErrorBar`, `LineRange`, `PointRange`, and `CrossBar`. Each lowers
+before render to the interval transforms plus `Segment`, `Point`, and `Rect`.
+Paired render tests assert byte-for-byte equality for SVG, draw-list JSON,
+render-model raster pixels, and interaction metadata against the explicit
+primitive source.
 
 - Decide whether `ErrorBar`, `LineRange`, `PointRange`, and `CrossBar` earn
   source-level names after the derived transforms exist.
@@ -244,7 +255,7 @@ Status: Planned.
 
 ### 3. Document line, point, and crossbar compositions
 
-Status: Planned.
+Status: Completed.
 
 - Show lineranges and error bars as `Segment`.
 - Show pointranges as `Segment` plus `Point`.
@@ -255,7 +266,7 @@ Status: Planned.
 
 ### 4. Add documentation examples that use existing data-prep patterns
 
-Status: Planned.
+Status: Completed.
 
 - Add examples using explicit columns for fit, lower, upper, cap endpoints, and
   rectangle bounds.
@@ -266,7 +277,7 @@ Status: Planned.
 
 ### 5. LSP, registry, and backend support
 
-Status: Planned.
+Status: Implemented.
 
 - Update registry/LSP/backend metadata only for promoted names or properties.
 - Add render examples proving the primitive recipes cover the common charts.
@@ -275,7 +286,12 @@ Status: Planned.
 
 ### Band-relative defaults
 
-Status: Planned.
+Status: Deferred.
+
+Numeric `capWidth`/`width` is implemented in data units. `IntervalRects` can
+emit full-band categorical rectangle bounds through `Rect`, but band-relative
+partial widths and categorical cap offsets remain deferred because `Segment`
+endpoints resolve categorical values to band centers rather than band edges.
 
 - For categorical-position frames, default widths should be relative to the band
   width, matching `Bar`, `Boxplot`, and `Violin` behavior.
@@ -284,7 +300,10 @@ Status: Planned.
 
 ### Interaction metadata
 
-Status: Planned.
+Status: Completed.
+
+Composite interaction metadata was not added. Promoted sugar lowers to
+component primitives, and those primitives keep the existing sidecar behavior.
 
 - Prefer interaction on the component primitives. Add composite metadata only if
   dedicated syntax is promoted and the primitive sidecar data is insufficient.

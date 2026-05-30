@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.36.0
+Status: Draft 0.37.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.36.0 specification.
+This working copy is the active Draft 0.37.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -3465,6 +3465,9 @@ pub enum StatKind {
     StepVertices,
     VectorEndpoints,
     CurveSample,
+    IntervalSegments,
+    IntervalRects,
+    IntervalMiddles,
     Boxplot,
     Density,
     Centroid,
@@ -3484,6 +3487,9 @@ pub enum StatOptionsIr {
     StepVertices { direction: StepDirectionIr },
     VectorEndpoints { length_scale: Option<f64> },
     CurveSample { curvature: f64, points: usize },
+    IntervalSegments { orientation: IntervalOrientationIr, cap_width: Option<f64> },
+    IntervalRects { orientation: IntervalOrientationIr, width: Option<f64> },
+    IntervalMiddles { orientation: IntervalOrientationIr, width: Option<f64> },
     Density { bandwidth: Option<f64>, grid_points: Option<f64> },
     Count,
     Centroid,
@@ -3496,6 +3502,8 @@ pub enum BinClosedIr { Left, Right }
 pub enum SmoothMethodIr { Lm, Loess }
 
 pub enum StepDirectionIr { Hv, Vh }
+
+pub enum IntervalOrientationIr { Vertical, Horizontal }
 ```
 
 The explicit `Derive` stat-option parser and high-level geometry lowering MUST produce `StatOptionsIr` through the same defaulting path, so invalid settings keep identical diagnostic codes and spans regardless of which surface produced them. The renderer MUST read `StatOptionsIr` directly rather than looking up string keys.
@@ -4843,6 +4851,55 @@ Since version 0.36.0, Segment MUST accept `dash: "solid" | "dotted" |
 "dashed"`. The default is solid. Dash is a literal stroke style only; mapped
 stroke-style scales and legends are deferred.
 
+### 14.19.1 Interval Sugar
+
+> Since version 0.37.0.
+
+Syntax:
+
+```ag
+ErrorBar(ymin: lower, ymax: upper, capWidth: 0.4)
+LineRange(xmin: lower, xmax: upper, orientation: "horizontal")
+PointRange(ymin: lower, ymax: upper)
+CrossBar(ymin: q25, ymax: q75, width: 0.6)
+```
+
+`ErrorBar`, `LineRange`, `PointRange`, and `CrossBar` are high-level sugar over
+primitive-construction stats and primitive marks. They MUST lower before render:
+
+- `ErrorBar` lowers to `IntervalSegments(...)` plus `Segment(...)`.
+- `LineRange` lowers to `IntervalSegments(..., capWidth: null)` plus
+  `Segment(...)`.
+- `PointRange` lowers to the same interval segment layer, followed by a
+  `Point(...)` layer in the original space.
+- `CrossBar` lowers to `IntervalRects(...)` plus `Rect(...)`, followed by
+  `IntervalMiddles(...)` plus `Segment(...)`.
+
+Vertical orientation uses the first frame axis as the interval position and
+requires `ymin` and `ymax` column mappings. Horizontal orientation uses the
+second frame axis as the interval position and requires `xmin` and `xmax`
+column mappings. If `orientation` is omitted, it MUST be inferred from which
+bound pair is present; ambiguous or missing bounds are `E1205`. The sugar forms
+require a two-dimensional Cartesian frame; incompatible spaces are `E1302`.
+
+`capWidth` and `width` are non-negative finite numbers in position-axis data
+units. They are applied by the derived stats when the position input is numeric.
+For categorical positions, `IntervalRects` can still emit full-band categorical
+rectangle bounds through `Rect`; band-relative partial widths and categorical
+cap offsets are deferred.
+
+Visual settings lower to the component primitives. `stroke`, `strokeWidth`,
+`dash`, and `alpha` apply to the interval segment layer where accepted. `fill`,
+`stroke`, `alpha`, `size`, and `shape` apply to the `PointRange` point layer
+where accepted. `CrossBar` sends `fill`, `stroke`, `strokeWidth`, and `alpha`
+to the rectangle body and `stroke`, `strokeWidth`, `dash`, and `alpha` to the
+middle segment. Component primitive interaction behavior is used; composite
+interaction metadata is not introduced in version 0.37.0.
+
+The explicit derived-table primitive form and the promoted sugar form MUST
+produce byte-for-byte identical SVG, draw-list JSON, raster output, and
+interaction sidecar bytes when written with equivalent component layers.
+
 ### 14.20 Rug
 
 Syntax:
@@ -5481,6 +5538,34 @@ be finite; negative values bend the opposite way. `points` defaults to `16` and
 MUST be an integer in `[2, 1024]`. The control point is the source segment
 midpoint plus `curvature * segment_length` along the left-hand perpendicular;
 sampling includes both endpoints and is deterministic.
+
+> Since version 0.37.0.
+
+`IntervalSegments(position, lower, upper, orientation: "vertical" |
+"horizontal", capWidth: n)` emits primitive `Segment` endpoint rows. Vertical
+orientation maps `position` to `x`/`xend` and `lower`/`upper` to `y`/`yend`;
+horizontal orientation maps `lower`/`upper` to `x`/`xend` and `position` to
+`y`/`yend`. The output columns are `x`, `y`, `xend`, `yend`, string
+`interval_role`, integer `interval_id`, followed by non-conflicting source
+columns. One stem row is emitted per valid source row. If `capWidth` is present
+and positive and the position input is numeric, lower and upper cap rows are
+also emitted in source order. Rows missing any required input are dropped.
+`orientation` defaults to `"vertical"` for explicit `Derive`; invalid values
+are `E1404`. `capWidth` MUST be non-negative and finite.
+
+`IntervalRects(position, lower, upper, orientation: ..., width: n)` emits
+primitive `Rect` bounds for interval bodies. Output columns are `xmin`, `xmax`,
+`ymin`, `ymax`, `interval_role`, `interval_id`, followed by non-conflicting
+source columns. Numeric positions use `width` in data units (default `0.8`) to
+compute symmetric position-axis bounds. Categorical positions are passed
+through for both position bounds, allowing `Rect` to resolve the full category
+band. Rows missing any required input are dropped.
+
+`IntervalMiddles(position, middle, orientation: ..., width: n)` emits primitive
+`Segment` endpoint rows for crossbar middle lines. It uses the same orientation
+and numeric `width` semantics as `IntervalRects`, and emits `x`, `y`, `xend`,
+`yend`, `interval_role`, `interval_id`, followed by non-conflicting source
+columns. Rows missing any required input are dropped.
 
 These stats are pure, read no external resources, and MUST preserve deterministic
 output ordering. They do not create stroke-style legends, position adjustments,
@@ -7705,13 +7790,15 @@ algraf/
   Cargo.toml
   crates/
     algraf-cli/
-    algraf-syntax/
-    algraf-semantics/
-    algraf-driver/
-    algraf-data/
-    algraf-render/
-    algraf-lsp/
     algraf-core/
+    algraf-data/
+    algraf-driver/
+    algraf-editor-services/
+    algraf-lsp/
+    algraf-render/
+    algraf-semantics/
+    algraf-syntax/
+    algraf-wasm/
   docs/
   examples/
   tests/
@@ -7833,9 +7920,23 @@ tower-lsp backend
 
 document cache
 
-completion
+LSP transport and request routing
 
-hover
+preview rendering orchestration
+
+`editor-services`:
+
+shared completion
+
+shared hover
+
+signature help
+
+semantic tokens
+
+code actions
+
+navigation, references, rename, document symbols, and inlay hints
 
 diagnostics publication
 
@@ -7846,6 +7947,14 @@ argument parsing
 command dispatch
 
 I/O
+
+`wasm`:
+
+browser-embeddable runtime entry points
+
+in-memory driver I/O integration
+
+editor-service and render facades for host applications
 
 ### 23.3 Dependency Guidelines
 
@@ -9241,7 +9350,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.35.0 | [`V0_35_PLAN.md`](V0_35_PLAN.md) | Internal architecture hardening: stats/parser decomposition, registry generation, determinism harness | Implemented |
 | 0.35.5 | [`V0_35_5_PLAN.md`](V0_35_5_PLAN.md) | Browser editor parity for Monaco via shared editor services | Implemented |
 | 0.36.0 | [`V0_36_PLAN.md`](V0_36_PLAN.md) | ggplot2 comparability: primitive construction and stroke styling | Implemented |
-| 0.37.0 | [`V0_37_PLAN.md`](V0_37_PLAN.md) | ggplot2 comparability: uncertainty construction and exact sugar lowerings | Planned |
+| 0.37.0 | [`V0_37_PLAN.md`](V0_37_PLAN.md) | ggplot2 comparability: uncertainty construction and exact sugar lowerings | Implemented |
 | 0.38.0 | [`V0_38_PLAN.md`](V0_38_PLAN.md) | ggplot2 comparability: z-field statistics | Planned |
 | 0.39.0 | [`V0_39_PLAN.md`](V0_39_PLAN.md) | ggplot2 comparability: model and summary stats | Planned |
 | 0.40.0 | [`V0_40_PLAN.md`](V0_40_PLAN.md) | ggplot2 comparability: scale and guide control | Planned |

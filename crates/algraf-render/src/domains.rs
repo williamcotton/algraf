@@ -113,6 +113,31 @@ impl AxisDomainHints {
         self.add_temporal(max);
     }
 
+    /// The numeric extent requested by geometry-specific domain hints, including
+    /// a required zero baseline when present.
+    pub fn numeric_extent(&self) -> Option<(f64, f64)> {
+        let mut min = self.numeric.min;
+        let mut max = self.numeric.max;
+        if self.numeric.include_zero {
+            min = Some(min.map_or(0.0, |value| value.min(0.0)));
+            max = Some(max.map_or(0.0, |value| value.max(0.0)));
+        }
+        match (min, max) {
+            (Some(lo), Some(hi)) => Some((lo, hi)),
+            (Some(value), None) | (None, Some(value)) => Some((value, value)),
+            (None, None) => None,
+        }
+    }
+
+    /// The temporal extent requested by geometry-specific domain hints.
+    pub fn temporal_extent(&self) -> Option<(i64, i64)> {
+        match (self.temporal.min, self.temporal.max) {
+            (Some(lo), Some(hi)) => Some((lo, hi)),
+            (Some(value), None) | (None, Some(value)) => Some((value, value)),
+            (None, None) => None,
+        }
+    }
+
     fn add_numeric(&mut self, value: f64) {
         if !value.is_finite() {
             return;

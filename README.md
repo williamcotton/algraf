@@ -1493,6 +1493,50 @@ Chart(data: "temperature_range.csv", width: 720, height: 420, title: "Annual tem
 
 ![dumbbell](examples/dumbbell.svg)
 
+## Error bars and point estimates
+
+`ErrorBar` is promoted sugar over `IntervalSegments` plus `Segment`. Use it in
+the same `Space` as the estimate `Point` layer so the center marks and interval
+segments train one shared coordinate system.
+
+```algraf
+Chart(data: "uncertainty_intervals.csv", width: 720, height: 440, title: "Dose response intervals") {
+    Theme(name: "minimal")
+    Scale(fill: cohort, palette: "accent")
+    Guide(axis: x, label: "Dose")
+    Guide(axis: y, label: "Estimated response")
+
+    Space(dose * estimate) {
+        ErrorBar(ymin: lower, ymax: upper, capWidth: 0.35, stroke: "#333333", strokeWidth: 1.2)
+        Point(fill: cohort, stroke: "#333333", size: 4)
+    }
+}
+```
+
+![uncertainty_intervals](examples/uncertainty_intervals.svg)
+
+## Horizontal lineranges
+
+`LineRange` is promoted sugar over the same `IntervalSegments` plus `Segment`
+model. Here the interval bounds are horizontal (`xmin`/`xmax`), and the point
+layer supplies the center estimate.
+
+```algraf
+Chart(data: "horizontal_intervals.csv", width: 720, height: 440, title: "Metric estimates and intervals") {
+    Theme(name: "minimal")
+    Scale(fill: domain, palette: "accent")
+    Guide(axis: x, label: "Estimate")
+    Guide(axis: y, label: "Metric")
+
+    Space(estimate * metric) {
+        LineRange(xmin: lower, xmax: upper, orientation: "horizontal", stroke: "#444444", strokeWidth: 1.4)
+        Point(fill: domain, stroke: "#333333", size: 4)
+    }
+}
+```
+
+![horizontal_intervals](examples/horizontal_intervals.svg)
+
 ## Text labels per row
 
 `Text` places one label per data row at its (`x`, `y`) position, using

@@ -128,7 +128,7 @@
       "patterns": [
         {
           "name": "entity.name.function.geometry.algraf",
-          "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Density|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment|Geo|Graticule)\\b(?=\\s*\\()"
+          "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Density|ErrorBar|LineRange|PointRange|CrossBar|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Segment|Geo|Graticule)\\b(?=\\s*\\()"
         }
       ]
     },
@@ -136,7 +136,7 @@
       "patterns": [
         {
           "name": "entity.name.function.stat.algraf",
-          "match": "\\b(?:Bin|Bin2D|HexBin|Count|Smooth|StepVertices|VectorEndpoints|CurveSample|Boxplot|Density|Centroid|Simplify|SpatialJoin)\\b(?=\\s*\\()"
+          "match": "\\b(?:Bin|Bin2D|HexBin|Count|Smooth|StepVertices|VectorEndpoints|CurveSample|IntervalSegments|IntervalRects|IntervalMiddles|Boxplot|Density|Centroid|Simplify|SpatialJoin)\\b(?=\\s*\\()"
         }
       ]
     },

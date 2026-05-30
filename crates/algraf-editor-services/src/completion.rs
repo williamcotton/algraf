@@ -113,7 +113,7 @@ pub fn completion_context(text: &str, offset: usize) -> CompletionContext {
         Some(
             "Algraf" | "Scale" | "Guide" | "Theme" | "Layout" | "Parse" | "Style" | "Stop" | "Bin"
             | "Smooth" | "StepVertices" | "VectorEndpoints" | "CurveSample" | "Bin2D" | "HexBin"
-            | "Simplify" | "SpatialJoin",
+            | "IntervalSegments" | "IntervalRects" | "IntervalMiddles" | "Simplify" | "SpatialJoin",
         ) => CompletionContext::DeclArgs {
             decl: call_name_stack
                 .last()
@@ -520,6 +520,14 @@ fn declaration_value_items(
         ("VectorEndpoints", "lengthScale") => vec![value_item("1", "Length scale")],
         ("CurveSample", "curvature") => vec![value_item("0.35", "Curve bend amount")],
         ("CurveSample", "points") => vec![value_item("16", "Sample count")],
+        ("IntervalSegments" | "IntervalRects" | "IntervalMiddles", "orientation") => {
+            ["vertical", "horizontal"]
+                .iter()
+                .map(|value| value_item(&format!("\"{value}\""), "Interval orientation"))
+                .collect()
+        }
+        ("IntervalSegments", "capWidth") => vec![value_item("0.4", "Cap width")],
+        ("IntervalRects" | "IntervalMiddles", "width") => vec![value_item("0.8", "Width")],
         ("Theme", "axisText") => vec![value_item(
             "Text(size: 12, fill: \"#333333\")",
             "Axis text style",

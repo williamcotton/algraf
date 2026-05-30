@@ -56,7 +56,7 @@ fix — reconcile all three rather than picking one.
 
 ## Workspace layout
 
-Cargo workspace with nine crates under `crates/` (see spec §23):
+Cargo workspace with ten crates under `crates/` (see spec §23):
 
 | Crate              | Responsibility                                              |
 | ------------------ | ----------------------------------------------------------- |
@@ -66,14 +66,16 @@ Cargo workspace with nine crates under `crates/` (see spec §23):
 | `algraf-semantics` | Name resolution, validation, IR, geometry registry          |
 | `algraf-driver`    | Shared source resolution, data/schema loading, analysis prep|
 | `algraf-render`    | Scale training, layout, stats, geometries, SVG emission     |
-| `algraf-lsp`       | tower-lsp backend, document cache, completion, hover        |
+| `algraf-editor-services` | Shared editor features: completion, hover, tokens, actions |
+| `algraf-lsp`       | tower-lsp backend, document cache, LSP transport             |
 | `algraf-cli`       | The `algraf` binary: arg parsing, command dispatch, I/O     |
 | `algraf-wasm`      | Browser/WASM runtime: in-memory `DriverIo`, reuses driver→render|
 
 Dependency direction flows downward: `core` depends on nothing internal;
-`driver` depends on syntax, data, and semantics; `cli` depends on everything.
-Do not introduce cycles. Keep parser, LSP, semantics, and render decoupled from
-concrete dataframe internals (spec §10.5).
+`driver` depends on syntax, data, and semantics; `editor-services` depends on
+syntax and semantics; `lsp` wraps editor-services; `cli` depends on the runtime
+stack. Do not introduce cycles. Keep parser, LSP, semantics, and render
+decoupled from concrete dataframe internals (spec §10.5).
 
 ## Building and running
 
@@ -127,6 +129,14 @@ Practical implications:
 ## Example Generation
 
 Run `./examples/generate.sh` to regenerate the SVG and PNG outputs for all examples.
+
+When you add or modify an example chart, or touch renderer behavior that changes
+example output, inspect the changed rendered PNGs before finishing. Verify the
+marks visually match the example's intent: positions align with the data, axes
+and guides are sensible, legends match mapped aesthetics, labels do not overlap
+unacceptably, and layered marks share the coordinate system they are meant to
+share. Do not rely only on `algraf check`, SVG byte diffs, or unit tests for
+chart examples.
 
 Create new examples by adding a new file to the `examples/` directory.
 

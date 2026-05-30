@@ -136,6 +136,9 @@ impl Analyzer<'_> {
             "StepVertices" => StatKind::StepVertices,
             "VectorEndpoints" => StatKind::VectorEndpoints,
             "CurveSample" => StatKind::CurveSample,
+            "IntervalSegments" => StatKind::IntervalSegments,
+            "IntervalRects" => StatKind::IntervalRects,
+            "IntervalMiddles" => StatKind::IntervalMiddles,
             "Bin2D" => StatKind::Bin2D,
             "HexBin" => StatKind::HexBin,
             "Centroid" => StatKind::Centroid,
@@ -144,7 +147,7 @@ impl Analyzer<'_> {
             _ => {
                 self.diag(Diagnostic::error(
                     codes::E1403,
-                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `StepVertices`, `VectorEndpoints`, `CurveSample`, `Bin2D`, `HexBin`, `Centroid`, `Simplify`, and `SpatialJoin`"),
+                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `StepVertices`, `VectorEndpoints`, `CurveSample`, `IntervalSegments`, `IntervalRects`, `IntervalMiddles`, `Bin2D`, `HexBin`, `Centroid`, `Simplify`, and `SpatialJoin`"),
                     stat_span,
                 ));
                 return None;
@@ -245,6 +248,67 @@ impl Analyzer<'_> {
                     &["x", "y", "link_id"],
                 );
                 (input_frame, options, output_schema)
+            }
+            StatKind::IntervalSegments => {
+                let input_frame =
+                    self.n_stat_inputs(&inputs, table, stat_span, "IntervalSegments", 3)?;
+                self.reject_geometry_stat_inputs(&input_frame, "IntervalSegments");
+                let (orientation, cap_width) =
+                    self.collect_interval_segment_options(&stat.args(), stat_span);
+                let output_schema = primitive_output_schema(
+                    crate::planning::interval_segments_output_schema(&input_frame, orientation),
+                    table,
+                    &["x", "y", "xend", "yend", "interval_role", "interval_id"],
+                );
+                (
+                    input_frame,
+                    StatOptionsIr::IntervalSegments {
+                        orientation,
+                        cap_width,
+                    },
+                    output_schema,
+                )
+            }
+            StatKind::IntervalRects => {
+                let input_frame =
+                    self.n_stat_inputs(&inputs, table, stat_span, "IntervalRects", 3)?;
+                self.reject_geometry_stat_inputs(&input_frame, "IntervalRects");
+                let (orientation, width) =
+                    self.collect_interval_width_options(&stat.args(), stat_span, "IntervalRects");
+                let output_schema = primitive_output_schema(
+                    crate::planning::interval_rects_output_schema(&input_frame, orientation),
+                    table,
+                    &[
+                        "xmin",
+                        "xmax",
+                        "ymin",
+                        "ymax",
+                        "interval_role",
+                        "interval_id",
+                    ],
+                );
+                (
+                    input_frame,
+                    StatOptionsIr::IntervalRects { orientation, width },
+                    output_schema,
+                )
+            }
+            StatKind::IntervalMiddles => {
+                let input_frame =
+                    self.n_stat_inputs(&inputs, table, stat_span, "IntervalMiddles", 2)?;
+                self.reject_geometry_stat_inputs(&input_frame, "IntervalMiddles");
+                let (orientation, width) =
+                    self.collect_interval_width_options(&stat.args(), stat_span, "IntervalMiddles");
+                let output_schema = primitive_output_schema(
+                    crate::planning::interval_middles_output_schema(&input_frame, orientation),
+                    table,
+                    &["x", "y", "xend", "yend", "interval_role", "interval_id"],
+                );
+                (
+                    input_frame,
+                    StatOptionsIr::IntervalMiddles { orientation, width },
+                    output_schema,
+                )
             }
             StatKind::Bin2D | StatKind::HexBin => {
                 let label = if kind == StatKind::Bin2D {
@@ -596,6 +660,123 @@ impl Analyzer<'_> {
                         ));
                     }
                 }
+            }
+        }
+    }
+
+    fn reject_geometry_stat_inputs(&mut self, frame: &FrameIr, stat_name: &str) {
+        if let FrameIr::Cartesian(columns) = frame {
+            for frame in columns {
+                if let FrameIr::Vector(col) = frame {
+                    if matches!(col.dtype, DataType::Geometry) {
+                        self.diag(Diagnostic::error(
+                            codes::E1404,
+                            format!(
+                                "{stat_name} input column `{}` is a geometry column",
+                                col.name
+                            ),
+                            col.span,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    fn collect_interval_segment_options(
+        &mut self,
+        args: &[Arg],
+        stat_span: Span,
+    ) -> (IntervalOrientationIr, Option<f64>) {
+        let mut orientation = IntervalOrientationIr::Vertical;
+        let mut cap_width = None;
+        let mut dup = DupGuard::new(codes::E1404, "IntervalSegments setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "orientation" => {
+                    orientation = self.interval_orientation(arg, "IntervalSegments");
+                }
+                "capWidth" => {
+                    cap_width = self.non_negative_number_option(arg, "capWidth");
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown IntervalSegments setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        let _ = stat_span;
+        (orientation, cap_width)
+    }
+
+    fn collect_interval_width_options(
+        &mut self,
+        args: &[Arg],
+        stat_span: Span,
+        stat_name: &str,
+    ) -> (IntervalOrientationIr, Option<f64>) {
+        let mut orientation = IntervalOrientationIr::Vertical;
+        let mut width = None;
+        let mut dup = DupGuard::new(codes::E1404, "interval setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "orientation" => {
+                    orientation = self.interval_orientation(arg, stat_name);
+                }
+                "width" => {
+                    width = self.non_negative_number_option(arg, "width");
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown {stat_name} setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        let _ = stat_span;
+        (orientation, width)
+    }
+
+    fn interval_orientation(&mut self, arg: &Arg, stat_name: &str) -> IntervalOrientationIr {
+        let Some(value) = arg.value() else {
+            return IntervalOrientationIr::Vertical;
+        };
+        match ValueForm::of(&value) {
+            ValueForm::Str(s) if s == "vertical" => IntervalOrientationIr::Vertical,
+            ValueForm::Str(s) if s == "horizontal" => IntervalOrientationIr::Horizontal,
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("{stat_name} `orientation` expects \"vertical\" or \"horizontal\""),
+                    node_span(value.syntax()),
+                ));
+                IntervalOrientationIr::Vertical
+            }
+        }
+    }
+
+    fn non_negative_number_option(&mut self, arg: &Arg, name: &str) -> Option<f64> {
+        let value = arg.value()?;
+        match ValueForm::of(&value) {
+            ValueForm::Number(n) if n.is_finite() && n >= 0.0 => Some(n),
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("`{name}` expects a non-negative finite number"),
+                    node_span(value.syntax()),
+                ));
+                None
             }
         }
     }

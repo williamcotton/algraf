@@ -4,8 +4,8 @@ use algraf_core::Span;
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
     analyze_source, planning, AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef, FrameIr,
-    GeometryKind, GradientIr, PropertyKey, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef,
-    StatKind, StatOptionsIr, StepDirectionIr, TemporalFormatIr,
+    GeometryKind, GradientIr, IntervalOrientationIr, PropertyKey, ScaleTargetIr, ScaleTypeIr,
+    SettingValue, SpaceDataRef, StatKind, StatOptionsIr, StepDirectionIr, TemporalFormatIr,
 };
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
@@ -161,6 +161,82 @@ fn test_quoted_column_resolution() {
 #[test]
 fn test_derived_table_resolution() {
     clean("Chart(data: \"d.csv\") {\n  Derive bins = Bin(value, bins: 25)\n  Space(bin_start * count, data: bins) {\n    Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count)\n  }\n}");
+}
+
+#[test]
+fn test_interval_segments_derived_table_resolution() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Derive whiskers = IntervalSegments(value, lower, upper, orientation: \"vertical\", capWidth: 0.4)\n  Space(x * y, data: whiskers) {\n    Segment(x: x, y: y, xend: xend, yend: yend, stroke: group)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.unwrap();
+    assert_eq!(ir.derived_tables.len(), 1);
+    let derived = &ir.derived_tables[0];
+    assert_eq!(derived.stat.kind, StatKind::IntervalSegments);
+    assert_eq!(
+        derived.stat.options,
+        StatOptionsIr::IntervalSegments {
+            orientation: IntervalOrientationIr::Vertical,
+            cap_width: Some(0.4)
+        }
+    );
+    let names: Vec<&str> = derived
+        .output_schema
+        .iter()
+        .map(|column| column.name.as_str())
+        .collect();
+    assert!(names.starts_with(&["x", "y", "xend", "yend"]));
+    assert!(names.contains(&"interval_role"));
+    assert!(names.contains(&"interval_id"));
+    assert!(names.contains(&"group"));
+}
+
+#[test]
+fn test_error_bar_sugar_lowers_in_source_order() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Space(value * amount) {\n    Point(fill: group)\n    ErrorBar(ymin: lower, ymax: upper, capWidth: 0.4, stroke: group)\n    Text(label: group)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.unwrap();
+    assert_eq!(ir.derived_tables.len(), 1);
+    assert_eq!(ir.derived_tables[0].stat.kind, StatKind::IntervalSegments);
+    assert_eq!(ir.spaces.len(), 3);
+    assert_eq!(ir.spaces[0].data, SpaceDataRef::Primary);
+    assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Point);
+    assert!(matches!(ir.spaces[1].data, SpaceDataRef::Derived(_)));
+    assert_eq!(ir.spaces[1].geometries[0].kind, GeometryKind::Segment);
+    assert_eq!(ir.spaces[2].data, SpaceDataRef::Primary);
+    assert_eq!(ir.spaces[2].geometries[0].kind, GeometryKind::Text);
+}
+
+#[test]
+fn test_cross_bar_sugar_lowers_to_rect_and_middle_segments() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Space(value * amount) {\n    CrossBar(ymin: lower, ymax: upper, width: 0.6, fill: group, stroke: \"#222222\")\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.unwrap();
+    assert_eq!(ir.derived_tables.len(), 2);
+    assert_eq!(ir.derived_tables[0].stat.kind, StatKind::IntervalRects);
+    assert_eq!(ir.derived_tables[1].stat.kind, StatKind::IntervalMiddles);
+    assert_eq!(ir.spaces.len(), 2);
+    assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Rect);
+    assert_eq!(ir.spaces[1].geometries[0].kind, GeometryKind::Segment);
 }
 
 #[test]
@@ -1040,6 +1116,46 @@ fn test_schema_only_stat_planning_covers_builtin_outputs() {
         .map(|column| column.name)
         .collect();
     assert_eq!(curve_names, vec!["x", "y", "link_id"]);
+
+    let interval = FrameIr::Cartesian(vec![
+        FrameIr::Vector(ColumnRef {
+            name: "position".into(),
+            dtype: DataType::String,
+            span: Span::new(0, 8),
+        }),
+        FrameIr::Vector(ColumnRef {
+            name: "lower".into(),
+            dtype: DataType::Float,
+            span: Span::new(10, 15),
+        }),
+        FrameIr::Vector(ColumnRef {
+            name: "upper".into(),
+            dtype: DataType::Float,
+            span: Span::new(17, 22),
+        }),
+    ]);
+    let segment_schema =
+        planning::interval_segments_output_schema(&interval, IntervalOrientationIr::Vertical);
+    assert_eq!(segment_schema[0].dtype, DataType::String);
+    assert_eq!(segment_schema[1].dtype, DataType::Float);
+    assert_eq!(segment_schema[4].name, "interval_role");
+
+    let rect_names: Vec<String> =
+        planning::interval_rects_output_schema(&interval, IntervalOrientationIr::Vertical)
+            .into_iter()
+            .map(|column| column.name)
+            .collect();
+    assert_eq!(
+        rect_names,
+        vec![
+            "xmin",
+            "xmax",
+            "ymin",
+            "ymax",
+            "interval_role",
+            "interval_id"
+        ]
+    );
 }
 
 #[test]

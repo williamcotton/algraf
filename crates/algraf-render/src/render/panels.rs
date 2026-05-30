@@ -6,7 +6,7 @@ use algraf_semantics::{
     AxisSelectorIr, ChartIr, ColumnRef, CoordsIr, FrameIr, GeometryIr, GuideIr, ScaleIr,
 };
 
-use crate::domains::train_space_domains;
+use crate::domains::{train_space_domains, AxisDomainHints};
 use crate::guide;
 use crate::helpers::frame_axis;
 use crate::layout::{Layout, Margins, Rect, MARGIN_BOTTOM, MARGIN_LEFT};
@@ -443,6 +443,15 @@ impl AxisExtent {
             hints.merge_temporal_extent(min, max);
         }
     }
+
+    fn add_hints(&mut self, hints: &AxisDomainHints) {
+        if let Some((min, max)) = hints.numeric_extent() {
+            self.add_numeric(min, max);
+        }
+        if let Some((min, max)) = hints.temporal_extent() {
+            self.add_temporal(min, max);
+        }
+    }
 }
 
 fn shared_axis_extent(
@@ -455,14 +464,21 @@ fn shared_axis_extent(
     for space in &ir.spaces {
         // Faceted spaces lay out in their own panels, so they do not share an
         // axis with the main overlaid spaces.
-        if facet_frame(&space.frame).is_some() {
+        if facet_frame(&space.frame).is_some()
+            || matches!(space.coords, CoordsIr::Polar { .. })
+            || is_spatial_space(space)
+        {
             continue;
         }
-        let Some(axis_frame) = frame_axis(&space.frame, axis) else {
-            continue;
-        };
         let table = active_table(&space.data, primary, derived);
-        accumulate_axis_extent(axis_frame, table, &mut extent);
+        if let Some(axis_frame) = frame_axis(&space.frame, axis) {
+            accumulate_axis_extent(axis_frame, table, &mut extent);
+        }
+        let hints = train_space_domains(&space.frame, table, &space.geometries);
+        match axis {
+            AxisSelectorIr::X => extent.add_hints(&hints.x),
+            AxisSelectorIr::Y => extent.add_hints(&hints.y),
+        }
     }
     extent
 }
