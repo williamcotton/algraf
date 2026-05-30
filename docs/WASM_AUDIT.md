@@ -81,9 +81,16 @@ and built (not just checked) an actual WASM binary that renders SVG. Findings:
   reports a clear `DataError`, never a link error or panic.
 - **New crate `algraf-wasm`** runs the existing `algraf-driver` → `algraf-render`
   path over an in-memory `DriverIo` (host-supplied `name -> bytes`), exposing
-  `render_to_svg(source, files) -> { svg, diagnostics, error }`. A WASI demo bin
-  built to `wasm32-wasip1` and run under `node:wasi` produced SVG **byte-identical
+  `render_to_svg(source, files) -> { svg, sidecar, diagnostics, error }`. The
+  sidecar is the v0.32 interaction metadata JSON. A WASI demo bin built to
+  `wasm32-wasip1` and run under `node:wasi` produced SVG **byte-identical
   (sha256-equal)** to `algraf render` for `examples/scatter.ag`.
+- **Browser ABI and demo shipped.** The `wasm32-unknown-unknown` build exports a
+  manual pointer/length JSON ABI (`algraf_alloc`, `algraf_dealloc`,
+  `algraf_render_json`) rather than generated bindgen. The root-level
+  [`demo/`](../demo) Vite/React app builds and loads `algraf.wasm`, sends
+  `{ source, files }`, and consumes the returned SVG, sidecar, diagnostics, and
+  error fields.
 
 ### Updated audit commands (sql gated off)
 
@@ -99,6 +106,7 @@ node --experimental-wasi-unstable-preview1 \
 ```
 
 Because `algraf-wasm` does not enable `sql` and the workspace defaults it off,
-its dependency tree never links `libsqlite3-sys`. The remaining v0.34 work
-(per `V0_34_PLAN.md`) is the `wasm-bindgen` browser binding, the JS package, and
-the live demo — not further crate-level portability.
+its dependency tree never links `libsqlite3-sys`. The v0.34 runtime surface is
+now complete in-tree as a manual ABI plus private demo. Generated bindings, a
+publishable npm package, and separate browser `check`/`parse`/`format` exports
+remain future packaging/API work, not crate-level portability blockers.

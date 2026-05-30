@@ -30,7 +30,7 @@ const DEFAULT_SOURCE = `Chart(data: "penguins.json", width: 760, height: 500) {
             alpha: 0.82,
             size: 4,
             tooltip: [species, flipper_length, body_mass],
-            highlight: "species"
+            highlight: species
         )
     }
 }

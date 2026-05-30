@@ -7980,6 +7980,62 @@ analysis may compute built-in derived schemas from typed frames, but it MUST NOT
 materialize derived frames or inspect data rows. The renderer remains the owner
 of full stat execution.
 
+### 24.7 Browser / WASM Runtime
+
+The `algraf-wasm` crate is an optional browser-embeddable runtime over the same
+parse -> analyze -> render pipeline used by the CLI. It is an adapter around the
+driver and renderer, not a second renderer. For charts that use capabilities
+available in the WASM build, SVG output MUST be deterministic and MUST use the
+same render scene, escaping, number formatting, sidecar schema, and diagnostic
+shape as the native pipeline.
+
+The Rust entry point `render_to_svg(source, files)` accepts `.ag` source text
+and an in-memory map from data-source name to bytes. The runtime MUST satisfy
+the driver's `DriverIo` boundary from that map and MUST NOT read host files,
+network resources, process state, environment variables, or clocks. Hosts MAY
+fetch data before calling the runtime, but those fetches are outside Algraf.
+Missing in-memory data sources MUST surface through the existing driver/data
+diagnostic path, not as panics.
+
+The render result shape is:
+
+```json
+{
+  "svg": "string or null",
+  "sidecar": "string or null",
+  "diagnostics": [],
+  "error": "string or null"
+}
+```
+
+When SVG is produced, `sidecar` MUST contain the same versioned interaction
+sidecar JSON described in §24.6. `diagnostics` MUST use the existing structured
+diagnostic shape (`code`, `severity`, byte-offset `span`, `message`, optional
+`related`, optional `help`). `error` is reserved for catastrophic, span-less
+renderer failures that cannot be expressed as a source diagnostic.
+
+For the browser `wasm32-unknown-unknown` build, the shipped ABI is a manual
+pointer/length JSON ABI, not generated `wasm-bindgen` bindings:
+
+- `algraf_alloc(len) -> ptr` allocates a UTF-8 request buffer.
+- `algraf_dealloc(ptr, len)` releases a buffer allocated by the module.
+- `algraf_render_json(ptr, len) -> packed_ptr_len` reads request JSON of the
+  form `{ "source": "...", "files": { "data.json": "..." } }` and returns a
+  pointer/length pair packed into a `u64` with the pointer in the low 32 bits
+  and the byte length in the high 32 bits.
+
+The browser JSON ABI supports text data sources supplied as UTF-8 strings.
+Convenience `check`, `parse`, and `format` exports are not part of the v0.34
+runtime contract; hosts that need diagnostics call `render` and consume the
+returned diagnostics. A future release MAY add convenience exports if their
+diagnostic and span behavior is specified.
+
+The WASM runtime does not enable the native `sql` Cargo feature, so SQLite
+sources are unavailable in that build. A SQLite source in a no-`sql` build MUST
+fail through the same data/driver diagnostic path used for SQLite data errors.
+PNG/raster output, filesystem-backed source discovery, and host-owned UI state
+are outside the v0.34 browser runtime.
+
 ## 25. Examples Compared With GramGraph
 
 ### 25.1 Grouped Line Chart
@@ -8902,6 +8958,12 @@ Interaction sidecars ship in version 0.32.0 as opt-in output (`--metadata` or
 serialize existing declarative interaction metadata plus plot and scale data and
 add no gated syntax.
 
+The browser/WASM runtime ships in version 0.34.0 as packaging and host-runtime
+surface, not as source syntax. The `algraf-wasm` crate defaults to a no-`sql`
+dependency tree for browser builds and exposes the §24.7 manual render ABI.
+Native CLI and LSP builds re-enable the `sql` Cargo feature so existing SQLite
+behavior is unchanged.
+
 Future feature gates MAY enable:
 
 remote SQL sources
@@ -8952,6 +9014,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.30.0 | [`V0_30_PLAN.md`](V0_30_PLAN.md) | Declarative interactivity and live preview | Implemented |
 | 0.31.0 | [`V0_31_PLAN.md`](V0_31_PLAN.md) | Language-surface polish (temporal & polar) | Implemented |
 | 0.32.0 | [`V0_32_PLAN.md`](V0_32_PLAN.md) | Host-runtime interaction sidecar and React reference | Implemented |
+| 0.33.0 | [`V0_33_PLAN.md`](V0_33_PLAN.md) | Cartesian transpose for orientation-locked geoms | Planned |
+| 0.34.0 | [`V0_34_PLAN.md`](V0_34_PLAN.md) | Browser/WASM runtime and live playground | Implemented out of order |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

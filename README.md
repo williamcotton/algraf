@@ -2298,7 +2298,7 @@ Chart(data: "penguins.csv", width: 760, height: 500) {
             alpha: 0.82,
             size: 4,
             tooltip: [species, flipper_length, body_mass],
-            highlight: "species"
+            highlight: species
         )
     }
 }
@@ -2424,21 +2424,27 @@ cargo run -p algraf-cli -- render examples/highlight.ag \
   --metadata chart.meta.json
 ```
 
-The reference React component lives in [`editors/react`](editors/react):
+The in-tree host reference lives in [`demo/src/AlgrafChart.tsx`](demo/src/AlgrafChart.tsx).
+It reads the sidecar, picks the nearest mark from `x_px`/`y_px`, inverts
+serialized axes for crosshair labels, renders tooltip rows, and dims static SVG
+marks by `data-algraf-highlight` group. The host owns the UX; Algraf provides
+deterministic data.
 
-```tsx
-import { AlgrafChart } from "@algraf/react";
+## Running Algraf in the browser
 
-export function Preview({ svg, metadataJson }) {
-  return <AlgrafChart svg={svg} metadata={metadataJson} />;
-}
+The root-level [`demo/`](demo) app builds `crates/algraf-wasm` for the browser,
+loads `/wasm/algraf.wasm`, and calls the manual render ABI with source text plus
+host-supplied data text.
+
+```bash
+cd demo
+npm install
+npm run dev
 ```
 
-The component reads the sidecar, picks the nearest mark from `x_px`/`y_px`,
-inverts serialized axes for crosshair labels, renders tooltip rows, dims static
-SVG marks by `data-algraf-highlight` group, and exposes host-owned legend
-selection and plot brushing. The host owns the UX; Algraf provides deterministic
-data.
+The runtime returns `{ svg, sidecar, diagnostics, error }`. The demo fetches its
+sample data before calling WASM; browser networking stays host-owned, and the
+WASM runtime itself only sees the in-memory `files` map.
 
 ## Workspace layout
 

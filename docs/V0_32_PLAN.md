@@ -39,8 +39,10 @@ examples remain synchronized.
 v0.32.0 is the **host-runtime** release. It picks up the v0.30 interaction
 metadata and exposes it as a stable JSON contract alongside the rendered SVG,
 adds the extra pieces a host needs (plot rect, invertible scale serialization,
-per-mark pixel positions), and ships a reference React component plus an
-interactive LSP preview that both consume the same contract.
+per-mark pixel positions), and ships a reference host component plus an
+interactive LSP preview that both consume the same contract. In the current
+tree, the reference host component lives in the root browser demo
+(`demo/src/AlgrafChart.tsx`) rather than an `editors/react` package.
 
 The decision is that Algraf does not ship UX behavior. Algraf provides data;
 the host decides how interactivity looks and feels. The same sidecar serves a
@@ -289,14 +291,12 @@ Acceptance criteria:
 
 ### Selection / brushing in the reference runtime
 
-Status: Implemented.
+Status: Deferred.
 
-The reference React component implements this over the sidecar without adding
-source syntax: legend labels can be clicked to persist a group selection, and
-dragging a rectangle over the plot produces a brush selection from `marks[]`
-`x_px`/`y_px` coordinates. Selection state is host-owned through component props
-and `onSelectionChange`; Algraf only provides the data shape. The vanilla host
-demo mirrors the same behavior for dependency-free consumers.
+The reference host component implements hover tooltip, crosshair readouts, and
+highlight overlays over the sidecar. Persistent legend selection and rectangular
+brush selection remain host-owned future UX work; no source syntax or renderer
+state is needed.
 
 ### Animated SVG / transitions
 
@@ -346,14 +346,14 @@ and the required packaging/runtime work is sequenced into
 
 ### Consider If Capacity Allows (Should)
 
-- Selection / brushing in the reference runtime.
 - Animated SVG / transitions.
 - WASM rendering path design sketch.
 
 ### Keep Deferred
 
-- Algraf-shipped UX policy, arbitrary scripting, network interactions,
-  multi-chart linked brushing, required WASM/browser product.
+- Persistent selection / brushing in the reference runtime, Algraf-shipped UX
+  policy, arbitrary scripting, network interactions, multi-chart linked
+  brushing, required WASM/browser product.
 
 ## Promotion Workflow
 
