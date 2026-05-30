@@ -34,6 +34,7 @@ mod geom;
 mod guide;
 mod helpers;
 mod layout;
+mod marker;
 mod projection;
 mod render;
 mod scale;

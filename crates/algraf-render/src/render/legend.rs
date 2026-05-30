@@ -7,7 +7,9 @@ use algraf_semantics::{
 };
 
 use crate::aes::{color_spec, number_spec, ColorSpec, Legend, LegendKind};
-use crate::geom::{DEFAULT_SIZE_RANGE, DEFAULT_STROKE_WIDTH_RANGE};
+use crate::geom::{DEFAULT_FILL, DEFAULT_SIZE_RANGE, DEFAULT_STROKE_WIDTH_RANGE};
+use crate::marker::marker_for_index;
+use crate::scale::categorical_domain;
 use crate::stats;
 use crate::theme::Theme;
 
@@ -108,9 +110,51 @@ pub(super) fn collect_legends(
                     }
                 }
             }
+            // A `shape` mapping produces a shape legend (spec §19.5). When the
+            // same column is also mapped to `fill`/`stroke`, this is merged into
+            // that color legend below so its swatches become the marker glyphs;
+            // otherwise it stands alone with default-colored shape swatches.
+            if let Some(legend) = shape_legend(geo, table, &scales) {
+                if !candidates
+                    .iter()
+                    .any(|(a, l)| *a == PropertyKey::Shape && l.title == legend.title)
+                {
+                    candidates.push((PropertyKey::Shape, legend));
+                }
+            }
         }
     }
-    merge_fill_stroke_legends(candidates)
+    merge_legends(candidates)
+}
+
+/// Build the discrete shape legend for a geometry's `shape` mapping, with one
+/// swatch per category in domain order (spec §16.10, §19.5). Entries carry the
+/// default mark fill; if the column is also color-mapped the merge step recolors
+/// them. Returns `None` when `shape` is unmapped or the domain is empty.
+fn shape_legend(geo: &GeometryIr, table: &dyn Table, scales: &[ScaleIr]) -> Option<Legend> {
+    let mapping = geo
+        .mappings
+        .iter()
+        .find(|m| m.aesthetic == PropertyKey::Shape)?;
+    let categories = categorical_domain(table, &mapping.column.name);
+    if categories.is_empty() {
+        return None;
+    }
+    let title = scale_label(scales, "shape")
+        .unwrap_or_else(|| crate::svg::display_label(&mapping.column.name));
+    let shapes = (0..categories.len()).map(marker_for_index).collect();
+    let entries = categories
+        .into_iter()
+        .map(|c| (c, DEFAULT_FILL.to_string()))
+        .collect();
+    Some(Legend {
+        title,
+        kind: LegendKind::Discrete,
+        entries,
+        stroke_entries: Vec::new(),
+        sizes: Vec::new(),
+        shapes,
+    })
 }
 
 /// Build the continuous `count` legend for a bespoke `HexBin` geometry, unless
@@ -172,11 +216,13 @@ fn scale_label(scales: &[ScaleIr], aesthetic: &str) -> Option<String> {
     })
 }
 
-/// Merge a `fill` legend and a `stroke` legend that share a title and have
-/// compatible (identical, discrete) domains into a single legend whose swatches
-/// show both colors (spec §19.7). Non-mergeable candidates pass through
-/// unchanged, deduplicated by title with the first occurrence winning.
-fn merge_fill_stroke_legends(candidates: Vec<(PropertyKey, Legend)>) -> Vec<Legend> {
+/// Merge legends over the same column into one: a `fill` legend and a `stroke`
+/// legend share a title and compatible discrete domains into a single legend
+/// whose swatches show both colors (spec §19.7), and a `shape` legend folds its
+/// marker glyphs onto a matching color legend so the swatches become those
+/// shapes (spec §19.5). Non-mergeable candidates pass through unchanged,
+/// deduplicated by title with the first occurrence winning.
+fn merge_legends(candidates: Vec<(PropertyKey, Legend)>) -> Vec<Legend> {
     let mut out: Vec<Legend> = Vec::new();
     for (aesthetic, legend) in candidates {
         let Some(existing) = out.iter_mut().find(|l| l.title == legend.title) else {
@@ -195,6 +241,16 @@ fn merge_fill_stroke_legends(candidates: Vec<(PropertyKey, Legend)>) -> Vec<Lege
                 .iter()
                 .zip(&legend.entries)
                 .all(|(a, b)| a.0 == b.0);
+
+        // A shape legend over a color-mapped column keeps the color legend's
+        // swatches and labels, but draws each as the mapped marker glyph.
+        if aesthetic == PropertyKey::Shape {
+            if labels_match && existing.shapes.is_empty() {
+                existing.shapes = legend.shapes;
+            }
+            continue;
+        }
+
         let new_colors: Vec<String> = legend.entries.iter().map(|(_, c)| c.clone()).collect();
         if labels_match && existing.stroke_entries.is_empty() {
             if aesthetic == PropertyKey::Stroke {

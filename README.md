@@ -293,7 +293,9 @@ Chart(data: "timeseries.csv") {
 ## Point shapes as a non-color channel
 
 `shape:` can be a literal shape or a categorical mapping. Category order
-assigns shapes deterministically.
+assigns shapes deterministically. When the same column also drives `fill`, the
+legend swatches become those marker glyphs filled with the category colors, so
+the legend matches the points.
 
 ```algraf
 Chart(data: "series.csv", width: 760, height: 460, title: "Series shapes") {

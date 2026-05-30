@@ -6508,7 +6508,13 @@ the scale's output: a `strokeWidth` legend draws a line of the mapped thickness,
 and a `size` legend draws a circle of the mapped radius. A swatch whose mapped
 magnitude is zero draws no mark, only its tick label.
 
-Shape mapping creates shape legend.
+A `shape` mapping MUST create a discrete shape legend with one swatch per
+category in domain order, each drawn as the marker glyph that category's points
+use (§16.10). The title follows the same rules as color legends — the scale's
+`label:` when declared, otherwise the mapped column's display name (§16.13). A
+standalone shape legend draws its swatches in the default mark fill; when the
+same column is also mapped to `fill` or `stroke`, the shape legend is merged
+into that color legend instead of duplicated (§19.7).
 
 Alpha mapping creates alpha legend.
 
@@ -6556,6 +6562,12 @@ equal and in the same order.
 
 A merged legend MUST render each swatch with the fill color as the swatch face
 and the stroke color as the swatch outline.
+
+When `shape` maps to the same categorical column with a compatible domain as a
+`fill` or `stroke` legend, the implementation MUST fold the shape legend into
+that color legend — drawing each swatch as the category's marker glyph filled
+with the color legend's color — rather than emitting a separate shape legend
+with the same title.
 
 Aesthetics mapped to different columns MUST keep separate legends.
 

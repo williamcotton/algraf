@@ -3,9 +3,9 @@ use algraf_data::Table;
 use algraf_semantics::{GeometryIr, PropertyKey, SettingValue};
 
 use crate::aes::{color_spec, number_setting, number_spec};
+use crate::marker::{emit_marker, marker_for_index, parse_marker_shape, MarkerShape};
 use crate::scale::cell_category;
 use crate::sink::{MarkSink, Paint};
-use crate::svg::num;
 
 use super::common::{mark_interaction, render_rows, DEFAULT_FILL, DEFAULT_SIZE_RANGE};
 use super::GeometryRenderContext;
@@ -41,50 +41,36 @@ pub(super) fn render(
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
         let s = size.at(table, row, theme.point_size);
+        let paint = Paint::fill(&color, Some(alpha));
         sink.begin_mark(mark_interaction(geo, table, row));
-        emit_point_shape(sink, shape.resolve(table, row), cx, cy, s, &color, alpha);
+        emit_marker(sink, shape.resolve(table, row), cx, cy, s, &paint);
         sink.end_mark();
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-enum PointShape {
-    Circle,
-    Square,
-    Triangle,
-    Diamond,
-}
-
 struct ShapeSpec {
-    constant: Option<PointShape>,
+    constant: Option<MarkerShape>,
     mapping: Option<(String, Vec<String>)>,
 }
 
 impl ShapeSpec {
-    fn resolve(&self, table: &dyn Table, row: usize) -> PointShape {
+    fn resolve(&self, table: &dyn Table, row: usize) -> MarkerShape {
         if let Some(shape) = self.constant {
             return shape;
         }
         if let Some((col, categories)) = &self.mapping {
             let Some(category) = cell_category(table, col, row) else {
-                return PointShape::Circle;
+                return MarkerShape::Circle;
             };
             let index = categories
                 .iter()
                 .position(|value| value == &category)
                 .unwrap_or(0);
-            return SHAPES[index % SHAPES.len()];
+            return marker_for_index(index);
         }
-        PointShape::Circle
+        MarkerShape::Circle
     }
 }
-
-const SHAPES: &[PointShape] = &[
-    PointShape::Circle,
-    PointShape::Square,
-    PointShape::Triangle,
-    PointShape::Diamond,
-];
 
 fn shape_spec(geo: &GeometryIr, table: &dyn Table, diagnostics: &mut Vec<Diagnostic>) -> ShapeSpec {
     if let Some(mapping) = geo
@@ -105,69 +91,18 @@ fn shape_spec(geo: &GeometryIr, table: &dyn Table, diagnostics: &mut Vec<Diagnos
         .iter()
         .find(|setting| setting.name == PropertyKey::Shape)
         .and_then(|setting| match &setting.value {
-            SettingValue::String(value) => match value.as_str() {
-                "circle" => Some(PointShape::Circle),
-                "square" => Some(PointShape::Square),
-                "triangle" => Some(PointShape::Triangle),
-                "diamond" => Some(PointShape::Diamond),
-                _ => {
-                    diagnostics.push(Diagnostic::warning(
-                        codes::W2006,
-                        format!("unknown point shape `{value}`; using `circle`"),
-                        geo.span,
-                    ));
-                    Some(PointShape::Circle)
-                }
-            },
+            SettingValue::String(value) => Some(parse_marker_shape(value).unwrap_or_else(|| {
+                diagnostics.push(Diagnostic::warning(
+                    codes::W2006,
+                    format!("unknown point shape `{value}`; using `circle`"),
+                    geo.span,
+                ));
+                MarkerShape::Circle
+            })),
             _ => None,
         });
     ShapeSpec {
         constant,
         mapping: None,
-    }
-}
-
-fn emit_point_shape(
-    sink: &mut dyn MarkSink,
-    shape: PointShape,
-    cx: f64,
-    cy: f64,
-    size: f64,
-    color: &str,
-    alpha: f64,
-) {
-    let paint = Paint::fill(color, Some(alpha));
-    match shape {
-        PointShape::Circle => sink.circle(cx, cy, size, &paint),
-        PointShape::Square => {
-            let side = size * 2.0;
-            sink.rect(cx - size, cy - size, side, side, &paint);
-        }
-        PointShape::Triangle => {
-            let d = format!(
-                "M{} {} L{} {} L{} {} Z",
-                num(cx),
-                num(cy - size),
-                num(cx + size),
-                num(cy + size),
-                num(cx - size),
-                num(cy + size)
-            );
-            sink.path(&d, &paint);
-        }
-        PointShape::Diamond => {
-            let d = format!(
-                "M{} {} L{} {} L{} {} L{} {} Z",
-                num(cx),
-                num(cy - size),
-                num(cx + size),
-                num(cy),
-                num(cx),
-                num(cy + size),
-                num(cx - size),
-                num(cy)
-            );
-            sink.path(&d, &paint);
-        }
     }
 }

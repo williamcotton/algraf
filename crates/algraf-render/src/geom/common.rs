@@ -6,7 +6,7 @@ use crate::scale::{cell_category, cell_f64, cell_micros};
 use crate::sink::{Dash, MarkInteraction, MarkSink, Stroke};
 use crate::space::{AxisScale, ScaledSpace};
 
-pub(super) const DEFAULT_FILL: &str = "#4E79A7";
+pub(crate) const DEFAULT_FILL: &str = "#4E79A7";
 pub(super) const DEFAULT_STROKE: &str = "#333333";
 /// Default output range (px) for a mapped `strokeWidth` scale (spec §16.8).
 pub(crate) const DEFAULT_STROKE_WIDTH_RANGE: (f64, f64) = (0.5, 4.0);

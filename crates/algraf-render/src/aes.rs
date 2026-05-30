@@ -103,6 +103,7 @@ impl ColorSpec {
                     .collect(),
                 stroke_entries: Vec::new(),
                 sizes: Vec::new(),
+                shapes: Vec::new(),
             }),
             ColorSpec::Gradient {
                 min, max, stops, ..
@@ -113,6 +114,7 @@ impl ColorSpec {
                     kind: LegendKind::Continuous,
                     stroke_entries: Vec::new(),
                     sizes: Vec::new(),
+                    shapes: Vec::new(),
                     entries: ticks
                         .into_iter()
                         .map(|value| {
@@ -154,6 +156,11 @@ fn gradient_legend_ticks(min: f64, max: f64) -> Vec<f64> {
 /// `sizes`, when non-empty, is aligned with `entries` and holds the resolved
 /// magnitude (line thickness or circle radius, in px) for each swatch of a
 /// [`LegendKind::Width`] or [`LegendKind::Radius`] size legend.
+///
+/// `shapes`, when non-empty, is aligned with `entries` and holds the marker
+/// shape for each swatch of a discrete legend whose column is also mapped to
+/// `shape`; the swatch is drawn as that glyph rather than a square so the legend
+/// matches the points (spec §19.5).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Legend {
     pub title: String,
@@ -161,6 +168,7 @@ pub struct Legend {
     pub entries: Vec<(String, String)>,
     pub stroke_entries: Vec<String>,
     pub sizes: Vec<f64>,
+    pub shapes: Vec<crate::marker::MarkerShape>,
 }
 
 /// How a legend's entries should be rendered.
@@ -363,6 +371,7 @@ impl NumberSpec {
                 .collect(),
             stroke_entries: Vec::new(),
             sizes,
+            shapes: Vec::new(),
         })
     }
 }

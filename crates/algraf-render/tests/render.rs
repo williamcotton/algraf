@@ -1323,6 +1323,55 @@ fn test_point_shape_setting_and_mapping_render_distinct_marks() {
     assert!(svg.contains("<path"));
 }
 
+/// The substring of `svg` covering only the `algraf-legends` layer.
+fn legend_layer(svg: &str) -> &str {
+    let start = svg.find("algraf-legends").expect("legend layer present");
+    &svg[start..]
+}
+
+#[test]
+fn test_shape_legend_merges_into_fill_legend_swatches() {
+    // `shape` and `fill` over the same column produce a single legend whose
+    // swatches are the marker glyphs filled with the categorical colors (spec
+    // §19.5, §19.7), not plain squares.
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") { Space(x * y) { Point(shape: kind, fill: kind, size: 4) } }",
+        "x,y,kind\n1,2,north\n2,3,south\n",
+    );
+    let legend = legend_layer(&svg);
+    // First category: a circle swatch in the first categorical color.
+    assert!(
+        legend.contains("<circle") && legend.contains("fill=\"#4E79A7\""),
+        "legend should draw the first category as a colored circle: {legend}"
+    );
+    // Second category: a square swatch in the second categorical color.
+    assert!(
+        legend.contains("<rect") && legend.contains("fill=\"#F28E2B\""),
+        "legend should draw the second category as a colored square: {legend}"
+    );
+    // The merged legend has a single title, not one per aesthetic.
+    assert_eq!(legend.matches(">kind<").count(), 1, "single legend title");
+}
+
+#[test]
+fn test_shape_only_mapping_creates_default_colored_shape_legend() {
+    // A `shape` mapping with no color mapping still creates a shape legend, with
+    // swatches drawn in the default mark fill (spec §19.5).
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") { Space(x * y) { Point(shape: kind, size: 4) } }",
+        "x,y,kind\n1,2,north\n2,3,south\n",
+    );
+    let legend = legend_layer(&svg);
+    assert!(
+        legend.contains(">kind<"),
+        "shape legend title present: {legend}"
+    );
+    assert!(
+        legend.contains("<circle") && legend.contains("fill=\"#4E79A7\""),
+        "default-colored circle swatch: {legend}"
+    );
+}
+
 #[test]
 fn test_chained_derived_smooth_table_renders() {
     let result = render_result(

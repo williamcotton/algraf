@@ -8,6 +8,7 @@ use algraf_semantics::{GridShapeIr, GuideIr, TemporalFormatIr};
 
 use crate::aes::{Legend, LegendKind};
 use crate::layout::Rect;
+use crate::marker::emit_marker;
 use crate::render::TextAnchor;
 use crate::sink::{Fill, MarkSink, Paint, Stroke, TextRun};
 use crate::space::ScaledSpace;
@@ -529,17 +530,21 @@ pub(crate) fn render_legends(
                         },
                         None => Stroke::Omit,
                     };
-                    sink.rect(
-                        area.x,
-                        y - 10.0,
-                        12.0,
-                        12.0,
-                        &Paint {
-                            fill: Fill::Color(color.clone()),
-                            stroke,
-                            opacity: None,
-                        },
-                    );
+                    let paint = Paint {
+                        fill: Fill::Color(color.clone()),
+                        stroke,
+                        opacity: None,
+                    };
+                    // When the column is also `shape`-mapped, draw the swatch as
+                    // that marker glyph so the legend matches the points; the
+                    // glyph fills the same 12px box a plain square would occupy
+                    // (spec §19.5).
+                    match legend.shapes.get(index) {
+                        Some(shape) => {
+                            emit_marker(sink, *shape, area.x + 6.0, y - 4.0, 6.0, &paint)
+                        }
+                        None => sink.rect(area.x, y - 10.0, 12.0, 12.0, &paint),
+                    }
                     text(sink, area.x + 18.0, y, "start", label, theme);
                     y += 18.0;
                 }
