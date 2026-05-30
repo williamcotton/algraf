@@ -16,6 +16,7 @@ import {
   loadAlgrafRuntime,
 } from "./algrafWasm";
 import { AlgrafChart } from "./AlgrafChart";
+import { AlgrafEditor } from "./AlgrafEditor";
 
 const DATA_URL = "/data/penguins.json";
 const DATA_FILE = "penguins.json";
@@ -42,6 +43,12 @@ interface PreviewStats {
   groups: number;
 }
 
+interface RenderSnapshot {
+  source: string;
+  dataText: string;
+  result: AlgrafRenderResult;
+}
+
 export function App(): React.ReactElement {
   const [runtime, setRuntime] = React.useState<AlgrafRuntime | null>(null);
   const [runtimeState, setRuntimeState] = React.useState<LoadState>("loading");
@@ -49,7 +56,7 @@ export function App(): React.ReactElement {
   const [dataText, setDataText] = React.useState("");
   const [dataState, setDataState] = React.useState<LoadState>("loading");
   const [dataRevision, setDataRevision] = React.useState(0);
-  const [result, setResult] = React.useState<AlgrafRenderResult | null>(null);
+  const [renderSnapshot, setRenderSnapshot] = React.useState<RenderSnapshot | null>(null);
   const [rendering, setRendering] = React.useState(false);
   const [runtimeError, setRuntimeError] = React.useState<string | null>(null);
   const [dataError, setDataError] = React.useState<string | null>(null);
@@ -101,6 +108,39 @@ export function App(): React.ReactElement {
     };
   }, [dataRevision]);
 
+  const renderCurrent = React.useCallback(() => {
+    if (!runtime) {
+      return;
+    }
+
+    const renderSource = source;
+    const renderDataText = dataText;
+    setRendering(true);
+    window.setTimeout(() => {
+      try {
+        JSON.parse(renderDataText);
+        setRenderSnapshot({
+          source: renderSource,
+          dataText: renderDataText,
+          result: runtime.render(renderSource, { [DATA_FILE]: renderDataText }),
+        });
+      } catch (err: unknown) {
+        setRenderSnapshot({
+          source: renderSource,
+          dataText: renderDataText,
+          result: {
+            svg: null,
+            sidecar: null,
+            diagnostics: [],
+            error: errorMessage(err),
+          },
+        });
+      } finally {
+        setRendering(false);
+      }
+    }, 0);
+  }, [dataText, runtime, source]);
+
   React.useEffect(() => {
     if (!runtime || dataState !== "ready") {
       return;
@@ -108,28 +148,17 @@ export function App(): React.ReactElement {
 
     const timer = window.setTimeout(() => {
       setRendering(true);
-      window.setTimeout(() => {
-        try {
-          JSON.parse(dataText);
-          setResult(runtime.render(source, { [DATA_FILE]: dataText }));
-        } catch (err: unknown) {
-          setResult({
-            svg: null,
-            sidecar: null,
-            diagnostics: [],
-            error: errorMessage(err),
-          });
-        } finally {
-          setRendering(false);
-        }
-      }, 0);
+      renderCurrent();
     }, 260);
 
     return () => window.clearTimeout(timer);
-  }, [dataState, dataText, runtime, source]);
+  }, [dataState, renderCurrent, runtime]);
 
-  const diagnostics = result?.diagnostics ?? [];
-  const hasErrors = diagnostics.some((diagnostic) => diagnostic.severity === "error") || Boolean(result?.error);
+  const result = renderSnapshot?.result ?? null;
+  const diagnosticsAreCurrent = Boolean(renderSnapshot && renderSnapshot.source === source && renderSnapshot.dataText === dataText);
+  const diagnostics = diagnosticsAreCurrent ? (result?.diagnostics ?? []) : [];
+  const currentError = diagnosticsAreCurrent ? (result?.error ?? null) : null;
+  const hasErrors = diagnostics.some((diagnostic) => diagnostic.severity === "error") || Boolean(currentError);
   const stats = React.useMemo(() => previewStats(result?.sidecar), [result?.sidecar]);
 
   return (
@@ -142,7 +171,7 @@ export function App(): React.ReactElement {
         <div className="header-actions">
           <StatusBadge state={runtimeState} label="WASM" error={runtimeError} />
           <StatusBadge state={dataState} label="Data" error={dataError} />
-          <button className="icon-button" type="button" onClick={() => setResult(runtime?.render(source, { [DATA_FILE]: dataText }) ?? null)}>
+          <button className="icon-button" type="button" disabled={!runtime || dataState !== "ready"} onClick={renderCurrent}>
             <Play size={16} aria-hidden="true" />
             Render
           </button>
@@ -152,13 +181,7 @@ export function App(): React.ReactElement {
       <section className="workspace-grid">
         <div className="pane editor-pane">
           <PaneHeader icon={<Code2 size={17} aria-hidden="true" />} title="Algraf" detail={`${source.length} bytes`} />
-          <textarea
-            aria-label="Algraf source"
-            className="source-input"
-            spellCheck={false}
-            value={source}
-            onChange={(event) => setSource(event.target.value)}
-          />
+          <AlgrafEditor diagnostics={diagnostics} onChange={setSource} value={source} />
         </div>
 
         <div className="pane data-pane">
@@ -200,7 +223,12 @@ export function App(): React.ReactElement {
               </div>
             )}
           </div>
-          <DiagnosticsPanel diagnostics={diagnostics} error={result?.error ?? null} hasErrors={hasErrors} />
+          <DiagnosticsPanel
+            diagnostics={diagnostics}
+            error={currentError}
+            hasErrors={hasErrors}
+            stale={Boolean(renderSnapshot && !diagnosticsAreCurrent)}
+          />
         </div>
       </section>
     </main>
@@ -246,11 +274,22 @@ function DiagnosticsPanel({
   diagnostics,
   error,
   hasErrors,
+  stale,
 }: {
   diagnostics: AlgrafDiagnostic[];
   error: string | null;
   hasErrors: boolean;
+  stale: boolean;
 }): React.ReactElement {
+  if (stale) {
+    return (
+      <div className="diagnostics diagnostics-pending">
+        <LoaderCircle className="spin" size={16} aria-hidden="true" />
+        Diagnostics updating
+      </div>
+    );
+  }
+
   if (!error && diagnostics.length === 0) {
     return (
       <div className="diagnostics diagnostics-ok">
@@ -273,8 +312,14 @@ function DiagnosticsPanel({
         <div className="diagnostic-row" key={`${diagnostic.code}-${diagnostic.span.start}-${index}`}>
           <AlertCircle size={16} aria-hidden="true" />
           <span className="diagnostic-code">{diagnostic.code}</span>
-          <span>
+          <span className="diagnostic-message">
             {diagnostic.message} <span className="diagnostic-span">[{diagnostic.span.start}, {diagnostic.span.end})</span>
+            {diagnostic.help ? <span className="diagnostic-help">{diagnostic.help}</span> : null}
+            {diagnostic.related?.map((related, relatedIndex) => (
+              <span className="diagnostic-related" key={`${related.span.start}-${relatedIndex}`}>
+                {related.message} <span className="diagnostic-span">[{related.span.start}, {related.span.end})</span>
+              </span>
+            ))}
           </span>
         </div>
       ))}

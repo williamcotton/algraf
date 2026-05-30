@@ -3,4 +3,9 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      path: new URL("./src/pathBrowser.ts", import.meta.url).pathname,
+    },
+  },
 });
