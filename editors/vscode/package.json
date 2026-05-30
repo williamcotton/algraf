@@ -145,7 +145,7 @@
         },
         "algraf.preview.interactive": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Render the preview with the audited interactive runtime (tooltip- and highlight-on-hover). Off by default keeps the preview script-free; when on, only the fixed Algraf-shipped script runs — never user-authored script."
         }
       }
