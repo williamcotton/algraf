@@ -15,6 +15,7 @@ import {
   type AlgrafRuntime,
   loadAlgrafRuntime,
 } from "./algrafWasm";
+import { AlgrafChart } from "./AlgrafChart";
 
 const DATA_URL = "/data/penguins.json";
 const DATA_FILE = "penguins.json";
@@ -189,7 +190,9 @@ export function App(): React.ReactElement {
           />
           <div className="preview-stage">
             {result?.svg ? (
-              <div className="chart-output" dangerouslySetInnerHTML={{ __html: result.svg }} />
+              <div className="chart-output">
+                <AlgrafChart sidecar={result.sidecar} svg={result.svg} />
+              </div>
             ) : (
               <div className="empty-preview">
                 <AlertCircle size={24} aria-hidden="true" />
