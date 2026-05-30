@@ -6,9 +6,66 @@
 //! command) so geometry code stays free of trigonometry.
 
 use std::f64::consts::PI;
+use std::fmt::Write;
+
+use algraf_data::Table;
 
 use crate::space::Polar;
+use crate::space::ScaledSpace;
 use crate::svg::num;
+
+pub(super) struct PolarPoint {
+    pub(super) x: f64,
+    pub(super) y: f64,
+    pub(super) row: usize,
+}
+
+pub(super) fn ordered_points(
+    space: &ScaledSpace,
+    table: &dyn Table,
+    rows: &[usize],
+) -> Vec<PolarPoint> {
+    let mut points: Vec<(f64, PolarPoint)> = rows
+        .iter()
+        .filter_map(|&row| {
+            Some((
+                space.polar_angle(table, row)?,
+                PolarPoint {
+                    x: space.resolve_x(table, row)?,
+                    y: space.resolve_y(table, row)?,
+                    row,
+                },
+            ))
+        })
+        .collect();
+    points.sort_by(|a, b| a.0.total_cmp(&b.0));
+    points.into_iter().map(|(_, point)| point).collect()
+}
+
+pub(super) fn point_path(points: &[PolarPoint], close: bool) -> String {
+    point_path_impl(points, close, false)
+}
+
+pub(super) fn point_path_with_spaced_close(points: &[PolarPoint]) -> String {
+    point_path_impl(points, true, true)
+}
+
+fn point_path_impl(points: &[PolarPoint], close: bool, spaced_close: bool) -> String {
+    let mut d = String::new();
+    for (i, point) in points.iter().enumerate() {
+        let cmd = if i == 0 { 'M' } else { 'L' };
+        let _ = write!(d, "{cmd}{} {} ", num(point.x), num(point.y));
+    }
+    if close && !spaced_close {
+        while d.ends_with(' ') {
+            d.pop();
+        }
+    }
+    if close {
+        d.push('Z');
+    }
+    d.trim_end().to_string()
+}
 
 /// Build an SVG path `d` for an annular segment (a wedge when `r_in` is ~0):
 /// the region between angles `[theta0, theta1]` and radii `[r_in, r_out]`

@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.34.0
+Status: Draft 0.35.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.34.0 specification.
+This working copy is the active Draft 0.35.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -2078,7 +2078,8 @@ The schema resolver reads enough data to infer column names and basic types.
 
 For LSP completion, reading only headers is sufficient.
 
-For LSP hover, inferred types are useful but optional.
+For LSP hover, inferred types and sample values SHOULD be shown when the sampled
+schema is available.
 
 LSP type inference from sampled rows is provisional.
 
@@ -2404,11 +2405,10 @@ operating system. The synchronous provider MUST NOT add network access,
 environment-variable access, command execution, async operations, or caching
 policy.
 
-Version 0.19 adds an async-capable adapter shape with the same local-source
-surface as the synchronous provider. Async loading MUST be additive: existing
-synchronous helpers remain available, and the async boundary MUST NOT add new
-source kinds, network access, environment-variable access, command execution, or
-cache policy.
+Version 0.35 removes the unused async loading adapter. A future async driver
+boundary MAY be reintroduced, but it MUST mirror the synchronous local-source
+surface and MUST NOT add new source kinds, network access, environment-variable
+access, command execution, or cache policy.
 
 SQLite sources are local file sources. They MUST open databases read-only, MUST
 reject write statements, MUST reject multiple SQL statements, MUST NOT register
@@ -6863,11 +6863,20 @@ pub struct Backend {
 Since version 0.16 the schema cache is the driver-owned, fingerprint-validated
 service of §10.9 rather than an LSP-local map; `DataSourceKey` and the cached
 schema/error types live in `driver`. Primary and named-table schema resolution
-both go through this one cache, so they share keying and invalidation.
+both go through this one cache, so they share keying and invalidation. The LSP
+MUST resolve named-table schemas for every chart in the document, not just the
+first chart.
 For `Sqlite(...)`, the LSP MUST include the SQL query in the schema-cache key,
 MUST use the bounded SQL schema-sampling policy from §10.12, and MUST surface
 the `E0025` gated-off diagnostic instead of loading SQL when the `sql` feature
 gate is absent.
+
+Document analysis SHOULD be a pure blocking helper that parses, resolves cached
+schemas, analyzes, and returns `DocumentState` plus diagnostics. Document
+management owns insertion, versioning, and diagnostic publication. No-op text
+edits MAY reuse cached diagnostics only when the document has no external schema
+sources; documents that depend on files or SQLite queries MUST re-run schema
+resolution so fingerprint invalidation can observe external changes.
 
 Document state:
 
@@ -6877,6 +6886,11 @@ pub struct DocumentState {
     pub version: i32,
     pub parse: Option<ParseState>,
     pub analysis: Option<AnalysisState>,
+    pub primary_schema: Option<Vec<ColumnDef>>,
+    pub table_schemas: HashMap<String, Vec<ColumnDef>>,
+    pub data_path: Option<PathBuf>,
+    pub has_external_schema_sources: bool,
+    pub diagnostics: Vec<Diagnostic>,
 }
 ```
 
@@ -6912,7 +6926,8 @@ store document text
 
 parse
 
-start schema resolution on an async path or blocking task
+start schema resolution on a blocking task when filesystem or SQLite metadata
+may be touched
 
 analyze when schema available
 
@@ -6924,7 +6939,11 @@ update text
 
 parse
 
-debounce schema resolution if data source changed
+skip analysis for no-op text changes only when no external schema sources are
+present
+
+debounce schema resolution if data source changed or external schema sources are
+present
 
 analyze with cached schema if available
 
@@ -6991,6 +7010,11 @@ Hover contexts:
 operator hover explains algebra operator
 
 column hover shows type and source
+
+When a sampled schema is available, column hover SHOULD show the inferred type,
+the primary or named-table source, and a small set of sample values. Sampled
+types MUST be labeled provisional in the hover text or associated analysis
+state.
 
 geometry hover shows geometry docs
 
@@ -7249,9 +7273,9 @@ SVG (spec §21.13). The client SHOULD debounce edits and ignore superseded or
 out-of-order replies using `generation`.
 
 Document analysis that may touch data-source metadata or schema bytes SHOULD
-also run off the request reactor, using the driver schema cache and either the
-async driver I/O boundary (§10.8) or a blocking task around the synchronous
-provider. This MUST NOT change LSP protocol behavior or diagnostic content.
+also run off the request reactor, using the driver schema cache on a blocking
+task around the synchronous provider. This MUST NOT change LSP protocol behavior
+or diagnostic content.
 
 The preview is read-only and script-safe by default: when `interactive` is
 omitted or `false`, the server returns script-free SVG and the client MUST NOT
@@ -7621,6 +7645,10 @@ parse diagnostics
 
 formatter
 
+The parser is internally split into cursor, tree-building, block/declaration,
+value, algebra, and post-parse validation modules while preserving the public
+`parse`, `parse_algebra`, and `Parse` API.
+
 shared source-constructor metadata table (recognized constructor names, format
 policy, path-argument rules, documentation, completion text; spec §10.11),
 expressed without depending on the data crate's runtime format type
@@ -7650,9 +7678,6 @@ inventory before any byte load; loading and schema resolution execute from it
 data and schema loading orchestration
 
 injectable synchronous data I/O provider and OS-backed compatibility adapter
-
-additive async-capable data I/O adapter and async loading helpers that mirror the
-same local-source surface without introducing new source kinds
 
 a shared, injectable schema cache service keyed by `DataSourceKey` and validated
 by `SourceFingerprint` (spec §10.9), storing schemas and load errors rather than
@@ -7691,11 +7716,15 @@ scale training
 
 layout
 
-stats
+stats, internally split into `stats/bin.rs`, `stats/density.rs`,
+`stats/smooth.rs`, `stats/summary.rs`, and shared deterministic-output helpers
 
 geometries
 
 SVG emission
+
+space training, internally split so temporal tick/format helpers and polar
+frame helpers live outside the axis-training core
 
 an embedded rendering facade that accepts inline source, caller-provided bytes
 or `serde_json::Value`, explicit data format, optional variables, render options,
@@ -7873,7 +7902,8 @@ Parallel output must remain deterministic.
 3. Parse source into AST.
 4. Publish parse diagnostics.
 5. Extract data source if possible.
-6. Resolve schema asynchronously.
+6. Resolve schema on a blocking task when filesystem or SQLite metadata may be
+   touched.
 7. Infer derived table schemas with schema-only stat planning where possible.
 8. Analyze source when schemas are available.
 9. Publish semantic diagnostics.
@@ -8554,6 +8584,8 @@ schema inference tests
 
 stat tests
 
+stat determinism tests
+
 scale tests
 
 layout tests
@@ -8565,6 +8597,12 @@ CLI integration tests
 LSP request tests
 
 formatter tests
+
+Stat determinism tests MUST materialize or render each statistical transform
+against equivalent input rows in different orders and assert byte-identical
+output. The covered transforms MUST include 1D bins, 2D bins, hex bins,
+calendar/temporal bins, density, count, smooth, and boxplot quantiles. New stats
+SHOULD add a determinism fixture before they are exposed through render.
 
 ### 27.2 Lexer Tests
 
@@ -9064,7 +9102,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.32.0 | [`V0_32_PLAN.md`](V0_32_PLAN.md) | Host-runtime interaction sidecar and React reference | Implemented |
 | 0.33.0 | [`V0_33_PLAN.md`](V0_33_PLAN.md) | Cartesian transpose for orientation-locked geoms | Implemented |
 | 0.34.0 | [`V0_34_PLAN.md`](V0_34_PLAN.md) | Browser/WASM runtime and live playground | Implemented out of order |
-| 0.35.0 | [`V0_35_PLAN.md`](V0_35_PLAN.md) | Internal architecture hardening: stats/parser decomposition, registry generation, determinism harness | Planned |
+| 0.35.0 | [`V0_35_PLAN.md`](V0_35_PLAN.md) | Internal architecture hardening: stats/parser decomposition, registry generation, determinism harness | Implemented |
 | 0.36.0 | [`V0_36_PLAN.md`](V0_36_PLAN.md) | ggplot2 comparability: primitive construction and exact sugar lowerings | Planned |
 | 0.37.0 | [`V0_37_PLAN.md`](V0_37_PLAN.md) | ggplot2 comparability: uncertainty construction and exact sugar lowerings | Planned |
 | 0.38.0 | [`V0_38_PLAN.md`](V0_38_PLAN.md) | ggplot2 comparability: z-field statistics | Planned |

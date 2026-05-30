@@ -1,6 +1,6 @@
 # Algraf v0.35.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_34_PLAN.md`](V0_34_PLAN.md)
@@ -79,7 +79,7 @@ have already been fixed and are not repeated here.
 
 ### 1. Decompose `render/stats.rs` and encode the determinism contract
 
-Status: Planned.
+Status: Implemented.
 Review ref: §3.5 (god-module), §4 (determinism enforcement). Unblocks v0.38 and
 v0.39.
 
@@ -98,7 +98,7 @@ v0.39.
 
 ### 2. Add a per-stat determinism test harness
 
-Status: Planned.
+Status: Implemented.
 Review ref: §3.5, §4 (spec §18.12 is mandated but only LOESS is tested).
 
 - Add tests that run each stat twice — including against shuffled input rows —
@@ -111,7 +111,7 @@ Review ref: §3.5, §4 (spec §18.12 is mandated but only LOESS is tested).
 
 ### 3. Generate the diagnostic-code registry
 
-Status: Planned.
+Status: Implemented.
 Review ref: §3.1 (manual triple-entry across the `codes` module, `all_codes()`,
 and spec §26).
 
@@ -127,7 +127,7 @@ and spec §26).
 
 ### 4. Compile-check the property / geometry registry
 
-Status: Planned.
+Status: Implemented.
 Review ref: §3.4 (PropertyKey/GeometryKind vocabulary hand-maintained in ~7
 sites with no compile-time agreement check). Unblocks every feature release that
 adds a geometry or property.
@@ -144,7 +144,7 @@ adds a geometry or property.
 
 ### 5. Factor the histogram family in `semantics/lowering.rs`
 
-Status: Planned.
+Status: Implemented.
 Review ref: §3.4 (lowering.rs is the 1,039-LOC complexity hotspot with three
 near-parallel histogram desugarings).
 
@@ -158,7 +158,7 @@ near-parallel histogram desugarings).
 
 ### 6. Split `syntax/parser.rs`
 
-Status: Planned.
+Status: Implemented.
 Review ref: §3.2 (1,188-LOC file mixing cursor, tree-building, block/value/
 algebra parsing, and post-parse validation).
 
@@ -174,7 +174,7 @@ algebra parsing, and post-parse validation).
 
 ### Decompose `render/space.rs` and share polar helpers
 
-Status: Planned.
+Status: Implemented.
 Review ref: §3.5 (1,180-LOC module bundling axis training, temporal formatting,
 polar math, nested-band algebra, perimeter-label estimation; polar variants
 re-implemented per geometry).
@@ -188,7 +188,7 @@ re-implemented per geometry).
 
 ### Tidy the driver IO surface
 
-Status: Planned.
+Status: Implemented.
 Review ref: §3.6 (sync/async loader duplication where no caller uses the async
 path; temporal-policy threaded through 5–6 positional params).
 
@@ -201,7 +201,7 @@ path; temporal-policy threaded through 5–6 positional params).
 
 ### Decouple LSP analysis from document management
 
-Status: Planned.
+Status: Implemented.
 Review ref: §3.7 (`upsert_document` couples parse + schema + analyze + insert +
 publish; first-chart-only table resolution is undocumented).
 
@@ -212,7 +212,7 @@ publish; first-chart-only table resolution is undocumented).
 
 ### Guard the SQLite stub/real parity and surface inferred types
 
-Status: Planned.
+Status: Implemented.
 Review ref: §3.3 (no compile-time parity between `sqlite.rs` and
 `sqlite_stub.rs`; silent `Mixed → String` inference is invisible to authors).
 
@@ -224,7 +224,7 @@ Review ref: §3.3 (no compile-time parity between `sqlite.rs` and
 
 ### CLI output-path cleanup
 
-Status: Planned.
+Status: Implemented.
 Review ref: §3.8 (monolithic `render_cmd` / `prepare_render_inputs`).
 
 - Extract a `write_outputs` helper and a small backend abstraction over the

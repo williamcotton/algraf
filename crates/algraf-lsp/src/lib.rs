@@ -8,6 +8,7 @@ use std::io;
 use tokio::runtime::Runtime;
 use tower_lsp::{LspService, Server};
 
+mod analysis;
 mod backend;
 mod code_actions;
 mod completion;

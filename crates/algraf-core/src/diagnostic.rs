@@ -73,260 +73,44 @@ impl<'de> Deserialize<'de> for DiagnosticCode {
     }
 }
 
-/// Canonical diagnostic-code constants (spec §26).
-pub mod codes {
-    use super::DiagnosticCode;
+macro_rules! register_codes {
+    ($($name:ident),+ $(,)?) => {
+        /// Canonical diagnostic-code constants (spec §26).
+        pub mod codes {
+            use super::DiagnosticCode;
 
-    pub const E0001: DiagnosticCode = DiagnosticCode::new("E0001");
-    pub const E0002: DiagnosticCode = DiagnosticCode::new("E0002");
-    pub const E0003: DiagnosticCode = DiagnosticCode::new("E0003");
-    pub const E0004: DiagnosticCode = DiagnosticCode::new("E0004");
-    pub const E0005: DiagnosticCode = DiagnosticCode::new("E0005");
-    pub const E0006: DiagnosticCode = DiagnosticCode::new("E0006");
-    pub const E0007: DiagnosticCode = DiagnosticCode::new("E0007");
-    pub const E0008: DiagnosticCode = DiagnosticCode::new("E0008");
-    pub const E0009: DiagnosticCode = DiagnosticCode::new("E0009");
-    pub const E0010: DiagnosticCode = DiagnosticCode::new("E0010");
-    pub const E0011: DiagnosticCode = DiagnosticCode::new("E0011");
-    pub const E0012: DiagnosticCode = DiagnosticCode::new("E0012");
-    pub const E0013: DiagnosticCode = DiagnosticCode::new("E0013");
-    pub const E0014: DiagnosticCode = DiagnosticCode::new("E0014");
-    pub const E0015: DiagnosticCode = DiagnosticCode::new("E0015");
-    pub const E0016: DiagnosticCode = DiagnosticCode::new("E0016");
-    pub const E0017: DiagnosticCode = DiagnosticCode::new("E0017");
-    pub const E0018: DiagnosticCode = DiagnosticCode::new("E0018");
-    pub const E0019: DiagnosticCode = DiagnosticCode::new("E0019");
-    pub const E0020: DiagnosticCode = DiagnosticCode::new("E0020");
-    pub const E0021: DiagnosticCode = DiagnosticCode::new("E0021");
-    pub const E0022: DiagnosticCode = DiagnosticCode::new("E0022");
-    pub const E0023: DiagnosticCode = DiagnosticCode::new("E0023");
-    pub const E0024: DiagnosticCode = DiagnosticCode::new("E0024");
-    pub const E0025: DiagnosticCode = DiagnosticCode::new("E0025");
+            $(
+                pub const $name: DiagnosticCode = DiagnosticCode::new(stringify!($name));
+            )+
+        }
 
-    pub const E1001: DiagnosticCode = DiagnosticCode::new("E1001");
-    pub const E1002: DiagnosticCode = DiagnosticCode::new("E1002");
-    pub const E1003: DiagnosticCode = DiagnosticCode::new("E1003");
-    pub const E1004: DiagnosticCode = DiagnosticCode::new("E1004");
-    pub const E1005: DiagnosticCode = DiagnosticCode::new("E1005");
-    pub const E1006: DiagnosticCode = DiagnosticCode::new("E1006");
-    pub const E1007: DiagnosticCode = DiagnosticCode::new("E1007");
-    pub const E1008: DiagnosticCode = DiagnosticCode::new("E1008");
-    pub const E1009: DiagnosticCode = DiagnosticCode::new("E1009");
-    pub const E1010: DiagnosticCode = DiagnosticCode::new("E1010");
-    pub const E1011: DiagnosticCode = DiagnosticCode::new("E1011");
-    pub const E1012: DiagnosticCode = DiagnosticCode::new("E1012");
-    pub const E1013: DiagnosticCode = DiagnosticCode::new("E1013");
-    pub const E1014: DiagnosticCode = DiagnosticCode::new("E1014");
-    pub const E1015: DiagnosticCode = DiagnosticCode::new("E1015");
-    pub const E1016: DiagnosticCode = DiagnosticCode::new("E1016");
-    pub const E1017: DiagnosticCode = DiagnosticCode::new("E1017");
-    pub const E1018: DiagnosticCode = DiagnosticCode::new("E1018");
-    pub const E1019: DiagnosticCode = DiagnosticCode::new("E1019");
-    pub const E1101: DiagnosticCode = DiagnosticCode::new("E1101");
-    pub const E1102: DiagnosticCode = DiagnosticCode::new("E1102");
-    pub const E1103: DiagnosticCode = DiagnosticCode::new("E1103");
-    pub const E1104: DiagnosticCode = DiagnosticCode::new("E1104");
-    pub const E1105: DiagnosticCode = DiagnosticCode::new("E1105");
-    pub const E1106: DiagnosticCode = DiagnosticCode::new("E1106");
-    pub const E1107: DiagnosticCode = DiagnosticCode::new("E1107");
-    pub const E1108: DiagnosticCode = DiagnosticCode::new("E1108");
-    pub const E1201: DiagnosticCode = DiagnosticCode::new("E1201");
-    pub const E1202: DiagnosticCode = DiagnosticCode::new("E1202");
-    pub const E1203: DiagnosticCode = DiagnosticCode::new("E1203");
-    pub const E1204: DiagnosticCode = DiagnosticCode::new("E1204");
-    pub const E1205: DiagnosticCode = DiagnosticCode::new("E1205");
-    pub const E1206: DiagnosticCode = DiagnosticCode::new("E1206");
-    pub const E1207: DiagnosticCode = DiagnosticCode::new("E1207");
-    pub const E1301: DiagnosticCode = DiagnosticCode::new("E1301");
-    pub const E1302: DiagnosticCode = DiagnosticCode::new("E1302");
-    pub const E1303: DiagnosticCode = DiagnosticCode::new("E1303");
-    pub const E1304: DiagnosticCode = DiagnosticCode::new("E1304");
-    pub const E1305: DiagnosticCode = DiagnosticCode::new("E1305");
-    pub const E1306: DiagnosticCode = DiagnosticCode::new("E1306");
-    pub const E1401: DiagnosticCode = DiagnosticCode::new("E1401");
-    pub const E1402: DiagnosticCode = DiagnosticCode::new("E1402");
-    pub const E1403: DiagnosticCode = DiagnosticCode::new("E1403");
-    pub const E1404: DiagnosticCode = DiagnosticCode::new("E1404");
-    pub const E1405: DiagnosticCode = DiagnosticCode::new("E1405");
-    pub const E1501: DiagnosticCode = DiagnosticCode::new("E1501");
-    pub const E1601: DiagnosticCode = DiagnosticCode::new("E1601");
-    pub const E1602: DiagnosticCode = DiagnosticCode::new("E1602");
-    pub const E1603: DiagnosticCode = DiagnosticCode::new("E1603");
-    pub const E1604: DiagnosticCode = DiagnosticCode::new("E1604");
-    pub const E1605: DiagnosticCode = DiagnosticCode::new("E1605");
-    pub const E1606: DiagnosticCode = DiagnosticCode::new("E1606");
-    pub const E1607: DiagnosticCode = DiagnosticCode::new("E1607");
-    pub const E1701: DiagnosticCode = DiagnosticCode::new("E1701");
-    pub const E1702: DiagnosticCode = DiagnosticCode::new("E1702");
-    pub const E1703: DiagnosticCode = DiagnosticCode::new("E1703");
-    pub const E1704: DiagnosticCode = DiagnosticCode::new("E1704");
-    pub const E1705: DiagnosticCode = DiagnosticCode::new("E1705");
-    pub const E1706: DiagnosticCode = DiagnosticCode::new("E1706");
-    pub const E1801: DiagnosticCode = DiagnosticCode::new("E1801");
-    pub const E1802: DiagnosticCode = DiagnosticCode::new("E1802");
-    pub const E1803: DiagnosticCode = DiagnosticCode::new("E1803");
-    pub const E1804: DiagnosticCode = DiagnosticCode::new("E1804");
-    pub const E1805: DiagnosticCode = DiagnosticCode::new("E1805");
-    pub const E1901: DiagnosticCode = DiagnosticCode::new("E1901");
-    pub const E1902: DiagnosticCode = DiagnosticCode::new("E1902");
-    pub const E1903: DiagnosticCode = DiagnosticCode::new("E1903");
-    pub const E1904: DiagnosticCode = DiagnosticCode::new("E1904");
-    pub const E1905: DiagnosticCode = DiagnosticCode::new("E1905");
-    pub const E1906: DiagnosticCode = DiagnosticCode::new("E1906");
-    pub const E1907: DiagnosticCode = DiagnosticCode::new("E1907");
-    pub const E1908: DiagnosticCode = DiagnosticCode::new("E1908");
-    pub const E1909: DiagnosticCode = DiagnosticCode::new("E1909");
-    pub const E1910: DiagnosticCode = DiagnosticCode::new("E1910");
-    pub const E1911: DiagnosticCode = DiagnosticCode::new("E1911");
-    pub const E1912: DiagnosticCode = DiagnosticCode::new("E1912");
-    pub const E1913: DiagnosticCode = DiagnosticCode::new("E1913");
+        const REGISTERED_CODES: &[DiagnosticCode] = &[
+            $(codes::$name,)+
+        ];
+    };
+}
 
-    pub const W2001: DiagnosticCode = DiagnosticCode::new("W2001");
-    pub const W2002: DiagnosticCode = DiagnosticCode::new("W2002");
-    pub const W2003: DiagnosticCode = DiagnosticCode::new("W2003");
-    pub const W2004: DiagnosticCode = DiagnosticCode::new("W2004");
-    pub const W2005: DiagnosticCode = DiagnosticCode::new("W2005");
-    pub const W2006: DiagnosticCode = DiagnosticCode::new("W2006");
-    pub const W2007: DiagnosticCode = DiagnosticCode::new("W2007");
-    pub const W2008: DiagnosticCode = DiagnosticCode::new("W2008");
-
-    pub const H3001: DiagnosticCode = DiagnosticCode::new("H3001");
-    pub const H3002: DiagnosticCode = DiagnosticCode::new("H3002");
-    pub const H3003: DiagnosticCode = DiagnosticCode::new("H3003");
-    pub const H3004: DiagnosticCode = DiagnosticCode::new("H3004");
-    pub const H3005: DiagnosticCode = DiagnosticCode::new("H3005");
-
-    pub const R0001: DiagnosticCode = DiagnosticCode::new("R0001");
-    pub const R0002: DiagnosticCode = DiagnosticCode::new("R0002");
-    pub const R0003: DiagnosticCode = DiagnosticCode::new("R0003");
-    pub const R0004: DiagnosticCode = DiagnosticCode::new("R0004");
-    pub const R0005: DiagnosticCode = DiagnosticCode::new("R0005");
+register_codes! {
+    E0001, E0002, E0003, E0004, E0005, E0006, E0007, E0008,
+    E0009, E0010, E0011, E0012, E0013, E0014, E0015, E0016,
+    E0017, E0018, E0019, E0020, E0021, E0022, E0023, E0024,
+    E0025, E1001, E1002, E1003, E1004, E1005, E1006, E1007,
+    E1008, E1009, E1010, E1011, E1012, E1013, E1014, E1015,
+    E1016, E1017, E1018, E1019, E1101, E1102, E1103, E1104,
+    E1105, E1106, E1107, E1108, E1201, E1202, E1203, E1204,
+    E1205, E1206, E1207, E1301, E1302, E1303, E1304, E1305,
+    E1306, E1401, E1402, E1403, E1404, E1405, E1501, E1601,
+    E1602, E1603, E1604, E1605, E1606, E1607, E1701, E1702,
+    E1703, E1704, E1705, E1706, E1801, E1802, E1803, E1804,
+    E1805, E1901, E1902, E1903, E1904, E1905, E1906, E1907,
+    E1908, E1909, E1910, E1911, E1912, E1913, W2001, W2002,
+    W2003, W2004, W2005, W2006, W2007, W2008, H3001, H3002,
+    H3003, H3004, H3005, R0001, R0002, R0003, R0004, R0005,
 }
 
 /// Every registered diagnostic code.
 pub const fn all_codes() -> &'static [DiagnosticCode] {
-    &[
-        codes::E0001,
-        codes::E0002,
-        codes::E0003,
-        codes::E0004,
-        codes::E0005,
-        codes::E0006,
-        codes::E0007,
-        codes::E0008,
-        codes::E0009,
-        codes::E0010,
-        codes::E0011,
-        codes::E0012,
-        codes::E0013,
-        codes::E0014,
-        codes::E0015,
-        codes::E0016,
-        codes::E0017,
-        codes::E0018,
-        codes::E0019,
-        codes::E0020,
-        codes::E0021,
-        codes::E0022,
-        codes::E0023,
-        codes::E0024,
-        codes::E0025,
-        codes::E1001,
-        codes::E1002,
-        codes::E1003,
-        codes::E1004,
-        codes::E1005,
-        codes::E1006,
-        codes::E1007,
-        codes::E1008,
-        codes::E1009,
-        codes::E1010,
-        codes::E1011,
-        codes::E1012,
-        codes::E1013,
-        codes::E1014,
-        codes::E1015,
-        codes::E1016,
-        codes::E1017,
-        codes::E1018,
-        codes::E1019,
-        codes::E1101,
-        codes::E1102,
-        codes::E1103,
-        codes::E1104,
-        codes::E1105,
-        codes::E1106,
-        codes::E1107,
-        codes::E1108,
-        codes::E1201,
-        codes::E1202,
-        codes::E1203,
-        codes::E1204,
-        codes::E1205,
-        codes::E1206,
-        codes::E1207,
-        codes::E1301,
-        codes::E1302,
-        codes::E1303,
-        codes::E1304,
-        codes::E1305,
-        codes::E1306,
-        codes::E1401,
-        codes::E1402,
-        codes::E1403,
-        codes::E1404,
-        codes::E1405,
-        codes::E1501,
-        codes::E1601,
-        codes::E1602,
-        codes::E1603,
-        codes::E1604,
-        codes::E1605,
-        codes::E1606,
-        codes::E1607,
-        codes::E1701,
-        codes::E1702,
-        codes::E1703,
-        codes::E1704,
-        codes::E1705,
-        codes::E1706,
-        codes::E1801,
-        codes::E1802,
-        codes::E1803,
-        codes::E1804,
-        codes::E1805,
-        codes::E1901,
-        codes::E1902,
-        codes::E1903,
-        codes::E1904,
-        codes::E1905,
-        codes::E1906,
-        codes::E1907,
-        codes::E1908,
-        codes::E1909,
-        codes::E1910,
-        codes::E1911,
-        codes::E1912,
-        codes::E1913,
-        codes::W2001,
-        codes::W2002,
-        codes::W2003,
-        codes::W2004,
-        codes::W2005,
-        codes::W2006,
-        codes::W2007,
-        codes::W2008,
-        codes::H3001,
-        codes::H3002,
-        codes::H3003,
-        codes::H3004,
-        codes::H3005,
-        codes::R0001,
-        codes::R0002,
-        codes::R0003,
-        codes::R0004,
-        codes::R0005,
-    ]
+    REGISTERED_CODES
 }
 
 /// Diagnostic severity (spec §13.16).

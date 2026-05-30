@@ -129,18 +129,14 @@ impl Analyzer<'_> {
         let name = self.next_synthetic("histogram");
         let options = self.bin_options_from_geometry(histogram, input.dtype);
         let output_schema = bin_output_schema(input.dtype);
-        let derive = DeriveIr {
-            name: name.clone(),
-            data: SpaceDataRef::Primary,
-            stat: StatCallIr {
-                kind: StatKind::Bin,
-                input: FrameIr::Vector(input.clone()),
-                options,
-                span: histogram.span,
-            },
+        let derive = stat_derive(
+            name.clone(),
+            StatKind::Bin,
+            FrameIr::Vector(input.clone()),
+            options,
             output_schema,
-            span: histogram.span,
-        };
+            histogram.span,
+        );
 
         let boundary_dtype = bin_boundary_dtype(input.dtype);
         let bin_start = synthetic_column("bin_start", boundary_dtype, histogram.span);
@@ -169,22 +165,15 @@ impl Analyzer<'_> {
             interaction: InteractionIr::default(),
             span: histogram.span,
         };
-        let space = SpaceIr {
-            data: SpaceDataRef::Derived(name),
-            frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
-            geometries: {
-                let mut geometries = vec![rect];
-                geometries.extend(annotations);
-                geometries
-            },
+        let space = derived_space(
+            name,
+            FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
+            with_annotations(rect, annotations),
+            theme,
             guides,
             scales,
-            theme,
-            projection: None,
-            // Inherits the parent space's coordinate system (set in `space()`).
-            coords: CoordsIr::Cartesian,
-            span: histogram.span,
-        };
+            histogram.span,
+        );
         Some((derive, space))
     }
 
@@ -203,18 +192,14 @@ impl Analyzer<'_> {
         let span = histogram.span;
         let name = self.next_synthetic("histogram");
         let options = self.bin_options_from_geometry(histogram, DataType::Float);
-        let derive = DeriveIr {
-            name: name.clone(),
-            data: SpaceDataRef::Primary,
-            stat: StatCallIr {
-                kind: StatKind::Bin,
-                input: FrameIr::Union(values.into_iter().map(FrameIr::Vector).collect()),
-                options,
-                span,
-            },
-            output_schema: crate::planning::blended_bin_output_schema(),
+        let derive = stat_derive(
+            name.clone(),
+            StatKind::Bin,
+            FrameIr::Union(values.into_iter().map(FrameIr::Vector).collect()),
+            options,
+            crate::planning::blended_bin_output_schema(),
             span,
-        };
+        );
 
         let bin_start = synthetic_column("bin_start", DataType::Float, span);
         let count = synthetic_column("count", DataType::Integer, span);
@@ -242,20 +227,15 @@ impl Analyzer<'_> {
             interaction: InteractionIr::default(),
             span,
         };
-        let mut geometries = vec![rect];
-        geometries.extend(annotations);
-        let space = SpaceIr {
-            data: SpaceDataRef::Derived(name),
-            frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
-            geometries,
+        let space = derived_space(
+            name,
+            FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
+            with_annotations(rect, annotations),
+            theme,
             guides,
             scales,
-            theme,
-            projection: None,
-            // Inherits the parent space's coordinate system (set in `space()`).
-            coords: CoordsIr::Cartesian,
             span,
-        };
+        );
         (derive, space)
     }
 
@@ -283,21 +263,14 @@ impl Analyzer<'_> {
         let name = self.next_synthetic("histogram");
         let options = self.bin_options_from_geometry(histogram, value.dtype);
         let output_schema = crate::planning::grouped_bin_output_schema(&group.name);
-        let derive = DeriveIr {
-            name: name.clone(),
-            data: SpaceDataRef::Primary,
-            stat: StatCallIr {
-                kind: StatKind::Bin,
-                input: FrameIr::Cartesian(vec![
-                    FrameIr::Vector(value),
-                    FrameIr::Vector(group.clone()),
-                ]),
-                options,
-                span,
-            },
+        let derive = stat_derive(
+            name.clone(),
+            StatKind::Bin,
+            FrameIr::Cartesian(vec![FrameIr::Vector(value), FrameIr::Vector(group.clone())]),
+            options,
             output_schema,
             span,
-        };
+        );
 
         let bin_start = synthetic_column("bin_start", DataType::Float, span);
         let count = synthetic_column("count", DataType::Integer, span);
@@ -353,22 +326,15 @@ impl Analyzer<'_> {
             interaction: InteractionIr::default(),
             span,
         };
-        let space = SpaceIr {
-            data: SpaceDataRef::Derived(name),
-            frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
-            geometries: {
-                let mut geometries = vec![rect];
-                geometries.extend(annotations);
-                geometries
-            },
+        let space = derived_space(
+            name,
+            FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
+            with_annotations(rect, annotations),
+            theme,
             guides,
             scales,
-            theme,
-            projection: None,
-            // Inherits the parent space's coordinate system (set in `space()`).
-            coords: CoordsIr::Cartesian,
             span,
-        };
+        );
         (derive, space)
     }
 
@@ -387,18 +353,14 @@ impl Analyzer<'_> {
         let name = self.next_synthetic("freqpoly");
         let options = self.bin_options_from_geometry(freq_poly, input.dtype);
         let output_schema = bin_output_schema(input.dtype);
-        let derive = DeriveIr {
-            name: name.clone(),
-            data: SpaceDataRef::Primary,
-            stat: StatCallIr {
-                kind: StatKind::Bin,
-                input: FrameIr::Vector(input.clone()),
-                options,
-                span: freq_poly.span,
-            },
+        let derive = stat_derive(
+            name.clone(),
+            StatKind::Bin,
+            FrameIr::Vector(input.clone()),
+            options,
             output_schema,
-            span: freq_poly.span,
-        };
+            freq_poly.span,
+        );
 
         let boundary_dtype = bin_boundary_dtype(input.dtype);
         let bin_center = synthetic_column("bin_center", boundary_dtype, freq_poly.span);
@@ -410,18 +372,15 @@ impl Analyzer<'_> {
             interaction: InteractionIr::default(),
             span: freq_poly.span,
         };
-        let space = SpaceIr {
-            data: SpaceDataRef::Derived(name),
-            frame: FrameIr::Cartesian(vec![FrameIr::Vector(bin_center), FrameIr::Vector(count)]),
-            geometries: vec![line],
+        let space = derived_space(
+            name,
+            FrameIr::Cartesian(vec![FrameIr::Vector(bin_center), FrameIr::Vector(count)]),
+            vec![line],
+            theme,
             guides,
             scales,
-            theme,
-            projection: None,
-            // Inherits the parent space's coordinate system (set in `space()`).
-            coords: CoordsIr::Cartesian,
-            span: freq_poly.span,
-        };
+            freq_poly.span,
+        );
         Some((derive, space))
     }
 
@@ -465,23 +424,16 @@ impl Analyzer<'_> {
         }
 
         let name = self.next_synthetic("bin2d");
-        let derive = DeriveIr {
-            name: name.clone(),
-            data: SpaceDataRef::Primary,
-            stat: StatCallIr {
-                kind: StatKind::Bin2D,
-                input: FrameIr::Cartesian(vec![
-                    FrameIr::Vector(x.clone()),
-                    FrameIr::Vector(y.clone()),
-                ]),
-                options: StatOptionsIr::Bin2D {
-                    bins: bin2d_bins_from_geometry(bin2d),
-                },
-                span: bin2d.span,
+        let derive = stat_derive(
+            name.clone(),
+            StatKind::Bin2D,
+            FrameIr::Cartesian(vec![FrameIr::Vector(x.clone()), FrameIr::Vector(y.clone())]),
+            StatOptionsIr::Bin2D {
+                bins: bin2d_bins_from_geometry(bin2d),
             },
-            output_schema: bin2d_output_schema(),
-            span: bin2d.span,
-        };
+            bin2d_output_schema(),
+            bin2d.span,
+        );
 
         let x_start = synthetic_column("x_start", DataType::Float, bin2d.span);
         let x_end = synthetic_column("x_end", DataType::Float, bin2d.span);
@@ -528,21 +480,18 @@ impl Analyzer<'_> {
             interaction: InteractionIr::default(),
             span: bin2d.span,
         };
-        let space = SpaceIr {
-            data: SpaceDataRef::Derived(name),
-            frame: FrameIr::Cartesian(vec![
+        let space = derived_space(
+            name,
+            FrameIr::Cartesian(vec![
                 FrameIr::Union(vec![FrameIr::Vector(x_start), FrameIr::Vector(x_end)]),
                 FrameIr::Union(vec![FrameIr::Vector(y_start), FrameIr::Vector(y_end)]),
             ]),
-            geometries: vec![rect],
+            vec![rect],
+            theme,
             guides,
             scales,
-            theme,
-            projection: None,
-            // Inherits the parent space's coordinate system (set in `space()`).
-            coords: CoordsIr::Cartesian,
-            span: bin2d.span,
-        };
+            bin2d.span,
+        );
         Some((derive, space))
     }
 
@@ -972,6 +921,57 @@ fn synthetic_column(name: &str, dtype: DataType, span: Span) -> ColumnRef {
         dtype,
         span,
     }
+}
+
+fn stat_derive(
+    name: String,
+    kind: StatKind,
+    input: FrameIr,
+    options: StatOptionsIr,
+    output_schema: Vec<ColumnDefIr>,
+    span: Span,
+) -> DeriveIr {
+    DeriveIr {
+        name,
+        data: SpaceDataRef::Primary,
+        stat: StatCallIr {
+            kind,
+            input,
+            options,
+            span,
+        },
+        output_schema,
+        span,
+    }
+}
+
+fn derived_space(
+    name: String,
+    frame: FrameIr,
+    geometries: Vec<GeometryIr>,
+    theme: Option<ThemeIr>,
+    guides: GuideOverridesIr,
+    scales: Vec<ScaleIr>,
+    span: Span,
+) -> SpaceIr {
+    SpaceIr {
+        data: SpaceDataRef::Derived(name),
+        frame,
+        geometries,
+        guides,
+        scales,
+        theme,
+        projection: None,
+        // Inherits the parent space's coordinate system (set in `space()`).
+        coords: CoordsIr::Cartesian,
+        span,
+    }
+}
+
+fn with_annotations(rect: GeometryIr, annotations: Vec<GeometryIr>) -> Vec<GeometryIr> {
+    let mut geometries = vec![rect];
+    geometries.extend(annotations);
+    geometries
 }
 
 /// Visual settings copied verbatim from a high-level geometry onto the

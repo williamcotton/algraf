@@ -13,6 +13,7 @@ use super::common::{
     axis_is_continuousish, constant_or, grouped_rows, grouped_rows_by_color, pos, render_rows,
     stroke_style, DEFAULT_FILL, DEFAULT_STROKE, DEFAULT_STROKE_WIDTH_RANGE,
 };
+use super::polar::{ordered_points, point_path, point_path_with_spaced_close};
 use super::GeometryRenderContext;
 
 /// Render a `Line` (`sort = true`, x-sorted) or `Path` (`sort = false`, source
@@ -57,18 +58,7 @@ pub(super) fn render_polyline(
             _ => theme.line_width,
         };
         for (cat, rows) in groups {
-            let mut points: Vec<(f64, f64, f64, usize)> = rows
-                .iter()
-                .filter_map(|&r| {
-                    Some((
-                        space.polar_angle(table, r)?,
-                        space.resolve_x(table, r)?,
-                        space.resolve_y(table, r)?,
-                        r,
-                    ))
-                })
-                .collect();
-            points.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let points = ordered_points(space, table, &rows);
             if points.is_empty() {
                 continue;
             }
@@ -76,18 +66,12 @@ pub(super) fn render_polyline(
                 constant_or(&stroke, DEFAULT_STROKE)
             } else {
                 stroke
-                    .resolve(table, points[0].3)
+                    .resolve(table, points[0].row)
                     .unwrap_or_else(|| DEFAULT_STROKE.to_string())
             };
-            let mut d = String::new();
-            for (i, (_, x, y, _)) in points.iter().enumerate() {
-                let cmd = if i == 0 { 'M' } else { 'L' };
-                let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
-            }
             // A closed radar polygon for `Line`; `Path` stays open.
-            let close = if sort { "Z" } else { "" };
             sink.path(
-                &format!("{}{}", d.trim_end(), close),
+                &point_path(&points, sort),
                 &Paint {
                     fill: Fill::None,
                     stroke: Stroke::Solid {
@@ -442,33 +426,16 @@ pub(super) fn render_area(
     // filled directly rather than down to a baseline (spec §16.16).
     if space.is_polar() {
         for group_rows in groups {
-            let mut points: Vec<(f64, f64, f64, usize)> = group_rows
-                .iter()
-                .filter_map(|&row| {
-                    Some((
-                        space.polar_angle(table, row)?,
-                        space.resolve_x(table, row)?,
-                        space.resolve_y(table, row)?,
-                        row,
-                    ))
-                })
-                .collect();
+            let points = ordered_points(space, table, &group_rows);
             if points.len() < 2 {
                 continue;
             }
-            points.sort_by(|a, b| a.0.total_cmp(&b.0));
-            let mut d = String::new();
-            for (i, (_, x, y, _)) in points.iter().enumerate() {
-                let cmd = if i == 0 { 'M' } else { 'L' };
-                let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
-            }
-            d.push('Z');
-            let first_row = points[0].3;
+            let first_row = points[0].row;
             let fill_color = fill
                 .resolve(table, first_row)
                 .unwrap_or_else(|| DEFAULT_FILL.to_string());
             sink.path(
-                d.trim_end(),
+                &point_path_with_spaced_close(&points),
                 &Paint {
                     fill: Fill::Color(fill_color),
                     stroke: stroke_style(&stroke, stroke_width, table, first_row),

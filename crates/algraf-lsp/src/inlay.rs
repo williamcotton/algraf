@@ -96,7 +96,10 @@ mod tests {
                 diagnostics: analysis.diagnostics,
             }),
             primary_schema: Some(schema),
+            table_schemas: Default::default(),
             data_path: None,
+            has_external_schema_sources: false,
+            diagnostics: Vec::new(),
         };
         let full = Range::new(Position::new(0, 0), Position::new(100, 0));
         let hints = inlay_hints_for(&state, full);

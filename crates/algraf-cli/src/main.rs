@@ -375,33 +375,29 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
         )?);
     }
 
+    write_outputs(&args, outputs, multi)
+}
+
+/// One rendered chart's primary output plus an optional sidecar.
+struct RenderOutput {
+    primary: RenderOutputData,
+    metadata_json: Option<String>,
+}
+
+/// One rendered chart's primary output: text (SVG/JSON) or binary (raster PNG).
+enum RenderOutputData {
+    Text(String),
+    Bytes(Vec<u8>),
+}
+
+fn write_outputs(
+    args: &RenderArgs,
+    outputs: Vec<RenderOutput>,
+    multi: bool,
+) -> Result<(), CliError> {
     for (idx, output) in outputs.into_iter().enumerate() {
         let path = primary_output_path(args.output.as_deref(), idx, multi, args.format);
-        match output.primary {
-            // Render-model raster (and any future binary backend) writes bytes.
-            RenderOutputData::Bytes(bytes) => match path {
-                Some(path) => std::fs::write(&path, bytes).map_err(|e| {
-                    CliError::Io(format!("failed to write {}: {e}", path.display()))
-                })?,
-                None => std::io::stdout()
-                    .write_all(&bytes)
-                    .map_err(|e| CliError::Io(format!("failed to write stdout: {e}")))?,
-            },
-            RenderOutputData::Text(text) => match path {
-                // The canonical PNG path rasterizes the SVG backend's output.
-                Some(path) if args.format.writes_svg() && is_png_path(&path) => {
-                    let png_options = png::PngOptions::new(args.png_scale, args.png_dpi)
-                        .map_err(CliError::Usage)?;
-                    png::write_png(text.as_bytes(), &path, png_options).map_err(|e| {
-                        CliError::Io(format!("failed to write PNG {}: {e}", path.display()))
-                    })?;
-                }
-                Some(path) => std::fs::write(&path, text).map_err(|e| {
-                    CliError::Io(format!("failed to write {}: {e}", path.display()))
-                })?,
-                None => print!("{text}"),
-            },
-        }
+        write_primary_output(args, path.as_deref(), output.primary)?;
         if let Some(metadata) = output.metadata_json {
             let path = metadata_output_path(
                 args.output.as_deref(),
@@ -417,16 +413,37 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
     Ok(())
 }
 
-/// One rendered chart's primary output plus an optional sidecar.
-struct RenderOutput {
-    primary: RenderOutputData,
-    metadata_json: Option<String>,
-}
-
-/// One rendered chart's primary output: text (SVG/JSON) or binary (raster PNG).
-enum RenderOutputData {
-    Text(String),
-    Bytes(Vec<u8>),
+fn write_primary_output(
+    args: &RenderArgs,
+    path: Option<&Path>,
+    output: RenderOutputData,
+) -> Result<(), CliError> {
+    match output {
+        // Render-model raster (and any future binary backend) writes bytes.
+        RenderOutputData::Bytes(bytes) => match path {
+            Some(path) => std::fs::write(path, bytes)
+                .map_err(|e| CliError::Io(format!("failed to write {}: {e}", path.display()))),
+            None => std::io::stdout()
+                .write_all(&bytes)
+                .map_err(|e| CliError::Io(format!("failed to write stdout: {e}"))),
+        },
+        RenderOutputData::Text(text) => match path {
+            // The canonical PNG path rasterizes the SVG backend's output.
+            Some(path) if args.format.writes_svg() && is_png_path(path) => {
+                let png_options =
+                    png::PngOptions::new(args.png_scale, args.png_dpi).map_err(CliError::Usage)?;
+                png::write_png(text.as_bytes(), path, png_options).map_err(|e| {
+                    CliError::Io(format!("failed to write PNG {}: {e}", path.display()))
+                })
+            }
+            Some(path) => std::fs::write(path, text)
+                .map_err(|e| CliError::Io(format!("failed to write {}: {e}", path.display()))),
+            None => {
+                print!("{text}");
+                Ok(())
+            }
+        },
+    }
 }
 
 /// Resolve, analyze, and render one chart to the requested output format.

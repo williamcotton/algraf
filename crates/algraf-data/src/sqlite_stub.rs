@@ -12,6 +12,9 @@ use crate::csv::LoadResult;
 use crate::error::DataError;
 use crate::schema::ColumnDef;
 
+const _: fn(&Path, &str) -> Result<LoadResult, DataError> = read_sqlite_path;
+const _: fn(&Path, &str, usize) -> Result<Vec<ColumnDef>, DataError> = read_sqlite_schema_path;
+
 fn unavailable() -> DataError {
     DataError::SqliteSafety(
         "SQLite data sources are not available in this build of Algraf".to_string(),

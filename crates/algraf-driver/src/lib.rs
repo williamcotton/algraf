@@ -17,16 +17,11 @@ pub use cache::{
     DataSourceKey, InMemorySchemaCache, NoSchemaCache, SchemaCache, SourceFingerprint,
 };
 pub use error::{DriverError, LoadContext};
-pub use io::{
-    AsyncDriverIo, BlockingAsyncDriverIo, DriverDataFuture, DriverIo, DriverIoFuture,
-    DriverPathMetadata, DriverShapefileBundle, OsDriverIo,
-};
+pub use io::{DriverIo, DriverPathMetadata, DriverShapefileBundle, OsDriverIo};
 pub use loading::{
-    load_data, load_data_with_async_io, load_data_with_io, load_named_table_schemas,
-    load_named_table_schemas_with_io, load_named_tables, load_named_tables_with_io, load_path,
-    load_path_with_async_io, load_path_with_io, load_schema, load_schema_path,
-    load_schema_path_with_async_io, load_schema_path_with_io, load_schema_with_async_io,
-    load_schema_with_io, NamedTable, NamedTableSchema,
+    load_data, load_data_with_io, load_named_table_schemas, load_named_table_schemas_with_io,
+    load_named_tables, load_named_tables_with_io, load_path, load_path_with_io, load_schema,
+    load_schema_path, load_schema_path_with_io, load_schema_with_io, NamedTable, NamedTableSchema,
 };
 pub use prepare::{
     prepare_chart, prepare_chart_partial, prepare_chart_partial_with_io, prepare_chart_with_io,
@@ -1263,22 +1258,5 @@ Chart(data: "b.csv") { Space(x * y) { Line() } }"#,
         resolve_schema_cached(&cache, &io, &path, None, 10, LoadContext::Primary);
 
         assert_eq!(io.reads(), 2, "a no-op cache should reload every time");
-    }
-
-    #[tokio::test]
-    async fn blocking_async_io_wraps_sync_schema_and_full_loads() {
-        let path = PathBuf::from("/mem/data.csv");
-        let sync = MemoryIo::default().with_file(&path, b"x,y\n1,2\n3,4\n".as_slice());
-        let io = BlockingAsyncDriverIo::new(sync);
-
-        let schema = load_schema_path_with_async_io(&path, None, 10, LoadContext::Primary, &io)
-            .await
-            .unwrap();
-        assert_eq!(schema[0].name, "x");
-
-        let loaded = load_path_with_async_io(&path, None, LoadContext::Primary, &io)
-            .await
-            .unwrap();
-        assert_eq!(loaded.frame.row_count(), 2);
     }
 }

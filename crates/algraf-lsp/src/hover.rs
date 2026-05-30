@@ -1,6 +1,10 @@
-use algraf_data::DataType;
+use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::registry;
-use algraf_syntax::{source_constructor_meta, tokenize, unescape_string_literal};
+use algraf_syntax::ast::{AlgebraExpr, SpaceBlock, ValueExpr};
+use algraf_syntax::{
+    node_span, parse, source_constructor_meta, tokenize, unescape_quoted_ident,
+    unescape_string_literal, SyntaxKind,
+};
 use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
 
 use crate::document::DocumentState;
@@ -38,7 +42,10 @@ pub(crate) fn hover_at(state: &DocumentState, offset: usize) -> Option<Hover> {
             "`+` unions compatible domains in an explicitly parenthesized blend.",
         )),
         TokenKind::Ident(name) => hover_for_ident(state, &tokens, idx, name),
-        TokenKind::QuotedIdent(raw) => hover_for_ident(state, &tokens, idx, raw),
+        TokenKind::QuotedIdent(raw) => {
+            let name = unescape_quoted_ident(raw);
+            hover_for_ident(state, &tokens, idx, &name)
+        }
         TokenKind::String(raw) => hover_for_string(state, raw),
         _ => None,
     }?;
@@ -102,16 +109,17 @@ fn hover_for_ident(
         }
         _ => {}
     }
-    if let Some(column) = state
-        .primary_schema
-        .as_ref()
-        .and_then(|schema| schema.iter().find(|column| column.name == name))
+    if let Some(column) =
+        state
+            .column_schema_at(tokens[idx].span.start)
+            .and_then(|(schema, source)| {
+                schema
+                    .iter()
+                    .find(|column| column.name == name)
+                    .map(|column| (column, source))
+            })
     {
-        let source = state
-            .data_path
-            .as_ref()
-            .map(|path| path.display().to_string())
-            .unwrap_or_else(|| "CSV schema sample".to_string());
+        let (column, source) = column;
         let examples = if column.examples.is_empty() {
             String::new()
         } else {
@@ -124,6 +132,47 @@ fn hover_for_ident(
             source,
             examples
         ));
+    }
+    None
+}
+
+trait HoverSchemaLookup {
+    fn column_schema_at(&self, offset: usize) -> Option<(&[ColumnDef], String)>;
+}
+
+impl HoverSchemaLookup for DocumentState {
+    fn column_schema_at(&self, offset: usize) -> Option<(&[ColumnDef], String)> {
+        if let Some(table_name) = space_data_table_at(&self.text, offset) {
+            if let Some(schema) = self.table_schemas.get(&table_name) {
+                return Some((schema.as_slice(), format!("Table `{table_name}`")));
+            }
+        }
+        let source = self
+            .data_path
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| "CSV schema sample".to_string());
+        self.primary_schema
+            .as_deref()
+            .map(|schema| (schema, source))
+    }
+}
+
+fn space_data_table_at(text: &str, offset: usize) -> Option<String> {
+    let root = parse(text).syntax();
+    let space = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::SPACE_BLOCK)
+        .find(|node| node_span(node).contains(offset))?;
+    let block = SpaceBlock::cast(space)?;
+    for arg in block.args() {
+        if arg.key().as_deref() != Some("data") {
+            continue;
+        }
+        let Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) = arg.value() else {
+            continue;
+        };
+        return name.name();
     }
     None
 }
@@ -212,7 +261,10 @@ mod tests {
             parse: None,
             analysis: None,
             primary_schema: None,
+            table_schemas: Default::default(),
             data_path: None,
+            has_external_schema_sources: false,
+            diagnostics: Vec::new(),
         }
     }
 
@@ -220,6 +272,18 @@ mod tests {
         match hover.contents {
             HoverContents::Markup(m) => m.value,
             _ => panic!("expected markup"),
+        }
+    }
+
+    fn col(name: &str, dtype: DataType, examples: &[&str]) -> ColumnDef {
+        ColumnDef {
+            name: name.to_string(),
+            dtype,
+            nullable: false,
+            examples: examples
+                .iter()
+                .map(|example| (*example).to_string())
+                .collect(),
         }
     }
 
@@ -253,5 +317,34 @@ mod tests {
         let offset = text.find("transpose").unwrap() + 1;
         let md = markdown(hover_at(&state(text), offset).expect("hover"));
         assert!(md.contains("Frame operator `transpose`"));
+    }
+
+    #[test]
+    fn hovers_primary_column_type_and_examples() {
+        let text = "Chart(data: \"p.csv\") {\n  Space(region * sales) {\n    Point()\n  }\n}";
+        let mut state = state(text);
+        state.primary_schema = Some(vec![col("sales", DataType::Float, &["10.5", "12"])]);
+        let offset = text.find("sales").unwrap() + 1;
+        let md = markdown(hover_at(&state, offset).expect("hover"));
+        assert!(md.contains("Column `sales`"));
+        assert!(md.contains("Type: `float`"));
+        assert!(md.contains("Examples: `10.5`, `12`"));
+    }
+
+    #[test]
+    fn hovers_named_table_column_type_and_examples() {
+        let text = "Chart(data: \"p.csv\") {\n  Table cities = \"cities.csv\"\n  Space(lat * lon, data: cities) {\n    Point()\n  }\n}";
+        let mut state = state(text);
+        state.primary_schema = Some(vec![col("lat", DataType::String, &["wrong"])]);
+        state.table_schemas.insert(
+            "cities".to_string(),
+            vec![col("lat", DataType::Float, &["45.1"])],
+        );
+        let offset = text.find("lat *").unwrap() + 1;
+        let md = markdown(hover_at(&state, offset).expect("hover"));
+        assert!(md.contains("Column `lat`"));
+        assert!(md.contains("Type: `float`"));
+        assert!(md.contains("Source: Table `cities`"));
+        assert!(md.contains("Examples: `45.1`"));
     }
 }

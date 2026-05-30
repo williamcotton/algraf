@@ -17,6 +17,9 @@ use crate::error::DataError;
 use crate::frame::Table;
 use crate::schema::ColumnDef;
 
+const _: fn(&Path, &str) -> Result<LoadResult, DataError> = read_sqlite_path;
+const _: fn(&Path, &str, usize) -> Result<Vec<ColumnDef>, DataError> = read_sqlite_schema_path;
+
 /// Fully load a local SQLite query result.
 pub fn read_sqlite_path(path: &Path, query: &str) -> Result<LoadResult, DataError> {
     read_sqlite_path_limited(path, query, None).map(|(loaded, _)| loaded)

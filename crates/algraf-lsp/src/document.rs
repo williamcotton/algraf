@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use algraf_core::Diagnostic as CoreDiagnostic;
@@ -15,7 +16,16 @@ pub struct DocumentState {
     pub parse: Option<ParseState>,
     pub analysis: Option<AnalysisState>,
     pub primary_schema: Option<Vec<ColumnDef>>,
+    pub table_schemas: HashMap<String, Vec<ColumnDef>>,
     pub data_path: Option<PathBuf>,
+    pub has_external_schema_sources: bool,
+    pub diagnostics: Vec<CoreDiagnostic>,
+}
+
+impl DocumentState {
+    pub(crate) fn diagnostics(&self) -> &[CoreDiagnostic] {
+        &self.diagnostics
+    }
 }
 
 /// Cached parse state (spec §21.3).

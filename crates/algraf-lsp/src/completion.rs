@@ -765,7 +765,10 @@ mod tests {
             parse: None,
             analysis: None,
             primary_schema: None,
+            table_schemas: Default::default(),
             data_path: None,
+            has_external_schema_sources: false,
+            diagnostics: Vec::new(),
         }
     }
 

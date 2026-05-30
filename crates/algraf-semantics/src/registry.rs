@@ -599,7 +599,28 @@ pub fn property_doc(name: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::{PropertyKey, PROPERTY_KEYS};
+    use crate::ir::{GeometryKind, GEOMETRY_KINDS, PROPERTY_KEYS};
+
+    #[test]
+    fn every_geometry_kind_has_one_matching_registry_entry() {
+        assert_eq!(GEOMETRIES.len(), GEOMETRY_KINDS.len());
+
+        let mut names = std::collections::HashSet::new();
+        let mut css_classes = std::collections::HashSet::new();
+        for &kind in GEOMETRY_KINDS {
+            let name = kind.display_name();
+            assert_eq!(GeometryKind::from_name(name), Some(kind));
+            let def = geometry(name).unwrap_or_else(|| panic!("{name} missing from registry"));
+            assert_eq!(def.name, name);
+            assert_eq!(def.kind, kind);
+            assert!(names.insert(name), "duplicate geometry name {name}");
+            assert!(
+                css_classes.insert(kind.css_class()),
+                "duplicate geometry CSS class {}",
+                kind.css_class()
+            );
+        }
+    }
 
     #[test]
     fn every_registry_property_resolves_to_its_typed_key() {
@@ -625,6 +646,23 @@ mod tests {
         let mut seen = std::collections::HashSet::new();
         for &key in PROPERTY_KEYS {
             assert!(seen.insert(key.as_str()), "duplicate spelling {key:?}");
+        }
+    }
+
+    #[test]
+    fn every_property_key_is_registered_or_builtin_special() {
+        let mut seen = std::collections::HashSet::new();
+        for geo in GEOMETRIES {
+            for prop in geo.props {
+                seen.insert(prop.key);
+            }
+        }
+        for &key in PROPERTY_KEYS {
+            assert!(
+                seen.contains(&key),
+                "{} is a PropertyKey but no geometry registry entry accepts it",
+                key.as_str()
+            );
         }
     }
 }

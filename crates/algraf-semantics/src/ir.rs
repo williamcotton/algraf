@@ -688,6 +688,34 @@ pub enum GeometryKind {
     Graticule,
 }
 
+/// Every [`GeometryKind`] variant, in declaration order. Used by registry
+/// agreement checks and exhaustive iteration.
+pub const GEOMETRY_KINDS: &[GeometryKind] = &[
+    GeometryKind::Point,
+    GeometryKind::Line,
+    GeometryKind::Path,
+    GeometryKind::Bar,
+    GeometryKind::Rect,
+    GeometryKind::Histogram,
+    GeometryKind::FreqPoly,
+    GeometryKind::Bin2D,
+    GeometryKind::HexBin,
+    GeometryKind::Smooth,
+    GeometryKind::Boxplot,
+    GeometryKind::Violin,
+    GeometryKind::Density,
+    GeometryKind::Ribbon,
+    GeometryKind::Tile,
+    GeometryKind::HLine,
+    GeometryKind::VLine,
+    GeometryKind::Rug,
+    GeometryKind::Area,
+    GeometryKind::Text,
+    GeometryKind::Segment,
+    GeometryKind::Geo,
+    GeometryKind::Graticule,
+];
+
 impl GeometryKind {
     /// Human-facing geometry name, used in diagnostics and debug JSON. This is
     /// the single authoritative spelling, reused by the geometry registry.
@@ -746,6 +774,14 @@ impl GeometryKind {
             GeometryKind::Geo => "geo",
             GeometryKind::Graticule => "graticule",
         }
+    }
+
+    /// Resolve a registry geometry name to its typed kind.
+    pub fn from_name(name: &str) -> Option<GeometryKind> {
+        GEOMETRY_KINDS
+            .iter()
+            .copied()
+            .find(|kind| kind.display_name() == name)
     }
 }
 
