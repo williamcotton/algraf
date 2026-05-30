@@ -56,7 +56,7 @@ fix — reconcile all three rather than picking one.
 
 ## Workspace layout
 
-Cargo workspace with eight crates under `crates/` (see spec §23):
+Cargo workspace with nine crates under `crates/` (see spec §23):
 
 | Crate              | Responsibility                                              |
 | ------------------ | ----------------------------------------------------------- |
@@ -68,6 +68,7 @@ Cargo workspace with eight crates under `crates/` (see spec §23):
 | `algraf-render`    | Scale training, layout, stats, geometries, SVG emission     |
 | `algraf-lsp`       | tower-lsp backend, document cache, completion, hover        |
 | `algraf-cli`       | The `algraf` binary: arg parsing, command dispatch, I/O     |
+| `algraf-wasm`      | Browser/WASM runtime: in-memory `DriverIo`, reuses driver→render|
 
 Dependency direction flows downward: `core` depends on nothing internal;
 `driver` depends on syntax, data, and semantics; `cli` depends on everything.

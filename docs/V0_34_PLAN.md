@@ -5,6 +5,7 @@ Status: Implemented out of order (manual browser ABI + root demo; no
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_33_PLAN.md`](V0_33_PLAN.md)
+Follow-on plan: [`V0_35_PLAN.md`](V0_35_PLAN.md)
 Prior art:
 [`WASM_AUDIT.md`](WASM_AUDIT.md) (v0.19/v0.34 build-shape audit),
 [`V0_32_PLAN.md`](V0_32_PLAN.md) (host-runtime SVG + JSON sidecar contract),
