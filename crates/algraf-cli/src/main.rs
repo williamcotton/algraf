@@ -66,11 +66,24 @@ enum Command {
 enum RenderFormat {
     /// Deterministic SVG (the canonical backend). `.png` outputs rasterize it.
     Svg,
+    /// Write deterministic SVG plus a JSON interaction metadata sidecar.
+    #[value(name = "svg+json")]
+    SvgJson,
     /// A serializable, Canvas-drawable JSON draw list of scene primitives.
     DrawList,
     /// A PNG rasterized directly from the draw-list scene model (no SVG, no
     /// system fonts). Shapes only; text glyphs are not rendered (spec §24.6).
     Raster,
+}
+
+impl RenderFormat {
+    fn writes_svg(self) -> bool {
+        matches!(self, RenderFormat::Svg | RenderFormat::SvgJson)
+    }
+
+    fn writes_metadata(self) -> bool {
+        matches!(self, RenderFormat::SvgJson)
+    }
 }
 
 /// Stream/data format override for caller-provided primary data.
@@ -105,12 +118,13 @@ struct RenderArgs {
     #[arg(short = 'e', long = "eval", conflicts_with = "input")]
     eval: Option<String>,
     /// Output path. With `--format svg`, `.png` paths rasterize the SVG and all
-    /// other paths write SVG; with `--format draw-list`, paths write JSON; with
-    /// `--format raster`, paths write a PNG drawn from the scene model.
+    /// other paths write SVG; with `--format svg+json`, this is the SVG path or
+    /// base path; with `--format draw-list`, paths write JSON; with `--format
+    /// raster`, paths write a PNG drawn from the scene model.
     #[arg(long)]
     output: Option<PathBuf>,
-    /// Output backend: `svg` (default), `draw-list` JSON, or `raster` PNG drawn
-    /// from the scene model (spec §24.6).
+    /// Output backend: `svg` (default), `svg+json`, `draw-list` JSON, or
+    /// `raster` PNG drawn from the scene model (spec §24.6).
     #[arg(long, value_enum, default_value_t = RenderFormat::Svg)]
     format: RenderFormat,
     /// Embed the fixed, audited interactive runtime in SVG output (spec §29.3):
@@ -119,6 +133,9 @@ struct RenderArgs {
     /// stays script-free without it.
     #[arg(long)]
     interactive: bool,
+    /// Write the JSON interaction metadata sidecar to this path.
+    #[arg(long)]
+    metadata: Option<PathBuf>,
     #[arg(long)]
     width: Option<u32>,
     #[arg(long)]
@@ -308,6 +325,11 @@ fn driver_error(err: DriverError) -> CliError {
 }
 
 fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
+    if args.format == RenderFormat::SvgJson && args.output.is_none() {
+        return Err(CliError::Usage(
+            "`--format svg+json` writes two files; pass --output".to_string(),
+        ));
+    }
     let (source, input) =
         read_template_source(args.input.as_deref(), args.eval.as_deref(), &args.vars)?;
     let parsed = parse(&source);
@@ -354,10 +376,10 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
     }
 
     for (idx, output) in outputs.into_iter().enumerate() {
-        let path = chart_output_path(args.output.as_deref(), idx, multi);
-        match output {
+        let path = primary_output_path(args.output.as_deref(), idx, multi, args.format);
+        match output.primary {
             // Render-model raster (and any future binary backend) writes bytes.
-            RenderOutput::Bytes(bytes) => match path {
+            RenderOutputData::Bytes(bytes) => match path {
                 Some(path) => std::fs::write(&path, bytes).map_err(|e| {
                     CliError::Io(format!("failed to write {}: {e}", path.display()))
                 })?,
@@ -365,9 +387,9 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
                     .write_all(&bytes)
                     .map_err(|e| CliError::Io(format!("failed to write stdout: {e}")))?,
             },
-            RenderOutput::Text(text) => match path {
+            RenderOutputData::Text(text) => match path {
                 // The canonical PNG path rasterizes the SVG backend's output.
-                Some(path) if args.format == RenderFormat::Svg && is_png_path(&path) => {
+                Some(path) if args.format.writes_svg() && is_png_path(&path) => {
                     let png_options = png::PngOptions::new(args.png_scale, args.png_dpi)
                         .map_err(CliError::Usage)?;
                     png::write_png(text.as_bytes(), &path, png_options).map_err(|e| {
@@ -380,12 +402,29 @@ fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
                 None => print!("{text}"),
             },
         }
+        if let Some(metadata) = output.metadata_json {
+            let path = metadata_output_path(
+                args.output.as_deref(),
+                args.metadata.as_deref(),
+                idx,
+                multi,
+                args.format,
+            )?;
+            std::fs::write(&path, metadata)
+                .map_err(|e| CliError::Io(format!("failed to write {}: {e}", path.display())))?;
+        }
     }
     Ok(())
 }
 
-/// One rendered chart's output: text (SVG/JSON) or binary (raster PNG).
-enum RenderOutput {
+/// One rendered chart's primary output plus an optional sidecar.
+struct RenderOutput {
+    primary: RenderOutputData,
+    metadata_json: Option<String>,
+}
+
+/// One rendered chart's primary output: text (SVG/JSON) or binary (raster PNG).
+enum RenderOutputData {
     Text(String),
     Bytes(Vec<u8>),
 }
@@ -400,15 +439,11 @@ fn render_chart_output(
     multi: bool,
 ) -> Result<RenderOutput, CliError> {
     match args.format {
-        RenderFormat::Svg => {
-            render_chart_svg(chart, args, input, source, label, multi).map(RenderOutput::Text)
+        RenderFormat::Svg | RenderFormat::SvgJson => {
+            render_chart_svg(chart, args, input, source, label, multi)
         }
-        RenderFormat::DrawList => {
-            render_chart_draw_list(chart, args, input, source, label, multi).map(RenderOutput::Text)
-        }
-        RenderFormat::Raster => {
-            render_chart_raster(chart, args, input, source, label, multi).map(RenderOutput::Bytes)
-        }
+        RenderFormat::DrawList => render_chart_draw_list(chart, args, input, source, label, multi),
+        RenderFormat::Raster => render_chart_raster(chart, args, input, source, label, multi),
     }
 }
 
@@ -432,7 +467,7 @@ fn render_chart_svg(
     source: &str,
     label: &str,
     multi: bool,
-) -> Result<String, CliError> {
+) -> Result<RenderOutput, CliError> {
     let RenderInputs {
         ir,
         frame,
@@ -481,7 +516,11 @@ fn render_chart_svg(
             args.emit_metadata,
         );
     }
-    Ok(result.svg)
+    let metadata_json = should_write_metadata(args).then(|| result.metadata.to_json());
+    Ok(RenderOutput {
+        primary: RenderOutputData::Text(result.svg),
+        metadata_json,
+    })
 }
 
 /// Render one chart block to a draw-list JSON string (spec §24.6).
@@ -492,7 +531,7 @@ fn render_chart_draw_list(
     source: &str,
     label: &str,
     multi: bool,
-) -> Result<String, CliError> {
+) -> Result<RenderOutput, CliError> {
     let RenderInputs {
         ir,
         frame,
@@ -521,7 +560,11 @@ fn render_chart_draw_list(
     if diagnostics::has_blocking(&render_diags, args.strict) {
         return Err(CliError::Diagnostics);
     }
-    Ok(result.draw_list.to_json())
+    let metadata_json = should_write_metadata(args).then(|| result.metadata.to_json());
+    Ok(RenderOutput {
+        primary: RenderOutputData::Text(result.draw_list.to_json()),
+        metadata_json,
+    })
 }
 
 /// Render one chart block to PNG bytes through the render-model raster backend
@@ -533,7 +576,7 @@ fn render_chart_raster(
     source: &str,
     label: &str,
     multi: bool,
-) -> Result<Vec<u8>, CliError> {
+) -> Result<RenderOutput, CliError> {
     let png_options =
         png::PngOptions::new(args.png_scale, args.png_dpi).map_err(CliError::Usage)?;
     let RenderInputs {
@@ -565,8 +608,13 @@ fn render_chart_raster(
     if diagnostics::has_blocking(&render_diags, args.strict) {
         return Err(CliError::Diagnostics);
     }
-    png::encode_pixmap(result.image.pixmap(), png_options.dpi())
-        .map_err(|e| CliError::Internal(format!("PNG encoding failed: {e}")))
+    let bytes = png::encode_pixmap(result.image.pixmap(), png_options.dpi())
+        .map_err(|e| CliError::Internal(format!("PNG encoding failed: {e}")))?;
+    let metadata_json = should_write_metadata(args).then(|| result.metadata.to_json());
+    Ok(RenderOutput {
+        primary: RenderOutputData::Bytes(bytes),
+        metadata_json,
+    })
 }
 
 /// Shared preparation for both render backends: load data, analyze, resolve the
@@ -680,9 +728,60 @@ fn prepare_render_inputs(
     })
 }
 
-/// Output path for chart `idx` (0-based). With a single chart the `--output`
-/// path is used verbatim; with multiple charts a 1-based `-{n}` suffix is
-/// inserted before the extension (`out.svg` -> `out-1.svg`, `out-2.svg`).
+fn should_write_metadata(args: &RenderArgs) -> bool {
+    args.metadata.is_some() || args.format.writes_metadata()
+}
+
+/// Primary output path for chart `idx` (0-based). With a single chart the
+/// `--output` path is used verbatim except `--format svg+json`, where an
+/// extensionless base gets `.svg`. With multiple charts a 1-based `-{n}` suffix
+/// is inserted before the extension (`out.svg` -> `out-1.svg`, `out-2.svg`).
+fn primary_output_path(
+    base: Option<&Path>,
+    idx: usize,
+    multi: bool,
+    format: RenderFormat,
+) -> Option<PathBuf> {
+    let path = chart_output_path(base, idx, multi)?;
+    if format == RenderFormat::SvgJson && path.extension().is_none() {
+        return Some(path.with_extension("svg"));
+    }
+    Some(path)
+}
+
+/// Metadata sidecar path for chart `idx`. An explicit `--metadata` path wins;
+/// `--format svg+json` derives `<base>.meta.json` from `--output`.
+fn metadata_output_path(
+    output: Option<&Path>,
+    metadata: Option<&Path>,
+    idx: usize,
+    multi: bool,
+    format: RenderFormat,
+) -> Result<PathBuf, CliError> {
+    if let Some(path) = metadata {
+        return chart_output_path(Some(path), idx, multi).ok_or_else(|| {
+            CliError::Usage("internal error: metadata path disappeared".to_string())
+        });
+    }
+    if format == RenderFormat::SvgJson {
+        let Some(base) = output else {
+            return Err(CliError::Usage(
+                "`--format svg+json` requires --output".to_string(),
+            ));
+        };
+        let path = chart_output_path(Some(base), idx, multi).ok_or_else(|| {
+            CliError::Usage("internal error: output path disappeared".to_string())
+        })?;
+        return Ok(path.with_extension("meta.json"));
+    }
+    Err(CliError::Usage(
+        "`--metadata` path is required to write a sidecar".to_string(),
+    ))
+}
+
+/// Output path for chart `idx` (0-based). With a single chart the base path is
+/// used verbatim; with multiple charts a 1-based `-{n}` suffix is inserted
+/// before the extension (`out.svg` -> `out-1.svg`, `out-2.svg`).
 fn chart_output_path(base: Option<&Path>, idx: usize, multi: bool) -> Option<PathBuf> {
     let base = base?;
     if !multi {

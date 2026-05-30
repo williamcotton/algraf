@@ -110,8 +110,70 @@ fn render_draw_list_writes_json_to_stdout() {
     // A draw list, not SVG.
     assert!(!out.contains("<svg"));
     assert!(out.starts_with("{\"width\":"));
+    assert!(out.contains("\"interactions\":{\"version\":1"));
     assert!(out.contains("\"role\":\"background\""));
     assert!(out.contains("\"role\":\"plot-area\""));
+}
+
+#[test]
+fn render_metadata_writes_interaction_sidecar() {
+    let dir = temp_dir("render-metadata");
+    let data = dir.join("data.csv");
+    let chart = dir.join("chart.ag");
+    let svg = dir.join("chart.svg");
+    let metadata = dir.join("chart.meta.json");
+    fs::write(&data, "x,y,group\n1,2,a\n3,4,b\n").unwrap();
+    fs::write(
+        &chart,
+        "Chart(data: \"data.csv\") {\n  Space(x * y) {\n    Point(tooltip: [group, y], highlight: \"group\")\n  }\n}\n",
+    )
+    .unwrap();
+
+    let output = Command::new(bin())
+        .arg("render")
+        .arg(&chart)
+        .arg("--output")
+        .arg(&svg)
+        .arg("--metadata")
+        .arg(&metadata)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(stdout(&output).is_empty());
+    assert!(fs::read_to_string(svg).unwrap().contains("<svg"));
+
+    let sidecar = fs::read_to_string(metadata).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&sidecar).unwrap();
+    assert_eq!(parsed["version"], 1);
+    assert_eq!(parsed["marks"][0]["tooltip"][0]["label"], "group");
+    assert_eq!(parsed["marks"][0]["groups"]["group"], "a");
+    assert_eq!(parsed["groups"]["group"], serde_json::json!(["a", "b"]));
+}
+
+#[test]
+fn render_svg_json_format_derives_sidecar_path() {
+    let dir = temp_dir("render-svg-json");
+    let (chart, _) = write_fixture(&dir);
+    let base = dir.join("chart");
+
+    let output = Command::new(bin())
+        .arg("render")
+        .arg(&chart)
+        .arg("--format")
+        .arg("svg+json")
+        .arg("--output")
+        .arg(&base)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(dir.join("chart.svg").exists());
+    let metadata = dir.join("chart.meta.json");
+    assert!(metadata.exists());
+    assert!(fs::read_to_string(metadata)
+        .unwrap()
+        .starts_with("{\"version\":1,\"plot_rect\":"));
 }
 
 #[test]

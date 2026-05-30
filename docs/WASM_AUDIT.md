@@ -61,3 +61,44 @@ RUSTC=/Users/williamcotton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/ru
 All three checks passed under `rustc 1.92.0` from rustup stable. The native
 workspace checks still use the default Homebrew toolchain recorded in
 `docs/PERFORMANCE_BASELINE.md`.
+
+## v0.34.0 Update — full pipeline builds to WASM
+
+A v0.34 spike extended the audited surface to `algraf-data` and `algraf-render`
+and built (not just checked) an actual WASM binary that renders SVG. Findings:
+
+- **The only native blocker was `libsqlite3-sys`.** It is the one C dependency;
+  `proj4rs`, `shapefile`, `geojson`, and the `resvg`/`tiny-skia`/`png` raster
+  stack all compile *and link* for `wasm32` with no changes. The v0.19 audit's
+  pessimism about geo/raster did not bear out — linking a `wasm32-wasip1`
+  binary failed solely with `rust-lld: error: unable to find library -lsqlite3`.
+- **Gate added.** `libsqlite3-sys` is now optional behind a `sql` Cargo feature
+  on `algraf-data` (default on), forwarded through `algraf-semantics`,
+  `algraf-driver`, and `algraf-render`. The four crates default `sql` off in
+  `[workspace.dependencies]`; `algraf-cli` and `algraf-lsp` re-enable it, so
+  native builds and all 637 workspace tests are unchanged. When `sql` is off,
+  `algraf-data/src/sqlite_stub.rs` replaces the FFI module and a SQLite source
+  reports a clear `DataError`, never a link error or panic.
+- **New crate `algraf-wasm`** runs the existing `algraf-driver` → `algraf-render`
+  path over an in-memory `DriverIo` (host-supplied `name -> bytes`), exposing
+  `render_to_svg(source, files) -> { svg, diagnostics, error }`. A WASI demo bin
+  built to `wasm32-wasip1` and run under `node:wasi` produced SVG **byte-identical
+  (sha256-equal)** to `algraf render` for `examples/scatter.ag`.
+
+### Updated audit commands (sql gated off)
+
+```bash
+RUSTC=/Users/williamcotton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc \
+  rustup run stable cargo check -p algraf-data   --target wasm32-wasip1
+RUSTC=/Users/williamcotton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc \
+  rustup run stable cargo check -p algraf-render --target wasm32-wasip1
+RUSTC=/Users/williamcotton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc \
+  rustup run stable cargo build -p algraf-wasm --bin algraf-wasm-demo --target wasm32-wasip1
+node --experimental-wasi-unstable-preview1 \
+  crates/algraf-wasm/web/run-wasi.mjs target/.../algraf-wasm-demo.wasm
+```
+
+Because `algraf-wasm` does not enable `sql` and the workspace defaults it off,
+its dependency tree never links `libsqlite3-sys`. The remaining v0.34 work
+(per `V0_34_PLAN.md`) is the `wasm-bindgen` browser binding, the JS package, and
+the live demo — not further crate-level portability.

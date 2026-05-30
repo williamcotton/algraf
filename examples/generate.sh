@@ -117,6 +117,10 @@ for chart in "${charts[@]}"; do
     "$algraf" render "examples/$chart.ag" --output "examples/$chart.png"
 done
 
+"$algraf" render "examples/highlight.ag" \
+    --output "examples/highlight.svg" \
+    --metadata "examples/highlight.meta.json"
+
 # Multi-chart documents render one file per chart, with a 1-based suffix
 # inserted before the extension (multi_chart-1.svg, multi_chart-2.svg, ...).
 for chart in multi_chart map_simplification us_urban_population projection_comparison; do

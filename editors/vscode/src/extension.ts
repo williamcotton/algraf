@@ -21,6 +21,7 @@ let watchedPaths: string[] = [];
 
 interface PreviewResult {
     svg: string | null;
+    metadata: string | null;
     message: string | null;
     superseded: boolean;
     generation: number;

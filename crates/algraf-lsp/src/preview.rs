@@ -81,7 +81,7 @@ impl Backend {
         }
 
         let result = match outcome {
-            Ok(Ok(svg)) => PreviewResult::svg(generation, svg),
+            Ok(Ok((svg, metadata))) => PreviewResult::svg(generation, svg, metadata),
             Ok(Err(message)) => PreviewResult::message(generation, &message),
             Err(_) => PreviewResult::message(generation, "preview rendering task failed"),
         };
@@ -118,6 +118,8 @@ pub struct PreviewParams {
 pub struct PreviewResult {
     /// The rendered SVG, when rendering succeeded.
     pub svg: Option<String>,
+    /// The JSON interaction sidecar, when rendering succeeded.
+    pub metadata: Option<String>,
     /// A human-facing explanation when no SVG was produced.
     pub message: Option<String>,
     /// Whether a newer request superseded this one.
@@ -130,9 +132,10 @@ pub struct PreviewResult {
 }
 
 impl PreviewResult {
-    fn svg(generation: u64, svg: String) -> PreviewResult {
+    fn svg(generation: u64, svg: String, metadata: String) -> PreviewResult {
         PreviewResult {
             svg: Some(svg),
+            metadata: Some(metadata),
             message: None,
             superseded: false,
             generation,
@@ -143,6 +146,7 @@ impl PreviewResult {
     fn message(generation: u64, message: &str) -> PreviewResult {
         PreviewResult {
             svg: None,
+            metadata: None,
             message: Some(message.to_string()),
             superseded: false,
             generation,
@@ -153,6 +157,7 @@ impl PreviewResult {
     fn superseded(generation: u64) -> PreviewResult {
         PreviewResult {
             svg: None,
+            metadata: None,
             message: None,
             superseded: true,
             generation,
@@ -172,7 +177,7 @@ fn render_preview(
     source: &str,
     source_input: SourceInput,
     interactive: bool,
-) -> Result<String, String> {
+) -> Result<(String, String), String> {
     let parsed = parse(source);
     let root = parsed.syntax();
     if parsed
@@ -228,7 +233,7 @@ fn render_preview(
         render_with_tables(&ir, &frame, &named_frames, &theme, None)
     }
     .map_err(|e| e.to_string())?;
-    Ok(result.svg)
+    Ok((result.svg, result.metadata.to_json()))
 }
 
 #[cfg(test)]

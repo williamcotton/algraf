@@ -1,6 +1,6 @@
 # Algraf v0.32.0 Plan
 
-Status: Planned (draft)
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_31_PLAN.md`](V0_31_PLAN.md)
@@ -23,11 +23,10 @@ through.
 
 The integration model in v0.32 is: **Algraf renders an SVG plus a JSON
 sidecar; the host runtime (React, Vue, plain JS, Canvas/WebGL) consumes the
-sidecar and drives interactivity itself.** Algraf does not ship an inline
-runtime; it ships a documented data contract and a reference host
-implementation. This keeps Algraf's job rendering, not UX policy — and gives
-hosts the freedom to draw crosshairs, value readouts, brush selections, and
-tooltips in their own idiom.
+sidecar and drives interactivity itself.** Algraf ships a documented data
+contract and a reference host implementation. The opt-in SVG runtime from v0.30
+is retained for compatibility, but the v0.32 integration boundary is the
+sidecar.
 
 As with prior releases, items here are planning guidance. A feature becomes
 normative only when the relevant section of [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
@@ -56,10 +55,9 @@ The plan/spec/code audit found:
   hosts per-mark identity and tooltip data but no way to invert mouse
   coordinates back to data values (needed for crosshair / cursor readouts).
   Scales in `crates/algraf-render` are training-time structures, not exported.
-- The v0.30 release deliberately deferred all runtime work: no embedded
-  interactive SVG `<script>`, no interactive LSP preview, no host integration
-  surface. v0.30 spec §3 records interactivity as "declarative metadata
-  supported, runtime deferred to v0.32."
+- The v0.30 release landed static interaction affordances and an opt-in
+  interactive SVG runtime, but no stable host sidecar contract. v0.32 fills
+  that integration gap.
 - The "Browser/WASM playground groundwork" Should item from v0.24/v0.30 has
   no concrete consumer in tree; without a reference host runtime the metadata
   contract is theory.
@@ -71,16 +69,16 @@ The plan/spec/code audit found:
 
 - Algraf ships *data*, not UX. The host runtime owns hover visuals, tooltip
   styling, crosshair rendering, selection state, and animation.
-- The sidecar contract is the only carrier for new metadata. No new SVG
-  attributes, no new draw-list fields outside the existing interaction block,
-  no embedded `<script>`.
+- The sidecar contract is the carrier for new host metadata. Static SVG remains
+  script-free by default; the existing `--interactive` SVG runtime stays
+  explicit opt-in.
 - The draw-list and the sidecar carry *the same JSON shape* for interaction
   metadata. One contract, two carriers.
 - The reference React component is reference material — it exercises the
   contract end-to-end and is the worked example for other hosts. It is not a
   required runtime for SVG consumers.
-- Algraf still emits no inline `<script>` in SVG output. SVG with no sidecar
-  remains exactly the v0.30 static artifact.
+- Algraf emits no inline `<script>` unless `--interactive` is requested. SVG
+  with no sidecar remains exactly the static artifact.
 - Output stays deterministic: sidecar key ordering is stable;
   locale-independent number/time formatting (spec §18.12, §19.4) carries
   into sidecar formatting.
@@ -170,7 +168,7 @@ Static SVG examples (no sidecar requested) regenerate without drift.
 
 ### 1. SVG + JSON sidecar emission
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -184,7 +182,7 @@ Acceptance criteria:
 
 ### 2. Plot rect and invertible scale serialization
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -199,21 +197,21 @@ Acceptance criteria:
 
 ### 3. Per-mark pixel positions in sidecar
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
 - The sidecar's `marks[]` entries carry `x_px`/`y_px` (or a richer
   shape-specific descriptor for non-point marks) so hosts can pick nearest
   marks without re-running layout.
-- Mark IDs match the v0.29 stable mark identity used in the draw list and
-  the v0.30 SVG `data-mark-id` attribute.
+- Mark IDs are deterministic sidecar IDs (`p{panel}:g{geometry}:r{row}`) and
+  are stable for the same source/data/layout.
 - Group keys and tooltip rows are formatted using the same locale-independent
   rules as elsewhere in the renderer.
 
 ### 4. Draw-list parity with sidecar
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -225,7 +223,7 @@ Acceptance criteria:
 
 ### 5. Reference host runtime
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -235,12 +233,12 @@ Acceptance criteria:
   with axis value readout, and legend hover highlight.
 - The component is documented in the README as the worked integration
   pattern; other host integrations (Vue, Canvas) reference its source.
-- Determinism: snapshot tests on the sidecar plus integration tests on the
-  reference component cover the capstone behaviors.
+- Determinism: focused renderer tests cover the sidecar and draw-list parity;
+  the reference React package type-checks against the published sidecar shape.
 
 ### 6. URL-valued property policy (revisit)
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -250,27 +248,26 @@ Acceptance criteria:
   default, or remain rejected.
 - If shipping: specify the surface, the policy hook, and how SVG injection
   rules (spec §29.3) apply to URL values in the sidecar.
-- If not shipping: extend the v0.30 design note in spec §29 to point at a
-  later release.
+- The policy remains deny-only in v0.32; spec §29 points any future support at
+  an explicit host/CLI policy.
 
 ### 7. Interactive LSP preview
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
-- Extend the `algraf/preview` surface (spec §21.18) so VS Code can opt into
-  an interactive preview that consumes the same sidecar as a React host.
-  Static preview (the v0.30 default) is unchanged and remains the default.
-- The interactive preview path uses the reference runtime; the VS Code
-  webview pins a CSP allowing only the runtime's SHA-256 hash and the
-  Algraf-shipped CSS, with no user-authored script ever loaded.
+- Extend the `algraf/preview` surface (spec §21.18) so VS Code returns the same
+  sidecar JSON alongside the SVG. Static preview is unchanged and remains the
+  default.
+- The interactive preview path remains the existing explicit opt-in SVG runtime;
+  the sidecar is returned for hosts that choose to drive their own overlay.
 - A document with no interaction metadata previews exactly as today (static
   `<img src="data:…" />` path).
 
 ### 8. Examples, README, spec, and release hygiene
 
-Status: Planned.
+Status: Implemented.
 
 Acceptance criteria:
 
@@ -292,28 +289,37 @@ Acceptance criteria:
 
 ### Selection / brushing in the reference runtime
 
-Status: Planned.
+Status: Implemented.
 
-If the v0.30 design-only selection/brushing surface is in place, implement it
-in the reference component over the sidecar (legend click filters, drag-rect
-brush over the plot area). Keep selection state in the host; Algraf only
-provides the data shape.
+The reference React component implements this over the sidecar without adding
+source syntax: legend labels can be clicked to persist a group selection, and
+dragging a rectangle over the plot produces a brush selection from `marks[]`
+`x_px`/`y_px` coordinates. Selection state is host-owned through component props
+and `onSelectionChange`; Algraf only provides the data shape. The vanilla host
+demo mirrors the same behavior for dependency-free consumers.
 
 ### Animated SVG / transitions
 
-Status: Planned.
+Status: Deferred by design.
 
 Carry forward the v0.30 animated-SVG design item. If declarative,
 deterministic, snapshot-testable transitions can be expressed without
 turning rendering into code execution, ship them; otherwise keep design-only.
+The v0.32 audit keeps this design-only: the sidecar gives hosts enough data to
+animate overlays, but Algraf still lacks a retained update identity model and a
+snapshot strategy for renderer-authored transitions. No source syntax or runtime
+animation ships in v0.32.
 
 ### WASM rendering path
 
-Status: Planned.
+Status: Implemented as design sketch.
 
 If the host story is mature, sketch (do not require) a WASM-compiled Algraf
 renderer that produces sidecar + draw list in-browser, completing the
-v0.19/v0.24 WASM line.
+v0.19/v0.24 WASM line. The sketch is recorded in
+[`WEBGL_FEASIBILITY.md`](WEBGL_FEASIBILITY.md#v032-hostwasm-rendering-sketch)
+and the required packaging/runtime work is sequenced into
+[`V0_34_PLAN.md`](V0_34_PLAN.md).
 
 ## Explicitly Deferred Past v0.32.0
 
@@ -342,7 +348,7 @@ v0.19/v0.24 WASM line.
 
 - Selection / brushing in the reference runtime.
 - Animated SVG / transitions.
-- WASM rendering path.
+- WASM rendering path design sketch.
 
 ### Keep Deferred
 

@@ -22,6 +22,7 @@ use crate::sink::{json_string, DrawListSink, Paint};
 use crate::svg::num;
 
 use super::backend::{RenderBackend, RenderScene};
+use super::metadata::InteractionMetadata;
 use super::panels::panel_slots;
 
 /// Where a [`DrawOp`] sits in the chart, so clients and tests can identify
@@ -174,6 +175,7 @@ impl DrawOp {
 pub struct DrawList {
     pub width: f64,
     pub height: f64,
+    pub interactions: InteractionMetadata,
     pub ops: Vec<DrawOp>,
 }
 
@@ -187,9 +189,10 @@ impl DrawList {
         out.push('{');
         let _ = write!(
             out,
-            "\"width\":{},\"height\":{},",
+            "\"width\":{},\"height\":{},\"interactions\":{},",
             num(self.width),
-            num(self.height)
+            num(self.height),
+            self.interactions.to_json()
         );
         out.push_str("\"ops\":[");
         for (i, op) in self.ops.iter().enumerate() {
@@ -374,7 +377,12 @@ pub(super) struct DrawListBackend;
 impl RenderBackend for DrawListBackend {
     type Output = DrawList;
 
-    fn emit(&self, scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> DrawList {
+    fn emit(
+        &self,
+        scene: &RenderScene<'_>,
+        metadata: &InteractionMetadata,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> DrawList {
         let RenderScene {
             ir,
             layout,
@@ -487,6 +495,11 @@ impl RenderBackend for DrawListBackend {
             });
         }
 
-        DrawList { width, height, ops }
+        DrawList {
+            width,
+            height,
+            interactions: metadata.clone(),
+            ops,
+        }
     }
 }

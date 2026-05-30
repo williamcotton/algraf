@@ -4885,9 +4885,9 @@ Geometries that draw one filled mark per datum MAY carry declarative
 *interaction* metadata. Interactions are **data attached to marks, never
 executable source**: there is no event-handler syntax, expression language, or
 script text. A chart declares *what* data participates and *how* marks group;
-the renderer attaches that as inert metadata, and a viewer (the opt-in
-interactive runtime of §29.3 or a Canvas/raster host reading the draw list of
-§24.6) interprets it.
+the renderer attaches that as inert metadata, and a viewer (a host runtime
+reading the JSON sidecar of §24.6, the opt-in interactive runtime of §29.3, or a
+Canvas/raster host reading the draw list of §24.6) interprets it.
 
 Two interaction properties are recognized:
 
@@ -4920,8 +4920,9 @@ Point(
 )
 ```
 
-The static SVG affordance is described in §18.10, the opt-in interactive runtime
-in §29.3, and the metadata's representation on both backends in §24.6.
+The static SVG affordance is described in §18.10, the host-runtime sidecar and
+draw-list representation in §24.6, and the opt-in interactive SVG runtime in
+§29.3.
 
 ## 15. Statistics
 
@@ -6333,7 +6334,9 @@ relate marks of the same group. Both the `<title>` text and the attribute value
 are escaped per §29.3. A chart that declares no interaction metadata MUST
 produce byte-for-byte unchanged SVG: shapes stay self-closing and carry no
 interaction attributes. These static affordances are present without any opt-in;
-the opt-in interactive runtime (§29.3) reads the same inert metadata.
+the JSON sidecar (§24.6), draw-list backend (§24.6), and opt-in interactive
+runtime (§29.3) read the same inert metadata. Requesting a sidecar MUST NOT
+change the SVG bytes.
 
 ### 18.11 Debug Rendering
 
@@ -7222,6 +7225,12 @@ still provide plot crosshairs where Cartesian axis ticks are available. The
 read-only, superseded, and generation semantics above are unchanged by this
 flag.
 
+The preview result MUST also include the same interaction sidecar JSON described
+in §24.6, in a `metadata` field, whenever rendering succeeds. Clients MAY ignore
+it for static `<img>` previews, but interactive clients SHOULD consume it rather
+than scraping SVG geometry. The sidecar is inert data and is returned for both
+static and interactive preview requests.
+
 ## 22. CLI Specification
 
 ### 22.1 Binary Name
@@ -7304,7 +7313,9 @@ Render options:
 
 `--output <path>`
 
-`--format <svg|draw-list|raster>`
+`--format <svg|svg+json|draw-list|raster>`
+
+`--metadata <path>`
 
 `--width <px>`
 
@@ -7335,11 +7346,12 @@ Render options:
 `--interactive`
 
 `--interactive` embeds the fixed, audited interactive runtime (spec §29.3) in
-SVG output, enabling tooltip-on-hover and highlight-on-hover from the inert
+SVG-producing output, enabling tooltip-on-hover and highlight-on-hover from the inert
 per-mark metadata of §14.25/§18.10 and Cartesian plot crosshairs/value readouts
 from the emitted plot rectangles and axis tick labels. It applies only to
-`--format svg`; the rendered chart body is byte-for-byte identical to the static
-render, with the single Algraf-shipped `<script>` appended before `</svg>`.
+`--format svg` and `--format svg+json`; the rendered chart body is byte-for-byte
+identical to the static render, with the single Algraf-shipped `<script>`
+appended before `</svg>`.
 Without the flag the SVG is script-free. The static
 `<title>`/`data-algraf-highlight` affordances are present either way;
 `--interactive` only adds the script that animates them and the existing
@@ -7349,17 +7361,25 @@ plot/axis geometry.
 
 It does not change source syntax.
 
-`--format <svg|draw-list|raster>` selects the output backend (§24.6); it
-defaults to `svg`. With `svg`, a `.png` `--output` path rasterizes the SVG
+`--metadata <path>` writes the JSON interaction sidecar described in §24.6
+alongside the primary render output. It is valid with every backend. The sidecar
+MUST be deterministic, MUST use the same locale-independent number formatting as
+SVG output, and MUST NOT change the primary output bytes.
+
+`--format <svg|svg+json|draw-list|raster>` selects the output backend (§24.6);
+it defaults to `svg`. With `svg`, a `.png` `--output` path rasterizes the SVG
 through the canonical PNG wrapper (which uses system fonts); this is the default
-PNG path and is unchanged. With `draw-list`, the command emits the serializable
-draw-list JSON described in §24.6, and PNG rasterization does not apply. With
-`raster`, the command emits a PNG drawn directly from the scene's draw list by
-the render-model raster backend (no SVG parser, no system fonts); it honors
+PNG path and is unchanged. With `svg+json`, `--output <base>` writes both SVG
+and a `<base>.meta.json` sidecar; if `<base>` has no extension, the SVG path is
+`<base>.svg`. With `draw-list`, the command emits the serializable draw-list
+JSON described in §24.6, and PNG rasterization does not apply. With `raster`,
+the command emits a PNG drawn directly from the scene's draw list by the
+render-model raster backend (no SVG parser, no system fonts); it honors
 `--png-scale`/`--png-dpi` and writes binary PNG to `--output` or stdout. The
 render-model raster renders shape primitives; text glyphs are a documented
-equivalence limit (§24.6). The draw list and SVG outputs are byte-for-byte
-deterministic; raster output is deterministic for a given platform.
+equivalence limit (§24.6). The draw list, sidecar, and SVG outputs are
+byte-for-byte deterministic; raster output is deterministic for a given
+platform.
 
 Source files MUST use `Theme(name: "...")` for persistent theme selection.
 
@@ -7895,6 +7915,28 @@ The renderer ships three backends over this seam:
 - The **SVG backend** (§18) is canonical and emits the deterministic SVG
   document. It MUST remain unchanged in escaping, number formatting, ordering,
   and accessibility behavior regardless of any other backend.
+- The **interaction sidecar** is deterministic JSON emitted on request
+  (`--metadata` or `--format svg+json`, §22.3). It is not a backend that draws
+  pixels; it serializes host-runtime data from the same planned scene. The
+  sidecar MUST carry `version: 1`, `plot_rect`, `axes`, `marks`, `groups`, and
+  `plots` fields in stable key order. `plot_rect` is the first plot area's SVG
+  pixel rectangle. `plots[]` carries every plot area's `id`, `plot_rect`, and
+  `axes` so faceted charts are addressable without re-running layout. `axes.x`
+  and `axes.y`, when present, describe host-invertible scales with `scale`,
+  `domain`, `range`, `format`, and `label`; band scales also carry padding and
+  bandwidth metadata. Continuous scale names are `linear`, `log10`, and `sqrt`;
+  temporal scales use `time` with UTC microsecond domains; categorical scales
+  use `band` or `nested-band` with string domains. A host inverts a continuous
+  axis by applying the inverse of the named transform over `domain` and `range`;
+  it inverts `time` the same way as `linear` and formats the resulting UTC
+  microseconds; it inverts a band axis by selecting the nearest domain band.
+  `marks[]` carries stable `id`, `plot`, `x_px`, `y_px`, `groups`, and
+  display-ready `tooltip` rows for each pickable per-datum mark that survives
+  layout. `groups` maps each highlight key to its first-appearance-ordered
+  values. Host runtimes MAY use the mark coordinates and group values to
+  implement host-owned legend selection or plot brushing; Algraf MUST NOT
+  serialize mutable selection state. The sidecar is inert data: it MUST NOT
+  contain scripts, callbacks, URLs, or host policy.
 - The **draw-list backend** records a serializable, Canvas-drawable draw list of
   drawable primitives from the same scene. It is the proof that the seam supports
   more than one output format. The draw list MUST use the same locale-independent
@@ -7912,8 +7954,10 @@ The renderer ships three backends over this seam:
   `interaction` object with optional `tooltip` and `highlight` fields, recorded
   through the same shared mark sink that the SVG backend uses for its `<title>`
   and `data-algraf-highlight` affordances (§18.10) — so the two backends carry
-  the same interaction metadata by construction. The draw list MUST NOT execute
-  scripts or embed behavior; it is inert data.
+  the same interaction metadata by construction. The top-level draw-list JSON
+  also carries an `interactions` object with the exact same sidecar shape
+  described above, versioned together with the sidecar. The draw list MUST NOT
+  execute scripts or embed behavior; it is inert data.
 - The **render-model raster backend** draws the draw list to a raster image with
   a CPU rasterizer (`tiny-skia`), not by rasterizing SVG bytes. It pulls in no
   browser runtime and no system fonts, and is deterministic for a given
@@ -8789,13 +8833,14 @@ performs no network access and is deterministic given the same SVG. Absent the
 opt-in, no `<script>` is emitted.
 
 **URL-valued properties.** URL-valued properties (hyperlinks, image `href`s,
-tooltip links) are **not supported in version 0.30** and are rejected rather than
+tooltip links) are **not supported in version 0.32** and are rejected rather than
 embedded. This is a deliberate security decision: allowing chart-supplied URLs
 would create an SVG-injection and exfiltration surface (a `data:`/`javascript:`
 href, or an external fetch) that conflicts with the no-network rule (§29) and the
 script-free-by-default guarantee above. If a future version allows them, they
 MUST be gated by an explicit host/CLI policy that defaults to denied, and the
-policy MUST specify their interaction with this section and previews.
+policy MUST specify their interaction with this section, sidecars, host runtimes,
+and previews.
 
 ### 29.4 Denial of Service
 
@@ -8852,6 +8897,11 @@ Interactive SVG ships in version 0.30.0 as opt-in *output* (CLI `--interactive`,
 spec §22.3/§29.3), not behind a source feature gate: it adds no gated syntax, so
 no `Algraf(features: [...])` declaration is required.
 
+Interaction sidecars ship in version 0.32.0 as opt-in output (`--metadata` or
+`--format svg+json`, spec §22.3/§24.6), not behind a source feature gate. They
+serialize existing declarative interaction metadata plus plot and scale data and
+add no gated syntax.
+
 Future feature gates MAY enable:
 
 remote SQL sources
@@ -8901,7 +8951,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.29.0 | [`V0_29_PLAN.md`](V0_29_PLAN.md) | Render-model completeness and raster output | Implemented |
 | 0.30.0 | [`V0_30_PLAN.md`](V0_30_PLAN.md) | Declarative interactivity and live preview | Implemented |
 | 0.31.0 | [`V0_31_PLAN.md`](V0_31_PLAN.md) | Language-surface polish (temporal & polar) | Implemented |
-| 0.32.0 | [`V0_32_PLAN.md`](V0_32_PLAN.md) | Scope & composition — nested spaces and space-local annotations | Planned |
+| 0.32.0 | [`V0_32_PLAN.md`](V0_32_PLAN.md) | Host-runtime interaction sidecar and React reference | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

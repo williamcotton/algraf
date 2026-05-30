@@ -20,5 +20,10 @@ resvg = { workspace = true }
 tiny-skia = { workspace = true }
 png = { workspace = true }
 
+[features]
+default = ["sql"]
+# Forward the native SQLite backend (spec §10.12); off in the WASM build.
+sql = ["algraf-data/sql", "algraf-semantics/sql", "algraf-driver/sql"]
+
 [dev-dependencies]
 algraf-syntax = { workspace = true }

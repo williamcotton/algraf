@@ -9,10 +9,11 @@ members = [
     "crates/algraf-render",
     "crates/algraf-lsp",
     "crates/algraf-cli",
+    "crates/algraf-wasm",
 ]
 
 [workspace.package]
-version = "0.31.0"
+version = "0.32.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/williamcotton/algraf"
@@ -22,10 +23,12 @@ rust-version = "1.80"
 # Internal crates
 algraf-core = { path = "crates/algraf-core" }
 algraf-syntax = { path = "crates/algraf-syntax" }
-algraf-data = { path = "crates/algraf-data" }
-algraf-semantics = { path = "crates/algraf-semantics" }
-algraf-driver = { path = "crates/algraf-driver" }
-algraf-render = { path = "crates/algraf-render" }
+# The four feature-bearing crates default `sql` off here so consumers (notably
+# the WASM runtime) opt in explicitly; native binaries (cli, lsp) re-enable it.
+algraf-data = { path = "crates/algraf-data", default-features = false }
+algraf-semantics = { path = "crates/algraf-semantics", default-features = false }
+algraf-driver = { path = "crates/algraf-driver", default-features = false }
+algraf-render = { path = "crates/algraf-render", default-features = false }
 algraf-lsp = { path = "crates/algraf-lsp" }
 
 # External dependencies (see spec §23.3)

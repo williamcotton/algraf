@@ -28,6 +28,7 @@ use crate::layout::Layout;
 use crate::theme::Theme;
 
 use super::document;
+use super::metadata::InteractionMetadata;
 use super::panels::Panel;
 
 /// A fully planned render scene: everything a backend needs to emit output, with
@@ -52,7 +53,12 @@ pub(super) trait RenderBackend {
     /// [`DrawList`](super::draw_list::DrawList)).
     type Output;
 
-    fn emit(&self, scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> Self::Output;
+    fn emit(
+        &self,
+        scene: &RenderScene<'_>,
+        metadata: &InteractionMetadata,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> Self::Output;
 }
 
 /// The deterministic SVG backend — the canonical backend (spec §18, §24.6).
@@ -70,7 +76,12 @@ pub(super) struct SvgBackend {
 impl RenderBackend for SvgBackend {
     type Output = String;
 
-    fn emit(&self, scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> String {
+    fn emit(
+        &self,
+        scene: &RenderScene<'_>,
+        _metadata: &InteractionMetadata,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> String {
         document::emit_document(scene, self.interactive, diagnostics)
     }
 }

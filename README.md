@@ -22,11 +22,13 @@ cargo run -p algraf-cli -- render examples/scatter.ag --output /tmp/scatter.svg
 | `--format`  | Output | Notes |
 | ----------- | ------ | ----- |
 | `svg` (default) | Deterministic SVG. A `.png` `--output` rasterizes the SVG through a system-font wrapper. | The canonical, pixel-faithful path. |
+| `svg+json` | Deterministic SVG plus a `.meta.json` interaction sidecar. | For host runtimes that want tooltips, crosshairs, and highlights without scraping SVG. |
 | `draw-list` | A serializable JSON draw list of scene primitives (`rect`/`circle`/`path`/`polygon`/`line`/`text`). | A complete scene description — one op per mark plus all guides — for Canvas/WebGL/raster clients. |
 | `raster` | A PNG drawn directly from the draw-list scene model with a CPU rasterizer (no SVG, no system fonts). | Honors `--png-scale`/`--png-dpi`. Renders shapes; **text glyphs are not drawn** (use the `svg`→PNG path for text). Deterministic per platform. |
 
 ```bash
 cargo run -p algraf-cli -- render examples/scatter.ag --format svg       --output /tmp/scatter.svg
+cargo run -p algraf-cli -- render examples/highlight.ag --format svg+json  --output /tmp/highlight
 cargo run -p algraf-cli -- render examples/scatter.ag --format draw-list  --output /tmp/scatter.json
 cargo run -p algraf-cli -- render examples/scatter.ag --format raster     --output /tmp/scatter.png
 ```
@@ -2392,6 +2394,9 @@ cargo run -p algraf-cli -- render examples/scatter.ag --output chart.png
 # Draw list: a serializable, Canvas-drawable JSON description of the whole scene.
 cargo run -p algraf-cli -- render examples/scatter.ag --format draw-list
 
+# SVG + sidecar: writes chart.svg and chart.meta.json for host runtimes.
+cargo run -p algraf-cli -- render examples/highlight.ag --format svg+json --output chart
+
 # Raster: a PNG drawn directly from the scene's draw list (no SVG, no system fonts).
 cargo run -p algraf-cli -- render examples/scatter.ag --format raster --output chart.png
 ```
@@ -2405,6 +2410,35 @@ formatting as SVG, and carries the same inert interaction metadata (`tooltip`,
 `highlight`) on marks that declare it. See
 [`docs/WEBGL_FEASIBILITY.md`](docs/WEBGL_FEASIBILITY.md) for how a GPU backend
 would build on this.
+
+## Embedding in a host runtime
+
+Interactive hosts should render static SVG and consume the JSON sidecar rather
+than scraping axis ticks or re-running layout. The sidecar includes `plot_rect`,
+invertible `axes`, pickable `marks[]` with `x_px`/`y_px`, tooltip rows, and
+highlight groups.
+
+```bash
+cargo run -p algraf-cli -- render examples/highlight.ag \
+  --output chart.svg \
+  --metadata chart.meta.json
+```
+
+The reference React component lives in [`editors/react`](editors/react):
+
+```tsx
+import { AlgrafChart } from "@algraf/react";
+
+export function Preview({ svg, metadataJson }) {
+  return <AlgrafChart svg={svg} metadata={metadataJson} />;
+}
+```
+
+The component reads the sidecar, picks the nearest mark from `x_px`/`y_px`,
+inverts serialized axes for crosshair labels, renders tooltip rows, dims static
+SVG marks by `data-algraf-highlight` group, and exposes host-owned legend
+selection and plot brushing. The host owns the UX; Algraf provides deterministic
+data.
 
 ## Workspace layout
 

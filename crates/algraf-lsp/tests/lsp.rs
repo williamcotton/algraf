@@ -1030,6 +1030,9 @@ async fn preview_renders_svg_through_render_pipeline() {
     let value: serde_json::Value = response_result(response);
     let svg = value["svg"].as_str().expect("svg string");
     assert!(svg.contains("<svg"), "{svg}");
+    let metadata = value["metadata"].as_str().expect("metadata string");
+    assert!(metadata.contains("\"version\":1"), "{metadata}");
+    assert!(metadata.contains("\"marks\""), "{metadata}");
     assert_eq!(value["superseded"], json!(false));
     // The resolved data dependency is reported so the client can watch it.
     let data_paths = value["dataPaths"].as_array().expect("dataPaths");

@@ -148,12 +148,13 @@ fn draw_list_json_is_deterministic_and_escapes() {
     let json = list.to_json();
     // Stable, deterministic serialization.
     assert_eq!(json, list.to_json());
-    assert!(json.starts_with("{\"width\":800,\"height\":520,\"ops\":["));
+    assert!(json.starts_with("{\"width\":800,\"height\":520,\"interactions\":{"));
     // JSON string escaping (distinct from SVG/XML escaping).
     assert!(json.contains("A \\\"quoted\\\" & <tag>"));
     // Parses as valid JSON.
     let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
     assert_eq!(parsed["width"], 800);
+    assert_eq!(parsed["interactions"]["version"], 1);
     assert_eq!(parsed["ops"][0]["role"], "background");
 }
 
@@ -185,4 +186,26 @@ fn draw_list_records_inert_interaction_metadata() {
         json.contains("\"interaction\":{\"tooltip\":\"g: A\",\"highlight\":\"A\"}"),
         "{json}"
     );
+    assert!(json.contains("\"interactions\":{\"version\":1"), "{json}");
+    assert_eq!(list.interactions.groups[0].key, "g");
+    assert_eq!(list.interactions.groups[0].values, vec!["A", "B"]);
+}
+
+#[test]
+fn draw_list_interactions_match_svg_sidecar_metadata() {
+    let source = "Chart(data: \"p.csv\", width: 200, height: 200) { Space(x * y) { Point(tooltip: [g, y], highlight: \"g\") } }";
+    let csv = "x,y,g\n1,2,A\n3,4,B\n";
+    let frame = read_csv_str(csv).expect("csv").frame;
+    let ir = analyze(&parse(source).syntax(), frame.schema())
+        .ir
+        .expect("ir");
+
+    let svg_result = render(&ir, &frame, &Theme::minimal(), None).expect("render");
+    let draw_result = render_draw_list(&ir, &frame, &Theme::minimal(), None).expect("draw list");
+
+    assert_eq!(
+        svg_result.metadata.to_json(),
+        draw_result.draw_list.interactions.to_json()
+    );
+    assert_eq!(draw_result.metadata, draw_result.draw_list.interactions);
 }

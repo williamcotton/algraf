@@ -13,5 +13,10 @@ algraf-data = { workspace = true }
 algraf-semantics = { workspace = true }
 thiserror = { workspace = true }
 
+[features]
+default = ["sql"]
+# Forward the native SQLite backend (spec §10.12); off in the WASM build.
+sql = ["algraf-data/sql", "algraf-semantics/sql"]
+
 [dev-dependencies]
 tokio = { workspace = true }

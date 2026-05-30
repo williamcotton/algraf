@@ -30,6 +30,7 @@ use crate::sink::{Dash, Fill, Stroke};
 
 use super::backend::{RenderBackend, RenderScene};
 use super::draw_list::{DrawListBackend, DrawOp};
+use super::metadata::InteractionMetadata;
 
 /// A rasterized chart image.
 pub struct RasterImage {
@@ -79,9 +80,14 @@ pub(super) struct RasterBackend {
 impl RenderBackend for RasterBackend {
     type Output = RasterImage;
 
-    fn emit(&self, scene: &RenderScene<'_>, diagnostics: &mut Vec<Diagnostic>) -> RasterImage {
+    fn emit(
+        &self,
+        scene: &RenderScene<'_>,
+        metadata: &InteractionMetadata,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> RasterImage {
         // Draw from the same complete draw list the draw-list backend produces.
-        let list = DrawListBackend.emit(scene, diagnostics);
+        let list = DrawListBackend.emit(scene, metadata, diagnostics);
         rasterize(&list, self.scale, diagnostics)
     }
 }

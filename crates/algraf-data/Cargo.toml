@@ -17,4 +17,10 @@ thiserror = { workspace = true }
 geo-types = { workspace = true }
 geojson = { workspace = true }
 shapefile = { workspace = true }
-libsqlite3-sys = { workspace = true }
+libsqlite3-sys = { workspace = true, optional = true }
+
+[features]
+default = ["sql"]
+# Local SQLite data sources (spec §10.12). Pulls the native `libsqlite3-sys` C
+# library, so it is excluded from the WASM build, which has no C linker.
+sql = ["dep:libsqlite3-sys"]

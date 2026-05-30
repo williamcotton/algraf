@@ -23,6 +23,7 @@ mod derived;
 mod document;
 mod draw_list;
 mod legend;
+mod metadata;
 mod panels;
 mod raster;
 mod spatial;
@@ -42,6 +43,10 @@ use draw_list::DrawListBackend;
 use raster::RasterBackend;
 
 pub use draw_list::{DrawList, DrawOp, DrawRole, TextAnchor};
+pub use metadata::{
+    InteractionAxes, InteractionAxis, InteractionDomain, InteractionGroup, InteractionGroupValue,
+    InteractionMark, InteractionMetadata, InteractionPlot, TooltipRow,
+};
 pub use raster::RasterImage;
 
 /// The result of rendering: an SVG document plus render diagnostics.
@@ -50,6 +55,7 @@ pub struct RenderResult {
     pub svg: String,
     pub diagnostics: Vec<Diagnostic>,
     pub layout: Layout,
+    pub metadata: InteractionMetadata,
 }
 
 /// The result of rendering through the draw-list backend (spec §24.6).
@@ -58,6 +64,7 @@ pub struct DrawListResult {
     pub draw_list: DrawList,
     pub diagnostics: Vec<Diagnostic>,
     pub layout: Layout,
+    pub metadata: InteractionMetadata,
 }
 
 /// The result of rendering through the render-model raster backend (spec §24.6).
@@ -66,6 +73,7 @@ pub struct RasterResult {
     pub image: RasterImage,
     pub diagnostics: Vec<Diagnostic>,
     pub layout: Layout,
+    pub metadata: InteractionMetadata,
 }
 
 /// Render a chart IR against its primary data table (spec §24.4).
@@ -136,7 +144,7 @@ fn render_svg_with_tables(
     cli_theme_override: Option<&str>,
     interactive: bool,
 ) -> Result<RenderResult, RenderError> {
-    let (svg, diagnostics, layout) = render_with_backend(
+    let (svg, diagnostics, layout, metadata) = render_with_backend(
         ir,
         primary,
         named_tables,
@@ -148,6 +156,7 @@ fn render_svg_with_tables(
         svg,
         diagnostics,
         layout,
+        metadata,
     })
 }
 
@@ -173,7 +182,7 @@ pub fn render_draw_list_with_tables(
     theme: &Theme,
     cli_theme_override: Option<&str>,
 ) -> Result<DrawListResult, RenderError> {
-    let (draw_list, diagnostics, layout) = render_with_backend(
+    let (draw_list, diagnostics, layout, metadata) = render_with_backend(
         ir,
         primary,
         named_tables,
@@ -185,6 +194,7 @@ pub fn render_draw_list_with_tables(
         draw_list,
         diagnostics,
         layout,
+        metadata,
     })
 }
 
@@ -217,7 +227,7 @@ pub fn render_raster_with_tables(
     cli_theme_override: Option<&str>,
     scale: f32,
 ) -> Result<RasterResult, RenderError> {
-    let (image, diagnostics, layout) = render_with_backend(
+    let (image, diagnostics, layout, metadata) = render_with_backend(
         ir,
         primary,
         named_tables,
@@ -229,6 +239,7 @@ pub fn render_raster_with_tables(
         image,
         diagnostics,
         layout,
+        metadata,
     })
 }
 
@@ -242,7 +253,7 @@ fn render_with_backend<B: RenderBackend>(
     theme: &Theme,
     cli_theme_override: Option<&str>,
     backend: B,
-) -> Result<(B::Output, Vec<Diagnostic>, Layout), RenderError> {
+) -> Result<(B::Output, Vec<Diagnostic>, Layout, InteractionMetadata), RenderError> {
     let mut diagnostics = Vec::new();
     let derived = derived::compute_derived(ir, primary, named_tables);
     // Planning half: resolve everything to draw into a render scene.
@@ -261,8 +272,9 @@ fn render_with_backend<B: RenderBackend>(
         panels: &plan.panels,
         theme,
     };
+    let metadata = metadata::build_interaction_metadata(&scene);
     // Emission half: hand the scene to the chosen output backend.
-    let output = backend.emit(&scene, &mut diagnostics);
+    let output = backend.emit(&scene, &metadata, &mut diagnostics);
 
-    Ok((output, diagnostics, plan.layout))
+    Ok((output, diagnostics, plan.layout, metadata))
 }

@@ -73,3 +73,28 @@ remaining WebGL-specific work is items 2–5: a batched view of the per-mark lis
 DPR transform, and an optional feature-gated host runtime. Treat WebGL as an
 optional client that consumes a batched form of the existing draw list. Do not
 add a GL dependency to the core crates.
+
+## v0.32 Host/WASM Rendering Sketch
+
+The v0.32 host-runtime sidecar completes the browser handoff shape without
+requiring a WASM package in this release:
+
+1. A future WASM wrapper should expose `render(source, options) -> { svg,
+   metadata, diagnostics }` for the static-SVG path. `metadata` is the exact
+   interaction sidecar from spec §24.6, not a WASM-only structure.
+2. Host components, including `editors/react`, should consume `{ svg,
+   metadata }` the same way whether those bytes came from the native CLI, LSP,
+   or WASM. Hover, legend selection, and brushing stay in JavaScript host state.
+3. A Canvas/WebGL host should ask for the draw-list JSON and read the same
+   top-level `interactions` block for picking and overlays. It should not
+   re-run scale training or layout in JavaScript.
+4. Browser file/data access must be explicit host input: in-memory CSV bytes or
+   user-picked files. WASM must not introduce implicit network fetches or a
+   filesystem policy different from the CLI/driver contract.
+5. The core crates remain GL-free and DOM-free. Packaging, JS bindings, feature
+   flags, and browser capability diagnostics are sequenced into
+   [`V0_34_PLAN.md`](V0_34_PLAN.md).
+
+This is enough for v0.32 consumers to build and test host runtimes against the
+stable sidecar now, while leaving the actual WASM package to the dedicated WASM
+runtime release.

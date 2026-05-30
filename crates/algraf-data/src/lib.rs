@@ -13,6 +13,13 @@ pub mod infer;
 pub mod json;
 pub mod schema;
 pub mod shapefile;
+#[cfg(feature = "sql")]
+pub mod sqlite;
+/// When built without the `sql` feature (e.g. the WASM runtime), SQLite loading
+/// is replaced by stubs that report the capability as unavailable rather than
+/// linking the native `libsqlite3-sys` C library (spec §30, §10.12).
+#[cfg(not(feature = "sql"))]
+#[path = "sqlite_stub.rs"]
 pub mod sqlite;
 pub mod temporal;
 pub mod topojson;

@@ -6,6 +6,7 @@ Chosen semantics: **B1 — orientation-aware geometries.**
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_32_PLAN.md`](V0_32_PLAN.md)
+Follow-on plan: [`V0_34_PLAN.md`](V0_34_PLAN.md)
 Coordinate-system foundation: [`V0_31_PLAN.md`](V0_31_PLAN.md) (polar
 `startAngle` / `direction`)
 

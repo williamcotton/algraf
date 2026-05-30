@@ -1,0 +1,11 @@
+[
+  { "flipper_length": 181, "body_mass": 3750, "species": "Adelie" },
+  { "flipper_length": 186, "body_mass": 3800, "species": "Adelie" },
+  { "flipper_length": 195, "body_mass": 4400, "species": "Adelie" },
+  { "flipper_length": 193, "body_mass": 3450, "species": "Chinstrap" },
+  { "flipper_length": 197, "body_mass": 3675, "species": "Chinstrap" },
+  { "flipper_length": 201, "body_mass": 4300, "species": "Chinstrap" },
+  { "flipper_length": 210, "body_mass": 4700, "species": "Gentoo" },
+  { "flipper_length": 216, "body_mass": 5000, "species": "Gentoo" },
+  { "flipper_length": 221, "body_mass": 5550, "species": "Gentoo" }
+]

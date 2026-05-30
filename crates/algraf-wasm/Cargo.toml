@@ -1,0 +1,31 @@
+[package]
+name = "algraf-wasm"
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
+description = "Browser/WASM runtime for Algraf: parse + analyze + render to SVG in-memory."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# The WASM runtime excludes the native SQLite backend: it does not enable the
+# `sql` feature on any dependency, and the workspace defaults it off, so the
+# browser build never links `libsqlite3-sys` (which needs a C linker).
+[dependencies]
+algraf-core = { workspace = true }
+algraf-syntax = { workspace = true }
+algraf-data = { workspace = true }
+algraf-semantics = { workspace = true }
+algraf-driver = { workspace = true }
+algraf-render = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# A self-contained WASI command that embeds an example and prints its SVG. This
+# is the vertical-slice proof that the pipeline runs on wasm32; the eventual
+# wasm-bindgen browser API wraps the same `render_to_svg` library entry point.
+[[bin]]
+name = "algraf-wasm-demo"
+path = "src/bin/demo.rs"

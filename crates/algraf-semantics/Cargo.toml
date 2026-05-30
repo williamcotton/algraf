@@ -10,3 +10,8 @@ rust-version.workspace = true
 algraf-core = { workspace = true }
 algraf-syntax = { workspace = true }
 algraf-data = { workspace = true }
+
+[features]
+default = ["sql"]
+# Forward the native SQLite backend (spec §10.12); off in the WASM build.
+sql = ["algraf-data/sql"]

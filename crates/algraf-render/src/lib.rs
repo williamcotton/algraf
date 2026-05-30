@@ -54,8 +54,10 @@ pub use layout::{FacetPanel, Layout, Rect};
 pub use render::{
     render, render_draw_list, render_draw_list_with_tables, render_interactive,
     render_interactive_with_tables, render_raster, render_raster_with_tables, render_with_tables,
-    DrawList, DrawListResult, DrawOp, DrawRole, RasterImage, RasterResult, RenderResult,
-    TextAnchor,
+    DrawList, DrawListResult, DrawOp, DrawRole, InteractionAxes, InteractionAxis,
+    InteractionDomain, InteractionGroup, InteractionGroupValue, InteractionMark,
+    InteractionMetadata, InteractionPlot, RasterImage, RasterResult, RenderResult, TextAnchor,
+    TooltipRow,
 };
 pub use sink::{Dash, Fill, MarkInteraction, Paint, Stroke};
 pub use svg::num as svg_num;

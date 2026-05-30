@@ -12,7 +12,9 @@ algraf-syntax = { workspace = true }
 algraf-semantics = { workspace = true }
 algraf-driver = { workspace = true }
 algraf-data = { workspace = true }
-algraf-render = { workspace = true }
+# Native server: re-enable the SQLite backend the workspace defaults off; the
+# `sql` feature cascades to data/semantics/driver through render.
+algraf-render = { workspace = true, features = ["sql"] }
 tower-lsp = { workspace = true }
 tokio = { workspace = true }
 dashmap = { workspace = true }

@@ -4,4 +4,10 @@
 /editors/vscode/node_modules
 /editors/vscode/dist
 /editors/vscode/*.vsix
+/editors/react/node_modules
+/editors/react/dist
+/editors/react/demo/bundle.js
+/demo/node_modules
+/demo/dist
+/demo/public/wasm/algraf.wasm
 .DS_Store

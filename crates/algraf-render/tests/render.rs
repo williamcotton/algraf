@@ -1817,3 +1817,28 @@ fn interactive_runtime_is_available_without_mark_interaction() {
     let static_body_end = static_svg.find("</svg>").unwrap();
     assert_eq!(&interactive[..body_end], &static_svg[..static_body_end]);
 }
+
+#[test]
+fn interaction_metadata_records_plot_axes_marks_and_groups() {
+    let result = render_result(TOOLTIP_SRC, INTERACTION_CSV);
+    let json = result.metadata.to_json();
+    assert_eq!(json, result.metadata.to_json(), "metadata JSON is stable");
+
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("metadata json");
+    assert_eq!(parsed["version"], 1);
+    assert_eq!(parsed["axes"]["x"]["scale"], "linear");
+    assert_eq!(parsed["axes"]["y"]["scale"], "linear");
+    assert_eq!(parsed["marks"].as_array().expect("marks").len(), 2);
+
+    let first = &parsed["marks"][0];
+    assert_eq!(first["id"], "p0:g0:r0");
+    assert_eq!(first["plot"], "plot0");
+    assert!(first["x_px"].as_f64().expect("x px").is_finite());
+    assert!(first["y_px"].as_f64().expect("y px").is_finite());
+    assert_eq!(first["groups"]["g"], "A");
+    assert_eq!(first["tooltip"][0]["label"], "g");
+    assert_eq!(first["tooltip"][0]["value"], "A");
+    assert_eq!(first["tooltip"][1]["label"], "y");
+    assert_eq!(first["tooltip"][1]["value"], "2");
+    assert_eq!(parsed["groups"]["g"], serde_json::json!(["A", "B"]));
+}
