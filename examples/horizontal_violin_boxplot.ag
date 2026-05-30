@@ -1,0 +1,9 @@
+Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribution by group") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Height (cm)")
+    Guide(axis: y, label: "Gender Group")
+    Space(transpose(gender * height)) {
+        Violin(fill: gender, alpha: 0.45)
+        Boxplot(width: 15, fill: "#ffffff", stroke: "#2b2b2b", strokeWidth: 1.5)
+    }
+}

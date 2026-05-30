@@ -453,6 +453,108 @@ Chart(data: "financials.csv", width: 760, height: 460) {
 
 ![fill_bar](examples/fill_bar.svg)
 
+## Horizontal bars with `transpose`
+
+Wrapping a two-axis frame in `transpose(...)` swaps the x and y frame axes after
+analysis, so the category bands move to the y axis and values extend
+horizontally.
+
+```algraf
+Chart(data: "sales_by_rep.csv", width: 720, height: 440, title: "Sales by rep") {
+    Guide(axis: x, label: "Sales")
+    Guide(axis: y, label: "Rep")
+    Space(transpose(rep * amount)) {
+        Bar(fill: "#4E79A7", alpha: 0.86)
+    }
+}
+```
+
+![horizontal_bar](examples/horizontal_bar.svg)
+
+## Horizontal grouped bars
+
+`transpose` composes with `/` nesting, so dodged/grouped bars can be laid out
+horizontally without changing the grouping expression.
+
+```algraf
+Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly amount by type") {
+    Guide(axis: x, label: "Amount")
+    Guide(axis: y, label: "Quarter")
+    Space(transpose((quarter / type) * amount)) {
+        Bar(fill: type, alpha: 0.88)
+    }
+}
+```
+
+![horizontal_grouped_bar](examples/horizontal_grouped_bar.svg)
+
+## Horizontal stacked bars
+
+Stacking also accumulates along the transposed value axis.
+
+```algraf
+Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly amount by type") {
+    Guide(axis: x, label: "Amount")
+    Guide(axis: y, label: "Quarter")
+    Space(transpose(quarter * amount)) {
+        Bar(fill: type, layout: "stack", alpha: 0.88)
+    }
+}
+```
+
+![horizontal_stacked_bar](examples/horizontal_stacked_bar.svg)
+
+## Horizontal proportional fill bars
+
+`layout: "fill"` also normalizes along the transposed value axis, producing
+100% bars that read left to right.
+
+```algraf
+Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly composition by type") {
+    Guide(axis: x, label: "Share")
+    Guide(axis: y, label: "Quarter")
+    Space(transpose(quarter * amount)) {
+        Bar(fill: type, layout: "fill", alpha: 0.88)
+    }
+}
+```
+
+![horizontal_fill_bar](examples/horizontal_fill_bar.svg)
+
+## Reversed and upside-down bar axes
+
+`transpose` swaps axes; `Scale(reverse: true)` reverses an axis direction. This
+vertical example puts zero at the top by reversing y.
+
+```algraf
+Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly amount with reversed y axis") {
+    Guide(axis: x, label: "Quarter")
+    Guide(axis: y, label: "Amount")
+    Scale(axis: y, reverse: true)
+    Space(quarter * amount) {
+        Bar(fill: type, layout: "stack", alpha: 0.88)
+    }
+}
+```
+
+![upside_down_bar](examples/upside_down_bar.svg)
+
+The same reversal can be applied to a transposed horizontal chart, sending bars
+leftward from the right-side zero baseline.
+
+```algraf
+Chart(data: "sales_by_rep.csv", width: 720, height: 440, title: "Sales by rep, reversed axis") {
+    Guide(axis: x, label: "Sales")
+    Guide(axis: y, label: "Rep")
+    Scale(axis: x, reverse: true)
+    Space(transpose(rep * amount)) {
+        Bar(fill: "#4E79A7", alpha: 0.86)
+    }
+}
+```
+
+![horizontal_reversed_bar](examples/horizontal_reversed_bar.svg)
+
 ## Counting categories: `Bar(stat: "count")`
 
 When you only have a categorical column, `stat: "count"` aggregates rows
@@ -495,6 +597,26 @@ Chart(data: "monthly_profit.csv", width: 720, height: 420, title: "Monthly Profi
 
 ![diverging_bar](examples/diverging_bar.svg)
 
+## Horizontal diverging bars
+
+In a transposed diverging bar chart, the zero reference is a vertical line
+because the value axis is x.
+
+```algraf
+Chart(data: "monthly_profit.csv", width: 760, height: 520, title: "Monthly profit / loss") {
+    Theme(name: "minimal")
+    Scale(fill: status, range: ["Profit" => "#2ca02c", "Loss" => "#d62728"])
+    Guide(axis: x, label: "Profit / Loss ($)")
+    Guide(axis: y, label: "Month")
+    Space(transpose(month * profit)) {
+        Bar(fill: status, layout: "stack", alpha: 0.85)
+        VLine(x: 0, stroke: "#333333", strokeWidth: 1.2)
+    }
+}
+```
+
+![horizontal_diverging_bar](examples/horizontal_diverging_bar.svg)
+
 ## Layered bar and point chart
 
 You can layer a background `Bar` with a `Point` to build a clean and elegant comparison chart. This keeps the bars light and draws focus to the individual data points.
@@ -515,6 +637,27 @@ Chart(data: "programming_languages.csv", width: 700, height: 450, title: "Progra
 ```
 
 ![lollipop](examples/lollipop.svg)
+
+## Horizontal layered bar and point chart
+
+Layered geoms share the transposed frame, so the background bars and foreground
+points both resolve against the horizontal value scale.
+
+```algraf
+Chart(data: "programming_languages.csv", width: 760, height: 500, title: "Programming language popularity") {
+    Theme(name: "minimal")
+    Scale(fill: paradigm, palette: "accent")
+    Scale(stroke: paradigm, palette: "accent")
+    Guide(axis: x, label: "Share (%)")
+    Guide(axis: y, label: "Programming Language")
+    Space(transpose(language * popularity)) {
+        Bar(fill: "#f3f3f3", stroke: "#dddddd", strokeWidth: 1.5)
+        Point(fill: paradigm, size: 9)
+    }
+}
+```
+
+![horizontal_lollipop](examples/horizontal_lollipop.svg)
 
 ## Histograms the explicit way: `Derive` + `Rect`
 
@@ -889,6 +1032,39 @@ Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribu
 
 ![violin](examples/violin.svg)
 
+## Horizontal boxplots
+
+The same frame-level transpose works for grouped distribution summaries.
+
+```algraf
+Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribution by group") {
+    Guide(axis: x, label: "Height")
+    Guide(axis: y, label: "Group")
+    Space(transpose(gender * height)) {
+        Boxplot(fill: gender, alpha: 0.78)
+    }
+}
+```
+
+![horizontal_boxplot](examples/horizontal_boxplot.svg)
+
+## Horizontal violin distributions
+
+Horizontal violins keep the density on the value axis and mirror around each
+y-axis category band.
+
+```algraf
+Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribution by group") {
+    Guide(axis: x, label: "Height")
+    Guide(axis: y, label: "Group")
+    Space(transpose(gender * height)) {
+        Violin(fill: gender, quantiles: [0.25, 0.5, 0.75], alpha: 0.62)
+    }
+}
+```
+
+![horizontal_violin](examples/horizontal_violin.svg)
+
 ## Layered violin and boxplot distributions
 
 Geometries can be overlaid inside a single `Space` to build compound charts. Here, a transparent `Violin` is paired with a narrow, opaque `Boxplot` to show both the detailed density curve and summary statistics.
@@ -907,6 +1083,25 @@ Chart(data: "demographics.csv", width: 720, height: 460, title: "Height Distribu
 ```
 
 ![violin_boxplot](examples/violin_boxplot.svg)
+
+## Horizontal layered violin and boxplot distributions
+
+The same overlay can be transposed, putting the density values on x and each
+group on y.
+
+```algraf
+Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribution by group") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Height (cm)")
+    Guide(axis: y, label: "Gender Group")
+    Space(transpose(gender * height)) {
+        Violin(fill: gender, alpha: 0.45)
+        Boxplot(width: 15, fill: "#ffffff", stroke: "#2b2b2b", strokeWidth: 1.5)
+    }
+}
+```
+
+![horizontal_violin_boxplot](examples/horizontal_violin_boxplot.svg)
 
 ## Faceted violin and boxplot distributions with rug
 
@@ -928,6 +1123,26 @@ Chart(data: "regional_sales.csv", width: 840, height: 500, title: "Sales Distrib
 ```
 
 ![faceted_violin_boxplot](examples/faceted_violin_boxplot.svg)
+
+## Horizontal faceted violin and boxplot distributions
+
+`transpose` can be applied before faceting, so each panel receives the swapped
+2-D frame.
+
+```algraf
+Chart(data: "regional_sales.csv", width: 860, height: 520, title: "Sales distribution by product and region") {
+    Theme(name: "minimal")
+    Scale(fill: product, palette: "accent")
+    Scale(stroke: product, palette: "accent")
+    Guide(axis: x, label: "Sales Amount")
+    Space(transpose(product * sales) / region) {
+        Violin(fill: product, alpha: 0.5, quantiles: [0.25, 0.5, 0.75])
+        Boxplot(width: 0.12, fill: "#ffffff", stroke: "#000000", strokeWidth: 1.2, alpha: 0.9)
+    }
+}
+```
+
+![horizontal_faceted_violin_boxplot](examples/horizontal_faceted_violin_boxplot.svg)
 
 ## Density: a smooth distribution
 
@@ -1045,6 +1260,39 @@ Chart(data: "intervals.csv", marginRight: 150) {
 ```
 
 ![floating](examples/floating.svg)
+
+## Top-down icicle with precomputed rectangles
+
+Algraf does not yet have a native hierarchy partition stat, but a top-down
+icicle can be rendered from precomputed rectangle bounds. Reversing the y scale
+puts depth `0` at the top.
+
+```algraf
+Chart(data: "top_down_icicle.csv", width: 820, height: 420, title: "Revenue hierarchy") {
+    Theme(name: "minimal", axes: false, grid: false)
+    Scale(axis: x, domain: [0, 100])
+    Scale(axis: y, domain: [0, 3], reverse: true)
+    Scale(
+        fill: segment,
+        range: ["Total" => "#c7dcef", "Product" => "#f6b26b", "Services" => "#d9ead3", "Support" => "#d0d0d0"],
+    )
+    Space(x1 * y1) {
+        Rect(
+            xmin: x0,
+            xmax: x1,
+            ymin: y0,
+            ymax: y1,
+            fill: segment,
+            stroke: "#ffffff",
+            strokeWidth: 2,
+            alpha: 0.92,
+        )
+        Text(x: x_mid, y: y_mid, label: label, anchor: "middle", size: 11, fill: "#222222")
+    }
+}
+```
+
+![top_down_icicle](examples/top_down_icicle.svg)
 
 ## Time series with shaded peak intervals
 

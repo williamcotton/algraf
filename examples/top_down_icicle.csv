@@ -1,0 +1,11 @@
+label,parent,segment,x0,x1,y0,y1,x_mid,y_mid
+Revenue,,Total,0,100,0,1,50,0.5
+Product,Revenue,Product,0,46,1,2,23,1.5
+Services,Revenue,Services,46,78,1,2,62,1.5
+Support,Revenue,Support,78,100,1,2,89,1.5
+Licenses,Product,Product,0,28,2,3,14,2.5
+Hardware,Product,Product,28,46,2,3,37,2.5
+Consulting,Services,Services,46,62,2,3,54,2.5
+Training,Services,Services,62,78,2,3,70,2.5
+Enterprise,Support,Support,78,92,2,3,85,2.5
+Comm.,Support,Support,92,100,2,3,96,2.5

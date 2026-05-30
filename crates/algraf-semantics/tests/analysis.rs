@@ -1951,6 +1951,49 @@ fn polar_invalid_direction_is_e1910() {
 }
 
 #[test]
+fn transpose_swaps_two_dimensional_cartesian_frame() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") { Space(transpose(quarter * amount)) { Bar() } }",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let FrameIr::Cartesian(axes) = &ir.spaces[0].frame else {
+        panic!("expected Cartesian frame");
+    };
+    assert!(matches!(&axes[0], FrameIr::Vector(col) if col.name == "amount"));
+    assert!(matches!(&axes[1], FrameIr::Vector(col) if col.name == "quarter"));
+}
+
+#[test]
+fn transpose_rejects_polar_coords() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(transpose(quarter * amount), coords: \"polar\") { Bar() } }",
+        "E1911"
+    ));
+}
+
+#[test]
+fn unknown_frame_operator_is_e1912() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(flip(quarter * amount)) { Bar() } }",
+        "E1912"
+    ));
+}
+
+#[test]
+fn transpose_requires_two_dimensional_frame() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(transpose(amount)) { Bar() } }",
+        "E1913"
+    ));
+}
+
+#[test]
 fn radial_bar_categorical_radius_is_clean() {
     clean("Chart(data: \"p.csv\") { Space(amount, coords: \"polar\", theta: \"y\") { Bar(fill: species, radius: species) } }");
 }

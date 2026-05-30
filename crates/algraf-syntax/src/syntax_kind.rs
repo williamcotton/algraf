@@ -76,6 +76,8 @@ pub enum SyntaxKind {
     ALGEBRA_BINARY,
     /// A parenthesized algebra expression.
     ALGEBRA_PAREN,
+    /// A frame-operator call such as `transpose(a * b)`.
+    ALGEBRA_CALL,
     /// The root chart block.
     CHART_BLOCK,
     /// An optional top-level `Algraf(...)` source header.

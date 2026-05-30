@@ -102,6 +102,91 @@ pub(super) fn axis_is_continuousish(axis: &AxisScale) -> bool {
     )
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Orientation {
+    Vertical,
+    Horizontal,
+}
+
+pub(super) fn categorical_value_orientation(space: &ScaledSpace) -> Option<Orientation> {
+    if space.x.is_band() && space.y.as_ref().is_some_and(axis_is_continuousish) {
+        Some(Orientation::Vertical)
+    } else if space.y.as_ref().is_some_and(AxisScale::is_band) && axis_is_continuousish(&space.x) {
+        Some(Orientation::Horizontal)
+    } else {
+        None
+    }
+}
+
+pub(super) fn position_group_key(
+    space: &ScaledSpace,
+    table: &dyn Table,
+    row: usize,
+    orientation: Orientation,
+) -> Option<String> {
+    match orientation {
+        Orientation::Vertical => band_group_key(&space.x, table, row),
+        Orientation::Horizontal => band_group_key(space.y.as_ref()?, table, row),
+    }
+}
+
+pub(super) fn position_center(
+    space: &ScaledSpace,
+    table: &dyn Table,
+    row: usize,
+    orientation: Orientation,
+) -> Option<f64> {
+    match orientation {
+        Orientation::Vertical => space.resolve_x(table, row),
+        Orientation::Horizontal => space.resolve_y(table, row),
+    }
+}
+
+pub(super) fn position_bandwidth(
+    space: &ScaledSpace,
+    table: &dyn Table,
+    row: usize,
+    orientation: Orientation,
+) -> Option<f64> {
+    match orientation {
+        Orientation::Vertical => space.x_bandwidth(table, row),
+        Orientation::Horizontal => space.y_bandwidth(table, row),
+    }
+}
+
+pub(super) fn value_axis_data_column(
+    space: &ScaledSpace,
+    orientation: Orientation,
+) -> Option<&str> {
+    match orientation {
+        Orientation::Vertical => space.y.as_ref().and_then(AxisScale::data_column),
+        Orientation::Horizontal => space.x.data_column(),
+    }
+}
+
+pub(super) fn value_position(
+    space: &ScaledSpace,
+    table: &dyn Table,
+    row: usize,
+    orientation: Orientation,
+) -> Option<f64> {
+    match orientation {
+        Orientation::Vertical => space.resolve_y(table, row),
+        Orientation::Horizontal => space.resolve_x(table, row),
+    }
+}
+
+pub(super) fn map_value_axis(
+    space: &ScaledSpace,
+    value: f64,
+    orientation: Orientation,
+) -> Option<f64> {
+    match orientation {
+        Orientation::Vertical => space.map_y(value),
+        Orientation::Horizontal => space.map_x(value),
+    }
+}
+
 pub(super) fn grouped_rows_by_color(
     spec: &ColorSpec,
     table: &dyn Table,
@@ -122,8 +207,8 @@ pub(super) fn grouped_rows_by_color(
     }
 }
 
-pub(super) fn x_group_key(space: &ScaledSpace, table: &dyn Table, row: usize) -> Option<String> {
-    match &space.x {
+fn band_group_key(axis: &AxisScale, table: &dyn Table, row: usize) -> Option<String> {
+    match axis {
         AxisScale::Band { col, .. } => cell_category(table, col, row),
         AxisScale::NestedBand {
             outer_col,

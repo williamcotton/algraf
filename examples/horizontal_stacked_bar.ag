@@ -1,0 +1,7 @@
+Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly amount by type") {
+    Guide(axis: x, label: "Amount")
+    Guide(axis: y, label: "Quarter")
+    Space(transpose(quarter * amount)) {
+        Bar(fill: type, layout: "stack", alpha: 0.88)
+    }
+}

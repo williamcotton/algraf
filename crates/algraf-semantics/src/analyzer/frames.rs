@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::DataType;
 use algraf_syntax::ast::{
-    AlgebraBinary, AlgebraExpr, AlgebraName, AlgebraOp, Arg, LetDecl, LiteralKind, SpaceBlock,
-    SpaceItem, ValueExpr,
+    AlgebraBinary, AlgebraCall, AlgebraExpr, AlgebraName, AlgebraOp, Arg, LetDecl, LiteralKind,
+    SpaceBlock, SpaceItem, ValueExpr,
 };
 use algraf_syntax::{node_span, unescape_string_literal as string_value, SyntaxKind};
 
@@ -41,9 +41,11 @@ impl Analyzer<'_> {
             .collect();
         self.space_vars = self.collect_let_decls(&space_lets);
 
-        let frame = match space.frame() {
+        let frame_expr = space.frame();
+        let transpose_span = frame_expr.as_ref().and_then(first_transpose_call_span);
+        let frame = match frame_expr.as_ref() {
             Some(expr) => {
-                let frame = self.build_frame(&expr, &table);
+                let frame = self.build_frame(expr, &table);
                 self.check_cartesian_arity(&frame, node_span(expr.syntax()));
                 self.check_facet_variable(&frame);
                 self.check_temporal_nesting(&frame);
@@ -52,7 +54,7 @@ impl Analyzer<'_> {
             None => FrameIr::Invalid,
         };
         let projection = self.space_projection(space);
-        let coords = self.space_coords(space, &frame, projection.is_some());
+        let coords = self.space_coords(space, &frame, projection.is_some(), transpose_span);
 
         let mut geometries = Vec::new();
         let mut histograms = Vec::new();
@@ -237,6 +239,7 @@ impl Analyzer<'_> {
         space: &SpaceBlock,
         frame: &FrameIr,
         has_projection: bool,
+        transpose_span: Option<Span>,
     ) -> CoordsIr {
         let args = space.args();
         let Some(coords_arg) = args.iter().find(|a| a.key().as_deref() == Some("coords")) else {
@@ -260,6 +263,14 @@ impl Analyzer<'_> {
         match coords_value.as_str() {
             "cartesian" => CoordsIr::Cartesian,
             "polar" => {
+                if let Some(span) = transpose_span {
+                    self.diag(Diagnostic::error(
+                        codes::E1911,
+                        "`transpose` cannot be combined with polar coordinates",
+                        span,
+                    ));
+                    return CoordsIr::Cartesian;
+                }
                 if has_projection {
                     // Polar + geographic projection is deferred (spec §16.15);
                     // the projection wins and the space stays spatial.
@@ -555,12 +566,81 @@ impl Analyzer<'_> {
     fn build_frame(&mut self, expr: &AlgebraExpr, table: &ActiveTable) -> FrameIr {
         match expr {
             AlgebraExpr::Name(name) => FrameIr::Vector(self.resolve_column(name, table)),
+            AlgebraExpr::Call(call) => self.build_frame_call(call, table),
             AlgebraExpr::Paren(paren) => match paren.inner() {
                 Some(inner) => self.build_frame(&inner, table),
                 None => FrameIr::Invalid,
             },
             AlgebraExpr::Binary(binary) => self.build_binary(binary, table),
             AlgebraExpr::Error(_) => FrameIr::Invalid,
+        }
+    }
+
+    fn build_frame_call(&mut self, call: &AlgebraCall, table: &ActiveTable) -> FrameIr {
+        let name = call.name().unwrap_or_default();
+        let name_span = call.name_span().unwrap_or_else(|| node_span(call.syntax()));
+        if name != "transpose" {
+            self.diag(Diagnostic::error(
+                codes::E1912,
+                format!("unknown frame operator `{name}`"),
+                name_span,
+            ));
+            return FrameIr::Invalid;
+        }
+
+        let Some(inner) = call.inner() else {
+            self.diag(Diagnostic::error(
+                codes::E1912,
+                "`transpose` expects one frame expression",
+                node_span(call.syntax()),
+            ));
+            return FrameIr::Invalid;
+        };
+        if matches!(inner, AlgebraExpr::Error(_)) {
+            self.diag(Diagnostic::error(
+                codes::E1912,
+                "`transpose` expects one frame expression",
+                node_span(call.syntax()),
+            ));
+            return FrameIr::Invalid;
+        }
+
+        let frame = self.build_frame(&inner, table);
+        self.transpose_frame(frame, node_span(call.syntax()))
+    }
+
+    fn transpose_frame(&mut self, frame: FrameIr, span: Span) -> FrameIr {
+        match frame {
+            FrameIr::Cartesian(mut axes) if axes.len() == 2 => {
+                axes.swap(0, 1);
+                FrameIr::Cartesian(axes)
+            }
+            FrameIr::Nested { outer, inner } => match *outer {
+                FrameIr::Cartesian(mut axes) if axes.len() == 2 => {
+                    axes.swap(0, 1);
+                    FrameIr::Nested {
+                        outer: Box::new(FrameIr::Cartesian(axes)),
+                        inner,
+                    }
+                }
+                _ => {
+                    self.diag(Diagnostic::error(
+                        codes::E1913,
+                        "`transpose` expects a two-dimensional Cartesian frame",
+                        span,
+                    ));
+                    FrameIr::Invalid
+                }
+            },
+            FrameIr::Invalid => FrameIr::Invalid,
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1913,
+                    "`transpose` expects a two-dimensional Cartesian frame",
+                    span,
+                ));
+                FrameIr::Invalid
+            }
         }
     }
 
@@ -711,6 +791,27 @@ fn blend_parenthesized(binary: &AlgebraBinary) -> bool {
             AlgebraBinary::cast(parent).and_then(|b| b.op()) == Some(AlgebraOp::Blend)
         }
         _ => false,
+    }
+}
+
+fn first_transpose_call_span(expr: &AlgebraExpr) -> Option<Span> {
+    match expr {
+        AlgebraExpr::Call(call) => {
+            if call.name().as_deref() == Some("transpose") {
+                Some(node_span(call.syntax()))
+            } else {
+                call.inner()
+                    .and_then(|inner| first_transpose_call_span(&inner))
+            }
+        }
+        AlgebraExpr::Binary(binary) => binary
+            .lhs()
+            .and_then(|lhs| first_transpose_call_span(&lhs))
+            .or_else(|| binary.rhs().and_then(|rhs| first_transpose_call_span(&rhs))),
+        AlgebraExpr::Paren(paren) => paren
+            .inner()
+            .and_then(|inner| first_transpose_call_span(&inner)),
+        AlgebraExpr::Name(_) | AlgebraExpr::Error(_) => None,
     }
 }
 

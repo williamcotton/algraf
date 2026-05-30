@@ -385,6 +385,11 @@ fn render_value(value: &ValueExpr) -> String {
 fn render_algebra(expr: &AlgebraExpr) -> String {
     match expr {
         AlgebraExpr::Name(name) => name.raw_text().unwrap_or_default(),
+        AlgebraExpr::Call(call) => {
+            let name = call.name().unwrap_or_default();
+            let inner = call.inner().map(|e| render_algebra(&e)).unwrap_or_default();
+            format!("{name}({inner})")
+        }
         AlgebraExpr::Binary(binary) => {
             let op = binary.op().map(|o| o.symbol()).unwrap_or("?");
             let lhs = binary.lhs().map(|e| render_algebra(&e)).unwrap_or_default();

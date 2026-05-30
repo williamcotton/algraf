@@ -1,6 +1,6 @@
 # Algraf v0.33.0 Plan
 
-Status: Planned (draft)
+Status: Implemented (release version bump deferred to cut)
 Chosen syntax: **A3 — algebraic frame operator** (`Space(transpose(a * b))`).
 Chosen semantics: **B1 — orientation-aware geometries.**
 Owner: Algraf maintainers
@@ -12,13 +12,13 @@ Coordinate-system foundation: [`V0_31_PLAN.md`](V0_31_PLAN.md) (polar
 
 ## Purpose
 
-This release adds a **Cartesian coordinate transform** — transposing the x and
-y axes — so that the orientation-locked statistical geometries (`Bar`,
-`Histogram`, `Boxplot`, `Violin`) can render horizontally. Today they cannot:
-every one of them hard-requires a categorical (band) x axis and a continuous y
-axis, so a horizontal bar/box/histogram is simply not expressible with the
-high-level geoms. Authors work around this by hand-rolling `Rect`/`Segment`
-primitives (`temperature_range.ag`, `gantt.ag`, `flights.ag`).
+This release adds a **Cartesian frame operator** — transposing the x and y axes
+— so that the orientation-locked statistical geometries (`Bar`, `Boxplot`,
+`Violin`) can render horizontally. Before this, each hard-required a categorical
+(band) x axis and a continuous y axis, so horizontal bar/box/violin charts were
+not expressible with the high-level geoms. Direct 1-D `Histogram` and
+`Bar(stat: "count")` transposition remains deferred because those geoms desugar
+before a 2-D value axis exists.
 
 This is the genuine, narrow gap left after an audit of "reflection and
 rotation" against the existing implementation. Everything adjacent is already
@@ -43,13 +43,12 @@ surface we pick.
 
 ## Release Thesis
 
-v0.33.0 is the **transpose** release: a single new Cartesian coordinate
-transform that swaps the role of the x and y axes, making horizontal
-categorical/stat charts first-class. It slots into Algraf's existing COORD
-layer — the `coords`/`theta`/`startAngle`/`direction` argument family on
-`Space`, lowered to `CoordsIr` (`crates/algraf-semantics/src/ir.rs`) and
-trained in `crates/algraf-render/src/space.rs`. Cartesian output without the
-new transform stays byte-for-byte identical.
+v0.33.0 is the **transpose** release: a single algebraic frame operator that
+swaps the two axes of a 2-D Cartesian frame, making horizontal categorical/stat
+charts first-class. The implementation keeps the swap small: analysis rewrites
+`transpose(a * b)` to the existing physical frame shape `b * a`, and the few
+orientation-locked geoms detect whether the categorical position axis is x or y.
+There is no renderer-wide transpose flag and no WASM-specific change.
 
 As with prior releases, items here are planning guidance. A feature becomes
 normative only when the relevant section of [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
@@ -61,9 +60,9 @@ diagnostic code.
 ### Syntax: A3 — algebraic frame operator
 
 ```ag
-Chart(data: "demographics.csv", width: 640, height: 420) {
-    Space(transpose(gender * count)) {
-        Bar(stat: "count", fill: gender)
+Chart(data: "sales_by_rep.csv", width: 720, height: 440) {
+    Space(transpose(rep * amount)) {
+        Bar(fill: rep)
     }
 }
 ```
@@ -98,25 +97,22 @@ Grammar and analysis rules:
   panicking (spec §12.1).
 
 Lowering: `transpose` is **not** carried as user-authored algebra into render;
-the analyzer resolves it into the trained space's orientation. Concretely it
-sets a transpose flag on `CoordsIr` (a `transpose: bool` on the `Cartesian`
-representation), so the renderer's COORD layer — not the geoms' algebra — owns
-the swap. This keeps `transpose(a * b)` and a hypothetical future `coords` knob
-converging on the same IR.
+the analyzer resolves it by swapping the two `FrameIr::Cartesian` axes before
+scale training. `Scale(axis: ...)` and `Guide(axis: ...)` therefore address the
+physical axes after rewrite.
 
-### Semantics: B1 — orientation-aware geometries
+### Semantics: B1 — targeted orientation-aware geometries
 
-The transform sets an orientation flag on the trained space. Each
-orientation-locked geom checks it and swaps which axis is the band (position)
-axis vs. the value axis; guides swap which axis is drawn on the bottom vs. the
-left; stacking accumulates along the value axis. The authored algebra inside
+The transform itself is an analyzer rewrite. Each orientation-locked geom checks
+which physical axis is the band (position) axis vs. the continuous value axis;
+stacking accumulates along that value axis. The authored algebra inside
 `transpose(…)` stays `category * value`.
 
 - This matches Algraf's architecture, where geoms emit pixels directly. The
   existing guards (`if !space.x.is_band()`) become "band on the position
   axis," a localized edit per geom.
-- The cost is that every orientation-locked geom + guide rendering must be
-  touched (the scope list below).
+- The scope is intentionally limited to the geoms that already require a
+  categorical position axis.
 
 > Rejected alternative — **post-hoc pixel reflection across the y = x diagonal**:
 > render normally then mirror emitted coordinates. Incompatible with a direct
@@ -126,27 +122,20 @@ left; stacking accumulates along the value axis. The authored algebra inside
 
 ## Scope — what "orientation-aware" touches (under B1)
 
-The transform itself is small; the cost is threading orientation through the
-geoms whose stat has a fixed orientation today. Confirmed orientation guards:
+The transform itself is small; the work is localized to the geoms whose stat has
+a fixed orientation today. Confirmed orientation guards:
 
 | Geometry  | Current guard (file)                                      |
 | --------- | --------------------------------------------------------- |
 | `Bar`     | `geom/bar.rs:58` — "Bar requires a categorical x dimension" |
 | `Boxplot` | `geom/distribution.rs:33` — "categorical x and continuous y" |
 | `Violin`  | `geom/distribution.rs:214` — "categorical x and continuous y" |
-| `Histogram` | desugars through `Bar` (binned var → band axis)         |
 
 Also in scope:
 
-- **Guides**: `guide/emit.rs` hardcodes the x axis along the bottom
-  (`emit.rs:321`) and the y axis on the left; transpose must swap which trained
-  axis renders where, including tick-label sizing
-  (`max_x_tick_label_height` vs `max_y_tick_label_width`) and the plot-rect
-  margin computation that depends on them.
-- **Stacking / dodging** (`Bar(layout: "stack" | "fill" | "dodge")`): must
+- **Stacking / nesting** (`Bar(layout: "stack" | "fill")` and algebraic
+  `quarter / type` dodging): must
   accumulate along the value axis, not always y.
-- **`Rug(sides: …)`**: side semantics ("l"/"b"/…) are orientation-relative;
-  decide whether sides stay absolute (left/bottom) or follow the transpose.
 - **Polar interaction**: `transpose` + `coords: "polar"` is rejected
   (a new diagnostic), since polar already owns axis-role assignment via
   `theta`.
@@ -169,43 +158,46 @@ at E1910):
 ## v0.33.0 Must
 
 ### 1. Frame operator parsing + lowering
-Status: Planned.
+Status: Implemented.
 - Extend frame-algebra parsing in `crates/algraf-syntax` to accept a
   function-call node (`transpose(...)`) in frame position, with resilient
   recovery (E1912) and correct spans for the operator, parens, and inner frame.
 - Lower in `analyzer/frames.rs`: validate the 2-D cross-frame shape (E1913),
-  fold nested/identity transposes, and set `transpose: bool` on the
-  `Cartesian` representation of `CoordsIr`
-  (`crates/algraf-semantics/src/ir.rs`). Disambiguate the operator from a
-  column named `transpose` (only an immediately-following `(` makes it an
-  operator; backtick-quoting forces a column).
+  swap the two `FrameIr::Cartesian` axes before render, and disambiguate the
+  operator from a column named `transpose` (only an immediately-following `(`
+  makes it an operator; backtick-quoting forces a column).
 - Reject `transpose` + `coords: "polar"` on one space with E1911.
 - Cartesian output is byte-identical when `transpose` is absent.
 
-### 2. Orientation-aware position + guides
-Status: Planned.
-- The trained space exposes which axis is the "position/category" axis and
-  which is the "value" axis; `space.rs` builds scales accordingly.
-- `guide/emit.rs` draws the band axis and the continuous axis on the correct
-  edges, with correct tick-label sizing and margin reservation.
+### 2. Orientation-aware position scales
+Status: Implemented.
+- `Bar`, `Boxplot`, and `Violin` derive the "position/category" axis and the
+  "value" axis from the existing trained physical axes.
+- Guides intentionally stay physical: after analysis rewrites the frame, x-axis
+  guides render along the bottom and y-axis guides render along the left.
 
 ### 3. Orientation-aware stat geometries
-Status: Planned.
-- `Bar` (incl. stack/fill/dodge), `Histogram`, `Boxplot`, `Violin`, and `Rug`
-  render correctly when transposed; the "requires categorical x" guards become
-  "requires categorical position axis."
+Status: Implemented for 2-D categorical/value frames; direct 1-D stat
+transposition remains deferred.
+- `Bar` (identity/stack/fill, including algebraic nested/dodged bars),
+  `Boxplot`, and `Violin` render correctly when transposed; the "requires
+  categorical x" guards are now "requires a categorical position axis."
+- Direct 1-D `Histogram` and `Bar(stat: "count")` transpose are deferred because
+  they desugar before a 2-D value axis exists.
 
 ### 4. Spec, examples, README, release hygiene
-Status: Planned.
+Status: Implemented except release-version bump.
 - Spec §4.2 / §16.16 (or a new §16.x) describe the Cartesian transpose
   transform with `MUST`/`SHOULD` language and the reserved diagnostics.
-- Add examples: a horizontal bar chart, a horizontal stacked bar, and a
-  horizontal boxplot. Each gets a README section in the layouts/derived
+- Add examples: a horizontal bar chart, grouped bar, stacked bar, boxplot, and
+  violin. Each gets a README section in the layouts/distribution
   progression. Run `./examples/generate.sh`; confirm no drift in untouched
   examples.
-- Bump workspace `Cargo.toml` and `editors/vscode/package.json` to `0.33.0`.
+- Bump workspace `Cargo.toml` and `editors/vscode/package.json` to `0.33.0`
+  when cutting the release.
 - Update the VS Code TextMate grammar to highlight `transpose` as a frame
-  operator, and add LSP completion/hover/semantic-token support for it.
+  operator, add LSP completion/hover/semantic-token support for it, and keep the
+  demo editor theme in sync.
 
 ## v0.33.0 Should
 
@@ -223,6 +215,7 @@ Status: Planned.
 - Additional frame operators beyond `transpose` (e.g. a future `flip`/`rotate`
   family) — the parser is built to extend, but only `transpose` ships here.
 - Transpose under polar coordinates.
+- Direct 1-D stat transposition for `Histogram` and `Bar(stat: "count")`.
 
 ## Required checks before finishing
 
@@ -240,9 +233,10 @@ git diff -- examples   # untouched examples must not drift
    frame-operator section (grammar, shape rules, lowering) before coding.
 2. Add the frame-operator parse node in `algraf-syntax` with resilient
    recovery and span coverage.
-3. Lower it in `analyzer/frames.rs`, set the `CoordsIr` transpose flag, and
-   emit the incompatibility/shape diagnostics (Must §1).
-4. Make the trained space and guides orientation-aware (Must §2).
+3. Lower it in `analyzer/frames.rs` by swapping the two Cartesian frame axes,
+   and emit the incompatibility/shape diagnostics (Must §1).
+4. Make the targeted stat geometries detect categorical/value orientation
+   from the trained physical axes (Must §2).
 5. Make the stat geometries orientation-aware (Must §3).
-6. Add examples, README, LSP metadata, grammar; bump versions; confirm static
-   examples have no drift (Must §4).
+6. Add examples, README, LSP metadata, and grammar; leave release-version bumps
+   to the release cut; confirm static examples have no drift (Must §4).

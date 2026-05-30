@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="500" viewBox="0 0 760 500" role="img" aria-label="Programming language popularity">
+<title>Programming language popularity</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="500" fill="#ffffff" />
+<text class="algraf-title" x="104" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Programming language popularity</text>
+<rect class="algraf-plot-area" x="104" y="66" width="506" height="384" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="104" y1="66" x2="104" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="187.071" y1="66" x2="187.071" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="270.141" y1="66" x2="270.141" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="353.212" y1="66" x2="353.212" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="436.283" y1="66" x2="436.283" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="519.353" y1="66" x2="519.353" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="602.424" y1="66" x2="602.424" y2="450" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-bar">
+  <rect x="104" y="415.44" width="468.519" height="30.72" fill="#f3f3f3" stroke="#dddddd" stroke-width="1.5" opacity="1" />
+  <rect x="104" y="377.04" width="274.133" height="30.72" fill="#f3f3f3" stroke="#dddddd" stroke-width="1.5" opacity="1" />
+  <rect x="104" y="338.64" width="167.803" height="30.72" fill="#f3f3f3" stroke="#dddddd" stroke-width="1.5" opacity="1" />
+  <rect x="104" y="300.24" width="112.976" height="30.72" fill="#f3f3f3" stroke="#dddddd" stroke-width="1.5" opacity="1" />
+  <rect x="104" y="261.84" width="98.023" height="30.72" fill="#f3f3f3" stroke="#dddddd" stroke-width="1.5" opacity="1" />
+  <rect x="104" y="223.44" width="86.393" height="30.72" fill="#f3f3f3" stroke="#dddddd" stroke-width="1.5" opacity="1" />
+  <rect x="104" y="185.04" width="63.134" height="30.72" fill="#f3f3f3" stroke="#dddddd" stroke-width="1.5" opacity="1" />
+  <rect x="104" y="146.64" width="34.89" height="30.72" fill="#f3f3f3" stroke="#dddddd" stroke-width="1.5" opacity="1" />
+  <rect x="104" y="108.24" width="29.905" height="30.72" fill="#f3f3f3" stroke="#dddddd" stroke-width="1.5" opacity="1" />
+  <rect x="104" y="69.84" width="24.921" height="30.72" fill="#f3f3f3" stroke="#dddddd" stroke-width="1.5" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="572.519" cy="430.8" r="9" fill="#006BA4" opacity="1" />
+  <circle cx="378.133" cy="392.4" r="9" fill="#FF800E" opacity="1" />
+  <circle cx="271.803" cy="354" r="9" fill="#006BA4" opacity="1" />
+  <circle cx="216.976" cy="315.6" r="9" fill="#006BA4" opacity="1" />
+  <circle cx="202.023" cy="277.2" r="9" fill="#FF800E" opacity="1" />
+  <circle cx="190.393" cy="238.8" r="9" fill="#006BA4" opacity="1" />
+  <circle cx="167.134" cy="200.4" r="9" fill="#006BA4" opacity="1" />
+  <circle cx="138.89" cy="162" r="9" fill="#ABABAB" opacity="1" />
+  <circle cx="133.905" cy="123.6" r="9" fill="#595959" opacity="1" />
+  <circle cx="128.921" cy="85.2" r="9" fill="#FF800E" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="104" y1="450" x2="610" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="104" y1="450" x2="104" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="104" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="187.071" y1="450" x2="187.071" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="187.071" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <line x1="270.141" y1="450" x2="270.141" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="270.141" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="353.212" y1="450" x2="353.212" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="353.212" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15</text>
+  <line x1="436.283" y1="450" x2="436.283" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="436.283" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="519.353" y1="450" x2="519.353" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="519.353" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <line x1="602.424" y1="450" x2="602.424" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="602.424" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <text x="357" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Share (%)</text>
+  <line x1="104" y1="66" x2="104" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="99" y1="430.8" x2="104" y2="430.8" stroke="#333333" stroke-width="1" />
+  <text x="96" y="434.8" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Python</text>
+  <line x1="99" y1="392.4" x2="104" y2="392.4" stroke="#333333" stroke-width="1" />
+  <text x="96" y="396.4" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Java</text>
+  <line x1="99" y1="354" x2="104" y2="354" stroke="#333333" stroke-width="1" />
+  <text x="96" y="358" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">JavaScript</text>
+  <line x1="99" y1="315.6" x2="104" y2="315.6" stroke="#333333" stroke-width="1" />
+  <text x="96" y="319.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">C++</text>
+  <line x1="99" y1="277.2" x2="104" y2="277.2" stroke="#333333" stroke-width="1" />
+  <text x="96" y="281.2" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">C#</text>
+  <line x1="99" y1="238.8" x2="104" y2="238.8" stroke="#333333" stroke-width="1" />
+  <text x="96" y="242.8" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">PHP</text>
+  <line x1="99" y1="200.4" x2="104" y2="200.4" stroke="#333333" stroke-width="1" />
+  <text x="96" y="204.4" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">TypeScript</text>
+  <line x1="99" y1="162" x2="104" y2="162" stroke="#333333" stroke-width="1" />
+  <text x="96" y="166" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Go</text>
+  <line x1="99" y1="123.6" x2="104" y2="123.6" stroke="#333333" stroke-width="1" />
+  <text x="96" y="127.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Rust</text>
+  <line x1="99" y1="85.2" x2="104" y2="85.2" stroke="#333333" stroke-width="1" />
+  <text x="96" y="89.2" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Kotlin</text>
+  <text x="12" y="258" text-anchor="middle" transform="rotate(-90 12 258)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Programming Language</text>
+</g>
+<g class="algraf-legends">
+  <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">paradigm</text>
+  <rect x="626" y="78" width="12" height="12" fill="#006BA4" />
+  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Multi-paradigm</text>
+  <rect x="626" y="96" width="12" height="12" fill="#FF800E" />
+  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Object-oriented</text>
+  <rect x="626" y="114" width="12" height="12" fill="#ABABAB" />
+  <text x="644" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Concurrent</text>
+  <rect x="626" y="132" width="12" height="12" fill="#595959" />
+  <text x="644" y="142" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Systems</text>
+</g>
+</svg>

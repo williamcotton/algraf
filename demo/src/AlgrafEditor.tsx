@@ -202,6 +202,7 @@ function defineAlgrafTheme(): void {
       { token: "constant.language", foreground: "6f42c1" },
       { token: "invalid.illegal", foreground: "b42318", fontStyle: "underline" },
       { token: "keyword.declaration", foreground: "166f5c", fontStyle: "bold" },
+      { token: "keyword.operator.frame", foreground: "7a3f98", fontStyle: "bold" },
       { token: "keyword.operator", foreground: "4f5b63" },
       { token: "entity.name.function.geometry", foreground: "0f5f8f", fontStyle: "bold" },
       { token: "entity.name.function.stat", foreground: "7a3f98", fontStyle: "bold" },

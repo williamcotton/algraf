@@ -343,6 +343,11 @@ scatter/line, annular heatmap, radar) arise from applying this transform to the
 ordinary geometries, not from dedicated geometries. Cartesian output MUST be
 byte-for-byte unchanged when `coords` is absent.
 
+Cartesian spaces MAY use the frame operator `transpose(F)` (§8.7.1) to swap the
+two axes of a two-dimensional frame before scale training and rendering.
+`transpose` MUST NOT be combined with `coords: "polar"`; implementations MUST
+emit `E1911` and keep the space Cartesian for recovery.
+
 Nested spaces are reserved for later versions.
 
 The first implementation SHOULD reject nested `Space` blocks with a diagnostic.
@@ -1631,6 +1636,30 @@ All operators are left-associative.
 `a + b + c` without enclosing parentheses MUST be rejected in version 0.1.
 
 The analyzer SHOULD flatten associative operators into normalized IR where useful.
+
+### 8.7.1 Frame Operator Calls
+
+Frame algebra supports prefix operator calls. Version 0.33 defines exactly one
+operator:
+
+```ag
+transpose(a * b)
+```
+
+`transpose(F)` MUST parse as a frame expression only when a plain identifier is
+immediately followed by `(`. A bare `transpose` remains a column reference, and
+`` `transpose` `` MUST always be a quoted column reference.
+
+The analyzer MUST resolve `transpose(a * b)` by swapping the two Cartesian axes
+and lowering the result as though the user had written `b * a`. The operator is
+not carried in IR, and there is no separate renderer-wide transpose flag.
+`Scale(axis: ...)` and `Guide(axis: ...)` therefore target the physical axes
+after this rewrite.
+
+`transpose` MUST accept a two-dimensional Cartesian frame. Applying it to a
+one-dimensional frame, a non-2D blend/union, or a spatial/geometry frame MUST
+emit `E1913`. An empty `transpose()` or an unknown frame-operator call such as
+`flip(a * b)` MUST emit `E1912`.
 
 ### 8.8 Algebra Type System
 
@@ -4122,6 +4151,10 @@ categorical x by continuous y
 
 nested categorical x by continuous y
 
+continuous x by categorical y (usually authored as `transpose(category * value)`)
+
+continuous x by nested categorical y
+
 continuous x with explicit binning if stat count implemented
 
 Required inherited frame:
@@ -4164,7 +4197,7 @@ Supported layouts:
 
 `stack` stacks bars sharing the same x coordinate by grouping fill or group mapping.
 
-`fill` stacks bars and normalizes height to 100 percent.
+`fill` stacks bars and normalizes the value axis extent to 100 percent.
 
 Dodging is not a `Bar` layout in Algraf.
 
@@ -4186,9 +4219,9 @@ Space((quarter / type) * amount) {
 }
 ```
 
-Bar MUST skip rows with missing x.
+Bar MUST skip rows with missing position-axis values.
 
-Bar MUST skip rows with missing y unless `stat: "count"`.
+Bar MUST skip rows with missing value-axis values unless `stat: "count"`.
 
 Bar MUST treat negative values according to stack rules.
 
@@ -4501,6 +4534,10 @@ categorical x by continuous y
 
 nested categorical x by continuous y
 
+continuous x by categorical y (usually authored as `transpose(category * value)`)
+
+continuous x by nested categorical y
+
 Boxplot computes:
 
 minimum whisker
@@ -4533,7 +4570,7 @@ width
 
 outliers (boolean, default true)
 
-Boxplot MUST group by x coordinate and nested coordinate.
+Boxplot MUST group by the categorical position coordinate and nested coordinate.
 
 ### 14.12 Violin
 
@@ -4547,11 +4584,14 @@ Supported spaces:
 
 categorical x by continuous y
 
+continuous x by categorical y (usually authored as `transpose(category * value)`)
+
 Violin computes density per group.
 
 Version 0.3.0 MUST advertise `Violin` in the registry.
 
-Violin MUST support categorical x by continuous y spaces.
+Violin MUST support categorical x by continuous y spaces and continuous x by
+categorical y spaces.
 
 Violin MUST compute one Gaussian KDE per category using the same deterministic
 defaults as `Density`: Silverman bandwidth, 256 grid points, and a
@@ -4563,6 +4603,8 @@ three-bandwidth extension.
 lines are drawn.
 
 Violin MUST render a symmetric mirrored density area inside each category band.
+For horizontal orientation, the density extent mirrors along y while the
+distribution values map to x.
 
 If implemented, quantile lines MUST be deterministic.
 
@@ -8439,6 +8481,12 @@ missing `=>`/stray separator in a map literal)
 
 `E1910 invalid polar direction or radius mapping`
 
+`E1911 transpose cannot be combined with a non-Cartesian coordinate system`
+
+`E1912 malformed or unknown frame operator`
+
+`E1913 transpose requires a two-dimensional Cartesian frame`
+
 ### 26.3 Warning Diagnostics
 
 `W2001 empty Space block`
@@ -9014,7 +9062,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.30.0 | [`V0_30_PLAN.md`](V0_30_PLAN.md) | Declarative interactivity and live preview | Implemented |
 | 0.31.0 | [`V0_31_PLAN.md`](V0_31_PLAN.md) | Language-surface polish (temporal & polar) | Implemented |
 | 0.32.0 | [`V0_32_PLAN.md`](V0_32_PLAN.md) | Host-runtime interaction sidecar and React reference | Implemented |
-| 0.33.0 | [`V0_33_PLAN.md`](V0_33_PLAN.md) | Cartesian transpose for orientation-locked geoms | Planned |
+| 0.33.0 | [`V0_33_PLAN.md`](V0_33_PLAN.md) | Cartesian transpose for orientation-locked geoms | Implemented |
 | 0.34.0 | [`V0_34_PLAN.md`](V0_34_PLAN.md) | Browser/WASM runtime and live playground | Implemented out of order |
 
 The earliest unreleased plan is the active implementation target; later

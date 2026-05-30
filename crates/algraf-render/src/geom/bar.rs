@@ -11,7 +11,11 @@ use crate::scale::{categorical_domain, cell_category, cell_f64};
 use crate::sink::{Fill, MarkSink, Paint};
 use crate::space::{Polar, ScaledSpace};
 
-use super::common::{mark_interaction, render_rows, stroke_style, DEFAULT_FILL};
+use super::common::{
+    categorical_value_orientation, map_value_axis, mark_interaction, position_bandwidth,
+    position_center, position_group_key, render_rows, stroke_style, value_axis_data_column,
+    value_position, Orientation, DEFAULT_FILL,
+};
 use super::polar::annular_segment_path;
 use super::GeometryRenderContext;
 
@@ -52,41 +56,40 @@ pub(super) fn render(
         return;
     }
 
-    let Some(y_col) = space.y.as_ref().and_then(|a| a.data_column()) else {
-        return;
-    };
-    if !space.x.is_band() {
+    let Some(orientation) = categorical_value_orientation(space) else {
         diagnostics.push(Diagnostic::warning(
             codes::R0002,
-            "Bar requires a categorical x dimension",
+            "Bar requires one categorical position axis and one continuous value axis",
             geo.span,
         ));
         return;
-    }
+    };
 
-    let Some(baseline) = space.map_y(0.0) else {
+    let Some(value_col) = value_axis_data_column(space, orientation) else {
+        return;
+    };
+    let Some(baseline) = map_value_axis(space, 0.0, orientation) else {
         return;
     };
 
     if stacked {
-        let Some(x_col) = space.x.data_column() else {
-            return;
-        };
         let totals = if layout == BarLayout::Fill {
-            fill_totals(table, rows, x_col, y_col)
+            fill_totals_by_position(table, rows, space, orientation, value_col)
         } else {
             HashMap::new()
         };
         let mut cumulative: HashMap<String, f64> = HashMap::new();
         for row in render_rows(table, rows) {
-            let (Some(cx), Some(bw)) = (space.resolve_x(table, row), space.x_bandwidth(table, row))
-            else {
+            let (Some(center), Some(bandwidth)) = (
+                position_center(space, table, row, orientation),
+                position_bandwidth(space, table, row, orientation),
+            ) else {
                 continue;
             };
-            let Some(value) = cell_f64(table, y_col, row) else {
+            let Some(value) = cell_f64(table, value_col, row) else {
                 continue;
             };
-            let key = crate::scale::cell_category(table, x_col, row).unwrap_or_default();
+            let key = position_group_key(space, table, row, orientation).unwrap_or_default();
             let value = if layout == BarLayout::Fill {
                 let total = totals.get(&key).copied().unwrap_or(0.0);
                 if total.abs() <= f64::EPSILON {
@@ -99,15 +102,19 @@ pub(super) fn render(
             let base = *cumulative.get(&key).unwrap_or(&0.0);
             let top = base + value;
             cumulative.insert(key, top);
-            let (Some(y0), Some(y1)) = (space.map_y(base), space.map_y(top)) else {
+            let (Some(value0), Some(value1)) = (
+                map_value_axis(space, base, orientation),
+                map_value_axis(space, top, orientation),
+            ) else {
                 continue;
             };
-            emit_bar(
+            emit_oriented_bar(
                 sink,
-                cx - bw / 2.0,
-                bw,
-                y0,
-                y1,
+                center,
+                bandwidth,
+                value0,
+                value1,
+                orientation,
                 plot,
                 &fill,
                 &stroke,
@@ -120,19 +127,22 @@ pub(super) fn render(
         }
     } else {
         for row in render_rows(table, rows) {
-            let (Some(cx), Some(bw)) = (space.resolve_x(table, row), space.x_bandwidth(table, row))
-            else {
+            let (Some(center), Some(bandwidth)) = (
+                position_center(space, table, row, orientation),
+                position_bandwidth(space, table, row, orientation),
+            ) else {
                 continue;
             };
-            let Some(top) = space.resolve_y(table, row) else {
+            let Some(top) = value_position(space, table, row, orientation) else {
                 continue;
             };
-            emit_bar(
+            emit_oriented_bar(
                 sink,
-                cx - bw / 2.0,
-                bw,
+                center,
+                bandwidth,
                 baseline,
                 top,
+                orientation,
                 plot,
                 &fill,
                 &stroke,
@@ -449,6 +459,75 @@ fn fill_totals(
     totals
 }
 
+fn fill_totals_by_position(
+    table: &dyn Table,
+    rows: Option<&[usize]>,
+    space: &ScaledSpace,
+    orientation: Orientation,
+    value_col: &str,
+) -> HashMap<String, f64> {
+    let mut totals: HashMap<String, f64> = HashMap::new();
+    for row in render_rows(table, rows) {
+        let Some(value) = cell_f64(table, value_col, row) else {
+            continue;
+        };
+        let key = position_group_key(space, table, row, orientation).unwrap_or_default();
+        *totals.entry(key).or_insert(0.0) += value;
+    }
+    totals
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_oriented_bar(
+    sink: &mut dyn MarkSink,
+    center: f64,
+    bandwidth: f64,
+    value_a: f64,
+    value_b: f64,
+    orientation: Orientation,
+    plot: Rect,
+    fill: &ColorSpec,
+    stroke: &ColorSpec,
+    stroke_width: f64,
+    table: &dyn Table,
+    row: usize,
+    alpha: f64,
+    geo: &GeometryIr,
+) {
+    match orientation {
+        Orientation::Vertical => emit_bar(
+            sink,
+            center - bandwidth / 2.0,
+            bandwidth,
+            value_a,
+            value_b,
+            plot,
+            fill,
+            stroke,
+            stroke_width,
+            table,
+            row,
+            alpha,
+            geo,
+        ),
+        Orientation::Horizontal => emit_hbar(
+            sink,
+            center - bandwidth / 2.0,
+            bandwidth,
+            value_a,
+            value_b,
+            plot,
+            fill,
+            stroke,
+            stroke_width,
+            table,
+            row,
+            alpha,
+            geo,
+        ),
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn emit_bar(
     sink: &mut dyn MarkSink,
@@ -476,6 +555,42 @@ fn emit_bar(
         top,
         width,
         bottom - top,
+        &Paint {
+            fill: Fill::Color(color),
+            stroke: stroke_style(stroke, stroke_width, table, row),
+            opacity: Some(alpha),
+        },
+    );
+    sink.end_mark();
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_hbar(
+    sink: &mut dyn MarkSink,
+    y: f64,
+    height: f64,
+    x_a: f64,
+    x_b: f64,
+    plot: Rect,
+    fill: &ColorSpec,
+    stroke: &ColorSpec,
+    stroke_width: f64,
+    table: &dyn Table,
+    row: usize,
+    alpha: f64,
+    geo: &GeometryIr,
+) {
+    let left = x_a.min(x_b).clamp(plot.x, plot.right());
+    let right = x_a.max(x_b).clamp(plot.x, plot.right());
+    let color = fill
+        .resolve(table, row)
+        .unwrap_or_else(|| DEFAULT_FILL.to_string());
+    sink.begin_mark(mark_interaction(geo, table, row));
+    sink.rect(
+        left,
+        y,
+        right - left,
+        height,
         &Paint {
             fill: Fill::Color(color),
             stroke: stroke_style(stroke, stroke_width, table, row),

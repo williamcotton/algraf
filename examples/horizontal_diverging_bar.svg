@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="520" viewBox="0 0 760 520" role="img" aria-label="Monthly profit / loss">
+<title>Monthly profit / loss</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="520" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Monthly profit / loss</text>
+<rect class="algraf-plot-area" x="60" y="66" width="550" height="404" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="115.492" y1="66" x2="115.492" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="203.295" y1="66" x2="203.295" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="291.098" y1="66" x2="291.098" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="378.902" y1="66" x2="378.902" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="466.705" y1="66" x2="466.705" y2="470" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="554.508" y1="66" x2="554.508" y2="470" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-bar">
+  <rect x="203.295" y="439.7" width="105.364" height="26.933" fill="#2ca02c" opacity="0.85" />
+  <rect x="203.295" y="406.033" width="70.243" height="26.933" fill="#2ca02c" opacity="0.85" />
+  <rect x="168.174" y="372.367" width="35.121" height="26.933" fill="#d62728" opacity="0.85" />
+  <rect x="97.931" y="338.7" width="105.364" height="26.933" fill="#d62728" opacity="0.85" />
+  <rect x="203.295" y="305.033" width="131.705" height="26.933" fill="#2ca02c" opacity="0.85" />
+  <rect x="203.295" y="271.367" width="193.167" height="26.933" fill="#2ca02c" opacity="0.85" />
+  <rect x="150.613" y="237.7" width="52.682" height="26.933" fill="#d62728" opacity="0.85" />
+  <rect x="124.272" y="204.033" width="79.023" height="26.933" fill="#d62728" opacity="0.85" />
+  <rect x="203.295" y="170.367" width="158.046" height="26.933" fill="#2ca02c" opacity="0.85" />
+  <rect x="203.295" y="136.7" width="219.508" height="26.933" fill="#2ca02c" opacity="0.85" />
+  <rect x="203.295" y="103.033" width="272.19" height="26.933" fill="#2ca02c" opacity="0.85" />
+  <rect x="203.295" y="69.367" width="368.774" height="26.933" fill="#2ca02c" opacity="0.85" />
+</g>
+<g class="algraf-layer algraf-geom-vline">
+  <line x1="203.295" y1="66" x2="203.295" y2="470" stroke="#333333" stroke-width="1.2" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="470" x2="610" y2="470" stroke="#333333" stroke-width="1" />
+  <line x1="115.492" y1="470" x2="115.492" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="115.492" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">-10000</text>
+  <line x1="203.295" y1="470" x2="203.295" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="203.295" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="291.098" y1="470" x2="291.098" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="291.098" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10000</text>
+  <line x1="378.902" y1="470" x2="378.902" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="378.902" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20000</text>
+  <line x1="466.705" y1="470" x2="466.705" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="466.705" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30000</text>
+  <line x1="554.508" y1="470" x2="554.508" y2="475" stroke="#333333" stroke-width="1" />
+  <text x="554.508" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40000</text>
+  <text x="335" y="508" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Profit / Loss ($)</text>
+  <line x1="60" y1="66" x2="60" y2="470" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="453.167" x2="60" y2="453.167" stroke="#333333" stroke-width="1" />
+  <text x="52" y="457.167" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan</text>
+  <line x1="55" y1="419.5" x2="60" y2="419.5" stroke="#333333" stroke-width="1" />
+  <text x="52" y="423.5" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Feb</text>
+  <line x1="55" y1="385.833" x2="60" y2="385.833" stroke="#333333" stroke-width="1" />
+  <text x="52" y="389.833" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar</text>
+  <line x1="55" y1="352.167" x2="60" y2="352.167" stroke="#333333" stroke-width="1" />
+  <text x="52" y="356.167" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr</text>
+  <line x1="55" y1="318.5" x2="60" y2="318.5" stroke="#333333" stroke-width="1" />
+  <text x="52" y="322.5" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May</text>
+  <line x1="55" y1="284.833" x2="60" y2="284.833" stroke="#333333" stroke-width="1" />
+  <text x="52" y="288.833" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jun</text>
+  <line x1="55" y1="251.167" x2="60" y2="251.167" stroke="#333333" stroke-width="1" />
+  <text x="52" y="255.167" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul</text>
+  <line x1="55" y1="217.5" x2="60" y2="217.5" stroke="#333333" stroke-width="1" />
+  <text x="52" y="221.5" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Aug</text>
+  <line x1="55" y1="183.833" x2="60" y2="183.833" stroke="#333333" stroke-width="1" />
+  <text x="52" y="187.833" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sep</text>
+  <line x1="55" y1="150.167" x2="60" y2="150.167" stroke="#333333" stroke-width="1" />
+  <text x="52" y="154.167" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oct</text>
+  <line x1="55" y1="116.5" x2="60" y2="116.5" stroke="#333333" stroke-width="1" />
+  <text x="52" y="120.5" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Nov</text>
+  <line x1="55" y1="82.833" x2="60" y2="82.833" stroke="#333333" stroke-width="1" />
+  <text x="52" y="86.833" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Dec</text>
+  <text x="18.4" y="268" text-anchor="middle" transform="rotate(-90 18.4 268)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Month</text>
+</g>
+<g class="algraf-legends">
+  <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">status</text>
+  <rect x="626" y="78" width="12" height="12" fill="#2ca02c" />
+  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Profit</text>
+  <rect x="626" y="96" width="12" height="12" fill="#d62728" />
+  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Loss</text>
+</g>
+</svg>

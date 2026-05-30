@@ -1,0 +1,22 @@
+Chart(data: "top_down_icicle.csv", width: 820, height: 420, title: "Revenue hierarchy") {
+    Theme(name: "minimal", axes: false, grid: false)
+    Scale(axis: x, domain: [0, 100])
+    Scale(axis: y, domain: [0, 3], reverse: true)
+    Scale(
+        fill: segment,
+        range: ["Total" => "#c7dcef", "Product" => "#f6b26b", "Services" => "#d9ead3", "Support" => "#d0d0d0"],
+    )
+    Space(x1 * y1) {
+        Rect(
+            xmin: x0,
+            xmax: x1,
+            ymin: y0,
+            ymax: y1,
+            fill: segment,
+            stroke: "#ffffff",
+            strokeWidth: 2,
+            alpha: 0.92,
+        )
+        Text(x: x_mid, y: y_mid, label: label, anchor: "middle", size: 11, fill: "#222222")
+    }
+}

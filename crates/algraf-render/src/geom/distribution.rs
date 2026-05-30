@@ -12,8 +12,9 @@ use crate::stats;
 use crate::svg::num;
 
 use super::common::{
-    axis_is_continuousish, emit_svg_line, quantile_type7, render_rows, stroke_style, x_group_key,
-    DEFAULT_FILL, DEFAULT_STROKE,
+    axis_is_continuousish, categorical_value_orientation, emit_svg_line, map_value_axis,
+    position_bandwidth, position_center, position_group_key, quantile_type7, render_rows,
+    stroke_style, value_axis_data_column, Orientation, DEFAULT_FILL, DEFAULT_STROKE,
 };
 use super::GeometryRenderContext;
 
@@ -27,17 +28,17 @@ pub(super) fn render_boxplot(
     let table = ctx.table;
     let rows = ctx.rows;
     let scales = ctx.scales;
-    let Some(y_col) = space.y.as_ref().and_then(|axis| axis.data_column()) else {
-        return;
-    };
-    if !space.x.is_band() || !space.y.as_ref().is_some_and(axis_is_continuousish) {
+    let Some(orientation) = categorical_value_orientation(space) else {
         diagnostics.push(Diagnostic::warning(
             codes::R0002,
-            "Boxplot requires categorical x and continuous y dimensions",
+            "Boxplot requires one categorical position axis and one continuous value axis",
             geo.span,
         ));
         return;
-    }
+    };
+    let Some(value_col) = value_axis_data_column(space, orientation) else {
+        return;
+    };
 
     let fill = color_spec(geo, PropertyKey::Fill, table, scales);
     let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
@@ -50,10 +51,10 @@ pub(super) fn render_boxplot(
     let mut order = Vec::new();
 
     for row in render_rows(table, rows) {
-        let Some(key) = x_group_key(space, table, row) else {
+        let Some(key) = position_group_key(space, table, row, orientation) else {
             continue;
         };
-        let Some(value) = cell_f64(table, y_col, row) else {
+        let Some(value) = cell_f64(table, value_col, row) else {
             continue;
         };
         if !groups.contains_key(&key) {
@@ -87,21 +88,21 @@ pub(super) fn render_boxplot(
             .find(|value| *value <= upper_bound)
             .unwrap_or(*values.last().unwrap());
 
-        let (Some(cx), Some(bandwidth)) = (
-            space.resolve_x(table, first_row),
-            space.x_bandwidth(table, first_row),
+        let (Some(center), Some(bandwidth)) = (
+            position_center(space, table, first_row, orientation),
+            position_bandwidth(space, table, first_row, orientation),
         ) else {
             continue;
         };
         let width_setting = number_setting(geo, PropertyKey::Width, bandwidth * 0.7);
         let box_width = width_setting.clamp(1.0, bandwidth);
         let half = box_width / 2.0;
-        let (Some(y_q1), Some(y_median), Some(y_q3), Some(y_low), Some(y_high)) = (
-            space.map_y(q1),
-            space.map_y(median),
-            space.map_y(q3),
-            space.map_y(whisker_low),
-            space.map_y(whisker_high),
+        let (Some(q1_pos), Some(median_pos), Some(q3_pos), Some(low_pos), Some(high_pos)) = (
+            map_value_axis(space, q1, orientation),
+            map_value_axis(space, median, orientation),
+            map_value_axis(space, q3, orientation),
+            map_value_axis(space, whisker_low, orientation),
+            map_value_axis(space, whisker_high, orientation),
         ) else {
             continue;
         };
@@ -112,63 +113,124 @@ pub(super) fn render_boxplot(
         let stroke_color = stroke
             .resolve(table, first_row)
             .unwrap_or_else(|| DEFAULT_STROKE.to_string());
-        let top = y_q3.min(y_q1);
-        let height = (y_q1 - y_q3).abs().max(1.0);
-
-        emit_svg_line(
-            sink,
-            cx,
-            y_low,
-            cx,
-            y_high,
-            &stroke_color,
-            stroke_width,
-            alpha,
-        );
-        emit_svg_line(
-            sink,
-            cx - half * 0.4,
-            y_low,
-            cx + half * 0.4,
-            y_low,
-            &stroke_color,
-            stroke_width,
-            alpha,
-        );
-        emit_svg_line(
-            sink,
-            cx - half * 0.4,
-            y_high,
-            cx + half * 0.4,
-            y_high,
-            &stroke_color,
-            stroke_width,
-            alpha,
-        );
-        sink.rect(
-            cx - half,
-            top,
-            box_width,
-            height,
-            &Paint {
-                fill: Fill::Color(fill_color),
-                stroke: Stroke::Solid {
-                    color: stroke_color.clone(),
-                    width: stroke_width,
-                },
-                opacity: Some(alpha),
-            },
-        );
-        emit_svg_line(
-            sink,
-            cx - half,
-            y_median,
-            cx + half,
-            y_median,
-            &stroke_color,
-            stroke_width,
-            alpha,
-        );
+        match orientation {
+            Orientation::Vertical => {
+                let top = q3_pos.min(q1_pos);
+                let height = (q1_pos - q3_pos).abs().max(1.0);
+                emit_svg_line(
+                    sink,
+                    center,
+                    low_pos,
+                    center,
+                    high_pos,
+                    &stroke_color,
+                    stroke_width,
+                    alpha,
+                );
+                emit_svg_line(
+                    sink,
+                    center - half * 0.4,
+                    low_pos,
+                    center + half * 0.4,
+                    low_pos,
+                    &stroke_color,
+                    stroke_width,
+                    alpha,
+                );
+                emit_svg_line(
+                    sink,
+                    center - half * 0.4,
+                    high_pos,
+                    center + half * 0.4,
+                    high_pos,
+                    &stroke_color,
+                    stroke_width,
+                    alpha,
+                );
+                sink.rect(
+                    center - half,
+                    top,
+                    box_width,
+                    height,
+                    &Paint {
+                        fill: Fill::Color(fill_color),
+                        stroke: Stroke::Solid {
+                            color: stroke_color.clone(),
+                            width: stroke_width,
+                        },
+                        opacity: Some(alpha),
+                    },
+                );
+                emit_svg_line(
+                    sink,
+                    center - half,
+                    median_pos,
+                    center + half,
+                    median_pos,
+                    &stroke_color,
+                    stroke_width,
+                    alpha,
+                );
+            }
+            Orientation::Horizontal => {
+                let left = q1_pos.min(q3_pos);
+                let width = (q3_pos - q1_pos).abs().max(1.0);
+                emit_svg_line(
+                    sink,
+                    low_pos,
+                    center,
+                    high_pos,
+                    center,
+                    &stroke_color,
+                    stroke_width,
+                    alpha,
+                );
+                emit_svg_line(
+                    sink,
+                    low_pos,
+                    center - half * 0.4,
+                    low_pos,
+                    center + half * 0.4,
+                    &stroke_color,
+                    stroke_width,
+                    alpha,
+                );
+                emit_svg_line(
+                    sink,
+                    high_pos,
+                    center - half * 0.4,
+                    high_pos,
+                    center + half * 0.4,
+                    &stroke_color,
+                    stroke_width,
+                    alpha,
+                );
+                sink.rect(
+                    left,
+                    center - half,
+                    width,
+                    box_width,
+                    &Paint {
+                        fill: Fill::Color(fill_color),
+                        stroke: Stroke::Solid {
+                            color: stroke_color.clone(),
+                            width: stroke_width,
+                        },
+                        opacity: Some(alpha),
+                    },
+                );
+                emit_svg_line(
+                    sink,
+                    median_pos,
+                    center - half,
+                    median_pos,
+                    center + half,
+                    &stroke_color,
+                    stroke_width,
+                    alpha,
+                );
+            }
+        }
 
         // Outliers: observations beyond the 1.5·IQR fences, drawn as small open
         // circles centered on the box (spec §14.11). Order follows the sorted
@@ -177,7 +239,11 @@ pub(super) fn render_boxplot(
             let radius = (stroke_width * 1.5).max(2.0);
             for (_, value) in group.iter() {
                 if *value < lower_bound || *value > upper_bound {
-                    if let Some(cy) = space.map_y(*value) {
+                    if let Some(value_pos) = map_value_axis(space, *value, orientation) {
+                        let (cx, cy) = match orientation {
+                            Orientation::Vertical => (center, value_pos),
+                            Orientation::Horizontal => (value_pos, center),
+                        };
                         sink.circle(
                             cx,
                             cy,
@@ -208,17 +274,17 @@ pub(super) fn render_violin(
     let table = ctx.table;
     let rows = ctx.rows;
     let scales = ctx.scales;
-    let Some(y_col) = space.y.as_ref().and_then(|axis| axis.data_column()) else {
-        return;
-    };
-    if !space.x.is_band() || !space.y.as_ref().is_some_and(axis_is_continuousish) {
+    let Some(orientation) = categorical_value_orientation(space) else {
         diagnostics.push(Diagnostic::warning(
             codes::R0002,
-            "Violin requires categorical x and continuous y dimensions",
+            "Violin requires one categorical position axis and one continuous value axis",
             geo.span,
         ));
         return;
-    }
+    };
+    let Some(value_col) = value_axis_data_column(space, orientation) else {
+        return;
+    };
 
     let fill = color_spec(geo, PropertyKey::Fill, table, scales);
     let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
@@ -228,10 +294,10 @@ pub(super) fn render_violin(
     let mut groups: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
     let mut order = Vec::new();
     for row in render_rows(table, rows) {
-        let Some(key) = x_group_key(space, table, row) else {
+        let Some(key) = position_group_key(space, table, row, orientation) else {
             continue;
         };
-        let Some(value) = cell_f64(table, y_col, row) else {
+        let Some(value) = cell_f64(table, value_col, row) else {
             continue;
         };
         if !groups.contains_key(&key) {
@@ -266,33 +332,41 @@ pub(super) fn render_violin(
         if max_density <= f64::EPSILON {
             continue;
         }
-        let (Some(cx), Some(bandwidth)) = (
-            space.resolve_x(table, first_row),
-            space.x_bandwidth(table, first_row),
+        let (Some(center), Some(bandwidth)) = (
+            position_center(space, table, first_row, orientation),
+            position_bandwidth(space, table, first_row, orientation),
         ) else {
             continue;
         };
         let half_width =
             number_setting(geo, PropertyKey::Width, bandwidth * 0.9).clamp(1.0, bandwidth) / 2.0;
-        let mut right = Vec::new();
-        let mut left = Vec::new();
+        let mut side_a = Vec::new();
+        let mut side_b = Vec::new();
         for point in &curve {
-            let Some(y) = space.map_y(point.x) else {
+            let Some(value_pos) = map_value_axis(space, point.x, orientation) else {
                 continue;
             };
-            let dx = point.density / max_density * half_width;
-            right.push((cx + dx, y));
-            left.push((cx - dx, y));
+            let offset = point.density / max_density * half_width;
+            match orientation {
+                Orientation::Vertical => {
+                    side_a.push((center + offset, value_pos));
+                    side_b.push((center - offset, value_pos));
+                }
+                Orientation::Horizontal => {
+                    side_a.push((value_pos, center - offset));
+                    side_b.push((value_pos, center + offset));
+                }
+            }
         }
-        if right.len() < 2 {
+        if side_a.len() < 2 {
             continue;
         }
         let mut d = String::new();
-        for (i, (x, y)) in right.iter().enumerate() {
+        for (i, (x, y)) in side_a.iter().enumerate() {
             let cmd = if i == 0 { 'M' } else { 'L' };
             let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
         }
-        for (x, y) in left.iter().rev() {
+        for (x, y) in side_b.iter().rev() {
             let _ = write!(d, "L{} {} ", num(*x), num(*y));
         }
         d.push('Z');
@@ -317,21 +391,33 @@ pub(super) fn render_violin(
             .filter(|q| (0.0..=1.0).contains(q))
         {
             let value = quantile_type7(&values, q);
-            let Some(y) = space.map_y(value) else {
+            let Some(value_pos) = map_value_axis(space, value, orientation) else {
                 continue;
             };
             let density = interpolate_density(&curve, value);
-            let dx = density / max_density * half_width;
-            emit_svg_line(
-                sink,
-                cx - dx,
-                y,
-                cx + dx,
-                y,
-                &stroke_color,
-                stroke_width,
-                1.0,
-            );
+            let offset = density / max_density * half_width;
+            match orientation {
+                Orientation::Vertical => emit_svg_line(
+                    sink,
+                    center - offset,
+                    value_pos,
+                    center + offset,
+                    value_pos,
+                    &stroke_color,
+                    stroke_width,
+                    1.0,
+                ),
+                Orientation::Horizontal => emit_svg_line(
+                    sink,
+                    value_pos,
+                    center - offset,
+                    value_pos,
+                    center + offset,
+                    &stroke_color,
+                    stroke_width,
+                    1.0,
+                ),
+            }
         }
     }
 }

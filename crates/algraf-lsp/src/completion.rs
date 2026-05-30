@@ -108,6 +108,10 @@ pub(crate) fn completion_context(text: &str, offset: usize) -> CompletionContext
             active_key,
             last_kind,
         },
+        Some("transpose") => CompletionContext::SpaceArgs {
+            active_key,
+            last_kind,
+        },
         Some(
             "Algraf" | "Scale" | "Guide" | "Theme" | "Layout" | "Parse" | "Style" | "Stop" | "Bin"
             | "Smooth" | "Bin2D" | "HexBin" | "Simplify" | "SpatialJoin",
@@ -228,6 +232,11 @@ pub(crate) fn completion_items(
                 LastTokenKind::Operator('*' | '+') | LastTokenKind::Other => {
                     let mut items = column_items_matching(state, |_| true);
                     items.push(keyword("(", "Start a parenthesized algebra expression"));
+                    items.push(snippet(
+                        "transpose",
+                        "transpose($1)",
+                        "Swap a two-dimensional Cartesian frame's axes",
+                    ));
                     items
                 }
                 LastTokenKind::Operator(_) => column_items_matching(state, |_| true),
@@ -773,6 +782,27 @@ mod tests {
             }
             other => panic!("unexpected context: {other:?}"),
         }
+    }
+
+    #[test]
+    fn context_inside_transpose_call_resolves_space_args() {
+        let source = "Chart(data: \"p.csv\") {\n  Space(transpose(";
+        match completion_context(source, source.len()) {
+            CompletionContext::SpaceArgs { .. } => {}
+            other => panic!("unexpected context: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn space_args_completion_offers_transpose() {
+        let items = completion_items(
+            &empty_state(),
+            CompletionContext::SpaceArgs {
+                active_key: None,
+                last_kind: LastTokenKind::Other,
+            },
+        );
+        assert!(labels(&items).contains(&"transpose"));
     }
 
     #[test]

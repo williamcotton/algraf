@@ -364,6 +364,29 @@ fn test_fill_bar_normalizes_segments_to_one() {
 }
 
 #[test]
+fn test_horizontal_bar_via_transpose() {
+    let result = render_result(
+        "Chart(data: \"f.csv\") { Space(transpose(quarter * amount)) { Bar() } }",
+        "quarter,amount\nQ1,10\nQ2,20\nQ3,15\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-bar"));
+    assert_eq!(result.svg.matches("opacity=").count(), 3);
+    assert!(result.svg.contains(">Q1</text>"));
+}
+
+#[test]
+fn test_horizontal_stacked_bar_domain_uses_totals() {
+    let result = render_result(
+        "Chart(data: \"f.csv\") { Space(transpose(quarter * amount)) { Bar(fill: type, layout: \"stack\") } }",
+        "quarter,type,amount\nQ1,a,10\nQ1,b,20\nQ2,a,5\nQ2,b,5\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.svg.matches("opacity=").count(), 4);
+    assert!(result.svg.contains(">30</text>"));
+}
+
+#[test]
 fn test_line_groups_by_stroke() {
     let svg = render_svg(
         "Chart(data: \"t.csv\") { Space(time * value) { Line(stroke: series) } }",
@@ -635,6 +658,18 @@ fn test_tile_heatmap_gradient() {
 fn test_boxplot_renders_summary_marks() {
     let result = render_result(
         "Chart(data: \"b.csv\") { Space(group * value) { Boxplot(fill: group) } }",
+        "group,value\na,1\na,2\na,3\na,4\nb,3\nb,4\nb,5\nb,6\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-boxplot"));
+    assert!(result.svg.contains("<line"));
+    assert!(result.svg.contains("<rect x="));
+}
+
+#[test]
+fn test_horizontal_boxplot_via_transpose() {
+    let result = render_result(
+        "Chart(data: \"b.csv\") { Space(transpose(group * value)) { Boxplot(fill: group) } }",
         "group,value\na,1\na,2\na,3\na,4\nb,3\nb,4\nb,5\nb,6\n",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -1257,6 +1292,18 @@ fn test_density_geom_renders_filled_area() {
 fn test_violin_renders_mirrored_density_and_quantiles() {
     let result = render_result(
         "Chart(data: \"v.csv\") { Space(group * value) { Violin(fill: group, quantiles: [0.25, 0.5, 0.75]) } }",
+        "group,value\na,1\na,2\na,2\na,3\na,4\nb,2\nb,3\nb,4\nb,4\nb,5\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-violin"));
+    assert_eq!(result.svg.matches("<path").count(), 2);
+    assert!(result.svg.matches("<line").count() >= 6);
+}
+
+#[test]
+fn test_horizontal_violin_via_transpose() {
+    let result = render_result(
+        "Chart(data: \"v.csv\") { Space(transpose(group * value)) { Violin(fill: group, quantiles: [0.25, 0.5, 0.75]) } }",
         "group,value\na,1\na,2\na,2\na,3\na,4\nb,2\nb,3\nb,4\nb,4\nb,5\n",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);

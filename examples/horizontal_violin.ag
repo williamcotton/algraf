@@ -1,0 +1,7 @@
+Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribution by group") {
+    Guide(axis: x, label: "Height")
+    Guide(axis: y, label: "Group")
+    Space(transpose(gender * height)) {
+        Violin(fill: gender, quantiles: [0.25, 0.5, 0.75], alpha: 0.62)
+    }
+}

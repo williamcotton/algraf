@@ -904,6 +904,21 @@ impl Parser {
 
     fn algebra_primary(&mut self) {
         match self.current_kind().clone() {
+            TokenKind::Ident(_) if self.nth_kind(1) == SyntaxKind::L_PAREN => {
+                self.builder.start_node(SyntaxKind::ALGEBRA_CALL.into());
+                self.bump(); // operator name
+                self.bump(); // '('
+                if self.at(SyntaxKind::R_PAREN) || self.at_eof() {
+                    let span = self.current_span();
+                    self.error(codes::E0009, "expected algebra expression", span);
+                    self.builder.start_node(SyntaxKind::ERROR.into());
+                    self.builder.finish_node();
+                } else {
+                    self.algebra_expr(0);
+                }
+                self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
+                self.builder.finish_node();
+            }
             TokenKind::Ident(_) | TokenKind::QuotedIdent(_) => {
                 self.builder.start_node(SyntaxKind::ALGEBRA_NAME.into());
                 self.bump();

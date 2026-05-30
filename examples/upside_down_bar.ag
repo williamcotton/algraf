@@ -1,0 +1,8 @@
+Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly amount with reversed y axis") {
+    Guide(axis: x, label: "Quarter")
+    Guide(axis: y, label: "Amount")
+    Scale(axis: y, reverse: true)
+    Space(quarter * amount) {
+        Bar(fill: type, layout: "stack", alpha: 0.88)
+    }
+}

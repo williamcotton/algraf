@@ -11,6 +11,14 @@ charts=(
     sparkline
     grouped_bar
     stacked_bar
+    horizontal_bar
+    horizontal_grouped_bar
+    horizontal_stacked_bar
+    horizontal_fill_bar
+    horizontal_diverging_bar
+    upside_down_bar
+    horizontal_reversed_bar
+    horizontal_lollipop
     heatmap
     histogram
     histogram_direct
@@ -49,6 +57,10 @@ charts=(
     density
     multiple_density
     violin
+    horizontal_boxplot
+    horizontal_violin
+    horizontal_violin_boxplot
+    horizontal_faceted_violin_boxplot
     freqpoly
     derived_chain
     gradient
@@ -69,6 +81,7 @@ charts=(
     faceted_violin_boxplot
     annotated_intervals
     binned_regression_chain
+    top_down_icicle
     variables
     custom_theme
     path

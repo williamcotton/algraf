@@ -384,9 +384,10 @@ pub enum ValueExpr {
 impl ValueExpr {
     pub fn cast(node: SyntaxNode) -> Option<ValueExpr> {
         match node.kind() {
-            SyntaxKind::ALGEBRA_NAME | SyntaxKind::ALGEBRA_BINARY | SyntaxKind::ALGEBRA_PAREN => {
-                AlgebraExpr::cast(node).map(ValueExpr::Algebra)
-            }
+            SyntaxKind::ALGEBRA_NAME
+            | SyntaxKind::ALGEBRA_CALL
+            | SyntaxKind::ALGEBRA_BINARY
+            | SyntaxKind::ALGEBRA_PAREN => AlgebraExpr::cast(node).map(ValueExpr::Algebra),
             SyntaxKind::LITERAL => Literal::cast(node).map(ValueExpr::Literal),
             SyntaxKind::STDIN_VALUE => StdinValue::cast(node).map(ValueExpr::Stdin),
             SyntaxKind::ARRAY_VALUE => ArrayValue::cast(node).map(ValueExpr::Array),
@@ -552,6 +553,7 @@ impl AlgebraOp {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AlgebraExpr {
     Name(AlgebraName),
+    Call(AlgebraCall),
     Binary(AlgebraBinary),
     Paren(AlgebraParen),
     Error(Error),
@@ -562,6 +564,7 @@ impl AlgebraExpr {
     pub fn cast(node: SyntaxNode) -> Option<AlgebraExpr> {
         match node.kind() {
             SyntaxKind::ALGEBRA_NAME => AlgebraName::cast(node).map(AlgebraExpr::Name),
+            SyntaxKind::ALGEBRA_CALL => AlgebraCall::cast(node).map(AlgebraExpr::Call),
             SyntaxKind::ALGEBRA_BINARY => AlgebraBinary::cast(node).map(AlgebraExpr::Binary),
             SyntaxKind::ALGEBRA_PAREN => AlgebraParen::cast(node).map(AlgebraExpr::Paren),
             SyntaxKind::ERROR => Error::cast(node).map(AlgebraExpr::Error),
@@ -573,6 +576,7 @@ impl AlgebraExpr {
     pub fn syntax(&self) -> &SyntaxNode {
         match self {
             AlgebraExpr::Name(it) => it.syntax(),
+            AlgebraExpr::Call(it) => it.syntax(),
             AlgebraExpr::Binary(it) => it.syntax(),
             AlgebraExpr::Paren(it) => it.syntax(),
             AlgebraExpr::Error(it) => it.syntax(),
@@ -621,6 +625,34 @@ impl AlgebraName {
                 u32::from(range.end()) as usize,
             )
         })
+    }
+}
+
+ast_node!(
+    /// A frame-operator call such as `transpose(a * b)`.
+    AlgebraCall = ALGEBRA_CALL
+);
+
+impl AlgebraCall {
+    /// The operator name.
+    pub fn name(&self) -> Option<String> {
+        first_token(&self.syntax, SyntaxKind::IDENT).map(|t| t.text().to_string())
+    }
+
+    /// The span of the operator token.
+    pub fn name_span(&self) -> Option<Span> {
+        first_token(&self.syntax, SyntaxKind::IDENT).map(|token| {
+            let range = token.text_range();
+            Span::new(
+                u32::from(range.start()) as usize,
+                u32::from(range.end()) as usize,
+            )
+        })
+    }
+
+    /// The wrapped frame expression.
+    pub fn inner(&self) -> Option<AlgebraExpr> {
+        self.syntax.children().find_map(AlgebraExpr::cast)
     }
 }
 

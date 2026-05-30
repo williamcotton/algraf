@@ -27,6 +27,11 @@ fn fmt(expr: &AlgebraExpr) -> String {
                 name
             }
         }
+        AlgebraExpr::Call(c) => {
+            let name = c.name().unwrap_or_default();
+            let inner = c.inner().map(|e| fmt(&e)).unwrap_or_else(|| "<err>".into());
+            format!("{name}({inner})")
+        }
         AlgebraExpr::Binary(b) => {
             let op = b.op().map(AlgebraOp::symbol).unwrap_or("?");
             let lhs = b.lhs().map(|e| fmt(&e)).unwrap_or_else(|| "<err>".into());
@@ -107,6 +112,25 @@ fn test_facet_expression() {
 }
 
 #[test]
+fn test_frame_operator_call() {
+    assert_eq!(
+        shape("transpose(group * value)"),
+        "transpose((group * value))"
+    );
+    assert!(parse_algebra("transpose(group * value)")
+        .diagnostics()
+        .is_empty());
+}
+
+#[test]
+fn test_frame_operator_composes_with_nesting() {
+    assert_eq!(
+        shape("transpose((group * value)) / region"),
+        "(transpose((group * value)) / region)"
+    );
+}
+
+#[test]
 fn test_quoted_identifier_in_algebra() {
     let parse = parse_algebra("`flipper length` * `body mass (g)`");
     assert!(parse.diagnostics().is_empty());
@@ -114,6 +138,11 @@ fn test_quoted_identifier_in_algebra() {
         shape("`flipper length` * `body mass`"),
         "(`flipper length` * `body mass`)"
     );
+}
+
+#[test]
+fn test_quoted_transpose_is_column_name() {
+    assert_eq!(shape("`transpose` * value"), "(`transpose` * value)");
 }
 
 #[test]

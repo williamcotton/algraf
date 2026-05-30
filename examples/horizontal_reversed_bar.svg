@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="440" viewBox="0 0 720 440" role="img" aria-label="Sales by rep, reversed axis">
+<title>Sales by rep, reversed axis</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="440" fill="#ffffff" />
+<text class="algraf-title" x="75.2" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Sales by rep, reversed axis</text>
+<rect class="algraf-plot-area" x="75.2" y="66" width="614.8" height="324" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="690" y1="66" x2="690" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="620.578" y1="66" x2="620.578" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="551.156" y1="66" x2="551.156" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="481.734" y1="66" x2="481.734" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="412.313" y1="66" x2="412.313" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="342.891" y1="66" x2="342.891" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="273.469" y1="66" x2="273.469" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="204.047" y1="66" x2="204.047" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="134.625" y1="66" x2="134.625" y2="390" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-bar">
+  <rect x="120.741" y="331.68" width="569.259" height="51.84" fill="#4E79A7" opacity="0.86" />
+  <rect x="245.7" y="266.88" width="444.3" height="51.84" fill="#4E79A7" opacity="0.86" />
+  <rect x="294.295" y="202.08" width="395.705" height="51.84" fill="#4E79A7" opacity="0.86" />
+  <rect x="405.37" y="137.28" width="284.63" height="51.84" fill="#4E79A7" opacity="0.86" />
+  <rect x="495.619" y="72.48" width="194.381" height="51.84" fill="#4E79A7" opacity="0.86" />
+</g>
+<g class="algraf-axes">
+  <line x1="75.2" y1="390" x2="690" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="690" y1="390" x2="690" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="690" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="620.578" y1="390" x2="620.578" y2="395" stroke="#333333" stroke-width="1" />
+  <line x1="551.156" y1="390" x2="551.156" y2="395" stroke="#333333" stroke-width="1" />
+  <line x1="481.734" y1="390" x2="481.734" y2="395" stroke="#333333" stroke-width="1" />
+  <line x1="412.313" y1="390" x2="412.313" y2="395" stroke="#333333" stroke-width="1" />
+  <line x1="342.891" y1="390" x2="342.891" y2="395" stroke="#333333" stroke-width="1" />
+  <line x1="273.469" y1="390" x2="273.469" y2="395" stroke="#333333" stroke-width="1" />
+  <line x1="204.047" y1="390" x2="204.047" y2="395" stroke="#333333" stroke-width="1" />
+  <line x1="134.625" y1="390" x2="134.625" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="382.6" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sales</text>
+  <line x1="75.2" y1="66" x2="75.2" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="70.2" y1="357.6" x2="75.2" y2="357.6" stroke="#333333" stroke-width="1" />
+  <text x="67.2" y="361.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Alice</text>
+  <line x1="70.2" y1="292.8" x2="75.2" y2="292.8" stroke="#333333" stroke-width="1" />
+  <text x="67.2" y="296.8" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Bowman</text>
+  <line x1="70.2" y1="228" x2="75.2" y2="228" stroke="#333333" stroke-width="1" />
+  <text x="67.2" y="232" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Chen</text>
+  <line x1="70.2" y1="163.2" x2="75.2" y2="163.2" stroke="#333333" stroke-width="1" />
+  <text x="67.2" y="167.2" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Diaz</text>
+  <line x1="70.2" y1="98.4" x2="75.2" y2="98.4" stroke="#333333" stroke-width="1" />
+  <text x="67.2" y="102.4" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Evans</text>
+  <text x="12" y="228" text-anchor="middle" transform="rotate(-90 12 228)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Rep</text>
+</g>
+</svg>

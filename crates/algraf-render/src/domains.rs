@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use algraf_data::Table;
+use algraf_data::{DataType, Table};
 use algraf_semantics::{FrameIr, GeometryIr, GeometryKind, PropertyKey};
 
 use crate::helpers::{
@@ -267,18 +267,15 @@ fn train_violin(
     geometry: &GeometryIr,
     hints: &mut SpaceDomainHints,
 ) {
-    let Some(y_col) = frame_axis_index(frame, 1).and_then(vector_column_name) else {
-        return;
-    };
-    let Some(x_axis) = frame_axis_index(frame, 0) else {
+    let Some((orientation, group_axis, value_col)) = categorical_value_axes(frame) else {
         return;
     };
     let mut groups: HashMap<String, Vec<f64>> = HashMap::new();
     for row in 0..table.row_count() {
-        let Some(key) = axis_group_key(x_axis, table, row) else {
+        let Some(key) = axis_group_key(group_axis, table, row) else {
             continue;
         };
-        let Some(value) = cell_f64(table, y_col, row) else {
+        let Some(value) = cell_f64(table, value_col, row) else {
             continue;
         };
         groups.entry(key).or_default().push(value);
@@ -293,7 +290,10 @@ fn train_violin(
     };
     for values in groups.values_mut() {
         for point in stats::density_values(values, options) {
-            hints.y.add_numeric(point.x);
+            match orientation {
+                DomainOrientation::Vertical => hints.y.add_numeric(point.x),
+                DomainOrientation::Horizontal => hints.x.add_numeric(point.x),
+            }
         }
     }
 }
@@ -304,10 +304,20 @@ fn train_bar(
     geometry: &GeometryIr,
     hints: &mut SpaceDomainHints,
 ) {
-    hints.y.include_zero();
+    let Some((orientation, group_axis, value_col)) = categorical_value_axes(frame) else {
+        hints.y.include_zero();
+        return;
+    };
+    match orientation {
+        DomainOrientation::Vertical => hints.y.include_zero(),
+        DomainOrientation::Horizontal => hints.x.include_zero(),
+    }
 
     if bar_layout(geometry) == BarLayout::Fill {
-        hints.y.set_numeric_bounds(0.0, 1.0);
+        match orientation {
+            DomainOrientation::Vertical => hints.y.set_numeric_bounds(0.0, 1.0),
+            DomainOrientation::Horizontal => hints.x.set_numeric_bounds(0.0, 1.0),
+        }
         return;
     }
 
@@ -315,30 +325,29 @@ fn train_bar(
         return;
     }
 
-    let Some(x_axis) = frame_axis_index(frame, 0) else {
-        return;
-    };
-    let Some(y_col) = frame_axis_index(frame, 1).and_then(vector_column_name) else {
-        return;
-    };
-
     let mut positive: HashMap<String, f64> = HashMap::new();
     let mut negative: HashMap<String, f64> = HashMap::new();
     for row in 0..table.row_count() {
-        let Some(key) = axis_group_key(x_axis, table, row) else {
+        let Some(key) = axis_group_key(group_axis, table, row) else {
             continue;
         };
-        let Some(value) = cell_f64(table, y_col, row) else {
+        let Some(value) = cell_f64(table, value_col, row) else {
             continue;
         };
         if value >= 0.0 {
             let total = positive.entry(key).or_insert(0.0);
             *total += value;
-            hints.y.add_numeric(*total);
+            match orientation {
+                DomainOrientation::Vertical => hints.y.add_numeric(*total),
+                DomainOrientation::Horizontal => hints.x.add_numeric(*total),
+            }
         } else {
             let total = negative.entry(key).or_insert(0.0);
             *total += value;
-            hints.y.add_numeric(*total);
+            match orientation {
+                DomainOrientation::Vertical => hints.y.add_numeric(*total),
+                DomainOrientation::Horizontal => hints.x.add_numeric(*total),
+            }
         }
     }
 }
@@ -392,6 +401,38 @@ fn mapping_column_name(geometry: &GeometryIr, property: PropertyKey) -> Option<&
 
 fn is_stacked(geometry: &GeometryIr) -> bool {
     matches!(bar_layout(geometry), BarLayout::Stack | BarLayout::Fill)
+}
+
+#[derive(Debug, Clone, Copy)]
+enum DomainOrientation {
+    Vertical,
+    Horizontal,
+}
+
+fn categorical_value_axes(frame: &FrameIr) -> Option<(DomainOrientation, &FrameIr, &str)> {
+    let x_axis = frame_axis_index(frame, 0)?;
+    let y_axis = frame_axis_index(frame, 1)?;
+    if frame_axis_is_band(x_axis) {
+        if let Some(value_col) = vector_column_name(y_axis) {
+            return Some((DomainOrientation::Vertical, x_axis, value_col));
+        }
+    }
+    if frame_axis_is_band(y_axis) {
+        if let Some(value_col) = vector_column_name(x_axis) {
+            return Some((DomainOrientation::Horizontal, y_axis, value_col));
+        }
+    }
+    None
+}
+
+fn frame_axis_is_band(frame: &FrameIr) -> bool {
+    match frame {
+        FrameIr::Vector(column) => {
+            column.dtype.is_categorical() || column.dtype == DataType::Unknown
+        }
+        FrameIr::Nested { .. } => true,
+        FrameIr::Cartesian(_) | FrameIr::Union(_) | FrameIr::Invalid => false,
+    }
 }
 
 fn axis_group_key(frame: &FrameIr, table: &dyn Table, row: usize) -> Option<String> {
