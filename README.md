@@ -309,6 +309,32 @@ Chart(data: "series.csv", width: 760, height: 460, title: "Series shapes") {
 
 ![shapes](examples/shapes.svg)
 
+## Mapping many channels at once
+
+A single `Point` layer can carry several independent variables. Here position
+(`flipper_length` × `body_mass`), `fill` (species), `shape` (sex), and `size`
+(bill length) are all mapped from different columns, and the whole space is
+faceted into one panel per island with `/ island`. Each mapped aesthetic gets
+its own legend; because `shape` maps a different column than `fill`, the sex
+legend stands on its own with circle/square swatches that match the points.
+
+```algraf
+Chart(data: "penguin_measurements.csv", width: 900, height: 420, title: "Palmer penguins across five channels") {
+    Theme(name: "minimal")
+    Scale(fill: species, palette: "default")
+    Scale(size: bill_length, range: [3, 11], label: "Bill length (mm)")
+    Guide(axis: x, label: "Flipper length (mm)")
+    Guide(axis: y, label: "Body mass (g)")
+
+    Space((flipper_length * body_mass) / island) {
+        Point(fill: species, shape: sex, size: bill_length, alpha: 0.8)
+    }
+}
+```
+
+
+![penguin_channels](examples/penguin_channels.svg)
+
 ## Bubble chart with size mapping and labels
 
 Continuous point sizes are mapped using the `size` property. We can customize the output range with a `Scale(size: ...)` and add label overlays to each point using the `Text` geometry.

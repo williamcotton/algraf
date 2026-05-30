@@ -1,0 +1,13 @@
+Chart(data: "penguin_measurements.csv", width: 900, height: 420, title: "Palmer penguins across five channels") {
+    Theme(name: "minimal")
+    Scale(fill: species, palette: "default")
+    Scale(size: bill_length, range: [3, 11], label: "Bill length (mm)")
+    Guide(axis: x, label: "Flipper length (mm)")
+    Guide(axis: y, label: "Body mass (g)")
+
+    // x/y position, color by species, shape by sex, size by bill length,
+    // and one panel per island — every visual channel mapped at once.
+    Space((flipper_length * body_mass) / island) {
+        Point(fill: species, shape: sex, size: bill_length, alpha: 0.8)
+    }
+}

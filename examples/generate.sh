@@ -54,6 +54,7 @@ charts=(
     gradient
     group_line
     shapes
+    penguin_channels
     bin2d
     hexbin
     legend_merge

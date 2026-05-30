@@ -229,6 +229,7 @@ fn committed_examples_check_and_render() {
         "gradient",
         "group_line",
         "shapes",
+        "penguin_channels",
         "bin2d",
         "hexbin",
         "reference",
