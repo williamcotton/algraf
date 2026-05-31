@@ -222,6 +222,34 @@ fn render_nested_inset_mark_center_changes_slice_anchor() {
 }
 
 #[test]
+fn render_inset_coalesces_sparse_match_warnings() {
+    let source = r##"Chart(data: "parents.csv", width: 360, height: 260) {
+  Table trend = "trend.csv"
+  Space(x * y) {
+    Inset(data: trend, match: [id => id], width: 60, height: 30, guides: false) {
+      Space(t * value) { Point() }
+    }
+  }
+}"##;
+    let result = render_result_with_tables(
+        source,
+        "id,x,y\nA,1,1\nB,2,2\nC,3,3\n",
+        &[("trend", "id,t,value\nA,1,1\nA,2,2\n")],
+    );
+    let warnings = result
+        .diagnostics
+        .iter()
+        .filter(|diag| diag.code == "W2002")
+        .collect::<Vec<_>>();
+
+    assert_eq!(warnings.len(), 1, "{:?}", result.diagnostics);
+    assert_eq!(
+        warnings[0].message,
+        "Inset matched no child rows for 2 of 3 parent rows"
+    );
+}
+
+#[test]
 fn render_inset_budget_rejects_recursive_expansion() {
     let frame = read_csv_str("id,x,y\nA,1,1\nB,2,2\n")
         .expect("primary csv")

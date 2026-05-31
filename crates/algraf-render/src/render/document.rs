@@ -527,7 +527,7 @@ pub(super) fn emit_document(
             }
         }
         paint_grid(&mut sink, &slots);
-        super::inset::paint_panel_layers(&mut sink, scene, diagnostics);
+        super::inset_paint::paint_panel_layers(&mut sink, scene, diagnostics);
         paint_axes_and_legends(&mut sink, &slots, legends, layout, theme);
     }
 

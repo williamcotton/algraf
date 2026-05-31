@@ -1,6 +1,6 @@
 # Algraf v0.45.0 Plan
 
-Status: Drafting
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_44_PLAN.md`](V0_44_PLAN.md)
@@ -100,7 +100,7 @@ Gaps assigned to this release (all internal):
 
 ### 1. Land the in-progress planning/emission separation
 
-Status: Drafting (currently uncommitted on working tree).
+Status: Implemented.
 
 - Commit the working-tree refactor that introduces `PlannedLayer<'t>`,
   `PlannedInset<'t>`, `PlannedInsetInstance<'t>`, `inset_plan.rs`, and
@@ -118,7 +118,7 @@ Status: Drafting (currently uncommitted on working tree).
 
 ### 2. Move recursive inset planning out of `panels.rs`
 
-Status: Pending.
+Status: Implemented.
 
 - Move `plan_inset` and `plan_child_panel` (currently ~230 LOC in `panels.rs`)
   into `inset_plan.rs` alongside `InsetMatchIndex`, `inset_anchor`, `inset_size`,
@@ -133,7 +133,7 @@ Status: Pending.
 
 ### 3. Read inset legend candidates from the planned scene
 
-Status: Pending.
+Status: Implemented.
 
 - Replace `legend::collect_inset_legend_candidates`'s IR walk with a walk over
   `PlannedInset` and `PlannedInsetInstance`. The collector MUST NOT build its
@@ -149,7 +149,7 @@ Status: Pending.
 
 ### 4. Rename `inset.rs` to `inset_paint.rs`
 
-Status: Pending.
+Status: Implemented.
 
 - After Must 1, `inset.rs` is purely the painter. Rename to `inset_paint.rs` so
   the file pair `inset_plan.rs` / `inset_paint.rs` reads symmetrically and
@@ -162,10 +162,11 @@ Status: Pending.
 
 ### Focused unit tests for `InsetMatchIndex`
 
-Status: Pending.
+Status: Implemented.
 
-- Add unit tests in `crates/algraf-render/tests/` covering the bucketing key
-  normalization:
+- Add focused unit tests for `InsetMatchIndex` in
+  `crates/algraf-render/src/render/inset_plan.rs` (the index remains
+  `pub(super)` as required) covering the bucketing key normalization:
   - NaN child or parent values produce no match (and no panic);
   - `+0.0` and `-0.0` bucket together;
   - large `i64` values that lose precision in `f64` still produce correct
@@ -182,7 +183,7 @@ Status: Pending.
 
 ### Coalesce W2002 sparse-match diagnostic
 
-Status: Pending.
+Status: Implemented.
 
 - For a parent row set with `M` parent rows and `N` unmatched parent rows
   (`N > 1`), emit one summary diagnostic such as
@@ -197,7 +198,7 @@ Status: Pending.
 
 ### Make root-vs-child panel construction explicit
 
-Status: Pending.
+Status: Implemented.
 
 - Add a thin `build_root_panel` wrapper around `planned_panel` that fills in
   `ancestors: &[], depth: 0` for the six call sites in `panels.rs` that

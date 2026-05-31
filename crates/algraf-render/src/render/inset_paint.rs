@@ -5,7 +5,8 @@ use algraf_semantics::{InsetClipIr, ScaleIr};
 use crate::guide;
 use crate::layout::Rect;
 use crate::render::backend::RenderScene;
-use crate::render::panels::{Panel, PlannedInset, PlannedLayer};
+use crate::render::inset_plan::PlannedInset;
+use crate::render::panels::{Panel, PlannedLayer};
 use crate::sink::MarkSink;
 use crate::space::ScaledSpace;
 

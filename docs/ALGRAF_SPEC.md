@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.44.0
+Status: Draft 0.45.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.44.0 specification.
+This working copy is the active Draft 0.45.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9615,6 +9615,12 @@ missing `=>`/stray separator in a map literal)
 
 `W2002 geometry produced no marks`
 
+Inset rendering MAY also emit `W2002` when an inset declaration cannot produce
+child marks for a parent row. A single unmatched parent row uses
+`Inset matched no child rows`; when more than one parent row is unmatched for
+the same inset declaration, renderers SHOULD emit one summary warning of the
+form `Inset matched no child rows for N of M parent rows`.
+
 `W2003 rows dropped due to missing values`
 
 `W2004 legend omitted because too many categories`
@@ -10213,6 +10219,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.42.0 | [`V0_42_PLAN.md`](V0_42_PLAN.md) | ggplot2 comparability: presentation parity and closure | Implemented |
 | 0.43.0 | [`V0_43_PLAN.md`](V0_43_PLAN.md) | Big-data readiness and backend-friendly data execution | Implemented |
 | 0.44.0 | [`V0_44_PLAN.md`](V0_44_PLAN.md) | Compositional glyph charts and recursive render scenes | Implemented |
+| 0.45.0 | [`V0_45_PLAN.md`](V0_45_PLAN.md) | Inset planning/emission separation | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

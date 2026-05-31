@@ -546,7 +546,7 @@ impl RenderBackend for DrawListBackend {
         // through the shared mark sink (spec §24.6).
         let mut sink = DrawListSink::new();
         super::document::paint_grid(&mut sink, &slots);
-        super::inset::paint_panel_layers(&mut sink, scene, diagnostics);
+        super::inset_paint::paint_panel_layers(&mut sink, scene, diagnostics);
         super::document::paint_axes_and_legends(&mut sink, &slots, legends, layout, theme);
         ops.extend(sink.into_ops());
 

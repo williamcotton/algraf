@@ -19,7 +19,8 @@ use crate::space::{AxisScale, ScaledSpace};
 use crate::svg::num;
 
 use super::backend::RenderScene;
-use super::panels::{panel_slots, Panel, PlannedInset, PlannedLayer};
+use super::inset_plan::PlannedInset;
+use super::panels::{panel_slots, Panel, PlannedLayer};
 
 /// Versioned interaction metadata emitted as a JSON sidecar and carried by the
 /// draw-list backend (spec §24.6).
