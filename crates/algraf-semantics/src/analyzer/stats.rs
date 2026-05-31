@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::DataType;
-use algraf_syntax::ast::{AlgebraExpr, Arg, ChartBlock, ChartItem, DeriveDecl};
+use algraf_syntax::ast::{AlgebraExpr, Arg, ChartBlock, ChartItem, DeriveDecl, ValueExpr};
 use algraf_syntax::node_span;
 
 use super::args::DupGuard;
@@ -141,13 +141,20 @@ impl Analyzer<'_> {
             "IntervalMiddles" => StatKind::IntervalMiddles,
             "Bin2D" => StatKind::Bin2D,
             "HexBin" => StatKind::HexBin,
+            "Summary2D" => StatKind::Summary2D,
+            "SummaryHex" => StatKind::SummaryHex,
+            "ContourLines" => StatKind::ContourLines,
+            "ContourBands" => StatKind::ContourBands,
+            "Density2D" => StatKind::Density2D,
+            "Density2DContours" => StatKind::Density2DContours,
+            "Density2DBands" => StatKind::Density2DBands,
             "Centroid" => StatKind::Centroid,
             "Simplify" => StatKind::Simplify,
             "SpatialJoin" => StatKind::SpatialJoin,
             _ => {
                 self.diag(Diagnostic::error(
                     codes::E1403,
-                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `StepVertices`, `VectorEndpoints`, `CurveSample`, `IntervalSegments`, `IntervalRects`, `IntervalMiddles`, `Bin2D`, `HexBin`, `Centroid`, `Simplify`, and `SpatialJoin`"),
+                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `StepVertices`, `VectorEndpoints`, `CurveSample`, `IntervalSegments`, `IntervalRects`, `IntervalMiddles`, `Bin2D`, `HexBin`, `Summary2D`, `SummaryHex`, `ContourLines`, `ContourBands`, `Density2D`, `Density2DContours`, `Density2DBands`, `Centroid`, `Simplify`, and `SpatialJoin`"),
                     stat_span,
                 ));
                 return None;
@@ -334,6 +341,54 @@ impl Analyzer<'_> {
                     }
                 }
                 let options = self.collect_bin2d_options(&stat.args(), stat_span, kind);
+                let output_schema = stat_output_schema(kind, &input_frame);
+                (input_frame, options, output_schema)
+            }
+            StatKind::Summary2D | StatKind::SummaryHex => {
+                let label = kind.display_name();
+                let input_frame =
+                    self.xyz_stat_inputs(&inputs, &stat.args(), table, stat_span, label)?;
+                let options = self.collect_summary2d_options(&stat.args(), stat_span, kind);
+                let output_schema = stat_output_schema(kind, &input_frame);
+                (input_frame, options, output_schema)
+            }
+            StatKind::ContourLines | StatKind::ContourBands => {
+                let label = kind.display_name();
+                let input_frame =
+                    self.xyz_stat_inputs(&inputs, &stat.args(), table, stat_span, label)?;
+                let bands = kind == StatKind::ContourBands;
+                let options = match kind {
+                    StatKind::ContourLines => StatOptionsIr::ContourLines {
+                        levels: self.collect_level_options(&stat.args(), label, bands),
+                    },
+                    StatKind::ContourBands => StatOptionsIr::ContourBands {
+                        levels: self.collect_level_options(&stat.args(), label, bands),
+                    },
+                    _ => unreachable!(),
+                };
+                let output_schema = stat_output_schema(kind, &input_frame);
+                (input_frame, options, output_schema)
+            }
+            StatKind::Density2D | StatKind::Density2DContours | StatKind::Density2DBands => {
+                let label = kind.display_name();
+                let input_frame = self.two_stat_inputs(&inputs, table, stat_span, label)?;
+                self.require_xy_numeric_stat_inputs(&input_frame, label);
+                let (bandwidth, grid, levels) =
+                    self.collect_density2d_options(&stat.args(), stat_span, kind);
+                let options = match kind {
+                    StatKind::Density2D => StatOptionsIr::Density2D { bandwidth, grid },
+                    StatKind::Density2DContours => StatOptionsIr::Density2DContours {
+                        bandwidth,
+                        grid,
+                        levels,
+                    },
+                    StatKind::Density2DBands => StatOptionsIr::Density2DBands {
+                        bandwidth,
+                        grid,
+                        levels,
+                    },
+                    _ => unreachable!(),
+                };
                 let output_schema = stat_output_schema(kind, &input_frame);
                 (input_frame, options, output_schema)
             }
@@ -612,6 +667,93 @@ impl Analyzer<'_> {
         Some(FrameIr::Cartesian(frames))
     }
 
+    /// Resolve z-field stat inputs. `x` and `y` are positional inherited-frame
+    /// columns; `z` may be a third positional input or a named `z:` argument.
+    fn xyz_stat_inputs(
+        &mut self,
+        inputs: &[AlgebraExpr],
+        args: &[Arg],
+        table: &ActiveTable,
+        stat_span: Span,
+        stat_name: &str,
+    ) -> Option<FrameIr> {
+        if !(inputs.len() == 2 || inputs.len() == 3) {
+            self.diag(Diagnostic::error(
+                codes::E1408,
+                format!("{stat_name} requires x and y positional columns plus a z column"),
+                stat_span,
+            ));
+            return None;
+        }
+
+        let z_arg = args.iter().find(|arg| arg.key().as_deref() == Some("z"));
+        if inputs.len() == 3 && z_arg.is_some() {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                format!("{stat_name} must not specify z both positionally and with `z:`"),
+                stat_span,
+            ));
+        }
+
+        let mut frames = Vec::with_capacity(3);
+        for input in inputs.iter().take(2) {
+            match input {
+                AlgebraExpr::Name(n) => frames.push(FrameIr::Vector(self.resolve_column(n, table))),
+                _ => {
+                    self.diag(Diagnostic::error(
+                        codes::E1408,
+                        format!("{stat_name} x/y inputs must be column names"),
+                        node_span(input.syntax()),
+                    ));
+                    frames.push(FrameIr::Invalid);
+                }
+            }
+        }
+
+        let z_expr = if inputs.len() == 3 {
+            inputs.get(2).cloned()
+        } else {
+            z_arg.and_then(|arg| match arg.value() {
+                Some(ValueExpr::Algebra(expr)) => Some(expr),
+                Some(value) => {
+                    self.diag(Diagnostic::error(
+                        codes::E1406,
+                        format!("{stat_name} `z:` expects a column name"),
+                        node_span(value.syntax()),
+                    ));
+                    None
+                }
+                None => None,
+            })
+        };
+        let Some(z_expr) = z_expr else {
+            self.diag(Diagnostic::error(
+                codes::E1406,
+                format!(
+                    "{stat_name} requires a z column (`z: column` or a third positional input)"
+                ),
+                stat_span,
+            ));
+            return Some(FrameIr::Cartesian(frames));
+        };
+        match &z_expr {
+            AlgebraExpr::Name(n) => frames.push(FrameIr::Vector(self.resolve_column(n, table))),
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1406,
+                    format!("{stat_name} z input must be a column name"),
+                    node_span(z_expr.syntax()),
+                ));
+                frames.push(FrameIr::Invalid);
+            }
+        }
+
+        let frame = FrameIr::Cartesian(frames);
+        self.require_xy_numeric_stat_inputs(&frame, stat_name);
+        self.require_z_numeric_stat_input(&frame, stat_name);
+        Some(frame)
+    }
+
     fn n_stat_inputs(
         &mut self,
         inputs: &[AlgebraExpr],
@@ -659,6 +801,42 @@ impl Analyzer<'_> {
                             col.span,
                         ));
                     }
+                }
+            }
+        }
+    }
+
+    fn require_xy_numeric_stat_inputs(&mut self, frame: &FrameIr, stat_name: &str) {
+        if let FrameIr::Cartesian(columns) = frame {
+            for frame in columns.iter().take(2) {
+                if let FrameIr::Vector(col) = frame {
+                    if !matches!(
+                        col.dtype,
+                        DataType::Integer | DataType::Float | DataType::Unknown
+                    ) {
+                        self.diag(Diagnostic::error(
+                            codes::E1408,
+                            format!("{stat_name} x/y column `{}` is not numeric", col.name),
+                            col.span,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    fn require_z_numeric_stat_input(&mut self, frame: &FrameIr, stat_name: &str) {
+        if let FrameIr::Cartesian(columns) = frame {
+            if let Some(FrameIr::Vector(col)) = columns.get(2) {
+                if !matches!(
+                    col.dtype,
+                    DataType::Integer | DataType::Float | DataType::Unknown
+                ) {
+                    self.diag(Diagnostic::error(
+                        codes::E1407,
+                        format!("{stat_name} z column `{}` is not numeric", col.name),
+                        col.span,
+                    ));
                 }
             }
         }
@@ -1005,6 +1183,194 @@ impl Analyzer<'_> {
         }
     }
 
+    fn collect_summary2d_options(
+        &mut self,
+        args: &[Arg],
+        _stat_span: Span,
+        kind: StatKind,
+    ) -> StatOptionsIr {
+        let label = kind.display_name();
+        let mut bins = GridBinsIr::default();
+        let mut reducer = SummaryReducerIr::Mean;
+        let mut dup = DupGuard::new(codes::E1404, "summary setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if name == "z" {
+                continue;
+            }
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "bins" => bins = self.grid_bins_arg(arg, "bins", 1.0),
+                "reducer" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Str(s) => match parse_summary_reducer(&s) {
+                            Some(parsed) => reducer = parsed,
+                            None => self.diag(Diagnostic::error(
+                                codes::E1404,
+                                format!("unknown reducer `{s}`"),
+                                node_span(value.syntax()),
+                            )),
+                        },
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`reducer` expects \"count\", \"mean\", \"min\", \"max\", \"sum\", or \"median\"",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown {label} setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        if kind == StatKind::Summary2D {
+            StatOptionsIr::Summary2D { bins, reducer }
+        } else {
+            StatOptionsIr::SummaryHex {
+                bins: bins.x.or(bins.y),
+                reducer,
+            }
+        }
+    }
+
+    fn collect_level_options(&mut self, args: &[Arg], stat_name: &str, bands: bool) -> LevelSpecIr {
+        let mut levels = LevelSpecIr::default();
+        let mut dup = DupGuard::new(codes::E1404, "contour setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if name == "z" {
+                continue;
+            }
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "levels" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Number(n) if n.is_finite() && n >= 1.0 => {
+                            levels = LevelSpecIr::Count(Some(n))
+                        }
+                        ValueForm::Array(Some(values)) => {
+                            let min_len = if bands { 2 } else { 1 };
+                            if values.len() < min_len
+                                || !values.iter().all(|n| n.is_finite())
+                                || !values.windows(2).all(|w| w[0] < w[1])
+                            {
+                                self.diag(Diagnostic::error(
+                                    codes::E1404,
+                                    if bands {
+                                        "`levels` expects at least two strictly increasing finite numbers"
+                                    } else {
+                                        "`levels` expects strictly increasing finite numbers"
+                                    },
+                                    node_span(value.syntax()),
+                                ));
+                            } else {
+                                levels = LevelSpecIr::Values(values);
+                            }
+                        }
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`levels` expects a count or an array of finite numbers",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown {stat_name} setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        levels
+    }
+
+    fn collect_density2d_options(
+        &mut self,
+        args: &[Arg],
+        _stat_span: Span,
+        kind: StatKind,
+    ) -> (Option<f64>, GridBinsIr, LevelSpecIr) {
+        let label = kind.display_name();
+        let mut bandwidth = None;
+        let mut grid = GridBinsIr::default();
+        let mut levels = LevelSpecIr::default();
+        let mut dup = DupGuard::new(codes::E1404, "Density2D setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "bandwidth" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Number(n) if n.is_finite() && n > 0.0 => bandwidth = Some(n),
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`bandwidth` expects a positive finite number",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                "grid" => grid = self.grid_bins_arg(arg, "grid", 2.0),
+                "levels" if kind != StatKind::Density2D => {
+                    levels = self.collect_level_options(
+                        std::slice::from_ref(arg),
+                        label,
+                        kind == StatKind::Density2DBands,
+                    );
+                }
+                "levels" => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    "`levels` applies only to Density2DContours and Density2DBands",
+                    key_span,
+                )),
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown {label} setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        (bandwidth, grid, levels)
+    }
+
+    fn grid_bins_arg(&mut self, arg: &Arg, name: &str, min: f64) -> GridBinsIr {
+        let Some(value) = arg.value() else {
+            return GridBinsIr::default();
+        };
+        match ValueForm::of(&value) {
+            ValueForm::Number(n) if n.is_finite() && n >= min => GridBinsIr::uniform(Some(n)),
+            ValueForm::Array(Some(values))
+                if values.len() == 2 && values.iter().all(|n| n.is_finite() && *n >= min) =>
+            {
+                GridBinsIr {
+                    x: Some(values[0]),
+                    y: Some(values[1]),
+                }
+            }
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("`{name}` expects a number >= {min} or a two-number array"),
+                    node_span(value.syntax()),
+                ));
+                GridBinsIr::default()
+            }
+        }
+    }
+
     fn collect_bin_options(
         &mut self,
         args: &[Arg],
@@ -1232,6 +1598,18 @@ pub(super) fn parse_bin_interval(value: &str) -> Option<BinIntervalIr> {
     }
 }
 
+fn parse_summary_reducer(value: &str) -> Option<SummaryReducerIr> {
+    match value {
+        "count" => Some(SummaryReducerIr::Count),
+        "mean" => Some(SummaryReducerIr::Mean),
+        "min" => Some(SummaryReducerIr::Min),
+        "max" => Some(SummaryReducerIr::Max),
+        "sum" => Some(SummaryReducerIr::Sum),
+        "median" => Some(SummaryReducerIr::Median),
+        _ => None,
+    }
+}
+
 pub(super) fn derive_output_names(derive: &DeriveDecl) -> Vec<String> {
     let Some(stat) = derive.stat() else {
         return Vec::new();
@@ -1254,16 +1632,31 @@ pub(super) fn derive_output_names(derive: &DeriveDecl) -> Vec<String> {
 }
 
 fn derive_input_names(derive: &DeriveDecl) -> Vec<String> {
-    derive
-        .stat()
-        .map(|stat| {
-            stat.inputs()
-                .into_iter()
-                .filter_map(|input| match input {
-                    AlgebraExpr::Name(name) => name.name(),
-                    _ => None,
-                })
-                .collect()
+    let Some(stat) = derive.stat() else {
+        return Vec::new();
+    };
+    let mut names: Vec<String> = stat
+        .inputs()
+        .into_iter()
+        .filter_map(|input| match input {
+            AlgebraExpr::Name(name) => name.name(),
+            _ => None,
         })
-        .unwrap_or_default()
+        .collect();
+    if matches!(
+        stat.name().as_deref(),
+        Some("ContourLines" | "ContourBands" | "Summary2D" | "SummaryHex")
+    ) {
+        for arg in stat.args() {
+            if arg.key().as_deref() != Some("z") {
+                continue;
+            }
+            if let Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) = arg.value() {
+                if let Some(name) = name.name() {
+                    names.push(name);
+                }
+            }
+        }
+    }
+    names
 }

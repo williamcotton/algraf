@@ -1364,6 +1364,49 @@ fn stat_options_json(options: &StatOptionsIr) -> Value {
         }),
         StatOptionsIr::Bin2D { bins } => json!({ "kind": "bin2d", "bins": bins }),
         StatOptionsIr::HexBin { bins } => json!({ "kind": "hexbin", "bins": bins }),
+        StatOptionsIr::Summary2D { bins, reducer } => json!({
+            "kind": "summary2d",
+            "bins": { "x": bins.x, "y": bins.y },
+            "reducer": reducer.as_str(),
+        }),
+        StatOptionsIr::SummaryHex { bins, reducer } => json!({
+            "kind": "summaryhex",
+            "bins": bins,
+            "reducer": reducer.as_str(),
+        }),
+        StatOptionsIr::ContourLines { levels } => json!({
+            "kind": "contourLines",
+            "levels": levels_json(levels),
+        }),
+        StatOptionsIr::ContourBands { levels } => json!({
+            "kind": "contourBands",
+            "levels": levels_json(levels),
+        }),
+        StatOptionsIr::Density2D { bandwidth, grid } => json!({
+            "kind": "density2d",
+            "bandwidth": bandwidth,
+            "grid": { "x": grid.x, "y": grid.y },
+        }),
+        StatOptionsIr::Density2DContours {
+            bandwidth,
+            grid,
+            levels,
+        } => json!({
+            "kind": "density2dContours",
+            "bandwidth": bandwidth,
+            "grid": { "x": grid.x, "y": grid.y },
+            "levels": levels_json(levels),
+        }),
+        StatOptionsIr::Density2DBands {
+            bandwidth,
+            grid,
+            levels,
+        } => json!({
+            "kind": "density2dBands",
+            "bandwidth": bandwidth,
+            "grid": { "x": grid.x, "y": grid.y },
+            "levels": levels_json(levels),
+        }),
         StatOptionsIr::Smooth { method, span, se } => json!({
             "kind": "smooth",
             "method": method.as_str(),
@@ -1421,6 +1464,17 @@ fn stat_options_json(options: &StatOptionsIr) -> Value {
                 algraf_semantics::SpatialPredicateIr::Within => "within",
             },
         }),
+    }
+}
+
+fn levels_json(levels: &algraf_semantics::LevelSpecIr) -> Value {
+    match levels {
+        algraf_semantics::LevelSpecIr::Count(count) => {
+            json!({ "kind": "count", "count": count })
+        }
+        algraf_semantics::LevelSpecIr::Values(values) => {
+            json!({ "kind": "values", "values": values })
+        }
     }
 }
 

@@ -1,0 +1,14 @@
+Chart(data: "sensor_z_samples.csv", width: 760, height: 500, title: "Mean signal by rectangular bin") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Sensor x")
+    Guide(axis: y, label: "Sensor y")
+
+    Derive grid = Summary2D(x, y, z: signal, bins: [6, 4], reducer: "mean")
+
+    Space(x_center * y_center, data: grid) {
+        Scale(fill: value, gradient: ["#f7fbff", "#2171b5", "#08306b"])
+        Rect(xmin: x_start, xmax: x_end,
+             ymin: y_start, ymax: y_end,
+             fill: value, stroke: "#ffffff", strokeWidth: 0.35)
+    }
+}

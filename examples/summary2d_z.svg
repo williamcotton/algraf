@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="500" viewBox="0 0 760 500" role="img" aria-label="Mean signal by rectangular bin">
+<title>Mean signal by rectangular bin</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="500" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Mean signal by rectangular bin</text>
+<rect class="algraf-plot-area" x="60" y="66" width="550" height="384" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="129.841" y1="66" x2="129.841" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="217.143" y1="66" x2="217.143" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="304.444" y1="66" x2="304.444" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="391.746" y1="66" x2="391.746" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="479.048" y1="66" x2="479.048" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="566.349" y1="66" x2="566.349" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="448.345" x2="610" y2="448.345" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="365.586" x2="610" y2="365.586" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="282.828" x2="610" y2="282.828" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="200.069" x2="610" y2="200.069" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="117.31" x2="610" y2="117.31" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-rect">
+  <rect x="60" y="340.759" width="91.667" height="82.759" fill="#f7fbff" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="151.667" y="340.759" width="91.667" height="82.759" fill="#a4c6e2" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="151.667" y="258" width="91.667" height="82.759" fill="#5190c6" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="243.333" y="258" width="91.667" height="82.759" fill="#1f6bae" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="335" y="258" width="91.667" height="82.759" fill="#134d8c" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="151.667" y="175.241" width="91.667" height="82.759" fill="#7babd4" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="335" y="175.241" width="91.667" height="82.759" fill="#0c3a77" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="426.667" y="175.241" width="91.667" height="82.759" fill="#08306b" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="60" y="92.483" width="91.667" height="82.759" fill="#c0d7ec" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="151.667" y="92.483" width="91.667" height="82.759" fill="#4487c1" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="243.333" y="92.483" width="91.667" height="82.759" fill="#155291" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="335" y="92.483" width="91.667" height="82.759" fill="#0d3d79" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="426.667" y="92.483" width="91.667" height="82.759" fill="#0a3672" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  <rect x="518.333" y="92.483" width="91.667" height="82.759" fill="#18599a" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="450" x2="610" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="129.841" y1="450" x2="129.841" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="129.841" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="217.143" y1="450" x2="217.143" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="217.143" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="304.444" y1="450" x2="304.444" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="304.444" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <line x1="391.746" y1="450" x2="391.746" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="391.746" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="479.048" y1="450" x2="479.048" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="479.048" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <line x1="566.349" y1="450" x2="566.349" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="566.349" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <text x="335" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sensor x</text>
+  <line x1="60" y1="66" x2="60" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="448.345" x2="60" y2="448.345" stroke="#333333" stroke-width="1" />
+  <text x="52" y="452.345" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="365.586" x2="60" y2="365.586" stroke="#333333" stroke-width="1" />
+  <text x="52" y="369.586" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="55" y1="282.828" x2="60" y2="282.828" stroke="#333333" stroke-width="1" />
+  <text x="52" y="286.828" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="55" y1="200.069" x2="60" y2="200.069" stroke="#333333" stroke-width="1" />
+  <text x="52" y="204.069" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <line x1="55" y1="117.31" x2="60" y2="117.31" stroke="#333333" stroke-width="1" />
+  <text x="52" y="121.31" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <text x="32.8" y="258" text-anchor="middle" transform="rotate(-90 32.8 258)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sensor y</text>
+</g>
+<g class="algraf-legends">
+  <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">value</text>
+  <rect x="626" y="78" width="12" height="16" fill="#08306b" />
+  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">46</text>
+  <rect x="626" y="94" width="12" height="16" fill="#155190" />
+  <text x="644" y="104" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">38.25</text>
+  <rect x="626" y="110" width="12" height="16" fill="#2171b5" />
+  <text x="644" y="120" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30.5</text>
+  <rect x="626" y="126" width="12" height="16" fill="#8cb6da" />
+  <text x="644" y="136" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">22.75</text>
+  <rect x="626" y="142" width="12" height="16" fill="#f7fbff" />
+  <text x="644" y="152" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15</text>
+</g>
+</svg>

@@ -1,0 +1,11 @@
+Chart(data: "surface_grid.csv", width: 720, height: 480, title: "Regular raster field") {
+    Theme(name: "minimal")
+    Scale(fill: z, gradient: ["#2b6cb0", "#f7fafc", "#c53030"])
+    Guide(axis: x, label: "Grid x")
+    Guide(axis: y, label: "Grid y")
+
+    Space(x * y) {
+        Rect(xmin: x0, xmax: x1, ymin: y0, ymax: y1,
+             fill: z, stroke: "#ffffff", strokeWidth: 0.2)
+    }
+}

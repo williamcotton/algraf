@@ -1,0 +1,10 @@
+Chart(data: "surface_grid.csv", width: 720, height: 480, title: "Filled contour bands") {
+    Theme(name: "minimal")
+
+    Derive bands = ContourBands(x, y, z, levels: [2, 5, 8, 11, 14, 17])
+
+    Space(geom, data: bands) {
+        Scale(fill: level_mid, gradient: ["#2b6cb0", "#e6fffa", "#c53030"])
+        Geo(fill: level_mid, stroke: "#ffffff", strokeWidth: 0.1)
+    }
+}

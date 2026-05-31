@@ -108,6 +108,16 @@ fn svg_and_draw_list_have_matching_primitive_counts() {
             "Chart(data: \"p.csv\") { Space(sales, coords: \"polar\", theta: \"y\") { Bar(fill: product) } }",
             "product,sales\na,3\nb,2\nc,5\n",
         ),
+        (
+            "contours",
+            "Chart(data: \"p.csv\") { Derive contours = ContourLines(x, y, z, levels: [1, 2]) Space(x * y, data: contours) { Path(group: contour_id, stroke: level) } }",
+            "x,y,z\n0,0,0\n1,0,1\n2,0,2\n0,1,1\n1,1,2\n2,1,3\n0,2,2\n1,2,3\n2,2,4\n",
+        ),
+        (
+            "summary grid",
+            "Chart(data: \"p.csv\") { Derive grid = Summary2D(x, y, z, bins: 2) Space(x_center * y_center, data: grid) { Rect(xmin: x_start, xmax: x_end, ymin: y_start, ymax: y_end, fill: value) } }",
+            "x,y,z\n0,0,1\n0.2,0.1,3\n0.8,0.7,9\n1,1,11\n",
+        ),
     ];
 
     for (name, source, csv) in cases {

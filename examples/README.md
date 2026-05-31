@@ -59,6 +59,12 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | `shapes.ag` | `series.csv` | `shapes.svg`, `shapes.png` | Categorical point shape mapping |
 | `bin2d.ag` | `penguins.csv` | `bin2d.svg`, `bin2d.png` | Rectangular 2D binning |
 | `hexbin.ag` | `penguins.csv` | `hexbin.svg`, `hexbin.png` | Hexagonal binning |
+| `zfield_raster.ag` | `surface_grid.csv` | `zfield_raster.svg`, `zfield_raster.png` | Regular raster-style field rendered with primitive `Rect` cells |
+| `contour_lines.ag` | `surface_grid.csv` | `contour_lines.svg`, `contour_lines.png` | `ContourLines` z-field stat feeding grouped `Path` segments |
+| `contour_bands.ag` | `surface_grid.csv` | `contour_bands.svg`, `contour_bands.png` | `ContourBands` filled z-field bands rendered as geometry |
+| `density2d_contours.ag` | `samples.csv` | `density2d_contours.svg`, `density2d_contours.png` | `Density2DContours` KDE stat overlaid on sample points |
+| `summary2d_z.ag` | `sensor_z_samples.csv` | `summary2d_z.svg`, `summary2d_z.png` | Rectangular x/y/z summary bins with a mean reducer |
+| `summaryhex_z.ag` | `sensor_z_samples.csv` | `summaryhex_z.svg`, `summaryhex_z.png` | Hexagonal x/y/z summary bins with a mean reducer |
 | `ribbon.ag` | `ribbon.csv` | `ribbon.svg`, `ribbon.png` | Closed ribbon interval path |
 | `reference.ag` | `penguins.csv` | `reference.svg`, `reference.png` | `HLine`, `VLine`, `Rug`, title, and legend suppression |
 | `satisfaction_slope.ag` | `satisfaction.csv` | `satisfaction_slope.svg`, `satisfaction_slope.png` | Slopegraph with line grouping and text labels |

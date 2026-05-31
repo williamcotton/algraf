@@ -1,0 +1,10 @@
+Chart(data: "sensor_z_samples.csv", width: 720, height: 500, title: "Mean signal by hex bin") {
+    Theme(name: "minimal")
+
+    Derive hexes = SummaryHex(x, y, z: signal, bins: 7, reducer: "mean")
+
+    Space(geom, data: hexes) {
+        Scale(fill: value, gradient: ["#f7fcf0", "#41ab5d", "#00441b"])
+        Geo(fill: value, stroke: "#ffffff", strokeWidth: 0.25)
+    }
+}

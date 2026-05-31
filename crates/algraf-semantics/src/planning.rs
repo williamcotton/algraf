@@ -19,6 +19,13 @@ pub fn stat_output_schema(kind: StatKind, input: &FrameIr) -> Vec<ColumnDefIr> {
         },
         StatKind::Bin2D => bin2d_output_schema(),
         StatKind::HexBin => hexbin_output_schema(),
+        StatKind::Summary2D => summary2d_output_schema(),
+        StatKind::SummaryHex => summaryhex_output_schema(),
+        StatKind::ContourLines => contour_lines_output_schema(),
+        StatKind::ContourBands => contour_bands_output_schema(),
+        StatKind::Density2D => density2d_output_schema(),
+        StatKind::Density2DContours => density2d_contours_output_schema(),
+        StatKind::Density2DBands => density2d_bands_output_schema(),
         // The plain (no-`se`) schema; the analyzer rebuilds with bands when the
         // `se` option is set (spec §15.x).
         StatKind::Smooth => smooth_output_schema(false),
@@ -74,6 +81,13 @@ pub(crate) fn stat_output_names_for_source(stat_name: &str) -> Vec<String> {
         "Smooth" => smooth_output_schema(false),
         "Bin2D" => bin2d_output_schema(),
         "HexBin" => hexbin_output_schema(),
+        "Summary2D" => summary2d_output_schema(),
+        "SummaryHex" => summaryhex_output_schema(),
+        "ContourLines" => contour_lines_output_schema(),
+        "ContourBands" => contour_bands_output_schema(),
+        "Density2D" => density2d_output_schema(),
+        "Density2DContours" => density2d_contours_output_schema(),
+        "Density2DBands" => density2d_bands_output_schema(),
         "StepVertices" => vec![
             ColumnDefIr {
                 name: "x".into(),
@@ -566,6 +580,136 @@ pub fn hexbin_output_schema() -> Vec<ColumnDefIr> {
             dtype: DataType::Float,
         },
     ]
+}
+
+/// Output schema for rectangular x/y/z summary bins.
+pub fn summary2d_output_schema() -> Vec<ColumnDefIr> {
+    let mut schema = bin2d_output_schema();
+    schema.push(ColumnDefIr {
+        name: "value".into(),
+        dtype: DataType::Float,
+    });
+    schema
+}
+
+/// Output schema for hexagonal x/y/z summary bins. The geometry column allows
+/// explicit hex summaries to render through `Geo(fill: value)`.
+pub fn summaryhex_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "geom".into(),
+            dtype: DataType::Geometry,
+        },
+        ColumnDefIr {
+            name: "x".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "radius".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y_radius".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "count".into(),
+            dtype: DataType::Integer,
+        },
+        ColumnDefIr {
+            name: "density".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "value".into(),
+            dtype: DataType::Float,
+        },
+    ]
+}
+
+/// Output schema for line-contour vertices. Rows are emitted in groups that can
+/// be rendered with `Path(group: contour_id, stroke: level)`.
+pub fn contour_lines_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "x".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "level".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "level_index".into(),
+            dtype: DataType::Integer,
+        },
+        ColumnDefIr {
+            name: "contour_id".into(),
+            dtype: DataType::Integer,
+        },
+    ]
+}
+
+/// Output schema for filled contour bands as geometry rows.
+pub fn contour_bands_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "geom".into(),
+            dtype: DataType::Geometry,
+        },
+        ColumnDefIr {
+            name: "level_low".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "level_high".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "level_mid".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "band_index".into(),
+            dtype: DataType::Integer,
+        },
+    ]
+}
+
+/// Output schema for a 2D kernel-density grid.
+pub fn density2d_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "x".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "density".into(),
+            dtype: DataType::Float,
+        },
+    ]
+}
+
+/// Output schema for contour lines over a 2D density grid.
+pub fn density2d_contours_output_schema() -> Vec<ColumnDefIr> {
+    contour_lines_output_schema()
+}
+
+/// Output schema for filled bands over a 2D density grid.
+pub fn density2d_bands_output_schema() -> Vec<ColumnDefIr> {
+    contour_bands_output_schema()
 }
 
 /// Output schema for kernel density estimation.

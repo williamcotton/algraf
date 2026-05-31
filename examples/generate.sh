@@ -69,6 +69,12 @@ charts=(
     penguin_channels
     bin2d
     hexbin
+    zfield_raster
+    contour_lines
+    contour_bands
+    density2d_contours
+    summary2d_z
+    summaryhex_z
     legend_merge
     scale_label
     satisfaction_slope

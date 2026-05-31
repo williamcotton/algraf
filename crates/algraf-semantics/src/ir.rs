@@ -375,6 +375,13 @@ pub enum StatKind {
     Bin,
     Bin2D,
     HexBin,
+    Summary2D,
+    SummaryHex,
+    ContourLines,
+    ContourBands,
+    Density2D,
+    Density2DContours,
+    Density2DBands,
     Count,
     Smooth,
     StepVertices,
@@ -401,6 +408,13 @@ impl StatKind {
             StatKind::Bin => "Bin",
             StatKind::Bin2D => "Bin2D",
             StatKind::HexBin => "HexBin",
+            StatKind::Summary2D => "Summary2D",
+            StatKind::SummaryHex => "SummaryHex",
+            StatKind::ContourLines => "ContourLines",
+            StatKind::ContourBands => "ContourBands",
+            StatKind::Density2D => "Density2D",
+            StatKind::Density2DContours => "Density2DContours",
+            StatKind::Density2DBands => "Density2DBands",
             StatKind::Count => "Count",
             StatKind::Smooth => "Smooth",
             StatKind::StepVertices => "StepVertices",
@@ -435,6 +449,34 @@ pub enum StatOptionsIr {
     },
     HexBin {
         bins: Option<f64>,
+    },
+    Summary2D {
+        bins: GridBinsIr,
+        reducer: SummaryReducerIr,
+    },
+    SummaryHex {
+        bins: Option<f64>,
+        reducer: SummaryReducerIr,
+    },
+    ContourLines {
+        levels: LevelSpecIr,
+    },
+    ContourBands {
+        levels: LevelSpecIr,
+    },
+    Density2D {
+        bandwidth: Option<f64>,
+        grid: GridBinsIr,
+    },
+    Density2DContours {
+        bandwidth: Option<f64>,
+        grid: GridBinsIr,
+        levels: LevelSpecIr,
+    },
+    Density2DBands {
+        bandwidth: Option<f64>,
+        grid: GridBinsIr,
+        levels: LevelSpecIr,
     },
     Smooth {
         method: SmoothMethodIr,
@@ -484,6 +526,64 @@ pub enum StatOptionsIr {
         table: String,
         predicate: SpatialPredicateIr,
     },
+}
+
+/// Rectangular grid dimensions for 2D stats. `None` means the renderer default.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GridBinsIr {
+    pub x: Option<f64>,
+    pub y: Option<f64>,
+}
+
+impl GridBinsIr {
+    pub const fn uniform(value: Option<f64>) -> GridBinsIr {
+        GridBinsIr { x: value, y: value }
+    }
+}
+
+impl Default for GridBinsIr {
+    fn default() -> Self {
+        GridBinsIr::uniform(None)
+    }
+}
+
+/// Contour level selection. A count is interpreted by the concrete stat:
+/// isolines use that many interior levels; filled bands use that many bands.
+#[derive(Debug, Clone, PartialEq)]
+pub enum LevelSpecIr {
+    Count(Option<f64>),
+    Values(Vec<f64>),
+}
+
+impl Default for LevelSpecIr {
+    fn default() -> Self {
+        LevelSpecIr::Count(None)
+    }
+}
+
+/// Reducers accepted by x/y/z summary stats.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SummaryReducerIr {
+    #[default]
+    Mean,
+    Count,
+    Min,
+    Max,
+    Sum,
+    Median,
+}
+
+impl SummaryReducerIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SummaryReducerIr::Mean => "mean",
+            SummaryReducerIr::Count => "count",
+            SummaryReducerIr::Min => "min",
+            SummaryReducerIr::Max => "max",
+            SummaryReducerIr::Sum => "sum",
+            SummaryReducerIr::Median => "median",
+        }
+    }
 }
 
 /// Orientation of a primitive interval construction (spec §15.15).

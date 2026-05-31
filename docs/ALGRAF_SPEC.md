@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.37.0
+Status: Draft 0.38.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.37.0 specification.
+This working copy is the active Draft 0.38.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -5062,6 +5062,29 @@ The static SVG affordance is described in §18.10, the host-runtime sidecar and
 draw-list representation in §24.6, and the opt-in interactive SVG runtime in
 §29.3.
 
+### 14.26 Z-Field Graphics
+
+> Since version 0.38.0.
+
+Algraf does not introduce source-level `Contour`, `ContourFilled`, `Raster`, or
+`Summary2D` geometries in version 0.38.0. Z-field graphics are expressed as
+derived tables plus existing primitive marks:
+
+- regular raster-like fields use explicit `Rect` bounds, or `Tile` when the
+  active axes are categorical/banded;
+- contour lines use `ContourLines(...)` feeding `Path(group: contour_id)`;
+- filled contour bands use `ContourBands(...)` feeding `Geo(fill: level_mid)`;
+- 2D density contours use `Density2DContours(...)` feeding `Path`;
+- rectangular z summaries use `Summary2D(...)` feeding `Rect`;
+- hexagonal z summaries use `SummaryHex(...)` feeding `Geo`.
+
+These forms MUST train `fill`, `stroke`, and legend scales exactly like any
+other primitive layer over the produced columns. No interpolation keyword is
+accepted in this version; raster recipes are nearest-cell / explicit-cell
+renderings. A future convenience geometry MAY be added only if it lowers to the
+corresponding derived-table form before rendering and produces identical SVG,
+draw-list, raster, and interaction sidecar bytes.
+
 ## 15. Statistics
 
 ### 15.1 Stat Model
@@ -5571,6 +5594,70 @@ These stats are pure, read no external resources, and MUST preserve deterministi
 output ordering. They do not create stroke-style legends, position adjustments,
 or source-level aliases such as `geom_step`, `geom_curve`, or `linetype`.
 
+### 15.16 Z-Field Stats
+
+> Since version 0.38.0.
+
+Z-field stats consume numeric x/y coordinates plus either a third positional
+numeric input or a named `z:` numeric column. Missing z input is `E1406`,
+non-numeric z input is `E1407`, and non-numeric or malformed x/y input is
+`E1408`. Unknown-type columns MAY pass analysis and be treated as missing at
+render time if their cells are not numeric.
+
+`ContourLines(x, y, z: value, levels: ...)` computes isoline vertices over a
+regular x/y/z grid. Duplicate `(x, y)` cells are averaged deterministically.
+Missing grid cells cause adjacent cells to be skipped. `levels` MAY be a number
+or a strictly increasing numeric array; when omitted, ten interior levels are
+used. A numeric `levels: n` emits `n` evenly spaced interior levels between the
+finite z minimum and maximum. Output columns are:
+
+`x`, `y`, `level`, `level_index`, `contour_id`.
+
+Rows are ordered by level, y grid index, x grid index, then triangle order.
+`Path(group: contour_id, stroke: level)` renders the primitive line form.
+
+`ContourBands(x, y, z, levels: ...)` computes filled contour bands over the same
+regular grid model. A numeric `levels: n` means `n` bands; an array supplies the
+band breaks and MUST contain at least two strictly increasing finite numbers.
+Each output row is a clipped band polygon. Output columns are:
+
+`geom`, `level_low`, `level_high`, `level_mid`, `band_index`.
+
+`Density2D(x, y, bandwidth: n, grid: [nx, ny])` computes a deterministic
+bivariate Gaussian KDE. The default bandwidth is Silverman's rule independently
+per axis; a positive numeric `bandwidth` applies to both axes. `grid` defaults
+to `[64, 64]`, accepts a number or `[nx, ny]`, requires each dimension to be at
+least 2, and is capped by the renderer to keep defaults bounded. Output columns
+are:
+
+`x`, `y`, `density`.
+
+`Density2DContours` and `Density2DBands` first compute the `Density2D` grid and
+then apply the same contour-line or contour-band generation rules to the
+`density` field. Their schemas match `ContourLines` and `ContourBands`.
+
+`Summary2D(x, y, z: value, bins: [nx, ny], reducer: "mean")` aggregates finite z
+cells into rectangular x/y bins. `bins` accepts a number or two-number array,
+defaults to 30, and each dimension MUST be at least 1. Empty bins are omitted.
+Reducers are `"count"`, `"mean"`, `"min"`, `"max"`, `"sum"`, and `"median"`.
+Median sorts finite values with total floating-point ordering and averages the
+two middle values for even counts. Output columns are:
+
+`x_start`, `x_end`, `x_center`, `y_start`, `y_end`, `y_center`, `count`,
+`density`, `value`.
+
+`SummaryHex(x, y, z, bins: n, reducer: ...)` aggregates finite z cells on the
+same deterministic hex lattice as `HexBin`. Empty hexes are omitted. Output
+columns are:
+
+`geom`, `x`, `y`, `radius`, `y_radius`, `count`, `density`, `value`.
+
+All z-field stats are pure, read no external resources, and MUST return stable
+row ordering independent of input row order. Their output schemas MUST be
+available to analysis, completion, hover, and inlay-hint code before render-time
+materialization. Contour labels are not automatic in version 0.38.0; authors MAY
+overlay `Text` using separately derived or authored label positions.
+
 ## 16. Scale Training
 
 ### 16.1 Scale Training Overview
@@ -5967,6 +6054,11 @@ Invalid scale/domain combinations MUST emit targeted diagnostics.
 
 Version 0.2.0 MUST support a `label` argument on `fill`/`stroke` scales that
 overrides the column-derived legend title (see §16.13).
+
+Z-field derived columns such as `level`, `level_mid`, `density`, and `value`
+are ordinary numeric columns for scale training. A `fill` or `stroke` mapping to
+one of these columns MUST create the same continuous color scale and legend as a
+mapping to any user-authored numeric column.
 
 ### 16.12 Scale Resolution
 
@@ -8181,6 +8273,12 @@ reservation) and guide emission (writing axes, grids, strips, and legends to
 SVG) are likewise separated, planning before final layout and emission during
 document assembly.
 
+Z-field stats (§15.16) materialize during planning like every other derived
+stat. They MUST lower to ordinary derived rows consumed by existing primitive
+emission paths (`Rect`, `Path`, and `Geo`), so the SVG, draw-list, raster, and
+interaction-sidecar outputs observe the same planned scene. No backend may
+invent a different contour, density, raster, or summary algorithm.
+
 The renderer ships three backends over this seam:
 
 - The **SVG backend** (§18) is canonical and emits the deterministic SVG
@@ -8698,6 +8796,12 @@ missing `=>`/stray separator in a map literal)
 
 `E1405 temporal binning is not supported in this version`
 
+`E1406 missing z-channel stat input`
+
+`E1407 z-channel stat input is not numeric`
+
+`E1408 z-field stat x/y input is malformed or non-numeric`
+
 `E1501 cycle between derived table declarations`
 
 `E1701 let binding value must be a constant`
@@ -8846,8 +8950,10 @@ formatter tests
 Stat determinism tests MUST materialize or render each statistical transform
 against equivalent input rows in different orders and assert byte-identical
 output. The covered transforms MUST include 1D bins, 2D bins, hex bins,
-calendar/temporal bins, density, count, smooth, and boxplot quantiles. New stats
-SHOULD add a determinism fixture before they are exposed through render.
+calendar/temporal bins, density, 2D density contours, contour lines, contour
+bands, rectangular z summaries, hex z summaries, count, smooth, and boxplot
+quantiles. New stats SHOULD add a determinism fixture before they are exposed
+through render.
 
 ### 27.2 Lexer Tests
 
@@ -9351,7 +9457,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.35.5 | [`V0_35_5_PLAN.md`](V0_35_5_PLAN.md) | Browser editor parity for Monaco via shared editor services | Implemented |
 | 0.36.0 | [`V0_36_PLAN.md`](V0_36_PLAN.md) | ggplot2 comparability: primitive construction and stroke styling | Implemented |
 | 0.37.0 | [`V0_37_PLAN.md`](V0_37_PLAN.md) | ggplot2 comparability: uncertainty construction and exact sugar lowerings | Implemented |
-| 0.38.0 | [`V0_38_PLAN.md`](V0_38_PLAN.md) | ggplot2 comparability: z-field statistics | Planned |
+| 0.38.0 | [`V0_38_PLAN.md`](V0_38_PLAN.md) | ggplot2 comparability: z-field statistics | Implemented |
 | 0.39.0 | [`V0_39_PLAN.md`](V0_39_PLAN.md) | ggplot2 comparability: model and summary stats | Planned |
 | 0.40.0 | [`V0_40_PLAN.md`](V0_40_PLAN.md) | ggplot2 comparability: scale and guide control | Planned |
 | 0.41.0 | [`V0_41_PLAN.md`](V0_41_PLAN.md) | ggplot2 comparability: layout and position control | Planned |

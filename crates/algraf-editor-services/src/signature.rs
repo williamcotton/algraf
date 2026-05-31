@@ -84,8 +84,11 @@ fn signature_params(name: &str) -> Option<Vec<&'static str>> {
             Some(registry::declaration_arg_names(name).to_vec())
         }
         "Bin" | "Smooth" | "StepVertices" | "VectorEndpoints" | "CurveSample" | "Bin2D"
-        | "HexBin" | "IntervalSegments" | "IntervalRects" | "IntervalMiddles" | "Simplify"
-        | "SpatialJoin" => Some(registry::declaration_arg_names(name).to_vec()),
+        | "HexBin" | "ContourLines" | "ContourBands" | "Density2D" | "Density2DContours"
+        | "Density2DBands" | "Summary2D" | "SummaryHex" | "IntervalSegments" | "IntervalRects"
+        | "IntervalMiddles" | "Simplify" | "SpatialJoin" => {
+            Some(registry::declaration_arg_names(name).to_vec())
+        }
         _ => None,
     }
 }

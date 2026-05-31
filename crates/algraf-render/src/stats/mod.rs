@@ -11,6 +11,7 @@ mod primitive;
 mod smooth;
 mod summary;
 pub(crate) mod util;
+mod zfield;
 
 pub use bin::{
     bin2d, bin_blended, bin_grouped, bin_with_options, hexbin, hexbin_frame, Bin2DOptions,
@@ -24,3 +25,8 @@ pub use primitive::{
 };
 pub use smooth::{smooth, smooth_points, SmoothMethod, SmoothOptions};
 pub use summary::count_by;
+pub use zfield::{
+    contour_bands, contour_lines, density2d, density2d_bands, density2d_contours, summary2d,
+    summaryhex, ContourOptions, Density2DOptions, GridSize, LevelSpec, Summary2DOptions,
+    SummaryReducer,
+};

@@ -136,7 +136,7 @@
       "patterns": [
         {
           "name": "entity.name.function.stat.algraf",
-          "match": "\\b(?:Bin|Bin2D|HexBin|Count|Smooth|StepVertices|VectorEndpoints|CurveSample|IntervalSegments|IntervalRects|IntervalMiddles|Boxplot|Density|Centroid|Simplify|SpatialJoin)\\b(?=\\s*\\()"
+          "match": "\\b(?:Bin|Bin2D|HexBin|Summary2D|SummaryHex|ContourLines|ContourBands|Density2D|Density2DContours|Density2DBands|Count|Smooth|StepVertices|VectorEndpoints|CurveSample|IntervalSegments|IntervalRects|IntervalMiddles|Boxplot|Density|Centroid|Simplify|SpatialJoin)\\b(?=\\s*\\()"
         }
       ]
     },

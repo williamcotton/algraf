@@ -135,3 +135,75 @@ fn boxplot_quantiles_are_row_order_independent() {
         "group,value\na,20\nb,30\na,2\nb,4\nb,5\na,1\nb,6\na,3\n",
     );
 }
+
+#[test]
+fn contour_lines_output_is_row_order_independent() {
+    let source = r##"Chart(data: "d.csv") {
+  Theme(name: "minimal")
+  Derive contours = ContourLines(x, y, z, levels: [1, 2])
+  Space(x * y, data: contours) { Path(group: contour_id, stroke: level) }
+}"##;
+    assert_stat_is_row_order_independent(
+        source,
+        "x,y,z\n0,0,0\n1,0,1\n2,0,2\n0,1,1\n1,1,2\n2,1,3\n0,2,2\n1,2,3\n2,2,4\n",
+        "x,y,z\n2,2,4\n0,0,0\n1,1,2\n2,0,2\n0,2,2\n1,0,1\n0,1,1\n2,1,3\n1,2,3\n",
+    );
+}
+
+#[test]
+fn contour_bands_output_is_row_order_independent() {
+    let source = r##"Chart(data: "d.csv") {
+  Theme(name: "minimal")
+  Derive bands = ContourBands(x, y, z, levels: 3)
+  Space(geom, data: bands) { Geo(fill: level_mid, stroke: "#ffffff", strokeWidth: 0.1) }
+}"##;
+    assert_stat_is_row_order_independent(
+        source,
+        "x,y,z\n0,0,0\n1,0,1\n2,0,2\n0,1,1\n1,1,2\n2,1,3\n0,2,2\n1,2,3\n2,2,4\n",
+        "x,y,z\n2,2,4\n0,0,0\n1,1,2\n2,0,2\n0,2,2\n1,0,1\n0,1,1\n2,1,3\n1,2,3\n",
+    );
+}
+
+#[test]
+fn summary2d_output_is_row_order_independent() {
+    let source = r##"Chart(data: "d.csv") {
+  Theme(name: "minimal")
+  Derive grid = Summary2D(x, y, z, bins: [2, 2], reducer: "median")
+  Space(x_center * y_center, data: grid) {
+    Rect(xmin: x_start, xmax: x_end, ymin: y_start, ymax: y_end, fill: value)
+  }
+}"##;
+    assert_stat_is_row_order_independent(
+        source,
+        "x,y,z\n0,0,1\n0.2,0.1,3\n0.8,0.7,9\n1,1,11\n",
+        "x,y,z\n1,1,11\n0.2,0.1,3\n0.8,0.7,9\n0,0,1\n",
+    );
+}
+
+#[test]
+fn summaryhex_output_is_row_order_independent() {
+    let source = r##"Chart(data: "d.csv") {
+  Theme(name: "minimal")
+  Derive hex = SummaryHex(x, y, z, bins: 4, reducer: "mean")
+  Space(geom, data: hex) { Geo(fill: value, stroke: "#ffffff", strokeWidth: 0.1) }
+}"##;
+    assert_stat_is_row_order_independent(
+        source,
+        "x,y,z\n0,0,1\n0.2,0.1,3\n0.8,0.7,9\n1,1,11\n",
+        "x,y,z\n1,1,11\n0.2,0.1,3\n0.8,0.7,9\n0,0,1\n",
+    );
+}
+
+#[test]
+fn density2d_contours_output_is_row_order_independent() {
+    let source = r##"Chart(data: "d.csv") {
+  Theme(name: "minimal")
+  Derive contours = Density2DContours(x, y, grid: [16, 16], levels: 3)
+  Space(x * y, data: contours) { Path(group: contour_id, stroke: level) }
+}"##;
+    assert_stat_is_row_order_independent(
+        source,
+        "x,y\n0,0\n0.1,0.2\n0.2,0.1\n1,1\n1.1,1.2\n1.2,1.1\n",
+        "x,y\n1.2,1.1\n0,0\n1,1\n0.2,0.1\n1.1,1.2\n0.1,0.2\n",
+    );
+}

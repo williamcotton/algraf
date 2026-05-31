@@ -4,8 +4,9 @@ use algraf_core::Span;
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
     analyze_source, planning, AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef, FrameIr,
-    GeometryKind, GradientIr, IntervalOrientationIr, PropertyKey, ScaleTargetIr, ScaleTypeIr,
-    SettingValue, SpaceDataRef, StatKind, StatOptionsIr, StepDirectionIr, TemporalFormatIr,
+    GeometryKind, GradientIr, GridBinsIr, IntervalOrientationIr, LevelSpecIr, PropertyKey,
+    ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, StatKind, StatOptionsIr,
+    StepDirectionIr, SummaryReducerIr, TemporalFormatIr,
 };
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
@@ -26,6 +27,9 @@ fn schema() -> Vec<ColumnDef> {
         col("quarter", DataType::String),
         col("type", DataType::String),
         col("amount", DataType::Float),
+        col("x", DataType::Float),
+        col("y", DataType::Float),
+        col("z", DataType::Float),
         col("value", DataType::Float),
         col("selection_age", DataType::Float),
         col("mission_age", DataType::Float),
@@ -161,6 +165,71 @@ fn test_quoted_column_resolution() {
 #[test]
 fn test_derived_table_resolution() {
     clean("Chart(data: \"d.csv\") {\n  Derive bins = Bin(value, bins: 25)\n  Space(bin_start * count, data: bins) {\n    Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count)\n  }\n}");
+}
+
+#[test]
+fn test_z_field_stats_are_typed() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {
+  Derive contours = ContourLines(x, y, z: z, levels: [1, 2, 3])
+  Derive bands = ContourBands(x, y, z, levels: 4)
+  Derive grid = Summary2D(x, y, z: value, bins: [4, 3], reducer: \"median\")
+  Derive hex = SummaryHex(x, y, z, bins: 5, reducer: \"mean\")
+  Derive kde = Density2DContours(x, y, grid: [8, 6], levels: 3)
+  Space(x * y, data: contours) { Path(group: contour_id, stroke: level) }
+  Space(geom, data: bands) { Geo(fill: level_mid) }
+  Space(x_center * y_center, data: grid) { Rect(xmin: x_start, xmax: x_end, ymin: y_start, ymax: y_end, fill: value) }
+  Space(geom, data: hex) { Geo(fill: value) }
+  Space(x * y, data: kde) { Path(group: contour_id, stroke: level) }
+}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.unwrap();
+    assert_eq!(ir.derived_tables.len(), 5);
+    assert_eq!(ir.derived_tables[0].stat.kind, StatKind::ContourLines);
+    assert_eq!(
+        ir.derived_tables[0].stat.options,
+        StatOptionsIr::ContourLines {
+            levels: LevelSpecIr::Values(vec![1.0, 2.0, 3.0])
+        }
+    );
+    assert_eq!(ir.derived_tables[2].stat.kind, StatKind::Summary2D);
+    assert_eq!(
+        ir.derived_tables[2].stat.options,
+        StatOptionsIr::Summary2D {
+            bins: GridBinsIr {
+                x: Some(4.0),
+                y: Some(3.0)
+            },
+            reducer: SummaryReducerIr::Median
+        }
+    );
+    assert!(ir.derived_tables[1]
+        .output_schema
+        .iter()
+        .any(|column| column.name == "geom" && column.dtype == DataType::Geometry));
+}
+
+#[test]
+fn test_z_field_stats_validate_z_channel() {
+    let diagnostics = analyze_source(
+        "Chart(data: \"d.csv\") {
+  Derive missing = ContourLines(x, y)
+  Derive non_numeric = Summary2D(x, y, z: species)
+  Derive bad_xy = Density2D(species, y)
+}",
+        &schema(),
+    )
+    .diagnostics;
+    let codes: Vec<_> = diagnostics.iter().map(|d| d.code).collect();
+    assert!(codes.contains(&"E1406"), "{diagnostics:?}");
+    assert!(codes.contains(&"E1407"), "{diagnostics:?}");
+    assert!(codes.contains(&"E1408"), "{diagnostics:?}");
 }
 
 #[test]

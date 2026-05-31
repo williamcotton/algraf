@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="500" viewBox="0 0 720 500" role="img" aria-label="Mean signal by hex bin">
+<title>Mean signal by hex bin</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="500" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Mean signal by hex bin</text>
+<rect class="algraf-plot-area" x="60" y="66" width="510" height="384" fill="#ffffff" />
+<g class="algraf-layer algraf-geom-geo">
+  <path d="M91.875 374.845L60 386.529L60 409.898L91.875 421.583L123.75 409.898L123.75 386.529L91.875 374.845Z" fill="#f7fcf0" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M123.75 339.791L91.875 351.476L91.875 374.845L123.75 386.529L155.625 374.845L155.625 351.476L123.75 339.791Z" fill="#e3f3e0" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M123.75 129.471L91.875 141.155L91.875 164.524L123.75 176.209L155.625 164.524L155.625 141.155L123.75 129.471Z" fill="#b0ddb7" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M155.625 374.845L123.75 386.529L123.75 409.898L155.625 421.583L187.5 409.898L187.5 386.529L155.625 374.845Z" fill="#cfeacf" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M155.625 304.738L123.75 316.422L123.75 339.791L155.625 351.476L187.5 339.791L187.5 316.422L155.625 304.738Z" fill="#92cf9e" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M155.625 164.524L123.75 176.209L123.75 199.578L155.625 211.262L187.5 199.578L187.5 176.209L155.625 164.524Z" fill="#7ec68e" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M187.5 339.791L155.625 351.476L155.625 374.845L187.5 386.529L219.375 374.845L219.375 351.476L187.5 339.791Z" fill="#b0ddb7" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M251.25 269.684L219.375 281.369L219.375 304.738L251.25 316.422L283.125 304.738L283.125 281.369L251.25 269.684Z" fill="#4bb065" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M251.25 129.471L219.375 141.155L219.375 164.524L251.25 176.209L283.125 164.524L283.125 141.155L251.25 129.471Z" fill="#55b46d" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M283.125 304.738L251.25 316.422L251.25 339.791L283.125 351.476L315 339.791L315 316.422L283.125 304.738Z" fill="#4bb065" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M283.125 234.631L251.25 246.316L251.25 269.684L283.125 281.369L315 269.684L315 246.316L283.125 234.631Z" fill="#2b8947" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M283.125 164.524L251.25 176.209L251.25 199.578L283.125 211.262L315 199.578L315 176.209L283.125 164.524Z" fill="#2f8e4b" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M315 129.471L283.125 141.155L283.125 164.524L315 176.209L346.875 164.524L346.875 141.155L315 129.471Z" fill="#196c35" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M346.875 234.631L315 246.316L315 269.684L346.875 281.369L378.75 269.684L378.75 246.316L346.875 234.631Z" fill="#1b6f37" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M346.875 164.524L315 176.209L315 199.578L346.875 211.262L378.75 199.578L378.75 176.209L346.875 164.524Z" fill="#12612d" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M378.75 199.578L346.875 211.262L346.875 234.631L378.75 246.316L410.625 234.631L410.625 211.262L378.75 199.578Z" fill="#0b5526" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M378.75 129.471L346.875 141.155L346.875 164.524L378.75 176.209L410.625 164.524L410.625 141.155L378.75 129.471Z" fill="#074f22" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M410.625 164.524L378.75 176.209L378.75 199.578L410.625 211.262L442.5 199.578L442.5 176.209L410.625 164.524Z" fill="#00441b" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M442.5 199.578L410.625 211.262L410.625 234.631L442.5 246.316L474.375 234.631L474.375 211.262L442.5 199.578Z" fill="#0e5b2a" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M442.5 129.471L410.625 141.155L410.625 164.524L442.5 176.209L474.375 164.524L474.375 141.155L442.5 129.471Z" fill="#12612d" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M474.375 164.524L442.5 176.209L442.5 199.578L474.375 211.262L506.25 199.578L506.25 176.209L474.375 164.524Z" fill="#1d7238" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M474.375 94.417L442.5 106.102L442.5 129.471L474.375 141.155L506.25 129.471L506.25 106.102L474.375 94.417Z" fill="#247d40" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M506.25 129.471L474.375 141.155L474.375 164.524L506.25 176.209L538.125 164.524L538.125 141.155L506.25 129.471Z" fill="#2b8947" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M538.125 164.524L506.25 176.209L506.25 199.578L538.125 211.262L570 199.578L570 176.209L538.125 164.524Z" fill="#369a52" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+  <path d="M538.125 94.417L506.25 106.102L506.25 129.471L538.125 141.155L570 129.471L570 106.102L538.125 94.417Z" fill="#33944e" fill-rule="evenodd" stroke="#ffffff" stroke-width="0.25"/>
+</g>
+<g class="algraf-legends">
+  <text x="586" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">value</text>
+  <rect x="586" y="78" width="12" height="16" fill="#00441b" />
+  <text x="604" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">48</text>
+  <rect x="586" y="94" width="12" height="16" fill="#21783c" />
+  <text x="604" y="104" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">39</text>
+  <rect x="586" y="110" width="12" height="16" fill="#41ab5d" />
+  <text x="604" y="120" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <rect x="586" y="126" width="12" height="16" fill="#9cd4a7" />
+  <text x="604" y="136" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">21</text>
+  <rect x="586" y="142" width="12" height="16" fill="#f7fcf0" />
+  <text x="604" y="152" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">12</text>
+</g>
+</svg>

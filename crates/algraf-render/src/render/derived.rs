@@ -13,8 +13,8 @@ use std::collections::HashMap;
 
 use algraf_data::{DataFrame, Table};
 use algraf_semantics::{
-    BinClosedIr, BinIntervalIr, ChartIr, FrameIr, IntervalOrientationIr, SmoothMethodIr,
-    SpaceDataRef, StatOptionsIr, StepDirectionIr,
+    BinClosedIr, BinIntervalIr, ChartIr, FrameIr, GridBinsIr, IntervalOrientationIr, LevelSpecIr,
+    SmoothMethodIr, SpaceDataRef, StatOptionsIr, StepDirectionIr, SummaryReducerIr,
 };
 
 use crate::stats;
@@ -150,6 +150,181 @@ pub(super) fn compute_derived(
                                 &y.name,
                                 stats::Bin2DOptions {
                                     bins: bins_or_default(*bins),
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::Summary2D { bins, reducer } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (
+                            Some(FrameIr::Vector(x)),
+                            Some(FrameIr::Vector(y)),
+                            Some(FrameIr::Vector(z)),
+                        ) = (cols.first(), cols.get(1), cols.get(2))
+                        {
+                            Some(stats::summary2d(
+                                source,
+                                &x.name,
+                                &y.name,
+                                &z.name,
+                                stats::Summary2DOptions {
+                                    bins: render_grid_size(*bins, 30),
+                                    reducer: render_summary_reducer(*reducer),
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::SummaryHex { bins, reducer } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (
+                            Some(FrameIr::Vector(x)),
+                            Some(FrameIr::Vector(y)),
+                            Some(FrameIr::Vector(z)),
+                        ) = (cols.first(), cols.get(1), cols.get(2))
+                        {
+                            Some(stats::summaryhex(
+                                source,
+                                &x.name,
+                                &y.name,
+                                &z.name,
+                                stats::Summary2DOptions {
+                                    bins: stats::GridSize::square(bins_or_default(*bins)),
+                                    reducer: render_summary_reducer(*reducer),
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::ContourLines { levels } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (
+                            Some(FrameIr::Vector(x)),
+                            Some(FrameIr::Vector(y)),
+                            Some(FrameIr::Vector(z)),
+                        ) = (cols.first(), cols.get(1), cols.get(2))
+                        {
+                            Some(stats::contour_lines(
+                                source,
+                                &x.name,
+                                &y.name,
+                                &z.name,
+                                stats::ContourOptions {
+                                    levels: render_level_spec(levels),
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::ContourBands { levels } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (
+                            Some(FrameIr::Vector(x)),
+                            Some(FrameIr::Vector(y)),
+                            Some(FrameIr::Vector(z)),
+                        ) = (cols.first(), cols.get(1), cols.get(2))
+                        {
+                            Some(stats::contour_bands(
+                                source,
+                                &x.name,
+                                &y.name,
+                                &z.name,
+                                stats::ContourOptions {
+                                    levels: render_level_spec(levels),
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::Density2D { bandwidth, grid } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
+                            (cols.first(), cols.get(1))
+                        {
+                            Some(stats::density2d(
+                                source,
+                                &x.name,
+                                &y.name,
+                                stats::Density2DOptions {
+                                    bandwidth: *bandwidth,
+                                    grid: render_grid_size(*grid, 64),
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::Density2DContours {
+                    bandwidth,
+                    grid,
+                    levels,
+                } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
+                            (cols.first(), cols.get(1))
+                        {
+                            Some(stats::density2d_contours(
+                                source,
+                                &x.name,
+                                &y.name,
+                                stats::Density2DOptions {
+                                    bandwidth: *bandwidth,
+                                    grid: render_grid_size(*grid, 64),
+                                },
+                                stats::ContourOptions {
+                                    levels: render_level_spec(levels),
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::Density2DBands {
+                    bandwidth,
+                    grid,
+                    levels,
+                } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
+                            (cols.first(), cols.get(1))
+                        {
+                            Some(stats::density2d_bands(
+                                source,
+                                &x.name,
+                                &y.name,
+                                stats::Density2DOptions {
+                                    bandwidth: *bandwidth,
+                                    grid: render_grid_size(*grid, 64),
+                                },
+                                stats::ContourOptions {
+                                    levels: render_level_spec(levels),
                                 },
                             ))
                         } else {
@@ -422,6 +597,40 @@ fn render_bin_interval(interval: BinIntervalIr) -> stats::BinInterval {
         BinIntervalIr::Month => stats::BinInterval::Month,
         BinIntervalIr::Quarter => stats::BinInterval::Quarter,
         BinIntervalIr::Year => stats::BinInterval::Year,
+    }
+}
+
+fn render_grid_size(grid: GridBinsIr, default: usize) -> stats::GridSize {
+    let x = grid
+        .x
+        .filter(|n| *n >= 1.0)
+        .map(|n| n.round() as usize)
+        .unwrap_or(default);
+    let y = grid
+        .y
+        .filter(|n| *n >= 1.0)
+        .map(|n| n.round() as usize)
+        .unwrap_or(default);
+    stats::GridSize { x, y }
+}
+
+fn render_level_spec(levels: &LevelSpecIr) -> stats::LevelSpec {
+    match levels {
+        LevelSpecIr::Count(count) => {
+            stats::LevelSpec::Count(count.filter(|n| *n >= 1.0).map(|n| n.round() as usize))
+        }
+        LevelSpecIr::Values(values) => stats::LevelSpec::Values(values.clone()),
+    }
+}
+
+fn render_summary_reducer(reducer: SummaryReducerIr) -> stats::SummaryReducer {
+    match reducer {
+        SummaryReducerIr::Count => stats::SummaryReducer::Count,
+        SummaryReducerIr::Mean => stats::SummaryReducer::Mean,
+        SummaryReducerIr::Min => stats::SummaryReducer::Min,
+        SummaryReducerIr::Max => stats::SummaryReducer::Max,
+        SummaryReducerIr::Sum => stats::SummaryReducer::Sum,
+        SummaryReducerIr::Median => stats::SummaryReducer::Median,
     }
 }
 

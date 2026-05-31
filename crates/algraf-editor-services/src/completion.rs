@@ -113,7 +113,9 @@ pub fn completion_context(text: &str, offset: usize) -> CompletionContext {
         Some(
             "Algraf" | "Scale" | "Guide" | "Theme" | "Layout" | "Parse" | "Style" | "Stop" | "Bin"
             | "Smooth" | "StepVertices" | "VectorEndpoints" | "CurveSample" | "Bin2D" | "HexBin"
-            | "IntervalSegments" | "IntervalRects" | "IntervalMiddles" | "Simplify" | "SpatialJoin",
+            | "ContourLines" | "ContourBands" | "Density2D" | "Density2DContours"
+            | "Density2DBands" | "Summary2D" | "SummaryHex" | "IntervalSegments" | "IntervalRects"
+            | "IntervalMiddles" | "Simplify" | "SpatialJoin",
         ) => CompletionContext::DeclArgs {
             decl: call_name_stack
                 .last()

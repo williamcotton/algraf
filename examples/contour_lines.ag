@@ -1,0 +1,12 @@
+Chart(data: "surface_grid.csv", width: 720, height: 480, title: "Contour lines from a z field") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Grid x")
+    Guide(axis: y, label: "Grid y")
+
+    Derive contours = ContourLines(x, y, z: z, levels: [4, 7, 10, 13])
+
+    Space(x * y, data: contours) {
+        Scale(stroke: level, gradient: ["#6b7280", "#111827"])
+        Path(group: contour_id, stroke: level, strokeWidth: 1.4)
+    }
+}

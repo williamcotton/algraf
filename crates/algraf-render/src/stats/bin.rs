@@ -745,7 +745,7 @@ pub fn hexbin(
 /// center, returning the center as `(pi, pj)` where the center is at
 /// `(pi*dx, pj*dy)`. `pi` is a multiple of `0.5` (odd rows are offset by half a
 /// column). Mirrors the d3-hexbin assignment.
-fn hex_lattice_index(u: f64, v: f64, dx: f64, dy: f64) -> (f64, f64) {
+pub(crate) fn hex_lattice_index(u: f64, v: f64, dx: f64, dy: f64) -> (f64, f64) {
     let py = v / dy;
     let pj = py.round();
     let px = u / dx
@@ -815,7 +815,12 @@ pub fn hexbin_frame(
     )
 }
 
-fn bin_layout(min: f64, max: f64, bins: usize, options: BinOptions) -> (f64, f64, usize) {
+pub(crate) fn bin_layout(
+    min: f64,
+    max: f64,
+    bins: usize,
+    options: BinOptions,
+) -> (f64, f64, usize) {
     if let Some(bin_width) = options.bin_width {
         if bin_width.is_finite() && bin_width > f64::EPSILON {
             let boundary = options.boundary.unwrap_or(bin_width / 2.0);
@@ -849,7 +854,13 @@ fn bin_layout(min: f64, max: f64, bins: usize, options: BinOptions) -> (f64, f64
     (min, width, bins)
 }
 
-fn bin_index(value: f64, start: f64, width: f64, bin_count: usize, closed: BinClosed) -> usize {
+pub(crate) fn bin_index(
+    value: f64,
+    start: f64,
+    width: f64,
+    bin_count: usize,
+    closed: BinClosed,
+) -> usize {
     let raw = (value - start) / width;
     let idx = match closed {
         BinClosed::Left => raw.floor(),

@@ -981,6 +981,138 @@ Chart(data: "samples.csv", width: 720, height: 500, title: "Hex bins") {
 
 ![hexbin](examples/hexbin.svg)
 
+## Regular raster field with explicit cells
+
+Regular numeric grids use explicit cell bounds when the centers should not infer
+the visible extent. `Rect` keeps the raster path primitive and deterministic.
+
+```algraf
+Chart(data: "surface_grid.csv", width: 720, height: 480, title: "Regular raster field") {
+    Theme(name: "minimal")
+    Scale(fill: z, gradient: ["#2b6cb0", "#f7fafc", "#c53030"])
+    Guide(axis: x, label: "Grid x")
+    Guide(axis: y, label: "Grid y")
+
+    Space(x * y) {
+        Rect(xmin: x0, xmax: x1, ymin: y0, ymax: y1,
+             fill: z, stroke: "#ffffff", strokeWidth: 0.2)
+    }
+}
+```
+
+![zfield_raster](examples/zfield_raster.svg)
+
+## Contour lines from a z field
+
+`ContourLines` reads x/y positions plus a numeric z column and returns ordinary
+path vertices with `level` and `contour_id` columns.
+
+```algraf
+Chart(data: "surface_grid.csv", width: 720, height: 480, title: "Contour lines from a z field") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Grid x")
+    Guide(axis: y, label: "Grid y")
+
+    Derive contours = ContourLines(x, y, z: z, levels: [4, 7, 10, 13])
+
+    Space(x * y, data: contours) {
+        Scale(stroke: level, gradient: ["#6b7280", "#111827"])
+        Path(group: contour_id, stroke: level, strokeWidth: 1.4)
+    }
+}
+```
+
+![contour_lines](examples/contour_lines.svg)
+
+## Filled contour bands
+
+`ContourBands` clips each regular-grid cell into filled level-band geometry. The
+derived table renders through `Geo`, preserving the same fill scale machinery.
+
+```algraf
+Chart(data: "surface_grid.csv", width: 720, height: 480, title: "Filled contour bands") {
+    Theme(name: "minimal")
+
+    Derive bands = ContourBands(x, y, z, levels: [2, 5, 8, 11, 14, 17])
+
+    Space(geom, data: bands) {
+        Scale(fill: level_mid, gradient: ["#2b6cb0", "#e6fffa", "#c53030"])
+        Geo(fill: level_mid, stroke: "#ffffff", strokeWidth: 0.1)
+    }
+}
+```
+
+![contour_bands](examples/contour_bands.svg)
+
+## 2D density contours
+
+`Density2DContours` estimates a bivariate Gaussian KDE on a bounded grid and
+then emits contour paths. The raw samples can stay in the primary table.
+
+```algraf
+Chart(data: "samples.csv", width: 760, height: 500, title: "2D density contours") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Height")
+    Guide(axis: y, label: "Mass")
+
+    Derive density = Density2DContours(x, y, grid: [48, 48], levels: 7)
+
+    Space(x * y) {
+        Point(fill: "#334155", alpha: 0.18, size: 1.6)
+    }
+
+    Space(x * y, data: density) {
+        Path(group: contour_id, stroke: "#475569", strokeWidth: 1.2)
+    }
+}
+```
+
+![density2d_contours](examples/density2d_contours.svg)
+
+## Rectangular z summaries
+
+`Summary2D` bins by x and y, then reduces a third column with a deterministic
+reducer such as `mean`, `sum`, `min`, `max`, `count`, or `median`.
+
+```algraf
+Chart(data: "sensor_z_samples.csv", width: 760, height: 500, title: "Mean signal by rectangular bin") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Sensor x")
+    Guide(axis: y, label: "Sensor y")
+
+    Derive grid = Summary2D(x, y, z: signal, bins: [6, 4], reducer: "mean")
+
+    Space(x_center * y_center, data: grid) {
+        Scale(fill: value, gradient: ["#f7fbff", "#2171b5", "#08306b"])
+        Rect(xmin: x_start, xmax: x_end,
+             ymin: y_start, ymax: y_end,
+             fill: value, stroke: "#ffffff", strokeWidth: 0.35)
+    }
+}
+```
+
+![summary2d_z](examples/summary2d_z.svg)
+
+## Hexagonal z summaries
+
+`SummaryHex` uses the same deterministic hex lattice as `HexBin`, but the fill
+comes from a reducer over the z column rather than from count alone.
+
+```algraf
+Chart(data: "sensor_z_samples.csv", width: 720, height: 500, title: "Mean signal by hex bin") {
+    Theme(name: "minimal")
+
+    Derive hexes = SummaryHex(x, y, z: signal, bins: 7, reducer: "mean")
+
+    Space(geom, data: hexes) {
+        Scale(fill: value, gradient: ["#f7fcf0", "#41ab5d", "#00441b"])
+        Geo(fill: value, stroke: "#ffffff", strokeWidth: 0.25)
+    }
+}
+```
+
+![summaryhex_z](examples/summaryhex_z.svg)
+
 ## Boxplot with a rug
 
 `Boxplot` summarizes a continuous distribution per categorical level,

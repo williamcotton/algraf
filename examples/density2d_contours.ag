@@ -1,0 +1,15 @@
+Chart(data: "samples.csv", width: 760, height: 500, title: "2D density contours") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Height")
+    Guide(axis: y, label: "Mass")
+
+    Derive density = Density2DContours(x, y, grid: [48, 48], levels: 7)
+
+    Space(x * y) {
+        Point(fill: "#334155", alpha: 0.18, size: 1.6)
+    }
+
+    Space(x * y, data: density) {
+        Path(group: contour_id, stroke: "#475569", strokeWidth: 1.2)
+    }
+}

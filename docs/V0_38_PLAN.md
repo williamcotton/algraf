@@ -1,6 +1,6 @@
 # Algraf v0.38.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_37_PLAN.md`](V0_37_PLAN.md)
@@ -91,8 +91,8 @@ Chart(data: "elevation_points.csv", width: 720, height: 520,
       title: "Elevation contours") {
     Table contours = "elevation_contours.csv"
 
-    Scale(stroke: level, gradient: ["#6b7280", "#111827"])
     Space(x * y, data: contours) {
+        Scale(stroke: level, gradient: ["#6b7280", "#111827"])
         Path(group: contour_id, stroke: level, strokeWidth: 1)
         Text(label: level_label, x: label_x, y: label_y,
              size: 9, fill: "#111827")
@@ -159,8 +159,8 @@ render rows.
 
 ## Feature Target Sketches
 
-These are non-runnable sketches. They show the new derived stats feeding
-primitive marks, plus the equivalence rule for optional sugar.
+These sketches show the new derived stats feeding primitive marks, plus the
+equivalence rule for any future source-level sugar.
 
 ### Contour stat feeding paths
 
@@ -198,24 +198,15 @@ This feature computes the bin table. The visual mark stays `Rect`.
 
 ### Optional contour sugar lowers exactly
 
-```text
-Chart(data: "elevation_grid.csv", width: 720, height: 520,
-      title: "Elevation contours") {
-    Space(x * y) {
-        Contour(z: elevation, levels: 12,
-                stroke: level, strokeWidth: 1)
-    }
-}
-```
-
-If this sugar is promoted, it must lower to `ContourLines(...)` plus `Path(...)`
-before rendering, with byte-for-byte output equivalence.
+If future source-level contour sugar is promoted, it must lower to
+`ContourLines(...)` plus `Path(...)` before rendering, with byte-for-byte output
+equivalence. v0.38.0 intentionally ships only the explicit derived-stat form.
 
 ## v0.38.0 Must
 
 ### 1. Add a z-channel validation model
 
-Status: Planned.
+Status: Implemented.
 
 - Introduce a consistent way for geometries/stats to require a third numeric
   column while x and y come from the inherited frame.
@@ -226,7 +217,7 @@ Status: Planned.
 
 ### 2. Add regular raster semantics
 
-Status: Planned.
+Status: Implemented.
 
 - Document the `Tile`/`Rect` recipe for regular grids, then define any
   raster-specific primitive only if deterministic cell extents or backend
@@ -236,9 +227,13 @@ Status: Planned.
 - Ensure raster cells participate in fill scales and legends exactly like `Tile`
   where possible.
 
+Decision: no interpolation keyword or raster-specific primitive is included in
+v0.38. Regular numeric grids use explicit `Rect` cell bounds; banded grids may
+continue to use `Tile`. Both paths train normal fill scales and legends.
+
 ### 3. Add contour and filled-contour generation
 
-Status: Planned.
+Status: Implemented.
 
 - Implement deterministic contour isolines over gridded x/y/z data.
 - Define contour level selection, explicit levels, and output columns before
@@ -249,9 +244,13 @@ Status: Planned.
 - Add any `Contour` or `ContourFilled` source-level sugar only as exact
   lowerings over the derived-table forms.
 
+Decision: source-level `Contour`/`ContourFilled` sugar remains deferred.
+`ContourLines` emits grouped path vertices; `ContourBands` emits geometry
+polygons that render through `Geo`.
+
 ### 4. Add 2D density contours
 
-Status: Planned.
+Status: Implemented.
 
 - Add a 2D KDE stat over continuous x/y data with deterministic bandwidth and
   grid defaults.
@@ -260,7 +259,7 @@ Status: Planned.
 
 ### 5. Add x/y/z summary stats
 
-Status: Planned.
+Status: Implemented.
 
 - Add 2D rectangular summary and hex summary stats that aggregate z by x/y bin.
 - Start with a small deterministic set of reducers: count, mean, min, max, sum,
@@ -269,7 +268,7 @@ Status: Planned.
 
 ### 6. Spec, examples, README, LSP, and backend hygiene
 
-Status: Planned.
+Status: Implemented.
 
 - Update stats, geometry, scale, render, diagnostic, LSP, and backend sections.
 - Add examples for raster, contour lines, filled contours, 2D density contours,
@@ -280,14 +279,18 @@ Status: Planned.
 
 ### Contour label spike
 
-Status: Planned.
+Status: Deferred past v0.38.0.
 
 - Evaluate whether contour labels belong in this release. If not, document a
   `Text` overlay path through derived contour metadata where possible.
 
+Decision: automatic contour-label placement is deferred. The derived contour
+tables expose `level` metadata; authors can overlay `Text` with authored or
+separately derived label positions.
+
 ### Shared grid helpers
 
-Status: Planned.
+Status: Implemented.
 
 - Factor common grid/bin boundary planning so `Bin2D`, `HexBin`, summaries, and
   raster/contour inputs do not drift.
