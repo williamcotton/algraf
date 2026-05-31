@@ -376,6 +376,21 @@ fn test_horizontal_bar_via_transpose() {
 }
 
 #[test]
+fn test_reversed_x_axis_keeps_tick_labels() {
+    let result = render_result(
+        "Chart(data: \"f.csv\") {
+            Scale(axis: x, reverse: true)
+            Space(transpose(rep * amount)) { Bar() }
+        }",
+        "rep,amount\nAlice,82\nBowman,64\nChen,57\nDiaz,41\nEvans,28\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains(">0</text>"));
+    assert!(result.svg.contains(">40</text>"));
+    assert!(result.svg.contains(">80</text>"));
+}
+
+#[test]
 fn test_horizontal_stacked_bar_domain_uses_totals() {
     let result = render_result(
         "Chart(data: \"f.csv\") { Space(transpose(quarter * amount)) { Bar(fill: type, layout: \"stack\") } }",

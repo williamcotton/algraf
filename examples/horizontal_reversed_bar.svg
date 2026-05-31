@@ -26,13 +26,21 @@
   <line x1="690" y1="390" x2="690" y2="395" stroke="#333333" stroke-width="1" />
   <text x="690" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
   <line x1="620.578" y1="390" x2="620.578" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="620.578" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
   <line x1="551.156" y1="390" x2="551.156" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="551.156" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
   <line x1="481.734" y1="390" x2="481.734" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="481.734" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
   <line x1="412.313" y1="390" x2="412.313" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="412.313" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
   <line x1="342.891" y1="390" x2="342.891" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="342.891" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
   <line x1="273.469" y1="390" x2="273.469" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="273.469" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
   <line x1="204.047" y1="390" x2="204.047" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="204.047" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">70</text>
   <line x1="134.625" y1="390" x2="134.625" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="134.625" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
   <text x="382.6" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sales</text>
   <line x1="75.2" y1="66" x2="75.2" y2="390" stroke="#333333" stroke-width="1" />
   <line x1="70.2" y1="357.6" x2="75.2" y2="357.6" stroke="#333333" stroke-width="1" />

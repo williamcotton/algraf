@@ -272,9 +272,12 @@ fn non_overlapping_x_tick_labels(ticks: &[(f64, String)], font_size: f64, angle:
         (ticks[index].0 - h, ticks[index].0 + h)
     };
 
+    let mut visual_order: Vec<usize> = (0..ticks.len()).collect();
+    visual_order.sort_by(|a, b| ticks[*a].0.total_cmp(&ticks[*b].0));
+
     let mut selected = Vec::new();
     let mut last_right = f64::NEG_INFINITY;
-    for index in 0..ticks.len() {
+    for index in visual_order.iter().copied() {
         let (left, right) = bounds(index);
         if selected.is_empty() || left >= last_right + LABEL_GAP {
             selected.push(index);
@@ -282,7 +285,7 @@ fn non_overlapping_x_tick_labels(ticks: &[(f64, String)], font_size: f64, angle:
         }
     }
 
-    let last_index = ticks.len() - 1;
+    let last_index = visual_order.last().copied().expect("non-empty tick order");
     if selected.last().copied() != Some(last_index) {
         let (last_left, _) = bounds(last_index);
         while selected.len() > 1 {
