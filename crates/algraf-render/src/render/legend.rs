@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use algraf_data::{ColumnDef, DataFrame, DataValueRef, Table};
+use algraf_data::{DataFrame, Table};
 use algraf_semantics::{
     ChartIr, FrameIr, GeometryIr, GeometryKind, GradientIr, InsetIr, InsetScalePolicyIr,
     PropertyKey, ScaleIr, ScaleTargetIr, SettingValue, SpaceIr, SpaceLayerIr,
@@ -15,7 +15,8 @@ use crate::theme::Theme;
 
 use super::common::merged_scales;
 use super::derived::active_table;
-use super::inset::{matched_child_rows, render_rows, union_rows, RowContext};
+use super::inset_plan::{render_rows, union_rows, InsetMatchIndex, RowContext};
+use super::row_table::RowSubsetTable;
 
 /// Collect deduplicated fill/stroke/size legends across all spaces (spec §19.5).
 pub(super) fn collect_legends(
@@ -63,7 +64,7 @@ fn collect_space_legend_candidates(
     let scales = merged_scales(&ir.scales, &space.scales);
     let rows_table;
     let legend_table: &dyn Table = if let Some(rows) = rows {
-        rows_table = LegendRowsTable::new(table, rows);
+        rows_table = RowSubsetTable::new(table, rows);
         &rows_table
     } else {
         table
@@ -178,9 +179,10 @@ fn collect_inset_legend_candidates(
     }
     let parent_row_list = render_rows(parent_table, parent_rows);
     let child_table = active_table(&inset.data, primary, derived);
+    let index = InsetMatchIndex::build(inset, child_table);
     let matches = parent_row_list
         .iter()
-        .map(|&row| matched_child_rows(inset, child_table, parent_table, row, ancestors))
+        .map(|&row| index.matched_rows(inset, child_table, parent_table, row, ancestors))
         .collect::<Vec<_>>();
     let shared_rows = union_rows(&matches);
     if shared_rows.is_empty() {
@@ -219,36 +221,6 @@ fn push_candidate(
         .any(|(a, l)| *a == aesthetic && l.title == legend.title)
     {
         candidates.push((aesthetic, legend));
-    }
-}
-
-struct LegendRowsTable<'a> {
-    table: &'a dyn Table,
-    rows: &'a [usize],
-}
-
-impl<'a> LegendRowsTable<'a> {
-    fn new(table: &'a dyn Table, rows: &'a [usize]) -> Self {
-        LegendRowsTable { table, rows }
-    }
-}
-
-impl Table for LegendRowsTable<'_> {
-    fn schema(&self) -> &[ColumnDef] {
-        self.table.schema()
-    }
-
-    fn row_count(&self) -> usize {
-        self.rows.len()
-    }
-
-    fn value(&self, column: &str, row: usize) -> Option<DataValueRef<'_>> {
-        let source_row = *self.rows.get(row)?;
-        self.table.value(column, source_row)
-    }
-
-    fn column(&self, _column: &str) -> Option<algraf_data::ColumnView<'_>> {
-        None
     }
 }
 

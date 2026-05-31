@@ -9,11 +9,9 @@ use std::fmt::Write as _;
 
 use algraf_data::Table;
 use algraf_semantics::{
-    CoordsIr, GeometryIr, GeometryKind, GuideIr, InsetClipIr, InsetIr, InsetScalePolicyIr,
-    LegendPositionIr, SpaceIr, SpaceLayerIr, TemporalFormatIr,
+    GeometryIr, GeometryKind, GuideIr, InsetClipIr, LegendPositionIr, TemporalFormatIr,
 };
 
-use crate::domains::train_space_domains;
 use crate::layout::Rect;
 use crate::scale::{cell_category, BandScale, ContinuousTransform, NestedBandScale};
 use crate::sink::json_string;
@@ -21,13 +19,7 @@ use crate::space::{AxisScale, ScaledSpace};
 use crate::svg::num;
 
 use super::backend::RenderScene;
-use super::common::{merged_scales, resolve_space_theme};
-use super::derived::active_table;
-use super::inset::{
-    inset_anchor, inset_plot, inset_size, mapped_size_domain, matched_child_rows, union_rows,
-    RowContext, RowsTable, MAX_INSET_DEPTH,
-};
-use super::panels::{panel_slots, Panel};
+use super::panels::{panel_slots, Panel, PlannedInset, PlannedLayer};
 
 /// Versioned interaction metadata emitted as a JSON sidecar and carried by the
 /// draw-list backend (spec §24.6).
@@ -203,16 +195,13 @@ pub(super) fn build_interaction_metadata(scene: &RenderScene<'_>) -> Interaction
             &mut marks,
             &mut groups,
             &mut plots,
-            scene,
-            panel.layers,
+            &panel.layers,
             panel.table,
             &panel.scaled,
             panel.rows.as_deref(),
             panel.clip_marks.then_some(panel.plot),
             &plot_id,
             &format!("p{panel_index}"),
-            &[],
-            0,
         );
     }
     let axes = plots
@@ -258,22 +247,19 @@ fn collect_layer_metadata(
     marks: &mut Vec<InteractionMark>,
     groups: &mut Vec<InteractionGroup>,
     plots: &mut Vec<InteractionPlot>,
-    scene: &RenderScene<'_>,
-    layers: &[SpaceLayerIr],
+    layers: &[PlannedLayer<'_>],
     table: &dyn Table,
     scaled: &ScaledSpace,
     rows: Option<&[usize]>,
     clip_rect: Option<Rect>,
     plot_id: &str,
     mark_prefix: &str,
-    ancestors: &[RowContext<'_>],
-    depth: usize,
 ) {
     let mut geometry_index = 0;
     let mut inset_index = 0;
     for layer in layers {
         match layer {
-            SpaceLayerIr::Geometry(geo) => {
+            PlannedLayer::Geometry(geo) => {
                 if supports_mark_metadata(geo.kind) {
                     collect_geometry_marks(
                         marks,
@@ -290,21 +276,8 @@ fn collect_layer_metadata(
                 }
                 geometry_index += 1;
             }
-            SpaceLayerIr::Inset(inset) => {
-                collect_inset_metadata(
-                    marks,
-                    groups,
-                    plots,
-                    scene,
-                    inset,
-                    table,
-                    scaled,
-                    rows,
-                    mark_prefix,
-                    inset_index,
-                    ancestors,
-                    depth,
-                );
+            PlannedLayer::Inset(inset) => {
+                collect_inset_metadata(marks, groups, plots, inset, mark_prefix, inset_index);
                 inset_index += 1;
             }
         }
@@ -365,177 +338,41 @@ fn collect_geometry_marks(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn collect_inset_metadata(
     marks: &mut Vec<InteractionMark>,
     groups: &mut Vec<InteractionGroup>,
     plots: &mut Vec<InteractionPlot>,
-    scene: &RenderScene<'_>,
-    inset: &InsetIr,
-    parent_table: &dyn Table,
-    parent_scaled: &ScaledSpace,
-    parent_rows: Option<&[usize]>,
+    inset: &PlannedInset<'_>,
     mark_prefix: &str,
     inset_index: usize,
-    ancestors: &[RowContext<'_>],
-    depth: usize,
 ) {
-    if depth >= MAX_INSET_DEPTH {
-        return;
-    }
-    let parent_row_list = render_rows(parent_table, parent_rows);
-    let child_table = active_table(&inset.data, scene.primary, scene.derived);
-    let matches = parent_row_list
-        .iter()
-        .map(|&row| matched_child_rows(inset, child_table, parent_table, row, ancestors))
-        .collect::<Vec<_>>();
-    let shared_rows = union_rows(&matches);
-    let size_domain = mapped_size_domain(inset, parent_table, &parent_row_list);
-
-    for (instance_index, parent_row) in parent_row_list.iter().copied().enumerate() {
-        let child_rows = &matches[instance_index];
-        if child_rows.is_empty() {
-            continue;
-        }
-        let Some((x, y)) =
-            inset_anchor(inset, parent_scaled, parent_table, parent_row, parent_rows)
-        else {
-            continue;
-        };
-        let (width, height) = inset_size(inset, parent_table, parent_row, size_domain);
-        if width <= 0.0 || height <= 0.0 {
-            continue;
-        }
-        let viewport = Rect {
-            x: x + inset.dx - width / 2.0,
-            y: y + inset.dy - height / 2.0,
-            width,
-            height,
-        };
-        let plot = inset_plot(viewport, inset.padding);
-        let clip_rect = (!matches!(inset.clip, InsetClipIr::None)).then_some(viewport);
-        let mut contexts = Vec::with_capacity(ancestors.len() + 1);
-        contexts.push(RowContext {
-            table: parent_table,
-            row: parent_row,
-        });
-        contexts.extend_from_slice(ancestors);
-
-        for (space_index, child_space) in inset.child_spaces.iter().enumerate() {
-            let Some(plan) = plan_metadata_child_space(
-                scene,
-                inset,
-                child_space,
-                child_table,
-                child_rows,
-                &shared_rows,
-                plot,
-            ) else {
-                continue;
-            };
-            let child_plot_id =
-                format!("{mark_prefix}:i{inset_index}[{parent_row}]:s{space_index}");
+    for instance in &inset.instances {
+        let clip_rect = (!matches!(inset.clip, InsetClipIr::None)).then_some(instance.viewport);
+        for (space_index, child_panel) in instance.child_panels.iter().enumerate() {
+            let child_plot_id = format!(
+                "{mark_prefix}:i{inset_index}[{}]:s{space_index}",
+                instance.parent_row
+            );
             plots.push(InteractionPlot {
                 id: child_plot_id.clone(),
-                plot_rect: plot,
+                plot_rect: child_panel.plot,
                 clip_rect,
-                axes: scaled_axes(&plan.scaled, &plan.guides),
+                axes: panel_axes(child_panel),
             });
             collect_layer_metadata(
                 marks,
                 groups,
                 plots,
-                scene,
-                &child_space.layers,
-                plan.table,
-                &plan.scaled,
-                Some(&plan.rows),
+                &child_panel.layers,
+                child_panel.table,
+                &child_panel.scaled,
+                child_panel.rows.as_deref(),
                 clip_rect,
                 &child_plot_id,
                 &child_plot_id,
-                &contexts,
-                depth + 1,
             );
         }
     }
-}
-
-struct MetadataChildSpace<'a> {
-    table: &'a dyn Table,
-    rows: Vec<usize>,
-    scaled: ScaledSpace,
-    guides: GuideIr,
-}
-
-fn plan_metadata_child_space<'a>(
-    scene: &'a RenderScene<'a>,
-    inset: &InsetIr,
-    space: &SpaceIr,
-    inset_table: &'a dyn Table,
-    child_rows: &[usize],
-    shared_rows: &[usize],
-    plot: Rect,
-) -> Option<MetadataChildSpace<'a>> {
-    let table = active_table(&space.data, scene.primary, scene.derived);
-    let rows = if space.data == inset.data {
-        child_rows.to_vec()
-    } else {
-        render_rows(table, None)
-    };
-    let training_rows = match inset.scale_policy {
-        InsetScalePolicyIr::Shared if space.data == inset.data => shared_rows,
-        _ => &rows,
-    };
-    let training_table_ref = if space.data == inset.data {
-        inset_table
-    } else {
-        table
-    };
-    let training = RowsTable::new(training_table_ref, training_rows);
-    let panel_theme =
-        resolve_space_theme(scene.theme, space.theme.as_ref(), scene.cli_theme_override);
-    let space_guides = scene.ir.guides.with_overrides(&space.guides);
-    let space_scales = merged_scales(&scene.ir.scales, &space.scales);
-    let hints = train_space_domains(&space.frame, &training, &space.geometries);
-    let scaled = match space.coords {
-        CoordsIr::Polar {
-            theta,
-            inner_radius,
-            start_angle,
-            direction,
-        } => ScaledSpace::build_polar(
-            &space.frame,
-            &training,
-            plot,
-            &hints,
-            &space_scales,
-            theta,
-            inner_radius,
-            start_angle,
-            direction,
-            panel_theme.font_size,
-        ),
-        CoordsIr::Cartesian => ScaledSpace::build(
-            &space.frame,
-            &training,
-            (plot.x, plot.right()),
-            (plot.bottom(), plot.y),
-            &hints,
-            &space_scales,
-            space.view,
-        ),
-    }?;
-    let table = if space.data == inset.data {
-        inset_table
-    } else {
-        table
-    };
-    Some(MetadataChildSpace {
-        table,
-        rows,
-        scaled,
-        guides: space_guides,
-    })
 }
 
 fn rect_contains(rect: Rect, x: f64, y: f64) -> bool {

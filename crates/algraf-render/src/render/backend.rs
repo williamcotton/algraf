@@ -21,9 +21,7 @@
 //! backends is closed and compiled in (spec §24.6).
 
 use algraf_core::Diagnostic;
-use algraf_data::{DataFrame, Table};
 use algraf_semantics::ChartIr;
-use std::collections::HashMap;
 
 use crate::aes::Legend;
 use crate::layout::Layout;
@@ -39,13 +37,10 @@ use super::panels::Panel;
 /// planning half so emission allocates only its own output buffer.
 pub(super) struct RenderScene<'a> {
     pub(super) ir: &'a ChartIr,
-    pub(super) primary: &'a dyn Table,
-    pub(super) derived: &'a HashMap<String, DataFrame>,
     pub(super) layout: &'a Layout,
     pub(super) legends: &'a [Legend],
     pub(super) panels: &'a [Panel<'a>],
     pub(super) theme: &'a Theme,
-    pub(super) cli_theme_override: Option<&'a str>,
     pub(super) limits: &'a RenderLimits,
 }
 

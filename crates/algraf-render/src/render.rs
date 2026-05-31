@@ -23,10 +23,12 @@ mod derived;
 mod document;
 mod draw_list;
 mod inset;
+mod inset_plan;
 mod legend;
 mod metadata;
 mod panels;
 mod raster;
+mod row_table;
 mod spatial;
 
 use std::collections::HashMap;
@@ -380,17 +382,15 @@ fn render_with_backend<B: RenderBackend>(
         &derived,
         theme,
         cli_theme_override,
+        &limits,
         &mut diagnostics,
     );
     let scene = RenderScene {
         ir,
-        primary,
-        derived: &derived,
         layout: &plan.layout,
         legends: &plan.legends,
         panels: &plan.panels,
         theme,
-        cli_theme_override,
         limits: &limits,
     };
     let metadata = metadata::build_interaction_metadata(&scene);
