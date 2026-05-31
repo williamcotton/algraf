@@ -9498,9 +9498,9 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.36.0 | [`V0_36_PLAN.md`](V0_36_PLAN.md) | ggplot2 comparability: primitive construction and stroke styling | Implemented |
 | 0.37.0 | [`V0_37_PLAN.md`](V0_37_PLAN.md) | ggplot2 comparability: uncertainty construction and exact sugar lowerings | Implemented |
 | 0.38.0 | [`V0_38_PLAN.md`](V0_38_PLAN.md) | ggplot2 comparability: z-field statistics | Implemented |
-| 0.39.0 | [`V0_39_PLAN.md`](V0_39_PLAN.md) | ggplot2 comparability: model and summary stats | Planned |
+| 0.39.0 | [`V0_39_PLAN.md`](V0_39_PLAN.md) | ggplot2 comparability: model and summary stats | Superseded; scope merged into 0.40.0 |
 | 0.39.5 | [`V0_39_5_PLAN.md`](V0_39_5_PLAN.md) | Rust editor-service hover overhaul | Implemented |
-| 0.40.0 | [`V0_40_PLAN.md`](V0_40_PLAN.md) | ggplot2 comparability: scale and guide control | Planned |
+| 0.40.0 | [`V0_40_PLAN.md`](V0_40_PLAN.md) | ggplot2 comparability: derived stats plus scale and guide control | Planned |
 | 0.41.0 | [`V0_41_PLAN.md`](V0_41_PLAN.md) | ggplot2 comparability: layout and position control | Planned |
 | 0.42.0 | [`V0_42_PLAN.md`](V0_42_PLAN.md) | ggplot2 comparability: presentation parity and closure | Planned |
 
