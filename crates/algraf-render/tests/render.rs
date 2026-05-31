@@ -2,7 +2,8 @@
 
 use algraf_data::{read_csv_str, Table};
 use algraf_render::{
-    render, render_embedded, EmbeddedOutputFormat, EmbeddedRenderOptions, RenderResult, Theme,
+    render, render_embedded, render_with_tables_and_limits, EmbeddedOutputFormat,
+    EmbeddedRenderOptions, RenderLimits, RenderResult, Theme,
 };
 use algraf_semantics::analyze;
 use algraf_syntax::parse;
@@ -18,6 +19,29 @@ fn render_result(source: &str, csv: &str) -> RenderResult {
     let analysis = analyze(&parsed.syntax(), frame.schema());
     let ir = analysis.ir.expect("ir");
     render(&ir, &frame, &Theme::minimal(), None).expect("render")
+}
+
+#[test]
+fn render_mark_budget_rejects_pathological_raw_points() {
+    let frame = read_csv_str("x,y\n1,1\n2,2\n3,3\n").expect("csv").frame;
+    let parsed = parse("Chart(data: \"p.csv\") { Space(x * y) { Point() } }");
+    let analysis = analyze(&parsed.syntax(), frame.schema());
+    let ir = analysis.ir.expect("ir");
+
+    let result = render_with_tables_and_limits(
+        &ir,
+        &frame,
+        &std::collections::HashMap::new(),
+        &Theme::minimal(),
+        None,
+        RenderLimits {
+            mark_budget: Some(2),
+        },
+    )
+    .expect("render");
+
+    assert!(result.diagnostics.iter().any(|d| d.code == "E2001"));
+    assert_eq!(result.svg.matches("<circle").count(), 0);
 }
 
 fn svg_num(value: f64) -> String {

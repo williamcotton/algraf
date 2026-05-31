@@ -3,6 +3,7 @@ use algraf_semantics::ChartIr;
 
 use crate::guide;
 use crate::layout::Layout;
+use crate::render::RenderLimits;
 use crate::sink::{MarkSink, SvgSink};
 use crate::svg::{escape_attr, escape_text, num, SvgAttr, SvgWriter};
 use crate::theme::Theme;
@@ -454,6 +455,7 @@ pub(super) fn emit_document(
         legends,
         panels,
         theme,
+        limits,
     } = *scene;
     let width = ir.width as f64;
     let height = ir.height as f64;
@@ -526,7 +528,7 @@ pub(super) fn emit_document(
             }
         }
         paint_grid(&mut sink, &slots);
-        paint_geometries(&mut sink, panels, diagnostics);
+        paint_geometries(&mut sink, panels, limits, diagnostics);
         paint_axes_and_legends(&mut sink, &slots, legends, layout, theme);
     }
 
@@ -561,6 +563,7 @@ pub(super) fn paint_grid(sink: &mut dyn MarkSink, slots: &[PanelSlot<'_>]) {
 pub(super) fn paint_geometries(
     sink: &mut dyn MarkSink,
     panels: &[Panel<'_>],
+    limits: &RenderLimits,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     for panel in panels {
@@ -578,6 +581,7 @@ pub(super) fn paint_geometries(
                     plot: panel.plot,
                     theme: &panel.theme,
                     scales: &panel.scales,
+                    limits,
                 },
                 diagnostics,
             );

@@ -258,15 +258,15 @@ pub fn summary2d(
     deterministic_frame(
         summary2d_schema(),
         vec![
-            Column::Float(xs0),
-            Column::Float(xs1),
-            Column::Float(xcs),
-            Column::Float(ys0),
-            Column::Float(ys1),
-            Column::Float(ycs),
-            Column::Int(counts),
-            Column::Float(densities),
-            Column::Float(values),
+            Column::from_float_options(xs0),
+            Column::from_float_options(xs1),
+            Column::from_float_options(xcs),
+            Column::from_float_options(ys0),
+            Column::from_float_options(ys1),
+            Column::from_float_options(ycs),
+            Column::from_int_options(counts),
+            Column::from_float_options(densities),
+            Column::from_float_options(values),
         ],
     )
 }
@@ -343,13 +343,13 @@ pub fn summaryhex(
         summaryhex_schema(),
         vec![
             Column::Geometry(geoms),
-            Column::Float(xs),
-            Column::Float(ys),
-            Column::Float(radii),
-            Column::Float(y_radii),
-            Column::Int(counts),
-            Column::Float(densities),
-            Column::Float(values),
+            Column::from_float_options(xs),
+            Column::from_float_options(ys),
+            Column::from_float_options(radii),
+            Column::from_float_options(y_radii),
+            Column::from_int_options(counts),
+            Column::from_float_options(densities),
+            Column::from_float_options(values),
         ],
     )
 }
@@ -409,11 +409,11 @@ fn contour_lines_from_grid(grid: &Grid, options: ContourOptions) -> DataFrame {
     deterministic_frame(
         schema,
         vec![
-            Column::Float(xs),
-            Column::Float(ys),
-            Column::Float(level_values),
-            Column::Int(level_indices),
-            Column::Int(contour_ids),
+            Column::from_float_options(xs),
+            Column::from_float_options(ys),
+            Column::from_float_options(level_values),
+            Column::from_int_options(level_indices),
+            Column::from_int_options(contour_ids),
         ],
     )
 }
@@ -475,10 +475,10 @@ fn contour_bands_from_grid(grid: &Grid, options: ContourOptions) -> DataFrame {
         schema,
         vec![
             Column::Geometry(geoms),
-            Column::Float(lows),
-            Column::Float(highs),
-            Column::Float(mids),
-            Column::Int(band_indices),
+            Column::from_float_options(lows),
+            Column::from_float_options(highs),
+            Column::from_float_options(mids),
+            Column::from_int_options(band_indices),
         ],
     )
 }
@@ -601,7 +601,11 @@ fn density_grid_frame(grid: &Grid) -> DataFrame {
     }
     deterministic_frame(
         density2d_schema(),
-        vec![Column::Float(xs), Column::Float(ys), Column::Float(ds)],
+        vec![
+            Column::from_float_options(xs),
+            Column::from_float_options(ys),
+            Column::from_float_options(ds),
+        ],
     )
 }
 
@@ -913,21 +917,21 @@ fn density2d_schema() -> Vec<algraf_data::ColumnDef> {
 
 fn empty_contour_line_columns() -> Vec<Column> {
     vec![
-        Column::Float(Vec::new()),
-        Column::Float(Vec::new()),
-        Column::Float(Vec::new()),
-        Column::Int(Vec::new()),
-        Column::Int(Vec::new()),
+        Column::from_float_options(Vec::new()),
+        Column::from_float_options(Vec::new()),
+        Column::from_float_options(Vec::new()),
+        Column::from_int_options(Vec::new()),
+        Column::from_int_options(Vec::new()),
     ]
 }
 
 fn empty_contour_band_columns() -> Vec<Column> {
     vec![
         Column::Geometry(Vec::new()),
-        Column::Float(Vec::new()),
-        Column::Float(Vec::new()),
-        Column::Float(Vec::new()),
-        Column::Int(Vec::new()),
+        Column::from_float_options(Vec::new()),
+        Column::from_float_options(Vec::new()),
+        Column::from_float_options(Vec::new()),
+        Column::from_int_options(Vec::new()),
     ]
 }
 
@@ -943,9 +947,9 @@ mod tests {
                 col_def("z", DataType::Float),
             ],
             vec![
-                Column::Float(rows.iter().map(|r| Some(r.0)).collect()),
-                Column::Float(rows.iter().map(|r| Some(r.1)).collect()),
-                Column::Float(rows.iter().map(|r| Some(r.2)).collect()),
+                Column::from_float_options(rows.iter().map(|r| Some(r.0)).collect()),
+                Column::from_float_options(rows.iter().map(|r| Some(r.1)).collect()),
+                Column::from_float_options(rows.iter().map(|r| Some(r.2)).collect()),
             ],
         )
     }

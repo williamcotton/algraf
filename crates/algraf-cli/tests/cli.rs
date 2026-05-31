@@ -3,9 +3,13 @@ use std::io::Cursor;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use algraf_render::{render_embedded, EmbeddedRenderOptions};
+use arrow_array::{ArrayRef, Float64Array, RecordBatch, StringArray};
+use arrow_schema::{DataType as ArrowDataType, Field, Schema};
+use parquet::arrow::ArrowWriter;
 
 fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_algraf")
@@ -34,6 +38,40 @@ fn write_fixture(dir: &Path) -> (PathBuf, PathBuf) {
     (chart, data)
 }
 
+fn write_parquet_fixture(dir: &Path) -> (PathBuf, PathBuf) {
+    let data = dir.join("points.parquet");
+    let chart = dir.join("parquet.ag");
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("x", ArrowDataType::Float64, false),
+        Field::new("y", ArrowDataType::Float64, false),
+        Field::new("group", ArrowDataType::Utf8, true),
+    ]));
+    let batch = RecordBatch::try_new(
+        schema.clone(),
+        vec![
+            Arc::new(Float64Array::from(vec![1.0, 2.0, 3.0, 4.0])) as ArrayRef,
+            Arc::new(Float64Array::from(vec![3.0, 5.0, 4.0, 7.0])) as ArrayRef,
+            Arc::new(StringArray::from(vec![
+                Some("a"),
+                Some("b"),
+                Some("a"),
+                Some("b"),
+            ])) as ArrayRef,
+        ],
+    )
+    .unwrap();
+    let file = fs::File::create(&data).unwrap();
+    let mut writer = ArrowWriter::try_new(file, schema, None).unwrap();
+    writer.write(&batch).unwrap();
+    writer.close().unwrap();
+    fs::write(
+        &chart,
+        "Chart(data: Parquet(\"points.parquet\")) {\n  Space(x * y) {\n    Point(fill: group)\n  }\n}\n",
+    )
+    .unwrap();
+    (chart, data)
+}
+
 fn data_fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../algraf-data/tests/fixtures")
@@ -53,6 +91,31 @@ fn render_writes_svg_to_stdout() {
 
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     assert!(stdout(&output).contains("<svg"));
+}
+
+#[test]
+fn schema_and_render_accept_native_parquet_sources() {
+    let dir = temp_dir("parquet-source");
+    let (chart, _) = write_parquet_fixture(&dir);
+
+    let schema = Command::new(bin())
+        .arg("schema")
+        .arg(&chart)
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert!(schema.status.success(), "stderr: {}", stderr(&schema));
+    let schema_json = stdout(&schema);
+    assert!(schema_json.contains("\"name\": \"x\""));
+    assert!(schema_json.contains("\"type\": \"float\""));
+
+    let rendered = Command::new(bin())
+        .arg("render")
+        .arg(&chart)
+        .output()
+        .unwrap();
+    assert!(rendered.status.success(), "stderr: {}", stderr(&rendered));
+    assert!(stdout(&rendered).contains("<svg"));
 }
 
 #[test]

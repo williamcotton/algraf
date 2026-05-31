@@ -11,6 +11,8 @@ pub mod frame;
 pub mod geojson;
 pub mod infer;
 pub mod json;
+#[cfg(feature = "parquet")]
+pub mod parquet;
 pub mod schema;
 pub mod shapefile;
 #[cfg(feature = "sql")]
@@ -44,9 +46,16 @@ pub use format::{
     read_schema_format, read_schema_format_with_temporal_policy, read_schema_path,
     read_schema_path_as, Format,
 };
-pub use frame::{Column, DataFrame, RowView, Table};
+pub use frame::{
+    Column, ColumnView, DataFrame, NullBitmap, NullableColumn, RowView, Table, TableScan,
+};
 pub use geojson::{read_geojson, read_geojson_str, GEOMETRY_COLUMN};
 pub use json::{read_json, read_json_str, read_ndjson, read_ndjson_str};
+#[cfg(feature = "parquet")]
+pub use parquet::{
+    read_parquet_bytes, read_parquet_bytes_projected, read_parquet_path,
+    read_parquet_path_projected, read_parquet_schema_bytes, read_parquet_schema_path,
+};
 pub use schema::{ColumnDef, DataType};
 pub use shapefile::{read_shapefile_bundle, read_shapefile_path, ShapefileBundle};
 pub use sqlite::{read_sqlite_path, read_sqlite_schema_path};
@@ -56,4 +65,4 @@ pub use temporal::{
     TemporalTimezone,
 };
 pub use topojson::{read_topojson, read_topojson_str};
-pub use value::{DataValue, DataValueRef, DateTimeValue, TemporalPrecision};
+pub use value::{format_f64_category, DataValue, DataValueRef, DateTimeValue, TemporalPrecision};

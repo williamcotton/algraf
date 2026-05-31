@@ -1,4 +1,4 @@
-use algraf_data::{Column, DataFrame, DataType, Table};
+use algraf_data::{Column, ColumnView, DataFrame, DataType, Table};
 
 use crate::scale::cell_f64;
 
@@ -36,8 +36,9 @@ impl Default for DensityOptions {
 /// bandwidth `0.9 * min(stddev, IQR/1.349) * n^(-1/5)`, a 256-point grid, and a
 /// 3-bandwidth extension past the data range.
 pub fn density(table: &dyn Table, input_column: &str, options: DensityOptions) -> DataFrame {
+    let value_view = table.column(input_column);
     let mut values: Vec<f64> = (0..table.row_count())
-        .filter_map(|row| cell_f64(table, input_column, row))
+        .filter_map(|row| f64_cell(value_view, table, input_column, row))
         .filter(|v| v.is_finite())
         .collect();
 
@@ -47,14 +48,20 @@ pub fn density(table: &dyn Table, input_column: &str, options: DensityOptions) -
     ];
     let points = density_values(&mut values, options);
     if points.is_empty() {
-        return deterministic_frame(schema, vec![Column::Float(vec![]), Column::Float(vec![])]);
+        return deterministic_frame(
+            schema,
+            vec![
+                Column::from_float_options(vec![]),
+                Column::from_float_options(vec![]),
+            ],
+        );
     }
 
     deterministic_frame(
         schema,
         vec![
-            Column::Float(points.iter().map(|point| Some(point.x)).collect()),
-            Column::Float(points.iter().map(|point| Some(point.density)).collect()),
+            Column::from_float_options(points.iter().map(|point| Some(point.x)).collect()),
+            Column::from_float_options(points.iter().map(|point| Some(point.density)).collect()),
         ],
     )
 }
@@ -78,8 +85,9 @@ pub fn density_blended(
     let mut series = Vec::new();
 
     for column in value_columns {
+        let value_view = table.column(column);
         let mut values: Vec<f64> = (0..table.row_count())
-            .filter_map(|row| cell_f64(table, column, row))
+            .filter_map(|row| f64_cell(value_view, table, column, row))
             .filter(|v| v.is_finite())
             .collect();
         let points = density_values(&mut values, options);
@@ -94,8 +102,8 @@ pub fn density_blended(
         return deterministic_frame(
             schema,
             vec![
-                Column::Float(vec![]),
-                Column::Float(vec![]),
+                Column::from_float_options(vec![]),
+                Column::from_float_options(vec![]),
                 Column::String(vec![]),
             ],
         );
@@ -103,8 +111,24 @@ pub fn density_blended(
 
     deterministic_frame(
         schema,
-        vec![Column::Float(xs), Column::Float(ds), Column::String(series)],
+        vec![
+            Column::from_float_options(xs),
+            Column::from_float_options(ds),
+            Column::String(series),
+        ],
     )
+}
+
+fn f64_cell(
+    view: Option<ColumnView<'_>>,
+    table: &dyn Table,
+    column: &str,
+    row: usize,
+) -> Option<f64> {
+    match view {
+        Some(view) => view.f64_at(row),
+        None => cell_f64(table, column, row),
+    }
 }
 
 pub fn density_values(values: &mut [f64], options: DensityOptions) -> Vec<DensityPoint> {
@@ -189,7 +213,9 @@ mod density_tests {
     fn frame_of(values: &[f64]) -> DataFrame {
         DataFrame::new(
             vec![col_def("v", DataType::Float)],
-            vec![Column::Float(values.iter().map(|v| Some(*v)).collect())],
+            vec![Column::from_float_options(
+                values.iter().map(|v| Some(*v)).collect(),
+            )],
         )
     }
 

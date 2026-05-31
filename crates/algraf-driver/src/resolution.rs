@@ -308,6 +308,7 @@ pub fn source_format_to_data(format: SourceFormat) -> Format {
     match format {
         SourceFormat::GeoJson => Format::GeoJson,
         SourceFormat::Shapefile => Format::Shapefile,
+        SourceFormat::Parquet => Format::Parquet,
     }
 }
 

@@ -14,7 +14,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.42.0"
+version = "0.43.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/williamcotton/algraf"
@@ -58,3 +58,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "syn
 dashmap = "6"
 insta = "1"
 pretty_assertions = "1"
+parquet = "53"
+arrow-array = "53"
+arrow-schema = "53"
+bytes = "1"

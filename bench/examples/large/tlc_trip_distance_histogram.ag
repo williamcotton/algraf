@@ -1,0 +1,15 @@
+Chart(data: Parquet("../../../benchdata/prepared/tlc/yellow_tripdata_2024-01_chart.parquet"),
+      width: 820, height: 460,
+      title: "NYC TLC trip distance distribution") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Trip distance")
+    Guide(axis: y, label: "Trips")
+
+    Derive bins = Bin(trip_distance, binWidth: 0.5, boundary: 0)
+
+    Space(bin_start * count, data: bins) {
+        Rect(xmin: bin_start, xmax: bin_end,
+             ymin: 0, ymax: count,
+             fill: "#4C78A8", stroke: "#ffffff", strokeWidth: 0.35)
+    }
+}

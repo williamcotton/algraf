@@ -2306,6 +2306,13 @@ fn test_shapefile_source_constructor_is_accepted() {
 }
 
 #[test]
+fn test_parquet_source_constructor_is_accepted() {
+    clean(
+        "Chart(data: Parquet(\"events.parquet\")) {\n  Space(flipper_length * body_mass) { Point(fill: species) }\n}",
+    );
+}
+
+#[test]
 fn test_named_table_geojson_source_is_accepted() {
     clean(
         "Chart(data: \"p.csv\") {\n  Table counties = GeoJson(\"us.geojson\")\n  \

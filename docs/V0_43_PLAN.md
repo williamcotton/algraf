@@ -1,9 +1,10 @@
 # Algraf v0.43.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_42_PLAN.md`](V0_42_PLAN.md)
+Follow-on plan: [`V0_44_PLAN.md`](V0_44_PLAN.md)
 Roadmap theme: Big-data readiness and backend-friendly data execution.
 
 ## Purpose
@@ -25,9 +26,13 @@ static SVG can sensibly contain millions of raw marks.
 
 v0.43.0 is the **data-plane scale** release. It should make Algraf capable of
 bounded schema inspection, streaming ingest, memory-efficient typed storage,
-column-oriented scale/stat execution, and at least one concrete large columnar
-file path for testing, with Parquet as the preferred target. It must preserve
-deterministic SVG output and keep heavy data engines optional.
+column-oriented scale/stat execution, and native CLI Parquet workflows for
+checking, schema inspection, aggregate rendering, and large demos. Parquet is a
+release requirement for the native CLI path, not a speculative evaluation,
+though the exact Arrow/Polars adapter details may remain optional or
+feature-gated. It must preserve deterministic SVG output and keep heavy data
+engines optional for parser, semantics, LSP basics, WASM, and non-Parquet
+rendering.
 
 The goal is not to turn Algraf into a dataframe language. The goal is to remove
 the architectural decisions that would make a future Arrow or Polars backend
@@ -39,8 +44,11 @@ useful only as a slow scalar adapter.
   planning decoupled from concrete dataframe internals.
 - Keep Polars optional. A future Polars backend may be supported, but core
   parser, LSP, CLI, and SVG rendering must not require it.
-- Treat Parquet support as native/CLI-first and feature-gated if needed. Browser
-  and WASM support may follow after the native path proves useful.
+- Treat Parquet support as required for native CLI. The implementation may hide
+  heavy crates behind a `parquet` or backend feature, but the v0.43.0 release
+  binary and workspace checks must exercise native Parquet schema loading and
+  rendering. Browser and WASM support may follow after the native path proves
+  useful.
 - Treat the scalar `Table::value` API as a compatibility and final-mark
   fallback, not the primary execution surface for domains, stats, and derived
   tables.
@@ -51,6 +59,9 @@ useful only as a slow scalar adapter.
 - Make large raw mark output explicit and guarded. Big-data support should
   favor aggregation, binning, sampling, and summary marks over unbounded SVG
   node generation.
+- Keep large demo data and rendered benchmark output out of git. Store
+  downloaded/generated files under gitignored local directories and make every
+  reproducible demo script able to recreate its inputs.
 - Streaming support must coexist with in-memory and WASM providers. WASM may
   keep byte-buffer paths where browser APIs require them, but native file paths
   should not be forced through `Vec<u8>`.
@@ -67,7 +78,7 @@ useful only as a slow scalar adapter.
 | Driver I/O | `DriverIo::read_path` and `read_stdin` return full `Vec<u8>` | Large files are buffered before parsers can stream records. | Add reader-oriented I/O for native paths and keep byte reads only where necessary. |
 | Scale/stat execution | Domain and stat code loops over row indices and calls `value` repeatedly | Large tables pay per-cell dynamic dispatch, string lookup, and enum costs. | Rework domains and stats around typed column scans and grouped aggregators. |
 | SVG output | Raw row-to-mark rendering can produce one SVG node per row | Static SVG is the wrong target for unbounded raw points. | Add mark budgets, diagnostics, and examples that aggregate or sample first. |
-| Large-format coverage | CSV/TSV/JSON/SQLite/Geo are supported, but Parquet is not | The roadmap lacks a realistic large columnar fixture that exercises scan-oriented APIs. | Add opt-in Parquet support or a Parquet-backed adapter for native tests. |
+| Large-format coverage | CSV/TSV/JSON/SQLite/Geo are supported, but Parquet is not | The roadmap lacks a realistic large columnar fixture that exercises scan-oriented APIs. | Add native CLI Parquet support plus generated and downloaded large fixtures/demos. |
 | Parser typo recovery | Keyword edit distance allocates small vectors on misspelled keyword checks | Not a big-data bottleneck; a minor cleanup opportunity only. | Fix opportunistically if touched, but do not treat it as release-critical. |
 | Driver API shape | Many `_with_io` wrappers exist for testing/WASM injection | Public API is noisy, but not the main scale blocker. | Consider a context object after the streaming I/O boundary is clear. |
 
@@ -82,16 +93,141 @@ v0.43.0 should classify supported workflows explicitly:
 - **Aggregate render workflows:** charts built from `Bin`, `Bin2D`, `Count`,
   `Smooth`, or SQLite aggregate queries should be able to process larger inputs
   while materializing only the derived result needed for SVG.
-- **Columnar file workflows:** Parquet should become the first explicit
+- **Columnar file workflows:** Parquet must become the first explicit
   large-format target, either through an Algraf-native reader or an optional
   Arrow/Polars-backed adapter. Tests should include a deterministic generated
   Parquet fixture large enough to make scalar-row execution visibly wrong.
+- **Large demo workflows:** v0.43.0 should ship opt-in scripts and `.ag` demo
+  specs that render bounded SVG charts from synthetic data, NYC TLC trip data,
+  and SFO Museum flight data without committing those large inputs or outputs.
 - **Raw mark workflows:** plotting every row remains allowed for moderate data,
   but the renderer should warn or fail predictably when a chart would emit an
   excessive number of marks.
 - **Out-of-core workflows:** full out-of-core execution is deferred. This
   release should make the APIs compatible with streaming and future chunked
   execution without promising distributed or remote query behavior.
+
+## Large Demo Data Policy
+
+Large demo data is part of the release plan but must not become repository
+weight. The repository should contain scripts, chart specs, documentation,
+checksums where practical, and small smoke fixtures only.
+
+- Store local large inputs under `benchdata/` or
+  `target/algraf-large-fixtures/`; both are gitignored or already covered by
+  `target/`.
+- Store large rendered demo outputs under `bench-output/`; generated SVG/PNG
+  benchmark artifacts are not committed unless a future release explicitly
+  promotes a compact visual fixture.
+- Add `scripts/generate-large-fixtures.sh` for deterministic synthetic data.
+  This script is the only large-data path that normal CI may depend on, and CI
+  should use a small or medium row-count tier unless a dedicated benchmark job
+  opts into larger tiers.
+- Add `scripts/download-large-fixtures.sh` for external data. Downloads are
+  opt-in, must print source URLs and licensing/citation notes, and should verify
+  checksums or source metadata when the upstream artifact is stable enough to
+  do so. Network downloads are not required for `cargo test`.
+- Add `scripts/render-large-demos.sh` to render the large demo chart suite into
+  `bench-output/large-demos/` and report source row counts, derived row counts,
+  emitted mark counts, elapsed time, and peak memory when available.
+- Large demo chart specs should live under `bench/examples/large/`, not the
+  tutorial `examples/` directory, unless they use only checked-in compact data.
+  The top-level README should link to these demos and explain how to generate
+  their data rather than embedding every large rendered artifact.
+
+The successful SVG demos must be aggregate-first: they may scan millions of
+input rows, but the rendered scene should usually contain hundreds or low
+thousands of marks. The suite should also include at least one intentionally
+rejected raw-mark chart to prove the mark-budget diagnostics work.
+
+## Large Demo Sources
+
+### Synthetic generated fixtures
+
+The synthetic generator should create deterministic fixtures from a fixed seed
+with configurable size tiers. Parquet is the primary output; CSV/NDJSON mirrors
+may be generated for streaming-loader comparisons.
+
+Required fixture shapes:
+
+- **Tall events:** millions of rows with timestamp, numeric value, group, and
+  nullable fields.
+- **Wide metrics:** many columns with only a small referenced subset, proving
+  projection and schema inspection do not force unnecessary column reads.
+- **Sparse nullable:** numeric, temporal, and categorical columns with validity
+  bitmaps exercised heavily.
+- **High-cardinality categories:** a controlled category domain large enough to
+  test scale/legend guardrails.
+- **Dense points:** numeric `x`/`y` rows for `Bin2D` success and raw-point
+  budget failure.
+
+Planned demos:
+
+- `bench/examples/large/synthetic_bin2d_density.ag` renders a bounded
+  rectangular density plot from dense generated points.
+- `bench/examples/large/synthetic_nullable_histogram.ag` bins sparse nullable
+  numeric values and verifies missing values are skipped consistently.
+- `bench/examples/large/synthetic_projection_smoke.ag` references a few columns
+  from a wide Parquet file and reports whether unused columns were skipped.
+- `bench/examples/large/synthetic_raw_mark_budget.ag` intentionally maps raw
+  points and must emit the large-render diagnostic instead of pathological SVG.
+
+### NYC TLC trip records
+
+Use NYC Taxi & Limousine Commission trip records as the primary real-world
+Parquet demo source. The default download should use a fixed historical Yellow
+Taxi monthly Parquet file, such as:
+
+```text
+https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet
+```
+
+The downloader may also fetch the taxi zone lookup CSV for labels:
+
+```text
+https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv
+```
+
+The raw Parquet file should remain unchanged under `benchdata/raw/tlc/`. Any
+prepared helper files, such as projected columns or compact aggregates for demo
+comparison, should be generated under `benchdata/prepared/tlc/` and treated as
+rebuildable artifacts.
+
+Planned demos:
+
+- `bench/examples/large/tlc_trip_distance_histogram.ag` bins
+  `trip_distance`.
+- `bench/examples/large/tlc_fare_distance_density.ag` renders `Bin2D` over
+  `trip_distance` and `total_amount`.
+- `bench/examples/large/tlc_payment_type_counts.ag` counts trips by
+  `payment_type`.
+- `bench/examples/large/tlc_pickup_time_bins.ag` bins
+  `tpep_pickup_datetime` by a calendar interval if direct temporal binning is
+  available for the Parquet timestamp representation; otherwise the preparation
+  script should materialize an explicit ISO datetime column for the same chart.
+
+### SFO Museum flight data
+
+Use SFO Museum flight data as the second real-world Parquet demo source. The
+default download should use a fixed monthly public Parquet file, such as:
+
+```text
+https://static.sfomuseum.org/parquet/sfomuseum-data-flights-2026-03.parquet
+```
+
+The downloader should keep the raw Parquet file under `benchdata/raw/sfo/`.
+The preparation step should materialize a chart-ready projected Parquet table
+under `benchdata/prepared/sfo/` with at least date, event, airline, journey,
+longitude, and latitude columns.
+
+Planned demos:
+
+- `bench/examples/large/sfo_daily_flights.ag` bins flights by day.
+- `bench/examples/large/sfo_event_counts.ag` counts arrivals and departures.
+- `bench/examples/large/sfo_airline_counts.ag` counts flights by grouped
+  airline.
+- `bench/examples/large/sfo_route_density.ag` renders bounded 2D bins over
+  longitude and latitude.
 
 ## Current Recipes
 
@@ -212,11 +348,11 @@ Chart(data: Parquet("events.parquet"), width: 820, height: 460,
 }
 ```
 
-This source constructor is a target sketch, not current syntax. If promoted, it
-must be specified in the spec, added to source resolution, covered by LSP
-completion/hover, and backed by deterministic tests using generated Parquet
-fixtures. If the first implementation instead uses extension inference from
-`Chart(data: "events.parquet")`, the same spec and test requirements apply.
+This source constructor is implemented for the native CLI path. It is specified
+in the spec, added to source resolution, covered by source-constructor tests and
+native CLI Parquet schema/render tests, and backed by deterministic generated
+Parquet fixtures. Extension inference from `Chart(data: "events.parquet")` is
+also supported.
 
 ### Mark-budget diagnostics
 
@@ -238,10 +374,15 @@ before implementation.
 
 ### 1. Define big-data contracts and budgets
 
-Status: Planned.
+Status: Done.
 
 - Add non-normative planning targets for row counts, byte sizes, and mark counts
   that each workflow class should support.
+- Define size tiers for generated fixtures: smoke, local benchmark, and stress.
+  Only the smoke tier should be expected in ordinary CI.
+- Define baseline target files for external demos: one fixed NYC TLC monthly
+  Parquet file and one fixed SFO Museum monthly Parquet file, plus their
+  prepared Parquet projections where applicable.
 - Decide which limits are diagnostics, warnings, CLI flags, or hard runtime
   errors.
 - Reserve spec diagnostics before implementing any new user-visible errors.
@@ -249,7 +390,7 @@ Status: Planned.
 
 ### 2. Redesign the table execution boundary
 
-Status: Planned.
+Status: Done.
 
 - Add a column-oriented API that exposes typed column views or typed scan/fold
   operations.
@@ -263,7 +404,7 @@ Status: Planned.
 
 ### 3. Replace nullable scalar storage
 
-Status: Planned.
+Status: Done.
 
 - Replace `Vec<Option<bool>>`, `Vec<Option<i64>>`, `Vec<Option<f64>>`, and
   `Vec<Option<DateTimeValue>>` with dense value buffers plus validity bitmaps.
@@ -275,7 +416,7 @@ Status: Planned.
 
 ### 4. Stream native data loading
 
-Status: Planned.
+Status: Done.
 
 - Add reader-oriented native path I/O to `DriverIo` and route CSV/TSV/JSON/
   NDJSON readers through it where the format supports streaming.
@@ -289,7 +430,7 @@ Status: Planned.
 
 ### 5. Make domains and stats column-oriented
 
-Status: Planned.
+Status: Done.
 
 - Rework numeric, temporal, and categorical domain collection around typed
   column scans.
@@ -302,51 +443,87 @@ Status: Planned.
 
 ### 6. Add large-render guardrails
 
-Status: Planned.
+Status: Done.
 
 - Add a mark-budget model for raw SVG and draw-list output.
 - Make the limit deterministic and inspectable in CLI/report output.
+- Include emitted mark counts in large-demo reports, distinguishing input rows,
+  derived rows, and actual SVG/draw-list primitives.
 - Allow an explicit override for advanced users, but require the default path to
   fail or warn before generating pathological SVG.
 - Add examples that show aggregation, binning, or sampling as the recommended
   solution for large sources.
 
-### 7. Add an opt-in Parquet/Arrow/Polars path
+### 7. Add native CLI Parquet support
 
-Status: Planned.
+Status: Done.
 
-- Add Parquet as the concrete large columnar file target for v0.43.0, preferably
-  through an optional Arrow or Polars-backed reader behind a feature flag.
-- Support schema loading and bounded row/column projection for native CLI tests
-  before broadening to LSP, WASM, or browser runtimes.
+- Add Parquet as the concrete large columnar file target for v0.43.0. Native
+  CLI Parquet schema loading and aggregate rendering are required release
+  scope.
+- Decide the user-facing source surface before implementation: either
+  `Parquet("events.parquet")`, extension inference from
+  `Chart(data: "events.parquet")`, or both. Specify the chosen behavior before
+  shipping it.
+- Support schema loading, type mapping, missing-value handling, and bounded
+  row/column projection for native CLI tests before broadening to LSP, WASM, or
+  browser runtimes.
+- Exercise the path with both generated Parquet fixtures and downloaded TLC
+  Parquet data.
 - Add a deterministic fixture generator that creates Parquet files with tall,
   wide, sparse, categorical, numeric, temporal, and nullable columns.
 - Prove that core scale and stat paths use column scans rather than scalar
   `value` calls when running against the Parquet-backed adapter.
-- Do not make Arrow or Polars a required dependency for parser, semantics, LSP,
-  CLI basics, or SVG rendering.
+- Do not make Polars a required dependency for parser, semantics, LSP, CLI
+  basics, WASM, or non-Parquet SVG rendering. Arrow/parquet crates may be
+  required by the native Parquet feature if they remain isolated from those
+  layers.
 - Document which operations remain Algraf-native because they depend on
   deterministic SVG, category ordering, or Algraf-specific missing-value rules.
-- If production Parquet support is too large for v0.43.0, ship the adapter as
-  explicitly experimental and open a follow-on plan for hardening rather than
-  leaving the backend work as an abstract evaluation.
+- If advanced projection pushdown, row-group pruning, or browser/WASM Parquet
+  support is too large for v0.43.0, defer those pieces explicitly; do not close
+  the release without a native CLI Parquet path that can render the required
+  aggregate demos.
 
-### 8. Spec, docs, examples, and release hygiene
+### 8. Add large demo data and chart suite
 
-Status: Planned.
+Status: Done.
+
+- Add `scripts/generate-large-fixtures.sh` for deterministic synthetic fixtures
+  and generated Parquet files.
+- Add `scripts/download-large-fixtures.sh` for NYC TLC and SFO Museum source
+  files.
+- Add `scripts/prepare-large-fixtures.sh` if raw source files need normalized
+  Parquet or compact aggregate helper tables before charting.
+- Add `scripts/render-large-demos.sh` to render every large demo spec and write
+  outputs to `bench-output/large-demos/`.
+- Add large demo `.ag` specs under `bench/examples/large/` for synthetic, TLC,
+  and SFO sources.
+- Include at least one successful bounded SVG demo for each source family and
+  at least one intentional raw-mark budget failure.
+- Document the source citations and local disk/network expectations for every
+  external download.
+
+### 9. Spec, docs, examples, and release hygiene
+
+Status: Done.
 
 - Update spec sections for data storage, table access, driver I/O, diagnostics,
-  and rendering limits only as behavior lands.
-- Add examples for aggregate rendering and large-source guardrails.
-- Update README guidance to explain when to aggregate, bin, sample, or query
-  through SQLite.
+  Parquet sources, source preparation, and rendering limits only as behavior
+  lands.
+- Add compact tutorial examples for aggregate rendering and large-source
+  guardrails when they can run from checked-in data.
+- Add README guidance for the opt-in large demo suite, including why large
+  source files are downloaded/generated locally rather than checked into git.
+- Explain when to aggregate, bin, sample, query through SQLite, or use Parquet
+  directly.
 - Keep plan examples runnable except explicitly marked feature target sketches.
 
 ## v0.43.0 Should
 
 ### Driver context cleanup
 
-Status: Planned.
+Status: Deferred.
 
 - Consider replacing broad public `_with_io` wrapper duplication with a
   `DriverContext` or similar object after streaming I/O requirements are clear.
@@ -354,7 +531,7 @@ Status: Planned.
 
 ### LSP cancellation and cache refinement
 
-Status: Planned.
+Status: Deferred.
 
 - Ensure large schema sampling can be cancelled or skipped in editor paths when
   users keep typing.
@@ -362,7 +539,7 @@ Status: Planned.
 
 ### Opportunistic parser allocation cleanup
 
-Status: Planned.
+Status: Deferred.
 
 - Replace small heap allocations in keyword edit-distance recovery with a
   stack-bounded implementation if the parser is already being touched.
@@ -370,22 +547,26 @@ Status: Planned.
 
 ### Benchmark fixtures
 
-Status: Planned.
+Status: Done.
 
 - Add synthetic fixture generation for tall, wide, sparse, categorical, and
   temporal datasets.
-- Include Parquet output in the fixture generator when the optional backend
-  feature is enabled.
+- Include Parquet output in the fixture generator for smoke, local benchmark,
+  and stress tiers.
+- Add a local fixture manifest that records generated/downloaded file paths,
+  source URLs, source metadata or checksums where practical, row counts, and
+  preparation steps.
 - Keep benchmark fixtures generated or compact so the repository does not grow
   unnecessarily.
 
 ## Follow-on Candidate After v0.43.0
 
-If v0.43.0 lands only experimental Parquet/Arrow/Polars support, the immediate
+After v0.43.0 lands the required native CLI Parquet baseline, the immediate
 follow-on should be a production hardening release:
 
-- stabilize the Parquet source syntax and format inference;
-- support projection pushdown for only the columns referenced by the chart;
+- harden the Parquet source syntax and format inference with more compatibility
+  fixtures;
+- optimize projection pushdown for only the columns referenced by the chart;
 - support row-group pruning where the backend exposes it;
 - extend LSP schema sampling to Parquet metadata without reading full columns;
 - add browser/WASM behavior only if dependency size and memory usage are
@@ -400,8 +581,8 @@ follow-on should be a production hardening release:
 - GPU rendering or WebGL chart output.
 - Full out-of-core rendering of raw marks.
 - Required Polars dependency in the core workspace.
-- Production-grade Parquet predicate pushdown if the v0.43.0 backend ships as
-  experimental only.
+- Production-grade Parquet row-group predicate pushdown beyond the v0.43.0
+  referenced-column projection baseline.
 - Automatic approximate algorithms that change chart values without explicit
   source or option-level consent.
 
@@ -416,7 +597,9 @@ git diff -- examples
 ```
 
 Large-data implementation changes should also run any new benchmark or fixture
-generation commands added by this release.
+generation commands added by this release. The smoke tier should be runnable
+without network access; downloaded TLC/SFO demos remain opt-in unless a
+release checklist explicitly requests them.
 
 ## Promotion Workflow
 
@@ -430,7 +613,10 @@ generation commands added by this release.
    deterministic category ordering.
 5. Add large-source guardrail examples and README guidance after diagnostics are
    implemented.
-6. Add the Parquet fixture generator and optional Arrow/Polars-backed adapter
-   only after the table API can exercise column scans.
-7. Decide at release close whether Parquet support is stable enough for v0.43.0
-   or should be marked experimental with a follow-on hardening plan.
+6. Add the Parquet fixture generator and native CLI Parquet adapter only after
+   the table API can exercise column scans.
+7. Add the large demo source scripts and `bench/examples/large/` chart suite,
+   then verify smoke generated demos before any downloaded-data run.
+8. Do not close v0.43.0 until native CLI Parquet can load schemas, render the
+   required aggregate demos, and participate in the release checks without
+   leaking heavy backend dependencies into parser, semantics, or WASM paths.

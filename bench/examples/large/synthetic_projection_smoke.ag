@@ -1,0 +1,14 @@
+Chart(data: Parquet("../../../target/algraf-large-fixtures/smoke/wide_metrics.parquet"),
+      width: 820, height: 460,
+      title: "Wide Parquet smoke: referenced metrics only") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "metric_a bin")
+    Guide(axis: y, label: "Mean metric_b")
+
+    Derive trend = SummaryBin(metric_a, metric_b, bins: 22, reducer: "mean")
+
+    Space(bin_center * value, data: trend) {
+        Line(stroke: "#273043", strokeWidth: 2.2)
+        Point(fill: "#E4572E", stroke: "#ffffff", size: 3)
+    }
+}

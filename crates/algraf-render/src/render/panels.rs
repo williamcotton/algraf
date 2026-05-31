@@ -418,6 +418,10 @@ impl Table for FilteredTable<'_, '_> {
         let source_row = *self.rows.get(row)?;
         self.table.value(column, source_row)
     }
+
+    fn column(&self, _column: &str) -> Option<algraf_data::ColumnView<'_>> {
+        None
+    }
 }
 
 fn build_cartesian_scaled(

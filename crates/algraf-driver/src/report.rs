@@ -230,6 +230,10 @@ pub fn data_error_code_message(path: &Path, err: &DataError) -> (DiagnosticCode,
             codes::E1805,
             format!("geospatial parse error in {}: {message}", path.display()),
         ),
+        DataError::Parquet(message) => (
+            codes::E1020,
+            format!("Parquet parse error in {}: {message}", path.display()),
+        ),
         DataError::SqliteQuery(message) => (
             codes::E1011,
             format!("SQLite query error in {}: {message}", path.display()),

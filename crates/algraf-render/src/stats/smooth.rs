@@ -1,4 +1,4 @@
-use algraf_data::{Column, DataFrame, DataType, Table};
+use algraf_data::{Column, ColumnView, DataFrame, DataType, Table};
 
 use crate::scale::cell_f64;
 
@@ -54,8 +54,15 @@ pub struct SmoothPoint {
 /// Columns are always `x`, `y`; when `options.se` is set, `ymin`, `ymax`, and
 /// `se` confidence-band columns follow.
 pub fn smooth(table: &dyn Table, x_col: &str, y_col: &str, options: SmoothOptions) -> DataFrame {
+    let x_view = table.column(x_col);
+    let y_view = table.column(y_col);
     let mut points: Vec<(f64, f64)> = (0..table.row_count())
-        .filter_map(|row| Some((cell_f64(table, x_col, row)?, cell_f64(table, y_col, row)?)))
+        .filter_map(|row| {
+            Some((
+                f64_cell(x_view, table, x_col, row)?,
+                f64_cell(y_view, table, y_col, row)?,
+            ))
+        })
         .filter(|(x, y)| x.is_finite() && y.is_finite())
         .collect();
     let fitted = smooth_points(&mut points, options);
@@ -71,21 +78,21 @@ pub fn smooth(table: &dyn Table, x_col: &str, y_col: &str, options: SmoothOption
         return deterministic_frame(
             schema,
             vec![
-                Column::Float(fitted.iter().map(|p| Some(p.x)).collect()),
-                Column::Float(fitted.iter().map(|p| Some(p.y)).collect()),
-                Column::Float(
+                Column::from_float_options(fitted.iter().map(|p| Some(p.x)).collect()),
+                Column::from_float_options(fitted.iter().map(|p| Some(p.y)).collect()),
+                Column::from_float_options(
                     fitted
                         .iter()
                         .map(|p| Some(p.y - options.z * p.se))
                         .collect(),
                 ),
-                Column::Float(
+                Column::from_float_options(
                     fitted
                         .iter()
                         .map(|p| Some(p.y + options.z * p.se))
                         .collect(),
                 ),
-                Column::Float(fitted.iter().map(|p| Some(p.se)).collect()),
+                Column::from_float_options(fitted.iter().map(|p| Some(p.se)).collect()),
             ],
         );
     }
@@ -94,10 +101,22 @@ pub fn smooth(table: &dyn Table, x_col: &str, y_col: &str, options: SmoothOption
     deterministic_frame(
         schema,
         vec![
-            Column::Float(fitted.iter().map(|p| Some(p.x)).collect()),
-            Column::Float(fitted.iter().map(|p| Some(p.y)).collect()),
+            Column::from_float_options(fitted.iter().map(|p| Some(p.x)).collect()),
+            Column::from_float_options(fitted.iter().map(|p| Some(p.y)).collect()),
         ],
     )
+}
+
+fn f64_cell(
+    view: Option<ColumnView<'_>>,
+    table: &dyn Table,
+    column: &str,
+    row: usize,
+) -> Option<f64> {
+    match view {
+        Some(view) => view.f64_at(row),
+        None => cell_f64(table, column, row),
+    }
 }
 
 /// Fit a smooth over `(x, y)` points and sample it deterministically.

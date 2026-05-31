@@ -17,8 +17,9 @@ use algraf_driver::{
     PreparationReport, PrepareOptions, ReportPhase, SourceInput,
 };
 use algraf_render::{
-    render_draw_list_with_tables, render_interactive_with_tables, render_raster_with_tables,
-    render_with_tables, svg_num, Layout, Rect, Theme,
+    render_draw_list_with_tables_and_limits, render_interactive_with_tables_and_limits,
+    render_raster_with_tables_and_limits, render_with_tables_and_limits, svg_num, Layout, Rect,
+    RenderLimits, Theme,
 };
 use algraf_semantics::{
     analyze, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
@@ -95,6 +96,7 @@ enum DataFormatArg {
     Ndjson,
     Geojson,
     Topojson,
+    Parquet,
 }
 
 impl From<DataFormatArg> for Format {
@@ -106,6 +108,7 @@ impl From<DataFormatArg> for Format {
             DataFormatArg::Ndjson => Format::NdJson,
             DataFormatArg::Geojson => Format::GeoJson,
             DataFormatArg::Topojson => Format::TopoJson,
+            DataFormatArg::Parquet => Format::Parquet,
         }
     }
 }
@@ -166,6 +169,12 @@ struct RenderArgs {
     debug_layout: bool,
     #[arg(long)]
     emit_metadata: bool,
+    /// Maximum raw marks a single layer may emit before rendering fails.
+    #[arg(long)]
+    mark_budget: Option<usize>,
+    /// Disable the raw-mark budget guardrail.
+    #[arg(long)]
+    allow_large_render: bool,
 }
 
 #[derive(Args)]
@@ -464,6 +473,16 @@ fn render_chart_output(
     }
 }
 
+fn render_limits(args: &RenderArgs) -> RenderLimits {
+    RenderLimits {
+        mark_budget: if args.allow_large_render {
+            None
+        } else {
+            args.mark_budget.or(RenderLimits::default().mark_budget)
+        },
+    }
+}
+
 /// Everything needed to drive a render backend for one chart, with all parse,
 /// data, and semantic diagnostics already reported. The shared `report` carries
 /// data warnings so each backend can append its own render diagnostics.
@@ -494,18 +513,26 @@ fn render_chart_svg(
         mut report,
     } = prepare_render_inputs(chart, args, input, source, label, multi)?;
 
-    let render = if args.interactive {
-        render_interactive_with_tables
+    let limits = render_limits(args);
+    let mut result = if args.interactive {
+        render_interactive_with_tables_and_limits(
+            &ir,
+            &frame,
+            &named_frames,
+            &theme,
+            cli_theme_override.as_deref(),
+            limits,
+        )
     } else {
-        render_with_tables
-    };
-    let mut result = render(
-        &ir,
-        &frame,
-        &named_frames,
-        &theme,
-        cli_theme_override.as_deref(),
-    )
+        render_with_tables_and_limits(
+            &ir,
+            &frame,
+            &named_frames,
+            &theme,
+            cli_theme_override.as_deref(),
+            limits,
+        )
+    }
     .map_err(|e| CliError::Internal(e.to_string()))?;
     // Append render diagnostics to the same report (spec §23.4); they carry
     // source spans, so they print through the diagnostic renderer.
@@ -558,12 +585,13 @@ fn render_chart_draw_list(
         mut report,
     } = prepare_render_inputs(chart, args, input, source, label, multi)?;
 
-    let result = render_draw_list_with_tables(
+    let result = render_draw_list_with_tables_and_limits(
         &ir,
         &frame,
         &named_frames,
         &theme,
         cli_theme_override.as_deref(),
+        render_limits(args),
     )
     .map_err(|e| CliError::Internal(e.to_string()))?;
     report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());
@@ -605,12 +633,13 @@ fn render_chart_raster(
         mut report,
     } = prepare_render_inputs(chart, args, input, source, label, multi)?;
 
-    let result = render_raster_with_tables(
+    let result = render_raster_with_tables_and_limits(
         &ir,
         &frame,
         &named_frames,
         &theme,
         cli_theme_override.as_deref(),
+        render_limits(args),
         png_options.scale(),
     )
     .map_err(|e| CliError::Internal(e.to_string()))?;
@@ -1185,6 +1214,7 @@ fn data_source_json(data_source: &DataSourceIr) -> Value {
         DataSourceIr::Path(path) => json!({ "kind": "path", "path": path }),
         DataSourceIr::GeoJson(path) => json!({ "kind": "geojson", "path": path }),
         DataSourceIr::Shapefile(path) => json!({ "kind": "shapefile", "path": path }),
+        DataSourceIr::Parquet(path) => json!({ "kind": "parquet", "path": path }),
         DataSourceIr::Sqlite { path, query } => {
             json!({ "kind": "sqlite", "path": path, "query": query })
         }

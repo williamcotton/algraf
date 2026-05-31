@@ -49,6 +49,10 @@ pub enum DataError {
     #[error("geospatial parse error: {0}")]
     Geo(String),
 
+    /// A Parquet file failed to decode or used a type Algraf does not support.
+    #[error("Parquet error: {0}")]
+    Parquet(String),
+
     /// A SQLite statement failed to parse or execute (spec §10.12).
     #[error("SQLite query error: {0}")]
     SqliteQuery(String),

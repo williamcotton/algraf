@@ -1,6 +1,6 @@
 //! Scales and nice ticks (spec §16).
 
-use algraf_data::{DataValueRef, Table, TemporalPrecision};
+use algraf_data::{format_f64_category, ColumnView, DataValueRef, Table, TemporalPrecision};
 
 /// A linear continuous scale mapping a numeric domain to a pixel range
 /// (spec §16.3).
@@ -226,6 +226,9 @@ impl NestedBandScale {
 
 /// Read a cell as `f64` (Int or Float), or `None` for missing/non-numeric.
 pub fn cell_f64(table: &dyn Table, column: &str, row: usize) -> Option<f64> {
+    if let Some(view) = table.column(column) {
+        return view.f64_at(row);
+    }
     match table.value(column, row)? {
         DataValueRef::Int(i) => Some(i as f64),
         DataValueRef::Float(f) if f.is_finite() => Some(f),
@@ -235,6 +238,11 @@ pub fn cell_f64(table: &dyn Table, column: &str, row: usize) -> Option<f64> {
 
 /// Read a cell as a temporal instant in microseconds.
 pub fn cell_micros(table: &dyn Table, column: &str, row: usize) -> Option<i64> {
+    if let Some(view) = table.column(column) {
+        return view
+            .temporal_at(row)
+            .map(|t| t.instant.and_utc().timestamp_micros());
+    }
     match table.value(column, row)? {
         DataValueRef::Temporal(t) => Some(t.instant.and_utc().timestamp_micros()),
         _ => None,
@@ -243,11 +251,14 @@ pub fn cell_micros(table: &dyn Table, column: &str, row: usize) -> Option<i64> {
 
 /// Read a cell as a category key string, or `None` for missing.
 pub fn cell_category(table: &dyn Table, column: &str, row: usize) -> Option<String> {
+    if let Some(view) = table.column(column) {
+        return view.category_at(row);
+    }
     match table.value(column, row)? {
         DataValueRef::Null => None,
         DataValueRef::Bool(b) => Some(b.to_string()),
         DataValueRef::Int(i) => Some(i.to_string()),
-        DataValueRef::Float(f) => Some(crate::svg::num(f)),
+        DataValueRef::Float(f) => Some(format_f64_category(f)),
         DataValueRef::Temporal(t) => Some(t.instant.and_utc().to_rfc3339()),
         DataValueRef::String(s) => Some(s.to_string()),
         // Geometry is not a categorical domain (spec §10.11).
@@ -259,10 +270,29 @@ pub fn cell_category(table: &dyn Table, column: &str, row: usize) -> Option<Stri
 pub fn numeric_domain(table: &dyn Table, column: &str) -> Option<(f64, f64)> {
     let mut min = f64::INFINITY;
     let mut max = f64::NEG_INFINITY;
-    for row in 0..table.row_count() {
-        if let Some(v) = cell_f64(table, column, row) {
-            min = min.min(v);
-            max = max.max(v);
+    if let Some(view) = table.column(column) {
+        match view {
+            ColumnView::Int(values) => {
+                for value in values.present_values() {
+                    let value = value as f64;
+                    min = min.min(value);
+                    max = max.max(value);
+                }
+            }
+            ColumnView::Float(values) => {
+                for value in values.present_values().filter(|value| value.is_finite()) {
+                    min = min.min(value);
+                    max = max.max(value);
+                }
+            }
+            _ => {}
+        }
+    } else {
+        for row in 0..table.row_count() {
+            if let Some(v) = cell_f64(table, column, row) {
+                min = min.min(v);
+                max = max.max(v);
+            }
         }
     }
     (min <= max).then_some((min, max))
@@ -274,14 +304,26 @@ pub fn temporal_domain(table: &dyn Table, column: &str) -> Option<(i64, i64, Tem
     let mut max = i64::MIN;
     let mut precision = TemporalPrecision::Date;
     let mut seen = false;
-    for row in 0..table.row_count() {
-        if let Some(DataValueRef::Temporal(t)) = table.value(column, row) {
+    if let Some(ColumnView::Temporal(values)) = table.column(column) {
+        for t in values.present_values() {
             seen = true;
             let micros = t.instant.and_utc().timestamp_micros();
             min = min.min(micros);
             max = max.max(micros);
             if t.precision == TemporalPrecision::DateTime {
                 precision = TemporalPrecision::DateTime;
+            }
+        }
+    } else {
+        for row in 0..table.row_count() {
+            if let Some(DataValueRef::Temporal(t)) = table.value(column, row) {
+                seen = true;
+                let micros = t.instant.and_utc().timestamp_micros();
+                min = min.min(micros);
+                max = max.max(micros);
+                if t.precision == TemporalPrecision::DateTime {
+                    precision = TemporalPrecision::DateTime;
+                }
             }
         }
     }
@@ -291,14 +333,24 @@ pub fn temporal_domain(table: &dyn Table, column: &str) -> Option<(i64, i64, Tem
 /// Unique categories in first-appearance order (deterministic).
 pub fn categorical_domain(table: &dyn Table, column: &str) -> Vec<String> {
     let mut seen = Vec::new();
-    for row in 0..table.row_count() {
-        if let Some(cat) = cell_category(table, column, row) {
-            if !seen.contains(&cat) {
-                seen.push(cat);
-            }
+    if let Some(view) = table.column(column) {
+        for row in 0..table.row_count() {
+            push_unique_category(&mut seen, view.category_at(row));
+        }
+    } else {
+        for row in 0..table.row_count() {
+            push_unique_category(&mut seen, cell_category(table, column, row));
         }
     }
     seen
+}
+
+fn push_unique_category(seen: &mut Vec<String>, category: Option<String>) {
+    if let Some(category) = category {
+        if !seen.contains(&category) {
+            seen.push(category);
+        }
+    }
 }
 
 // --- Nice ticks ------------------------------------------------------------
@@ -425,6 +477,29 @@ fn log_ticks(min: f64, max: f64) -> Vec<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use algraf_data::{Column, ColumnDef, ColumnView, DataFrame, DataType};
+
+    struct ColumnOnlyTable {
+        frame: DataFrame,
+    }
+
+    impl Table for ColumnOnlyTable {
+        fn schema(&self) -> &[ColumnDef] {
+            self.frame.schema()
+        }
+
+        fn row_count(&self) -> usize {
+            self.frame.row_count()
+        }
+
+        fn value(&self, _column: &str, _row: usize) -> Option<DataValueRef<'_>> {
+            panic!("column-oriented domain collection fell back to scalar value access")
+        }
+
+        fn column(&self, column: &str) -> Option<ColumnView<'_>> {
+            Table::column(&self.frame, column)
+        }
+    }
 
     #[test]
     fn sqrt_scale_positions_by_square_root() {
@@ -448,5 +523,34 @@ mod tests {
     fn sqrt_scale_clamps_negative_input() {
         let scale = ContinuousScale::sqrt(0.0, 100.0, (0.0, 100.0));
         assert!(scale.map(-4.0).is_finite());
+    }
+
+    #[test]
+    fn domains_use_column_views_without_scalar_fallback() {
+        let table = ColumnOnlyTable {
+            frame: DataFrame::new(
+                vec![
+                    ColumnDef {
+                        name: "x".into(),
+                        dtype: DataType::Float,
+                        nullable: true,
+                        examples: vec![],
+                    },
+                    ColumnDef {
+                        name: "g".into(),
+                        dtype: DataType::String,
+                        nullable: false,
+                        examples: vec![],
+                    },
+                ],
+                vec![
+                    Column::from_float_options(vec![Some(3.0), None, Some(7.0)]),
+                    Column::String(vec![Some("b".into()), Some("a".into()), Some("b".into())]),
+                ],
+            ),
+        };
+
+        assert_eq!(numeric_domain(&table, "x"), Some((3.0, 7.0)));
+        assert_eq!(categorical_domain(&table, "g"), vec!["b", "a"]);
     }
 }

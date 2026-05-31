@@ -50,6 +50,23 @@ pub use metadata::{
 };
 pub use raster::RasterImage;
 
+/// Default per-layer budget for raw per-row mark emission.
+pub const DEFAULT_MARK_BUDGET: usize = 100_000;
+
+/// Render-time limits for static SVG/draw-list output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RenderLimits {
+    pub mark_budget: Option<usize>,
+}
+
+impl Default for RenderLimits {
+    fn default() -> Self {
+        RenderLimits {
+            mark_budget: Some(DEFAULT_MARK_BUDGET),
+        }
+    }
+}
+
 /// The result of rendering: an SVG document plus render diagnostics.
 #[derive(Debug, Clone)]
 pub struct RenderResult {
@@ -101,7 +118,34 @@ pub fn render_with_tables(
     theme: &Theme,
     cli_theme_override: Option<&str>,
 ) -> Result<RenderResult, RenderError> {
-    render_svg_with_tables(ir, primary, named_tables, theme, cli_theme_override, false)
+    render_svg_with_tables(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        false,
+        RenderLimits::default(),
+    )
+}
+
+pub fn render_with_tables_and_limits(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    limits: RenderLimits,
+) -> Result<RenderResult, RenderError> {
+    render_svg_with_tables(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        false,
+        limits,
+    )
 }
 
 /// Render a chart IR to SVG with the opt-in interactive runtime embedded
@@ -123,6 +167,7 @@ pub fn render_interactive(
         theme,
         cli_theme_override,
         true,
+        RenderLimits::default(),
     )
 }
 
@@ -134,7 +179,34 @@ pub fn render_interactive_with_tables(
     theme: &Theme,
     cli_theme_override: Option<&str>,
 ) -> Result<RenderResult, RenderError> {
-    render_svg_with_tables(ir, primary, named_tables, theme, cli_theme_override, true)
+    render_svg_with_tables(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        true,
+        RenderLimits::default(),
+    )
+}
+
+pub fn render_interactive_with_tables_and_limits(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    limits: RenderLimits,
+) -> Result<RenderResult, RenderError> {
+    render_svg_with_tables(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        true,
+        limits,
+    )
 }
 
 fn render_svg_with_tables(
@@ -144,6 +216,7 @@ fn render_svg_with_tables(
     theme: &Theme,
     cli_theme_override: Option<&str>,
     interactive: bool,
+    limits: RenderLimits,
 ) -> Result<RenderResult, RenderError> {
     let (svg, diagnostics, layout, metadata) = render_with_backend(
         ir,
@@ -151,6 +224,7 @@ fn render_svg_with_tables(
         named_tables,
         theme,
         cli_theme_override,
+        limits,
         SvgBackend { interactive },
     )?;
     Ok(RenderResult {
@@ -183,12 +257,31 @@ pub fn render_draw_list_with_tables(
     theme: &Theme,
     cli_theme_override: Option<&str>,
 ) -> Result<DrawListResult, RenderError> {
+    render_draw_list_with_tables_and_limits(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        RenderLimits::default(),
+    )
+}
+
+pub fn render_draw_list_with_tables_and_limits(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    limits: RenderLimits,
+) -> Result<DrawListResult, RenderError> {
     let (draw_list, diagnostics, layout, metadata) = render_with_backend(
         ir,
         primary,
         named_tables,
         theme,
         cli_theme_override,
+        limits,
         DrawListBackend,
     )?;
     Ok(DrawListResult {
@@ -228,12 +321,33 @@ pub fn render_raster_with_tables(
     cli_theme_override: Option<&str>,
     scale: f32,
 ) -> Result<RasterResult, RenderError> {
+    render_raster_with_tables_and_limits(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        RenderLimits::default(),
+        scale,
+    )
+}
+
+pub fn render_raster_with_tables_and_limits(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    limits: RenderLimits,
+    scale: f32,
+) -> Result<RasterResult, RenderError> {
     let (image, diagnostics, layout, metadata) = render_with_backend(
         ir,
         primary,
         named_tables,
         theme,
         cli_theme_override,
+        limits,
         RasterBackend { scale },
     )?;
     Ok(RasterResult {
@@ -253,6 +367,7 @@ fn render_with_backend<B: RenderBackend>(
     named_tables: &HashMap<String, DataFrame>,
     theme: &Theme,
     cli_theme_override: Option<&str>,
+    limits: RenderLimits,
     backend: B,
 ) -> Result<(B::Output, Vec<Diagnostic>, Layout, InteractionMetadata), RenderError> {
     let mut diagnostics = Vec::new();
@@ -272,6 +387,7 @@ fn render_with_backend<B: RenderBackend>(
         legends: &plan.legends,
         panels: &plan.panels,
         theme,
+        limits: &limits,
     };
     let metadata = metadata::build_interaction_metadata(&scene);
     // Emission half: hand the scene to the chosen output backend.

@@ -31,6 +31,38 @@ impl DateTimeValue {
     pub fn new(instant: NaiveDateTime, precision: TemporalPrecision) -> Self {
         DateTimeValue { instant, precision }
     }
+
+    pub fn unix_epoch() -> Self {
+        let instant = chrono::NaiveDate::from_ymd_opt(1970, 1, 1)
+            .expect("valid epoch date")
+            .and_hms_opt(0, 0, 0)
+            .expect("valid epoch time");
+        DateTimeValue {
+            instant,
+            precision: TemporalPrecision::DateTime,
+        }
+    }
+}
+
+/// Deterministic float spelling for categorical keys shared by all table
+/// backends. It intentionally mirrors render-time SVG number formatting without
+/// depending on the renderer crate.
+pub fn format_f64_category(value: f64) -> String {
+    if !value.is_finite() {
+        return "0".to_string();
+    }
+    let rounded = (value * 1000.0).round() / 1000.0;
+    let rounded = if rounded == 0.0 { 0.0 } else { rounded };
+    let mut s = format!("{rounded:.3}");
+    if s.contains('.') {
+        while s.ends_with('0') {
+            s.pop();
+        }
+        if s.ends_with('.') {
+            s.pop();
+        }
+    }
+    s
 }
 
 /// An owned data value (spec §10.7).

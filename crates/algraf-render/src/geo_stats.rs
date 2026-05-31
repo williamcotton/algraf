@@ -64,7 +64,7 @@ fn geometry_map(
 fn passthrough_column(table: &dyn Table, def: &ColumnDef, rows: usize) -> Column {
     let cell = |row: usize| table.value(&def.name, row);
     match def.dtype {
-        DataType::Boolean => Column::Bool(
+        DataType::Boolean => Column::from_bool_options(
             (0..rows)
                 .map(|r| match cell(r) {
                     Some(DataValueRef::Bool(b)) => Some(b),
@@ -72,7 +72,7 @@ fn passthrough_column(table: &dyn Table, def: &ColumnDef, rows: usize) -> Column
                 })
                 .collect(),
         ),
-        DataType::Integer => Column::Int(
+        DataType::Integer => Column::from_int_options(
             (0..rows)
                 .map(|r| match cell(r) {
                     Some(DataValueRef::Int(i)) => Some(i),
@@ -80,7 +80,7 @@ fn passthrough_column(table: &dyn Table, def: &ColumnDef, rows: usize) -> Column
                 })
                 .collect(),
         ),
-        DataType::Float => Column::Float(
+        DataType::Float => Column::from_float_options(
             (0..rows)
                 .map(|r| match cell(r) {
                     Some(DataValueRef::Float(f)) => Some(f),
@@ -89,7 +89,7 @@ fn passthrough_column(table: &dyn Table, def: &ColumnDef, rows: usize) -> Column
                 })
                 .collect(),
         ),
-        DataType::Temporal => Column::Temporal(
+        DataType::Temporal => Column::from_temporal_options(
             (0..rows)
                 .map(|r| match cell(r) {
                     Some(DataValueRef::Temporal(t)) => Some(t),
@@ -214,7 +214,7 @@ fn select_column(
 ) -> Column {
     let cell = |row: Option<usize>| row.and_then(|r| polygon_table.value(name, r));
     match dtype {
-        DataType::Boolean => Column::Bool(
+        DataType::Boolean => Column::from_bool_options(
             matched
                 .iter()
                 .map(|&r| match cell(r) {
@@ -223,7 +223,7 @@ fn select_column(
                 })
                 .collect(),
         ),
-        DataType::Integer => Column::Int(
+        DataType::Integer => Column::from_int_options(
             matched
                 .iter()
                 .map(|&r| match cell(r) {
@@ -232,7 +232,7 @@ fn select_column(
                 })
                 .collect(),
         ),
-        DataType::Float => Column::Float(
+        DataType::Float => Column::from_float_options(
             matched
                 .iter()
                 .map(|&r| match cell(r) {
@@ -242,7 +242,7 @@ fn select_column(
                 })
                 .collect(),
         ),
-        DataType::Temporal => Column::Temporal(
+        DataType::Temporal => Column::from_temporal_options(
             matched
                 .iter()
                 .map(|&r| match cell(r) {

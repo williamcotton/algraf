@@ -18,6 +18,7 @@ use crate::{SyntaxNode, SyntaxToken};
 pub enum SourceFormat {
     GeoJson,
     Shapefile,
+    Parquet,
 }
 
 /// The recognized source-constructor families.
@@ -77,6 +78,13 @@ pub const SOURCE_CONSTRUCTORS: &[SourceConstructorMeta] = &[
         path_arg: PathArgRule::SingleStringLiteral,
         doc: "Load an ESRI shapefile bundle as the data source.",
         completion_snippet: "Shapefile(\"$1\")",
+    },
+    SourceConstructorMeta {
+        kind: SourceConstructorKind::PathFormat(SourceFormat::Parquet),
+        name: "Parquet",
+        path_arg: PathArgRule::SingleStringLiteral,
+        doc: "Load an Apache Parquet columnar table as the data source.",
+        completion_snippet: "Parquet(\"$1.parquet\")",
     },
     SourceConstructorMeta {
         kind: SourceConstructorKind::Sqlite,
@@ -549,6 +557,19 @@ mod tests {
                 format: Some(SourceFormat::GeoJson),
                 ..
             } if path == "map.data"
+        ));
+    }
+
+    #[test]
+    fn parquet_constructor_extracts_explicit_format() {
+        let chart = first_chart(r#"Chart(data: Parquet("events.data")) {}"#);
+        assert!(matches!(
+            chart_data_source(&chart),
+            SourceExpr::Path {
+                path,
+                format: Some(SourceFormat::Parquet),
+                ..
+            } if path == "events.data"
         ));
     }
 

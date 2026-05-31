@@ -1,0 +1,16 @@
+Chart(data: Parquet("../../../target/algraf-large-fixtures/smoke/dense_points.parquet"),
+      width: 820, height: 520,
+      title: "Synthetic dense points as bounded 2D bins") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "x")
+    Guide(axis: y, label: "y")
+
+    Derive bins = Bin2D(x, y, bins: 30)
+
+    Space(x_center * y_center, data: bins) {
+        Scale(fill: count, gradient: ["#f7fbff", "#9ecae1", "#3182bd", "#08519c"])
+        Rect(xmin: x_start, xmax: x_end,
+             ymin: y_start, ymax: y_end,
+             fill: count, stroke: "#ffffff", strokeWidth: 0.2)
+    }
+}

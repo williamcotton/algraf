@@ -426,6 +426,7 @@ impl RenderBackend for DrawListBackend {
             legends,
             panels,
             theme,
+            limits,
         } = *scene;
         let width = ir.width as f64;
         let height = ir.height as f64;
@@ -526,7 +527,7 @@ impl RenderBackend for DrawListBackend {
         // through the shared mark sink (spec §24.6).
         let mut sink = DrawListSink::new();
         super::document::paint_grid(&mut sink, &slots);
-        super::document::paint_geometries(&mut sink, panels, diagnostics);
+        super::document::paint_geometries(&mut sink, panels, limits, diagnostics);
         super::document::paint_axes_and_legends(&mut sink, &slots, legends, layout, theme);
         ops.extend(sink.into_ops());
 

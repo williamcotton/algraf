@@ -1,0 +1,11 @@
+Chart(data: Parquet("../../../benchdata/prepared/tlc/yellow_tripdata_2024-01_chart.parquet"),
+      width: 820, height: 460,
+      title: "NYC TLC pickups by day") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Pickup day", timeFormat: "iso-date")
+    Guide(axis: y, label: "Trips")
+
+    Space(tpep_pickup_datetime) {
+        Histogram(interval: "day", fill: "#59A14F", stroke: "#ffffff", strokeWidth: 0.4)
+    }
+}

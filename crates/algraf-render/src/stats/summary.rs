@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use algraf_data::geo_types::Geometry;
 use algraf_data::{
-    Column, ColumnDef, DataFrame, DataType, DataValue, DataValueRef, DateTimeValue, Table,
+    Column, ColumnDef, ColumnView, DataFrame, DataType, DataValue, DataValueRef, DateTimeValue,
+    Table,
 };
 
 use crate::scale::{categorical_domain, cell_category, cell_f64};
@@ -48,26 +49,38 @@ pub fn count_by(table: &dyn Table, group_columns: &[&str]) -> DataFrame {
     let outer = group_columns[0];
     let inner = group_columns.get(1).copied();
     let outer_cats = categorical_domain(table, outer);
+    let outer_view = table.column(outer);
 
     let mut rows: Vec<(String, Option<String>, i64)> = Vec::new();
     if let Some(inner_col) = inner {
         let inner_cats = categorical_domain(table, inner_col);
+        let inner_view = table.column(inner_col);
+        let mut counts: BTreeMap<(String, String), i64> = BTreeMap::new();
+        for row in 0..table.row_count() {
+            let (Some(outer_key), Some(inner_key)) = (
+                category_cell(outer_view, table, outer, row),
+                category_cell(inner_view, table, inner_col, row),
+            ) else {
+                continue;
+            };
+            *counts.entry((outer_key, inner_key)).or_insert(0) += 1;
+        }
         for o in &outer_cats {
             for i in &inner_cats {
-                let count: i64 = (0..table.row_count())
-                    .filter(|&row| {
-                        cell_category(table, outer, row).as_deref() == Some(o.as_str())
-                            && cell_category(table, inner_col, row).as_deref() == Some(i.as_str())
-                    })
-                    .count() as i64;
+                let count = *counts.get(&(o.clone(), i.clone())).unwrap_or(&0);
                 rows.push((o.clone(), Some(i.clone()), count));
             }
         }
     } else {
+        let mut counts: BTreeMap<String, i64> = BTreeMap::new();
+        for row in 0..table.row_count() {
+            let Some(outer_key) = category_cell(outer_view, table, outer, row) else {
+                continue;
+            };
+            *counts.entry(outer_key).or_insert(0) += 1;
+        }
         for o in &outer_cats {
-            let count: i64 = (0..table.row_count())
-                .filter(|&row| cell_category(table, outer, row).as_deref() == Some(o.as_str()))
-                .count() as i64;
+            let count = *counts.get(o).unwrap_or(&0);
             rows.push((o.clone(), None, count));
         }
     }
@@ -80,8 +93,22 @@ pub fn count_by(table: &dyn Table, group_columns: &[&str]) -> DataFrame {
         columns.push(Column::String(rows.iter().map(|r| r.1.clone()).collect()));
     }
     schema.push(col_def("count", DataType::Integer));
-    columns.push(Column::Int(rows.iter().map(|r| Some(r.2)).collect()));
+    columns.push(Column::from_int_options(
+        rows.iter().map(|r| Some(r.2)).collect(),
+    ));
     deterministic_frame(schema, columns)
+}
+
+fn category_cell(
+    view: Option<ColumnView<'_>>,
+    table: &dyn Table,
+    column: &str,
+    row: usize,
+) -> Option<String> {
+    match view {
+        Some(view) => view.category_at(row),
+        None => cell_category(table, column, row),
+    }
 }
 
 /// Retain the first row for each distinct key tuple. Missing key values are
@@ -118,7 +145,13 @@ pub fn ecdf(table: &dyn Table, input_column: &str) -> DataFrame {
         .collect();
     values.sort_by(f64::total_cmp);
     if values.is_empty() {
-        return deterministic_frame(schema, vec![Column::Float(vec![]), Column::Float(vec![])]);
+        return deterministic_frame(
+            schema,
+            vec![
+                Column::from_float_options(vec![]),
+                Column::from_float_options(vec![]),
+            ],
+        );
     }
     let n = values.len() as f64;
     let mut xs = Vec::new();
@@ -139,7 +172,13 @@ pub fn ecdf(table: &dyn Table, input_column: &str) -> DataFrame {
         previous = next;
         i = j;
     }
-    deterministic_frame(schema, vec![Column::Float(xs), Column::Float(ys)])
+    deterministic_frame(
+        schema,
+        vec![
+            Column::from_float_options(xs),
+            Column::from_float_options(ys),
+        ],
+    )
 }
 
 /// Normal QQ plot points plus optional reference-line endpoints. Point rows
@@ -195,12 +234,12 @@ pub fn qq(table: &dyn Table, input_column: &str, options: QqOptions) -> DataFram
     deterministic_frame(
         schema,
         vec![
-            Column::Float(theoretical),
-            Column::Float(sample),
-            Column::Float(line_x),
-            Column::Float(line_y),
-            Column::Float(line_xend),
-            Column::Float(line_yend),
+            Column::from_float_options(theoretical),
+            Column::from_float_options(sample),
+            Column::from_float_options(line_x),
+            Column::from_float_options(line_y),
+            Column::from_float_options(line_xend),
+            Column::from_float_options(line_yend),
             Column::String(role),
         ],
     )
@@ -527,12 +566,12 @@ fn empty_qq_frame(schema: Vec<ColumnDef>) -> DataFrame {
     deterministic_frame(
         schema,
         vec![
-            Column::Float(Vec::new()),
-            Column::Float(Vec::new()),
-            Column::Float(Vec::new()),
-            Column::Float(Vec::new()),
-            Column::Float(Vec::new()),
-            Column::Float(Vec::new()),
+            Column::from_float_options(Vec::new()),
+            Column::from_float_options(Vec::new()),
+            Column::from_float_options(Vec::new()),
+            Column::from_float_options(Vec::new()),
+            Column::from_float_options(Vec::new()),
+            Column::from_float_options(Vec::new()),
             Column::String(Vec::new()),
         ],
     )
@@ -672,10 +711,10 @@ impl ColumnBuilder {
 
     fn finish(self) -> Column {
         match self {
-            ColumnBuilder::Bool(values) => Column::Bool(values),
-            ColumnBuilder::Int(values) => Column::Int(values),
-            ColumnBuilder::Float(values) => Column::Float(values),
-            ColumnBuilder::Temporal(values) => Column::Temporal(values),
+            ColumnBuilder::Bool(values) => Column::from_bool_options(values),
+            ColumnBuilder::Int(values) => Column::from_int_options(values),
+            ColumnBuilder::Float(values) => Column::from_float_options(values),
+            ColumnBuilder::Temporal(values) => Column::from_temporal_options(values),
             ColumnBuilder::String(values) => Column::String(values),
             ColumnBuilder::Geometry(values) => Column::Geometry(values),
         }

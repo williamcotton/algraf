@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.40.0
+Status: Draft 0.43.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.38.0 specification.
+This working copy is the active Draft 0.43.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -1201,17 +1201,21 @@ TableDecl      ::= "Table" Ident "=" SourceExpr
 SourceExpr     ::= String
                  | GeoJsonSource
                  | ShapefileSource
+                 | ParquetSource
                  | SqliteSource
+                 | TopoJsonSource
 GeoJsonSource  ::= "GeoJson" "(" String ")"
 ShapefileSource ::= "Shapefile" "(" String ")"
+ParquetSource  ::= "Parquet" "(" String ")"
 SqliteSource   ::= "Sqlite" "(" String "," String ")"
+TopoJsonSource ::= "TopoJson" "(" String ("," "object" ":" String)? ")"
 ```
 
 `Table` creates a chart-scoped named data table from an independent source
 (spec §10.10). The `SourceExpr` position is a *source expression*: a string path
-uses extension-based format selection, geospatial constructors select their
-loader explicitly, and `Sqlite(path, query)` selects a local SQLite query
-(spec §10.12).
+uses extension-based format selection, geospatial and Parquet constructors select
+their loader explicitly, `Sqlite(path, query)` selects a local SQLite query
+(spec §10.12), and `TopoJson(path, object:)` selects a TopoJSON object.
 
 A `Table` name MUST be unique among `Table` declarations (`E1105`) and MUST NOT
 conflict with the primary or a derived table (`E1108`). A `Table` is bound to a
@@ -1939,8 +1943,9 @@ Quoted identifiers MUST be used to reference keyword-like column names.
 ### 10.1 Initial Data Source Model
 
 Version 0.1 supports CSV files. Version 0.7 adds TSV, JSON, and NDJSON files
-(spec §10.2); all formats load into the same dataframe and behave identically
-downstream.
+(spec §10.2). Version 0.43 adds native CLI Parquet loading (spec §10.13). All
+formats load into the same dataframe abstraction and behave identically
+downstream once materialized.
 
 `Chart(data: "path.csv")` resolves `path.csv` relative to the source file directory by default.
 
@@ -1950,14 +1955,19 @@ The same rule applies to the `--data` override and to `Table name = "..."`
 declarations (spec §10.10).
 
 The data crate MUST keep path-oriented compatibility APIs for all supported
-formats. Single-file formats (`csv`, `tsv`, `json`, `ndjson`, and `geojson`)
-MUST also be loadable from an already-open reader or byte slice so callers can
-provide bytes without forcing the data crate to re-open a filesystem path.
+formats. Streamable single-file formats (`csv`, `tsv`, `json`, `ndjson`, and
+`geojson`) MUST also be loadable from an already-open reader or byte slice so
+callers can provide bytes without forcing the data crate to re-open a filesystem
+path. Parquet MUST have native path and byte APIs; native filesystem paths SHOULD
+use the Parquet reader's path/chunk interface rather than first buffering the
+entire file into a `Vec<u8>`.
 
-Version 0.8 adds two geospatial **source constructors** on the same seam,
-selected explicitly rather than by extension (spec §10.11): `GeoJson("path")`
-loads a GeoJSON `FeatureCollection`, and `Shapefile("path.shp")` loads an ESRI
-shapefile bundle. Both MAY appear wherever a data source is accepted —
+Version 0.8 and later geospatial releases add geospatial **source constructors**
+on the same seam, selected explicitly rather than by extension (spec §10.11):
+`GeoJson("path")` loads a GeoJSON `FeatureCollection`,
+`Shapefile("path.shp")` loads an ESRI shapefile bundle, and
+`TopoJson("path.topojson", object: "name")` loads a TopoJSON topology object.
+They MAY appear wherever a data source is accepted — for example
 `Chart(data: GeoJson("us.geojson"))` and `Table counties = Shapefile("us.shp")`.
 A source constructor's path is its first positional string argument.
 
@@ -1966,6 +1976,10 @@ source-expression seam (spec §10.12). It MAY appear in `Chart(data:)` and in
 `Table name = ...` only when the source header enables `features: ["sql"]`.
 The first positional string is a local database path; the second positional
 string is the SQL query.
+
+Version 0.43 adds `Parquet("path.parquet")` on the same source-expression seam
+(spec §10.13). It MAY appear in `Chart(data:)` and in `Table name = ...`.
+The `.parquet` and `.parq` extensions also select the Parquet loader.
 
 `Chart(data: input)` reads caller-provided primary data. In the CLI, caller
 input is supplied with `--data -`; in an embedded host, caller input is the byte
@@ -1993,7 +2007,7 @@ The recommended source pattern for piped data is `Chart(data: input)`.
 
 When `Chart(data: input)` or `Chart(data: stdin)` is used with no explicit
 format override, the CLI and embedded facade MUST parse caller-provided bytes as
-CSV. The CLI `--data-format <csv|tsv|json|ndjson|geojson|topojson>` option
+CSV. The CLI `--data-format <csv|tsv|json|ndjson|geojson|topojson|parquet>` option
 MUST select the stream format for `--data -`, `Chart(data: input)`, and
 `Chart(data: stdin)`. The same option also overrides extension inference for a
 primary `--data <path>` override. Path-backed chart declarations continue to
@@ -2064,6 +2078,10 @@ case-insensitively:
 | `.tsv`, `.tab`     | TSV    |
 | `.json`            | JSON   |
 | `.ndjson`, `.jsonl`| NDJSON |
+| `.geojson`         | GeoJSON |
+| `.topojson`        | TopoJSON |
+| `.shp`             | Shapefile |
+| `.parquet`, `.parq`| Parquet |
 
 An unrecognized or absent extension MUST be treated as CSV. Caller-provided
 bytes (`Chart(data: input)`, the `stdin` compatibility alias, or `--data -`) are
@@ -2114,6 +2132,10 @@ For SQL sources, schema inference MUST execute the declared read-only query and
 inspect at most the requested sample size of result rows. A sample size of `N`
 MUST NOT step more than `N` rows, though preparing the SQLite statement is
 allowed so result-column names are available.
+
+For Parquet sources, schema inference MUST use Parquet/Arrow metadata when
+available and MUST NOT decode every data row just to list column names and basic
+types. Example values MAY be empty for metadata-only schema results.
 
 The LSP MUST label sampled types as provisional in internal analysis state.
 
@@ -2314,6 +2336,11 @@ Polars MUST NOT become required for the core parser, LSP, or SVG renderer.
 
 Polars-backed execution MUST preserve diagnostics, category ordering, missing-value behavior, and SVG determinism.
 
+As of version 0.43, scalar cell access remains available for compatibility and
+final mark property resolution, but scale training and built-in stats SHOULD use
+pre-resolved column views or table scans instead of repeated name lookup plus
+dynamic scalar reads.
+
 Suggested trait boundary:
 
 ```rust
@@ -2321,8 +2348,29 @@ pub trait Table {
     fn schema(&self) -> &[ColumnDef];
     fn row_count(&self) -> usize;
     fn value(&self, column: &str, row: usize) -> Option<DataValueRef<'_>>;
+    fn column(&self, column: &str) -> Option<ColumnView<'_>>;
+    fn scan(&self, columns: &[&str], visitor: &mut dyn TableScan);
 }
 ```
+
+`Table::value` returns `None` only when the column or row is absent. A present but
+missing cell MUST return `Some(DataValueRef::Null)`. `ColumnView::get` MUST
+preserve the same distinction. `ColumnView` variants SHOULD expose dense typed
+storage for booleans, integers, floats, and temporals, plus borrowed string and
+geometry slices for existing owned values.
+
+Nullable scalar columns MUST use a dense value buffer plus a validity bitmap:
+
+```rust
+pub struct NullableColumn<T> {
+    values: Vec<T>,
+    validity: NullBitmap,
+}
+```
+
+The validity bitmap is the source of missingness. The stored sentinel value used
+for a missing scalar cell MUST NOT be observable through `value`, `ColumnView`, or
+`Table::scan`. String and geometry columns MAY keep `Vec<Option<T>>` storage.
 
 As of version 0.19, concrete `DataFrame` ownership is limited to the data
 crate, driver load results, CLI/LSP preview handoff, and renderer materialized
@@ -2433,11 +2481,14 @@ The CLI MUST restrict data reads to explicit paths.
 The CLI SHOULD provide an option to allow network sources if implemented later.
 
 Driver-level data loading MUST keep a synchronous, injectable I/O provider
-that can read resolved path bytes, stdin bytes, path metadata, and shapefile
-sidecars, and local SQLite database paths. The default provider uses the
-operating system. The synchronous provider MUST NOT add network access,
-environment-variable access, command execution, async operations, or caching
-policy.
+that can open resolved paths as readers, read resolved path bytes, read stdin
+bytes, inspect path metadata, read shapefile sidecars, and open local SQLite and
+Parquet database/file paths. The default provider uses the operating system.
+Native path-backed formats that support streaming SHOULD use `open_path` rather
+than `read_path` to avoid whole-file byte buffers. Embedded and WASM providers MAY
+continue to supply bytes where host APIs only expose bytes. The synchronous
+provider MUST NOT add network access, environment-variable access, command
+execution, async operations, or caching policy.
 
 Version 0.35 removes the unused async loading adapter. A future async driver
 boundary MAY be reintroduced, but it MUST mirror the synchronous local-source
@@ -2511,7 +2562,7 @@ is unavailable, unsupported for row preview, or too large for the editor path.
 A chart MAY declare named, chart-scoped data tables with `Table name = <source>`
 (spec §7.4.1). Each named table is an independent source, loaded the same way as
 `Chart(data:)` — including format selection by extension (spec §10.2), explicit
-source constructors (`GeoJson`, `Shapefile`, and gated `Sqlite`), path
+source constructors (`GeoJson`, `Shapefile`, `TopoJson`, `Parquet`, and gated `Sqlite`), path
 resolution, `--base-dir`, and source security in §10.8, all unchanged.
 
 A `Space` binds to a named table by bare identifier in its `data:` argument,
@@ -2645,7 +2696,53 @@ render MUST fully load the query result before rendering; LSP schema reads MUST
 sample and MUST remain cancellable/cooperative at the request boundary where
 practical.
 
-### 10.13 Runtime Cache Policy
+### 10.13 Parquet Sources
+
+Version 0.43 supports native CLI Parquet sources:
+
+```ag
+Chart(data: Parquet("events.parquet")) {
+    Derive bins = Bin(value, bins: 32)
+    Space(bin_start * count, data: bins) {
+        Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count)
+    }
+}
+```
+
+`Parquet(path)` MUST take exactly one positional string literal. Keyword
+arguments, missing arguments, or non-string arguments are invalid source
+expressions (`E1004`). The constructor MAY be used anywhere `SourceExpr` is
+accepted, including `Chart(data:)` and `Table name = ...`. Extension inference
+from `.parquet` and `.parq` MUST select the same loader.
+
+The native CLI build MUST include Parquet support. Heavy Arrow/Parquet
+dependencies MAY be isolated behind a Cargo feature for libraries, WASM, or
+minimal editor builds, but the released native CLI path MUST support schema
+loading and rendering from Parquet.
+
+Parquet schema loading MUST map Arrow booleans, signed and unsigned integers,
+floats, UTF-8 strings, dates, and timestamps into Algraf `DataType` values.
+Unsupported Parquet/Arrow physical or logical types MUST fail through `E1020`
+rather than panic. Unsigned integer values too large for `i64` MAY be saturated or
+rejected, but the chosen behavior MUST be deterministic.
+
+Parquet `null` values MUST become Algraf missing cells. Date and timestamp
+columns MUST become `Temporal` columns using UTC-equivalent instants. String and
+numeric category formatting MUST follow the same deterministic domain rules as
+CSV/JSON.
+
+The Parquet reader SHOULD support column projection by requested top-level column
+names. When projection is requested, omitted columns MUST be absent from the
+materialized dataframe and `Table::value` for an omitted column returns `None`.
+Unknown projected column names MUST fail deterministically. Full chart rendering
+MAY still materialize more columns than strictly referenced until broader
+projection planning is promoted, but the backend API MUST expose a projection
+surface.
+
+Advanced row-group pruning, predicate pushdown, remote object stores, and
+browser/WASM Parquet loading are deferred.
+
+### 10.14 Runtime Cache Policy
 
 Algraf distinguishes four cache kinds:
 
@@ -7027,6 +7124,24 @@ Floating point formatting MUST use locale-independent formatting.
 
 Floating point output precision MUST be fixed by renderer configuration.
 
+### 18.13 Render Mark Budgets
+
+Static SVG and draw-list output MUST have a deterministic raw-mark budget.
+Version 0.43 uses a default budget of 100,000 raw marks per geometry layer for
+row-to-mark geometries such as `Point`, `Bar`, `Rect`, `Tile`, `Text`, `Rug`,
+`Segment`, `HexBin`, and `Geo`.
+
+When the renderer can determine before emission that a raw layer would exceed the
+active budget, it MUST emit `E2001` at the geometry span, skip that layer, and let
+the CLI's ordinary diagnostic blocking rules decide whether output is written.
+The diagnostic help SHOULD recommend binning, aggregation, sampling, SQLite or
+Parquet preprocessing, or an explicit higher budget.
+
+Derived aggregate geometries such as `Histogram`, `Bin2D`, and stats that
+materialize bounded derived tables SHOULD be preferred for large sources. Raising
+or disabling the budget is an explicit user choice; large-data support does not
+mean generating pathological SVG nodes by default.
+
 ## 19. Guides
 
 Guide handling is split into planning (label measurement and axis-margin
@@ -7544,6 +7659,8 @@ For `Sqlite(...)`, the LSP MUST include the SQL query in the schema-cache key,
 MUST use the bounded SQL schema-sampling policy from §10.12, and MUST surface
 the `E0025` gated-off diagnostic instead of loading SQL when the `sql` feature
 gate is absent.
+For `Parquet(...)`, the LSP MAY defer full column decoding and SHOULD use
+metadata-only schemas when the native Parquet feature is available.
 
 Document analysis SHOULD be a pure blocking helper that parses, resolves cached
 schemas, analyzes, and returns `DocumentState` plus diagnostics. Document
@@ -7674,6 +7791,8 @@ Column completions SHOULD use schema cache.
 `Sqlite(...)` completion and hover documentation MUST be offered only when the
 document declares `Algraf(version: "0.21", features: ["sql"])`; otherwise the
 constructor remains gated and diagnostics explain the required header.
+`Parquet(...)` completion and hover documentation MUST be offered by native
+builds that include Parquet support.
 
 If schema unavailable, completion SHOULD return syntax keywords and optionally a loading message.
 
@@ -8054,7 +8173,7 @@ The command MUST reject using `-` for both source and caller-provided data.
 If the source contains `Chart(data: input)` or `Chart(data: stdin)`, caller data
 reads from stdin unless `--data <path>` overrides it.
 
-`--data-format <csv|tsv|json|ndjson|geojson|topojson>` MUST select the format
+`--data-format <csv|tsv|json|ndjson|geojson|topojson|parquet>` MUST select the format
 for caller-provided bytes and for a primary `--data <path>` override. Without
 this flag, caller-provided bytes are CSV and `--data <path>` uses extension
 inference.
@@ -8069,6 +8188,11 @@ include files, or provide conditionals or loops.
 If the source contains gated `Sqlite(...)`, the CLI MUST require
 `Algraf(version: "0.21", features: ["sql"])`. No CLI flag enables network,
 environment-variable, or command sources in version 0.21.
+
+The render command MUST enforce the render mark budget from §18.13. The default
+budget is 100,000 raw marks. `--mark-budget <n>` sets the budget for one render
+command. `--allow-large-render` disables the budget for users who explicitly want
+large raw SVG or draw-list output.
 
 Render options:
 
@@ -8090,7 +8214,11 @@ Render options:
 
 `--data <path|->`
 
-`--data-format <csv|tsv|json|ndjson|geojson|topojson>`
+`--data-format <csv|tsv|json|ndjson|geojson|topojson|parquet>`
+
+`--mark-budget <n>`
+
+`--allow-large-render`
 
 `--eval <source>` / `-e <source>`
 
@@ -8195,6 +8323,8 @@ Schema command prints resolved data schema as JSON or table.
 
 For `Sqlite(...)`, `--sample-size <n>` bounds the number of result rows stepped
 for type inference; omitted sample size loads the full query result schema.
+For Parquet sources, schema output SHOULD come from metadata and MAY omit sample
+examples.
 
 Options:
 
@@ -8381,7 +8511,7 @@ by `SourceFingerprint` (spec §10.9), storing schemas and load errors rather tha
 full frames
 
 runtime cache policy documentation distinguishing schema, full-frame,
-render-result, and persistent caches (spec §10.13)
+render-result, and persistent caches (spec §10.14)
 
 chart data dependency inventory
 
@@ -9185,6 +9315,8 @@ missing `=>`/stray separator in a map literal)
 
 `E1019 explicit temporal parse failure (onError: "error")`
 
+`E1020 Parquet parse error or unsupported Parquet column type`
+
 `E1101 unknown column`
 
 `E1102 ambiguous column`
@@ -9306,6 +9438,8 @@ missing `=>`/stray separator in a map literal)
 `E1912 malformed or unknown frame operator`
 
 `E1913 transpose requires a two-dimensional Cartesian frame`
+
+`E2001 render mark budget exceeded`
 
 ### 26.3 Warning Diagnostics
 
@@ -9667,7 +9801,10 @@ Rendering 10,000 points to SVG SHOULD complete in under 200 ms on the reference 
 
 Rendering a 25-bin histogram from 100,000 rows SHOULD complete in under 500 ms on the reference development machine.
 
-Rendering 1,000,000 points is not a version 0.1 target.
+Rendering 1,000,000 raw points to SVG is not a target; version 0.43 makes this
+explicit with the mark budget in §18.13. Large-data rendering SHOULD use
+aggregation, binning, sampling, SQLite queries, or Parquet columnar sources to
+materialize bounded scene sizes.
 
 Future versions MAY stream data and aggregate stats without materializing rows.
 

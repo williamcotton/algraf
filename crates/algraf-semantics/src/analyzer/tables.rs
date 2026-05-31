@@ -76,7 +76,7 @@ impl Analyzer<'_> {
                 self.diag(Diagnostic::error(
                     codes::E1004,
                     "`Table` source must be a string-literal path or a \
-                     `GeoJson`/`Shapefile`/`Sqlite`/`TopoJson` source constructor",
+                     `GeoJson`/`Shapefile`/`Sqlite`/`TopoJson`/`Parquet` source constructor",
                     span,
                 ));
                 None
@@ -85,7 +85,7 @@ impl Analyzer<'_> {
                 self.diag(Diagnostic::error(
                     codes::E1004,
                     "`Table` source must be a string-literal path or a \
-                     `GeoJson`/`Shapefile`/`Sqlite`/`TopoJson` source constructor",
+                     `GeoJson`/`Shapefile`/`Sqlite`/`TopoJson`/`Parquet` source constructor",
                     span,
                 ));
                 None

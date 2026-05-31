@@ -55,6 +55,8 @@ pub enum DataSourceIr {
     GeoJson(String),
     /// A `Shapefile("path.shp")` source constructor (spec §10.11).
     Shapefile(String),
+    /// A `Parquet("path.parquet")` source constructor (spec §10.13).
+    Parquet(String),
     /// A `Sqlite("path.db", "SELECT ... ORDER BY ...")` source constructor
     /// (spec §10.12).
     Sqlite { path: String, query: String },

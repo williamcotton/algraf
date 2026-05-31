@@ -44,6 +44,8 @@ pub enum Format {
     /// source constructor (spec §10.11). The extension form decodes the topology's
     /// sole object; the constructor's `object:` argument names one explicitly.
     TopoJson,
+    /// An Apache Parquet columnar table (`.parquet`).
+    Parquet,
 }
 
 impl Format {
@@ -57,6 +59,7 @@ impl Format {
             Format::GeoJson => "geojson",
             Format::Shapefile => "shapefile",
             Format::TopoJson => "topojson",
+            Format::Parquet => "parquet",
         }
     }
 
@@ -78,6 +81,7 @@ impl Format {
             "geojson" => Format::GeoJson,
             "topojson" => Format::TopoJson,
             "shp" => Format::Shapefile,
+            "parquet" | "parq" => Format::Parquet,
             _ => Format::Csv,
         }
     }
@@ -94,9 +98,10 @@ impl FromStr for Format {
             "ndjson" => Ok(Format::NdJson),
             "geojson" => Ok(Format::GeoJson),
             "topojson" => Ok(Format::TopoJson),
+            "parquet" | "parq" => Ok(Format::Parquet),
             "shapefile" | "shp" => Ok(Format::Shapefile),
             _ => Err(format!(
-                "unsupported data format {value:?}; expected csv, tsv, json, ndjson, geojson, or topojson"
+                "unsupported data format {value:?}; expected csv, tsv, json, ndjson, geojson, topojson, or parquet"
             )),
         }
     }
@@ -116,6 +121,7 @@ pub fn read_path_as(path: &Path, format: Format) -> Result<LoadResult, DataError
         // The shapefile reader opens the `.dbf`/`.shx` sidecars itself, so it
         // takes the path rather than an already-opened reader.
         Format::Shapefile => read_shapefile_path(path),
+        Format::Parquet => read_parquet_path_dispatch(path),
         _ => {
             let file = std::fs::File::open(path)?;
             read_format(file, format)
@@ -145,6 +151,7 @@ pub fn read_bytes_as_with_temporal_policy(
         Format::Shapefile => Err(DataError::Geo(
             "a shapefile must be loaded from a sidecar bundle, not a byte slice".to_string(),
         )),
+        Format::Parquet => read_parquet_bytes_dispatch(bytes),
         _ => read_format_with_temporal_policy(bytes, format, temporal_policy),
     }
 }
@@ -158,7 +165,7 @@ pub fn read_format<R: Read>(reader: R, format: Format) -> Result<LoadResult, Dat
 }
 
 pub fn read_format_with_temporal_policy<R: Read>(
-    reader: R,
+    mut reader: R,
     format: Format,
     temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<LoadResult, DataError> {
@@ -172,6 +179,11 @@ pub fn read_format_with_temporal_policy<R: Read>(
         Format::Shapefile => Err(DataError::Geo(
             "a shapefile must be loaded from a path, not a stream".to_string(),
         )),
+        Format::Parquet => {
+            let mut bytes = Vec::new();
+            reader.read_to_end(&mut bytes)?;
+            read_parquet_bytes_dispatch(&bytes)
+        }
     }
 }
 
@@ -190,6 +202,7 @@ pub fn read_schema_path_as(
 ) -> Result<Vec<ColumnDef>, DataError> {
     match format {
         Format::Shapefile => Ok(read_shapefile_path(path)?.frame.schema().to_vec()),
+        Format::Parquet => read_parquet_schema_path_dispatch(path),
         _ => {
             let file = std::fs::File::open(path)?;
             read_schema_format(file, format, sample)
@@ -229,9 +242,12 @@ pub fn read_sample_rows_bytes_as(
     match format {
         Format::Csv => read_csv_sample_rows(bytes, sample).map(Some),
         Format::Tsv => read_delimited_sample_rows(bytes, b'\t', sample).map(Some),
-        Format::Json | Format::NdJson | Format::GeoJson | Format::Shapefile | Format::TopoJson => {
-            Ok(None)
-        }
+        Format::Json
+        | Format::NdJson
+        | Format::GeoJson
+        | Format::Shapefile
+        | Format::TopoJson
+        | Format::Parquet => Ok(None),
     }
 }
 
@@ -245,6 +261,7 @@ pub fn read_schema_bytes_as_with_temporal_policy(
         Format::Shapefile => Err(DataError::Geo(
             "a shapefile must be loaded from a sidecar bundle, not a byte slice".to_string(),
         )),
+        Format::Parquet => read_parquet_schema_bytes_dispatch(bytes),
         _ => read_schema_format_with_temporal_policy(bytes, format, sample, temporal_policy),
     }
 }
@@ -259,7 +276,7 @@ pub fn read_schema_format<R: Read>(
 }
 
 pub fn read_schema_format_with_temporal_policy<R: Read>(
-    reader: R,
+    mut reader: R,
     format: Format,
     sample: usize,
     temporal_policy: Option<&TemporalParsePolicy>,
@@ -284,5 +301,58 @@ pub fn read_schema_format_with_temporal_policy<R: Read>(
         Format::Shapefile => Err(DataError::Geo(
             "a shapefile must be loaded from a path, not a stream".to_string(),
         )),
+        Format::Parquet => {
+            let mut bytes = Vec::new();
+            reader.read_to_end(&mut bytes)?;
+            read_parquet_schema_bytes_dispatch(&bytes)
+        }
     }
+}
+
+#[cfg(feature = "parquet")]
+fn read_parquet_path_dispatch(path: &Path) -> Result<LoadResult, DataError> {
+    crate::parquet::read_parquet_path(path)
+}
+
+#[cfg(not(feature = "parquet"))]
+fn read_parquet_path_dispatch(_path: &Path) -> Result<LoadResult, DataError> {
+    Err(DataError::Parquet(
+        "Parquet support is not enabled in this build".to_string(),
+    ))
+}
+
+#[cfg(feature = "parquet")]
+fn read_parquet_bytes_dispatch(bytes: &[u8]) -> Result<LoadResult, DataError> {
+    crate::parquet::read_parquet_bytes(bytes)
+}
+
+#[cfg(not(feature = "parquet"))]
+fn read_parquet_bytes_dispatch(_bytes: &[u8]) -> Result<LoadResult, DataError> {
+    Err(DataError::Parquet(
+        "Parquet support is not enabled in this build".to_string(),
+    ))
+}
+
+#[cfg(feature = "parquet")]
+fn read_parquet_schema_path_dispatch(path: &Path) -> Result<Vec<ColumnDef>, DataError> {
+    crate::parquet::read_parquet_schema_path(path)
+}
+
+#[cfg(not(feature = "parquet"))]
+fn read_parquet_schema_path_dispatch(_path: &Path) -> Result<Vec<ColumnDef>, DataError> {
+    Err(DataError::Parquet(
+        "Parquet support is not enabled in this build".to_string(),
+    ))
+}
+
+#[cfg(feature = "parquet")]
+fn read_parquet_schema_bytes_dispatch(bytes: &[u8]) -> Result<Vec<ColumnDef>, DataError> {
+    crate::parquet::read_parquet_schema_bytes(bytes)
+}
+
+#[cfg(not(feature = "parquet"))]
+fn read_parquet_schema_bytes_dispatch(_bytes: &[u8]) -> Result<Vec<ColumnDef>, DataError> {
+    Err(DataError::Parquet(
+        "Parquet support is not enabled in this build".to_string(),
+    ))
 }

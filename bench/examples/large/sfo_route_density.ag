@@ -1,0 +1,16 @@
+Chart(data: Parquet("../../../benchdata/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet"),
+      width: 820, height: 520,
+      title: "SFO flight coordinate density") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Longitude")
+    Guide(axis: y, label: "Latitude")
+
+    Derive bins = Bin2D(longitude, latitude, bins: 32)
+
+    Space(x_center * y_center, data: bins) {
+        Scale(fill: count, gradient: ["#f7fcf0", "#ccebc5", "#7bccc4", "#2b8cbe", "#084081"])
+        Rect(xmin: x_start, xmax: x_end,
+             ymin: y_start, ymax: y_end,
+             fill: count, stroke: "#ffffff", strokeWidth: 0.12)
+    }
+}

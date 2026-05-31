@@ -1,4 +1,4 @@
-use algraf_data::{Column, ColumnDef, DataFrame, DataType, DateTimeValue, Table};
+use algraf_data::{Column, ColumnDef, ColumnView, DataFrame, DataType, DateTimeValue, Table};
 use chrono::{DateTime, Datelike, Duration, Months, NaiveDate, NaiveDateTime, Timelike};
 
 use crate::scale::{
@@ -6,6 +6,44 @@ use crate::scale::{
 };
 
 use super::util::{col_def, deterministic_frame};
+
+fn f64_cell(
+    view: Option<ColumnView<'_>>,
+    table: &dyn Table,
+    column: &str,
+    row: usize,
+) -> Option<f64> {
+    match view {
+        Some(view) => view.f64_at(row),
+        None => cell_f64(table, column, row),
+    }
+}
+
+fn micros_cell(
+    view: Option<ColumnView<'_>>,
+    table: &dyn Table,
+    column: &str,
+    row: usize,
+) -> Option<i64> {
+    match view {
+        Some(view) => view
+            .temporal_at(row)
+            .map(|value| value.instant.and_utc().timestamp_micros()),
+        None => cell_micros(table, column, row),
+    }
+}
+
+fn category_cell(
+    view: Option<ColumnView<'_>>,
+    table: &dyn Table,
+    column: &str,
+    row: usize,
+) -> Option<String> {
+    match view {
+        Some(view) => view.category_at(row),
+        None => cell_category(table, column, row),
+    }
+}
 
 /// Options for numeric histogram binning.
 #[derive(Debug, Clone, Copy)]
@@ -58,10 +96,12 @@ pub fn bin_grouped(
     // counts[bin * groups.len() + group_index]
     let mut counts = vec![0i64; bin_count * groups.len().max(1)];
     let mut total: i64 = 0;
+    let value_view = table.column(value_column);
+    let group_view = table.column(group_column);
     for row in 0..table.row_count() {
         let (Some(v), Some(g)) = (
-            cell_f64(table, value_column, row),
-            cell_category(table, group_column, row),
+            f64_cell(value_view, table, value_column, row),
+            category_cell(group_view, table, group_column, row),
         ) else {
             continue;
         };
@@ -128,16 +168,16 @@ pub fn bin_grouped(
     deterministic_frame(
         schema,
         vec![
-            Column::Float(bin_starts),
-            Column::Float(bin_ends),
-            Column::Float(bin_centers),
-            Column::Int(row_counts),
-            Column::Float(densities),
+            Column::from_float_options(bin_starts),
+            Column::from_float_options(bin_ends),
+            Column::from_float_options(bin_centers),
+            Column::from_int_options(row_counts),
+            Column::from_float_options(densities),
             Column::String(group_keys),
-            Column::Float(stack_lowers),
-            Column::Float(stack_uppers),
-            Column::Float(dodge_starts),
-            Column::Float(dodge_ends),
+            Column::from_float_options(stack_lowers),
+            Column::from_float_options(stack_uppers),
+            Column::from_float_options(dodge_starts),
+            Column::from_float_options(dodge_ends),
         ],
     )
 }
@@ -165,9 +205,13 @@ pub fn bin_blended(table: &dyn Table, value_columns: &[&str], options: BinOption
     let series_count = value_columns.len();
     let mut counts = vec![0i64; bin_count * series_count.max(1)];
     let mut totals = vec![0i64; series_count];
+    let value_views: Vec<_> = value_columns
+        .iter()
+        .map(|column| table.column(column))
+        .collect();
     for row in 0..table.row_count() {
         for (si, column) in value_columns.iter().enumerate() {
-            if let Some(v) = cell_f64(table, column, row) {
+            if let Some(v) = f64_cell(value_views[si], table, column, row) {
                 let bi = bin_index(v, start, width, bin_count, options.closed);
                 counts[bi * series_count + si] += 1;
                 totals[si] += 1;
@@ -212,11 +256,11 @@ pub fn bin_blended(table: &dyn Table, value_columns: &[&str], options: BinOption
     deterministic_frame(
         schema,
         vec![
-            Column::Float(bin_starts),
-            Column::Float(bin_ends),
-            Column::Float(bin_centers),
-            Column::Int(row_counts),
-            Column::Float(densities),
+            Column::from_float_options(bin_starts),
+            Column::from_float_options(bin_ends),
+            Column::from_float_options(bin_centers),
+            Column::from_int_options(row_counts),
+            Column::from_float_options(densities),
             Column::String(series),
         ],
     )
@@ -241,8 +285,9 @@ pub fn bin_with_options(table: &dyn Table, input_column: &str, options: BinOptio
 
     let mut counts = vec![0i64; bin_count];
     let mut total_count: i64 = 0;
+    let value_view = table.column(input_column);
     for row in 0..table.row_count() {
-        if let Some(v) = cell_f64(table, input_column, row) {
+        if let Some(v) = f64_cell(value_view, table, input_column, row) {
             let idx = bin_index(v, start, width, bin_count, options.closed);
             counts[idx] += 1;
             total_count += 1;
@@ -277,11 +322,11 @@ pub fn bin_with_options(table: &dyn Table, input_column: &str, options: BinOptio
         col_def("density", DataType::Float),
     ];
     let columns = vec![
-        Column::Float(starts),
-        Column::Float(ends),
-        Column::Float(centers),
-        Column::Int(counts.into_iter().map(Some).collect()),
-        Column::Float(densities),
+        Column::from_float_options(starts),
+        Column::from_float_options(ends),
+        Column::from_float_options(centers),
+        Column::from_int_options(counts.into_iter().map(Some).collect()),
+        Column::from_float_options(densities),
     ];
     deterministic_frame(schema, columns)
 }
@@ -309,8 +354,9 @@ pub fn temporal_bin_with_options(
 
     let mut counts = vec![0i64; bin_count];
     let mut total_count: i64 = 0;
+    let value_view = table.column(input_column);
     for row in 0..table.row_count() {
-        if let Some(v) = cell_micros(table, input_column, row) {
+        if let Some(v) = micros_cell(value_view, table, input_column, row) {
             let idx = bin_index(v as f64, start, width, bin_count, options.closed);
             counts[idx] += 1;
             total_count += 1;
@@ -345,11 +391,11 @@ pub fn temporal_bin_with_options(
         col_def("density", DataType::Float),
     ];
     let columns = vec![
-        Column::Temporal(starts),
-        Column::Temporal(ends),
-        Column::Temporal(centers),
-        Column::Int(counts.into_iter().map(Some).collect()),
-        Column::Float(densities),
+        Column::from_temporal_options(starts),
+        Column::from_temporal_options(ends),
+        Column::from_temporal_options(centers),
+        Column::from_int_options(counts.into_iter().map(Some).collect()),
+        Column::from_float_options(densities),
     ];
     deterministic_frame(schema, columns)
 }
@@ -397,8 +443,9 @@ fn temporal_calendar_bin(
 
     let mut counts = vec![0i64; starts.len()];
     let mut total_count = 0i64;
+    let value_view = table.column(input_column);
     for row in 0..table.row_count() {
-        let Some(micros) = cell_micros(table, input_column, row) else {
+        let Some(micros) = micros_cell(value_view, table, input_column, row) else {
             continue;
         };
         let Some(dt) = DateTime::from_timestamp_micros(micros).map(|dt| dt.naive_utc()) else {
@@ -438,11 +485,11 @@ fn temporal_calendar_bin(
     }
 
     let columns = vec![
-        Column::Temporal(out_starts),
-        Column::Temporal(out_ends),
-        Column::Temporal(centers),
-        Column::Int(counts.into_iter().map(Some).collect()),
-        Column::Float(densities),
+        Column::from_temporal_options(out_starts),
+        Column::from_temporal_options(out_ends),
+        Column::from_temporal_options(centers),
+        Column::from_int_options(counts.into_iter().map(Some).collect()),
+        Column::from_float_options(densities),
     ];
     deterministic_frame(temporal_bin_schema(), columns)
 }
@@ -451,11 +498,11 @@ fn empty_temporal_bin_frame() -> DataFrame {
     deterministic_frame(
         temporal_bin_schema(),
         vec![
-            Column::Temporal(vec![]),
-            Column::Temporal(vec![]),
-            Column::Temporal(vec![]),
-            Column::Int(vec![]),
-            Column::Float(vec![]),
+            Column::from_temporal_options(vec![]),
+            Column::from_temporal_options(vec![]),
+            Column::from_temporal_options(vec![]),
+            Column::from_int_options(vec![]),
+            Column::from_float_options(vec![]),
         ],
     )
 }
@@ -577,14 +624,14 @@ pub fn bin2d(table: &dyn Table, x_col: &str, y_col: &str, options: Bin2DOptions)
     deterministic_frame(
         schema,
         vec![
-            Column::Float(cells.iter().map(|c| Some(c.0)).collect()),
-            Column::Float(cells.iter().map(|c| Some(c.1)).collect()),
-            Column::Float(cells.iter().map(|c| Some((c.0 + c.1) / 2.0)).collect()),
-            Column::Float(cells.iter().map(|c| Some(c.2)).collect()),
-            Column::Float(cells.iter().map(|c| Some(c.3)).collect()),
-            Column::Float(cells.iter().map(|c| Some((c.2 + c.3) / 2.0)).collect()),
-            Column::Int(cells.iter().map(|c| Some(c.4)).collect()),
-            Column::Float(cells.iter().map(|c| Some(c.5)).collect()),
+            Column::from_float_options(cells.iter().map(|c| Some(c.0)).collect()),
+            Column::from_float_options(cells.iter().map(|c| Some(c.1)).collect()),
+            Column::from_float_options(cells.iter().map(|c| Some((c.0 + c.1) / 2.0)).collect()),
+            Column::from_float_options(cells.iter().map(|c| Some(c.2)).collect()),
+            Column::from_float_options(cells.iter().map(|c| Some(c.3)).collect()),
+            Column::from_float_options(cells.iter().map(|c| Some((c.2 + c.3) / 2.0)).collect()),
+            Column::from_int_options(cells.iter().map(|c| Some(c.4)).collect()),
+            Column::from_float_options(cells.iter().map(|c| Some(c.5)).collect()),
         ],
     )
 }
@@ -624,8 +671,13 @@ fn bin2d_cells(
     );
     let mut counts = vec![0i64; x_bins * y_bins];
     let mut total = 0i64;
+    let x_view = table.column(x_col);
+    let y_view = table.column(y_col);
     for row in 0..table.row_count() {
-        let (Some(x), Some(y)) = (cell_f64(table, x_col, row), cell_f64(table, y_col, row)) else {
+        let (Some(x), Some(y)) = (
+            f64_cell(x_view, table, x_col, row),
+            f64_cell(y_view, table, y_col, row),
+        ) else {
             continue;
         };
         let xi = bin_index(x, x_start, x_width, x_bins, BinClosed::Left);
@@ -697,8 +749,13 @@ pub fn hexbin(
     // deterministic (spec §18.12).
     let mut counts: std::collections::BTreeMap<(i64, i64), i64> = std::collections::BTreeMap::new();
     let mut total = 0i64;
+    let x_view = table.column(x_col);
+    let y_view = table.column(y_col);
     for row in 0..table.row_count() {
-        let (Some(x), Some(y)) = (cell_f64(table, x_col, row), cell_f64(table, y_col, row)) else {
+        let (Some(x), Some(y)) = (
+            f64_cell(x_view, table, x_col, row),
+            f64_cell(y_view, table, y_col, row),
+        ) else {
             continue;
         };
         let u = (x - x_min) / x_span;
@@ -806,11 +863,11 @@ pub fn hexbin_frame(
     deterministic_frame(
         schema,
         vec![
-            Column::Float(cells.iter().map(|c| Some(c.x)).collect()),
-            Column::Float(cells.iter().map(|c| Some(c.y)).collect()),
-            Column::Float(cells.iter().map(|c| Some(c.radius)).collect()),
-            Column::Int(cells.iter().map(|c| Some(c.count)).collect()),
-            Column::Float(cells.iter().map(|c| Some(c.density)).collect()),
+            Column::from_float_options(cells.iter().map(|c| Some(c.x)).collect()),
+            Column::from_float_options(cells.iter().map(|c| Some(c.y)).collect()),
+            Column::from_float_options(cells.iter().map(|c| Some(c.radius)).collect()),
+            Column::from_int_options(cells.iter().map(|c| Some(c.count)).collect()),
+            Column::from_float_options(cells.iter().map(|c| Some(c.density)).collect()),
         ],
     )
 }
@@ -881,6 +938,7 @@ fn datetime_value(micros: i64, precision: algraf_data::TemporalPrecision) -> Opt
 #[cfg(test)]
 mod grouped_bin_tests {
     use super::*;
+    use algraf_data::{ColumnView, DataValueRef};
 
     fn frame(values: &[(f64, &str)]) -> DataFrame {
         DataFrame::new(
@@ -889,7 +947,7 @@ mod grouped_bin_tests {
                 col_def("g", DataType::String),
             ],
             vec![
-                Column::Float(values.iter().map(|(v, _)| Some(*v)).collect()),
+                Column::from_float_options(values.iter().map(|(v, _)| Some(*v)).collect()),
                 Column::String(values.iter().map(|(_, g)| Some(g.to_string())).collect()),
             ],
         )
@@ -903,6 +961,47 @@ mod grouped_bin_tests {
             closed: BinClosed::Left,
             interval: None,
         }
+    }
+
+    struct ColumnOnlyTable {
+        frame: DataFrame,
+    }
+
+    impl Table for ColumnOnlyTable {
+        fn schema(&self) -> &[ColumnDef] {
+            self.frame.schema()
+        }
+
+        fn row_count(&self) -> usize {
+            self.frame.row_count()
+        }
+
+        fn value(&self, _column: &str, _row: usize) -> Option<DataValueRef<'_>> {
+            panic!("stat execution fell back to scalar value access")
+        }
+
+        fn column(&self, column: &str) -> Option<ColumnView<'_>> {
+            Table::column(&self.frame, column)
+        }
+    }
+
+    #[test]
+    fn bin_and_bin2d_use_column_views_without_scalar_fallback() {
+        let table = ColumnOnlyTable {
+            frame: DataFrame::new(
+                vec![col_def("x", DataType::Float), col_def("y", DataType::Float)],
+                vec![
+                    Column::from_float_options(vec![Some(0.0), Some(0.5), None, Some(2.0)]),
+                    Column::from_float_options(vec![Some(1.0), Some(1.5), Some(2.0), Some(3.0)]),
+                ],
+            ),
+        };
+
+        assert_eq!(bin_with_options(&table, "x", opts()).row_count(), 2);
+        assert_eq!(
+            bin2d(&table, "x", "y", Bin2DOptions { bins: 2 }).row_count(),
+            2
+        );
     }
 
     #[test]
@@ -982,7 +1081,10 @@ mod blended_bin_tests {
     fn frame(a: &[Option<f64>], b: &[Option<f64>]) -> DataFrame {
         DataFrame::new(
             vec![col_def("a", DataType::Float), col_def("b", DataType::Float)],
-            vec![Column::Float(a.to_vec()), Column::Float(b.to_vec())],
+            vec![
+                Column::from_float_options(a.to_vec()),
+                Column::from_float_options(b.to_vec()),
+            ],
         )
     }
 

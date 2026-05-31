@@ -22,6 +22,7 @@ use algraf_data::Table;
 use algraf_semantics::{GeometryIr, GeometryKind, ScaleIr};
 
 use crate::layout::Rect;
+use crate::render::RenderLimits;
 use crate::sink::MarkSink;
 use crate::space::ScaledSpace;
 use crate::theme::Theme;
@@ -34,6 +35,7 @@ pub(crate) struct GeometryRenderContext<'a> {
     pub(crate) plot: Rect,
     pub(crate) theme: &'a Theme,
     pub(crate) scales: &'a [ScaleIr],
+    pub(crate) limits: &'a RenderLimits,
 }
 
 /// Render one geometry layer into the mark sink (spec §24.6).
@@ -46,6 +48,11 @@ pub(crate) fn render(
     let class = format!("algraf-layer algraf-geom-{}", geo.kind.css_class());
     sink.open_layer(&class);
     let before = sink.primitive_count();
+    if let Some(diagnostic) = mark_budget_diagnostic(geo, &ctx) {
+        diagnostics.push(diagnostic);
+        sink.close_layer();
+        return;
+    }
     match geo.kind {
         GeometryKind::Point => point::render(sink, geo, ctx, diagnostics),
         GeometryKind::Line => line::render_polyline(sink, geo, ctx, true),
@@ -81,4 +88,46 @@ pub(crate) fn render(
         ));
     }
     sink.close_layer();
+}
+
+fn mark_budget_diagnostic(geo: &GeometryIr, ctx: &GeometryRenderContext<'_>) -> Option<Diagnostic> {
+    let budget = ctx.limits.mark_budget?;
+    let estimated = estimated_row_mark_count(geo.kind, ctx)?;
+    if estimated <= budget {
+        return None;
+    }
+    Some(
+        Diagnostic::error(
+            codes::E2001,
+            format!(
+                "rendering `{}` would emit {estimated} raw mark(s), above the mark budget of {budget}",
+                geo.kind.display_name()
+            ),
+            geo.span,
+        )
+        .with_help(
+            "bin, aggregate, sample, query through SQLite/Parquet, or raise --mark-budget",
+        ),
+    )
+}
+
+fn estimated_row_mark_count(kind: GeometryKind, ctx: &GeometryRenderContext<'_>) -> Option<usize> {
+    if !matches!(
+        kind,
+        GeometryKind::Point
+            | GeometryKind::Bar
+            | GeometryKind::Rect
+            | GeometryKind::HexBin
+            | GeometryKind::Tile
+            | GeometryKind::Text
+            | GeometryKind::Rug
+            | GeometryKind::Segment
+            | GeometryKind::Geo
+    ) {
+        return None;
+    }
+    Some(
+        ctx.rows
+            .map_or_else(|| ctx.table.row_count(), <[usize]>::len),
+    )
 }

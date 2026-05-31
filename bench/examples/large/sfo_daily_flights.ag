@@ -1,0 +1,11 @@
+Chart(data: Parquet("../../../benchdata/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet"),
+      width: 820, height: 460,
+      title: "SFO Museum flights by day") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Date", timeFormat: "iso-date")
+    Guide(axis: y, label: "Flights")
+
+    Space(date) {
+        Histogram(interval: "day", fill: "#4E79A7", stroke: "#ffffff", strokeWidth: 0.35)
+    }
+}

@@ -1,0 +1,11 @@
+Chart(data: Parquet("../../../benchdata/prepared/tlc/yellow_tripdata_2024-01_chart.parquet"),
+      width: 760, height: 430,
+      title: "NYC TLC payment type counts") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Payment type")
+    Guide(axis: y, label: "Trips")
+
+    Space(payment_type) {
+        Bar(stat: "count", fill: payment_type, alpha: 0.86)
+    }
+}

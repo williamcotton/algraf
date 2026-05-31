@@ -1,0 +1,11 @@
+Chart(data: Parquet("../../../benchdata/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet"),
+      width: 720, height: 420,
+      title: "SFO arrivals and departures") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Event")
+    Guide(axis: y, label: "Flights")
+
+    Space(event) {
+        Bar(stat: "count", fill: event, alpha: 0.86)
+    }
+}

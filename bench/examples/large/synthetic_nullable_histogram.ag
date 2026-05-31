@@ -1,0 +1,15 @@
+Chart(data: Parquet("../../../target/algraf-large-fixtures/smoke/sparse_nullable.parquet"),
+      width: 780, height: 460,
+      title: "Sparse nullable values binned without missing cells") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Nullable value")
+    Guide(axis: y, label: "Count")
+
+    Derive bins = Bin(nullable_value, bins: 24)
+
+    Space(bin_start * count, data: bins) {
+        Rect(xmin: bin_start, xmax: bin_end,
+             ymin: 0, ymax: count,
+             fill: "#5B8DEF", stroke: "#ffffff", strokeWidth: 0.5)
+    }
+}

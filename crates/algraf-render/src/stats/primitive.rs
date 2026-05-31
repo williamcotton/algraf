@@ -159,7 +159,7 @@ pub fn step_vertices(
             output_col(y_col, y_dtype, true),
             output_col("step_group", DataType::Integer, true),
         ],
-        vec![xs.finish(), ys.finish(), Column::Int(groups)],
+        vec![xs.finish(), ys.finish(), Column::from_int_options(groups)],
     )
 }
 
@@ -223,10 +223,10 @@ pub fn vector_endpoints(
     ];
     schema.extend(passthrough);
     let mut columns = vec![
-        Column::Float(xs),
-        Column::Float(ys),
-        Column::Float(xends),
-        Column::Float(yends),
+        Column::from_float_options(xs),
+        Column::from_float_options(ys),
+        Column::from_float_options(xends),
+        Column::from_float_options(yends),
     ];
     columns.extend(finish_builders(passthrough_builders));
     deterministic_frame(schema, columns)
@@ -266,7 +266,10 @@ pub fn jitter_points(
         output_col("y", DataType::Float, false),
     ];
     schema.extend(passthrough);
-    let mut columns = vec![Column::Float(xs), Column::Float(ys)];
+    let mut columns = vec![
+        Column::from_float_options(xs),
+        Column::from_float_options(ys),
+    ];
     columns.extend(finish_builders(passthrough_builders));
     deterministic_frame(schema, columns)
 }
@@ -365,7 +368,7 @@ pub fn interval_segments(
         xends.finish(),
         yends.finish(),
         Column::String(roles),
-        Column::Int(ids),
+        Column::from_int_options(ids),
     ];
     columns.extend(finish_builders(passthrough_builders));
     deterministic_frame(schema, columns)
@@ -449,7 +452,7 @@ pub fn interval_rects(
         ymins.finish(),
         ymaxs.finish(),
         Column::String(roles),
-        Column::Int(ids),
+        Column::from_int_options(ids),
     ];
     columns.extend(finish_builders(passthrough_builders));
     deterministic_frame(schema, columns)
@@ -519,7 +522,7 @@ pub fn interval_middles(
         xends.finish(),
         yends.finish(),
         Column::String(roles),
-        Column::Int(ids),
+        Column::from_int_options(ids),
     ];
     columns.extend(finish_builders(passthrough_builders));
     deterministic_frame(schema, columns)
@@ -573,7 +576,11 @@ pub fn curve_sample(
         output_col("link_id", DataType::Integer, false),
     ];
     schema.extend(passthrough);
-    let mut columns = vec![Column::Float(xs), Column::Float(ys), Column::Int(link_ids)];
+    let mut columns = vec![
+        Column::from_float_options(xs),
+        Column::from_float_options(ys),
+        Column::from_int_options(link_ids),
+    ];
     columns.extend(finish_builders(passthrough_builders));
     deterministic_frame(schema, columns)
 }
@@ -855,10 +862,10 @@ impl ColumnBuilder {
 
     fn finish(self) -> Column {
         match self {
-            ColumnBuilder::Bool(values) => Column::Bool(values),
-            ColumnBuilder::Int(values) => Column::Int(values),
-            ColumnBuilder::Float(values) => Column::Float(values),
-            ColumnBuilder::Temporal(values) => Column::Temporal(values),
+            ColumnBuilder::Bool(values) => Column::from_bool_options(values),
+            ColumnBuilder::Int(values) => Column::from_int_options(values),
+            ColumnBuilder::Float(values) => Column::from_float_options(values),
+            ColumnBuilder::Temporal(values) => Column::from_temporal_options(values),
             ColumnBuilder::String(values) => Column::String(values),
             ColumnBuilder::Geometry(values) => Column::Geometry(values),
         }

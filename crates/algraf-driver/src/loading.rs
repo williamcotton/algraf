@@ -1,8 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use algraf_data::{
-    read_bytes_as_with_temporal_policy, read_schema_bytes_as_with_temporal_policy, read_topojson,
-    ColumnDef, DataError, DataFrame, DataWarning, Format, LoadResult, Table, TemporalParsePolicy,
+    read_bytes_as_with_temporal_policy, read_format_with_temporal_policy,
+    read_schema_bytes_as_with_temporal_policy, read_schema_format_with_temporal_policy,
+    read_topojson, ColumnDef, DataError, DataFrame, DataWarning, Format, LoadResult, Table,
+    TemporalParsePolicy,
 };
 use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::SourceExpr;
@@ -109,9 +111,9 @@ pub(crate) fn load_topojson_with_io(
     context: LoadContext,
     io: &dyn DriverIo,
 ) -> Result<LoadResult, DriverError> {
-    io.read_path(path)
+    io.open_path(path)
         .map_err(DataError::Io)
-        .and_then(|bytes| read_topojson(bytes.as_slice(), object))
+        .and_then(|reader| read_topojson(reader, object))
         .map_err(|source| DriverError::Data {
             context,
             path: path.to_path_buf(),
@@ -183,9 +185,13 @@ fn load_path_with_context(
     let format = format.unwrap_or_else(|| Format::from_path(path));
     let loaded = match format {
         Format::Shapefile => io.load_shapefile(path),
-        _ => io.read_path(path).map_err(DataError::Io).and_then(|bytes| {
-            read_bytes_as_with_temporal_policy(bytes.as_slice(), format, context.temporal_policy)
-        }),
+        Format::Parquet => io.load_parquet(path),
+        _ => io
+            .open_path(path)
+            .map_err(DataError::Io)
+            .and_then(|reader| {
+                read_format_with_temporal_policy(reader, format, context.temporal_policy)
+            }),
     };
     loaded.map_err(|source| DriverError::Data {
         context: context.load_context,
@@ -325,14 +331,18 @@ fn load_schema_path_with_policy_with_io(
         Format::Shapefile => io
             .load_shapefile(path)
             .map(|loaded| loaded.frame.schema().to_vec()),
-        _ => io.read_path(path).map_err(DataError::Io).and_then(|bytes| {
-            read_schema_bytes_as_with_temporal_policy(
-                bytes.as_slice(),
-                format,
-                sample_size,
-                temporal_policy,
-            )
-        }),
+        Format::Parquet => io.load_parquet_schema(path, sample_size),
+        _ => io
+            .open_path(path)
+            .map_err(DataError::Io)
+            .and_then(|reader| {
+                read_schema_format_with_temporal_policy(
+                    reader,
+                    format,
+                    sample_size,
+                    temporal_policy,
+                )
+            }),
     };
     loaded.map_err(|source| DriverError::Data {
         context,

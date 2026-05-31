@@ -10,7 +10,6 @@ use crate::schema::{ColumnDef, DataType};
 use crate::temporal::{
     parse_temporal, parse_temporal_explicit, ParseErrorPolicy, ParsedTemporal, TemporalColumnParse,
 };
-use crate::value::DateTimeValue;
 
 /// Tokens treated as missing in any column (spec §10.3).
 const MISSING_TOKENS: &[&str] = &["", "NA", "N/A", "NaN", "null", "NULL"];
@@ -85,14 +84,6 @@ pub fn infer_column_with_policy(
     raw: &[String],
     temporal_policy: Option<&TemporalColumnParse>,
 ) -> InferredColumn {
-    let cells: Vec<Cell> = raw
-        .iter()
-        .map(|s| match temporal_policy {
-            Some(policy) => classify_explicit(s, policy),
-            None => classify(s),
-        })
-        .collect();
-
     let mut n_bool = 0;
     let mut n_int = 0;
     let mut n_float = 0;
@@ -101,7 +92,11 @@ pub fn infer_column_with_policy(
     let mut n_missing = 0;
     let mut saw_offset = false;
     let mut saw_naive = false;
-    for cell in &cells {
+    for text in raw {
+        let cell = match temporal_policy {
+            Some(policy) => classify_explicit(text, policy),
+            None => classify(text),
+        };
         match cell {
             Cell::Missing => n_missing += 1,
             Cell::Bool(_) => n_bool += 1,
@@ -119,14 +114,14 @@ pub fn infer_column_with_policy(
         }
     }
 
-    let n_present = cells.len() - n_missing;
+    let n_present = raw.len() - n_missing;
     let dtype = if temporal_policy.is_some() {
         DataType::Temporal
     } else {
         decide_type(n_present, n_bool, n_int, n_float, n_temporal, n_string)
     };
 
-    let column = build_column(dtype, &cells, raw);
+    let column = build_column(dtype, raw, temporal_policy);
     let nullable = n_missing > 0 || (temporal_policy.is_some() && n_string > 0);
     let examples = raw
         .iter()
@@ -225,58 +220,63 @@ fn decide_type(
     }
 }
 
-fn build_column(dtype: DataType, cells: &[Cell], raw: &[String]) -> Column {
+fn build_column(
+    dtype: DataType,
+    raw: &[String],
+    temporal_policy: Option<&TemporalColumnParse>,
+) -> Column {
     match dtype {
-        DataType::Boolean => Column::Bool(
-            cells
-                .iter()
-                .map(|c| match c {
-                    Cell::Bool(b) => Some(*b),
+        DataType::Boolean => Column::from_bool_options(
+            raw.iter()
+                .map(|text| match classify_for_build(text, temporal_policy) {
+                    Cell::Bool(b) => Some(b),
                     _ => None,
                 })
                 .collect(),
         ),
-        DataType::Integer => Column::Int(
-            cells
-                .iter()
-                .map(|c| match c {
-                    Cell::Int(i) => Some(*i),
+        DataType::Integer => Column::from_int_options(
+            raw.iter()
+                .map(|text| match classify_for_build(text, temporal_policy) {
+                    Cell::Int(i) => Some(i),
                     _ => None,
                 })
                 .collect(),
         ),
-        DataType::Float => Column::Float(
-            cells
-                .iter()
-                .map(|c| match c {
-                    Cell::Int(i) => Some(*i as f64),
-                    Cell::Float(f) => Some(*f),
+        DataType::Float => Column::from_float_options(
+            raw.iter()
+                .map(|text| match classify_for_build(text, temporal_policy) {
+                    Cell::Int(i) => Some(i as f64),
+                    Cell::Float(f) => Some(f),
                     _ => None,
                 })
                 .collect(),
         ),
-        DataType::Temporal => Column::Temporal(
-            cells
-                .iter()
-                .map(|c| match c {
+        DataType::Temporal => Column::from_temporal_options(
+            raw.iter()
+                .map(|text| match classify_for_build(text, temporal_policy) {
                     Cell::Temporal(t) => Some(t.value),
                     _ => None,
                 })
-                .collect::<Vec<Option<DateTimeValue>>>(),
+                .collect(),
         ),
         // Geometry is never inferred from text cells: it is produced directly
         // by the GeoJson/Shapefile loaders (spec §10.11), not this pipeline.
         DataType::Geometry => unreachable!("geometry columns are not inferred from text"),
         // String, Mixed, and Unknown preserve the original strings.
         DataType::String | DataType::Mixed | DataType::Unknown => Column::String(
-            cells
-                .iter()
-                .zip(raw)
-                .map(|(c, s)| match c {
+            raw.iter()
+                .map(|s| match classify_for_build(s, temporal_policy) {
                     Cell::Missing => None,
                     _ => Some(s.clone()),
                 })
                 .collect(),
         ),
+    }
+}
+
+fn classify_for_build(text: &str, temporal_policy: Option<&TemporalColumnParse>) -> Cell {
+    match temporal_policy {
+        Some(policy) => classify_explicit(text, policy),
+        None => classify(text),
     }
 }

@@ -1,9 +1,9 @@
 # Algraf
 
 Algraf is a block-scoped, algebraic grammar-of-graphics DSL. You describe a
-chart declaratively in a `.ag` file, point it at a CSV, and the `algraf`
-binary parses the source, validates it against the data, trains scales, and
-emits deterministic SVG.
+chart declaratively in a `.ag` file, point it at CSV/TSV/JSON/SQLite/GeoJSON or
+native CLI Parquet data, and the `algraf` binary parses the source, validates it
+against the data, trains scales, and emits deterministic SVG.
 
 The normative reference is [`docs/ALGRAF_SPEC.md`](docs/ALGRAF_SPEC.md).
 Embedding notes for pipeline middleware and host applications live in
@@ -35,6 +35,34 @@ cargo run -p algraf-cli -- render examples/scatter.ag --format raster     --outp
 
 All three backends consume the same planned scene, so they agree on coordinates
 and colors; SVG is the source of truth for appearance.
+
+### Large data demos
+
+Large demo inputs and benchmark outputs are generated locally instead of being
+checked into git. Use:
+
+```bash
+scripts/generate-large-fixtures.sh --tier smoke
+scripts/render-large-demos.sh
+```
+
+The smoke suite writes deterministic Parquet fixtures under
+`target/algraf-large-fixtures/` and bounded SVG/PNG outputs under
+`bench-output/large-demos/`. TLC and SFO Museum demos are opt-in:
+
+```bash
+scripts/download-large-fixtures.sh
+scripts/prepare-large-fixtures.sh
+scripts/render-large-demos.sh
+```
+
+The download script prints the fixed source URLs before writing raw files under
+`benchdata/raw/`; the prepare script writes chart-ready Parquet under
+`benchdata/prepared/`.
+
+Large raw SVG is guarded by a mark budget. Prefer `Bin`, `Bin2D`, `SummaryBin`,
+sampling, SQLite aggregate queries, or Parquet columnar sources when the input is
+large but the chart should stay visually bounded.
 
 This tutorial walks through every example in [`examples/`](examples/) from
 the simplest scatter plot up through statistical layers, derived tables,

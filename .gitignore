@@ -1,4 +1,6 @@
 /target
+/benchdata
+/bench-output
 /.antigravitycli
 /.claude
 /editors/vscode/node_modules

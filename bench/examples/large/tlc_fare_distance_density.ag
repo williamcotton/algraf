@@ -1,0 +1,16 @@
+Chart(data: Parquet("../../../benchdata/prepared/tlc/yellow_tripdata_2024-01_chart.parquet"),
+      width: 820, height: 520,
+      title: "NYC TLC fare by trip distance density") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Trip distance")
+    Guide(axis: y, label: "Total amount")
+
+    Derive bins = Bin2D(trip_distance, total_amount, bins: 42)
+
+    Space(x_center * y_center, data: bins) {
+        Scale(fill: count, domain: [0, 60000], gradient: ["#f7fcf0", "#bae4bc", "#7bccc4", "#2b8cbe", "#084081"])
+        Rect(xmin: x_start, xmax: x_end,
+             ymin: y_start, ymax: y_end,
+             fill: count, stroke: "#ffffff", strokeWidth: 0.15)
+    }
+}

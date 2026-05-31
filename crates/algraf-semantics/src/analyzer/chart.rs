@@ -258,6 +258,11 @@ impl Analyzer<'_> {
                 format: Some(SourceFormat::Shapefile),
                 ..
             } => DataSourceIr::Shapefile(path),
+            SourceExpr::Path {
+                path,
+                format: Some(SourceFormat::Parquet),
+                ..
+            } => DataSourceIr::Parquet(path),
             SourceExpr::Sqlite { path, query, .. } => DataSourceIr::Sqlite { path, query },
             SourceExpr::TopoJson { path, object, .. } => DataSourceIr::TopoJson { path, object },
             SourceExpr::Stdin { .. } => DataSourceIr::Stdin,
@@ -277,8 +282,9 @@ impl Analyzer<'_> {
                 }
                 self.diag(Diagnostic::error(
                     codes::E1004,
-                    "data source must be a string literal, a `GeoJson`/`Shapefile`/`Sqlite` \
-                     source constructor, or the `stdin` sentinel",
+                    "data source must be a string literal, a \
+                     `GeoJson`/`Shapefile`/`Sqlite`/`TopoJson`/`Parquet` source constructor, \
+                     or the `stdin` sentinel",
                     span,
                 ));
                 DataSourceIr::Missing
@@ -286,8 +292,9 @@ impl Analyzer<'_> {
             SourceExpr::Missing => {
                 self.diag(Diagnostic::error(
                     codes::E1004,
-                    "data source must be a string literal, a `GeoJson`/`Shapefile`/`Sqlite` \
-                     source constructor, or the `stdin` sentinel",
+                    "data source must be a string literal, a \
+                     `GeoJson`/`Shapefile`/`Sqlite`/`TopoJson`/`Parquet` source constructor, \
+                     or the `stdin` sentinel",
                     node_span(arg.syntax()),
                 ));
                 DataSourceIr::Missing

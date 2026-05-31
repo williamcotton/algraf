@@ -52,12 +52,14 @@ pub use embed::{
 pub use error::RenderError;
 pub use layout::{FacetPanel, Layout, Rect};
 pub use render::{
-    render, render_draw_list, render_draw_list_with_tables, render_interactive,
-    render_interactive_with_tables, render_raster, render_raster_with_tables, render_with_tables,
+    render, render_draw_list, render_draw_list_with_tables,
+    render_draw_list_with_tables_and_limits, render_interactive, render_interactive_with_tables,
+    render_interactive_with_tables_and_limits, render_raster, render_raster_with_tables,
+    render_raster_with_tables_and_limits, render_with_tables, render_with_tables_and_limits,
     DrawList, DrawListResult, DrawOp, DrawRole, InteractionAxes, InteractionAxis, InteractionChart,
     InteractionDomain, InteractionGroup, InteractionGroupValue, InteractionLegend, InteractionMark,
-    InteractionMetadata, InteractionPlot, RasterImage, RasterResult, RenderResult, TextAnchor,
-    TooltipRow,
+    InteractionMetadata, InteractionPlot, RasterImage, RasterResult, RenderLimits, RenderResult,
+    TextAnchor, TooltipRow,
 };
 pub use sink::{Dash, Fill, MarkInteraction, Paint, Stroke};
 pub use svg::num as svg_num;

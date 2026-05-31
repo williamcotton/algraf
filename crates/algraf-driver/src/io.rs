@@ -1,10 +1,11 @@
-use std::io::{self, Read};
+use std::io::{self, Cursor, Read};
 use std::path::Path;
 use std::time::SystemTime;
 
 use algraf_data::{
-    read_shapefile_bundle, read_shapefile_path, read_sqlite_path, read_sqlite_schema_path,
-    ColumnDef, DataError, LoadResult, ShapefileBundle,
+    read_bytes_as, read_path_as, read_schema_bytes_as, read_schema_path_as, read_shapefile_bundle,
+    read_shapefile_path, read_sqlite_path, read_sqlite_schema_path, ColumnDef, DataError, Format,
+    LoadResult, ShapefileBundle,
 };
 
 /// Minimal metadata the driver can ask an I/O provider for.
@@ -40,6 +41,14 @@ impl DriverShapefileBundle {
 /// shapefile sidecar bundles. It has no network, process, environment, async,
 /// or cache operations.
 pub trait DriverIo {
+    /// Open a resolved data path as a reader. Native providers should stream
+    /// from the file; byte-backed providers may use the default compatibility
+    /// implementation.
+    fn open_path(&self, path: &Path) -> io::Result<Box<dyn Read + '_>> {
+        self.read_path(path)
+            .map(|bytes| Box::new(Cursor::new(bytes)) as Box<dyn Read + '_>)
+    }
+
     /// Read all bytes from a resolved data path.
     fn read_path(&self, path: &Path) -> io::Result<Vec<u8>>;
 
@@ -93,9 +102,31 @@ pub trait DriverIo {
     ) -> Result<Vec<ColumnDef>, DataError> {
         read_sqlite_schema_path(path, query, sample_size)
     }
+
+    /// Load a Parquet source. Byte-backed providers use their stored bytes;
+    /// native providers override this to let the Parquet reader use the file
+    /// path directly.
+    fn load_parquet(&self, path: &Path) -> Result<LoadResult, DataError> {
+        let bytes = self.read_path(path)?;
+        read_bytes_as(&bytes, Format::Parquet)
+    }
+
+    /// Load a Parquet schema from metadata.
+    fn load_parquet_schema(
+        &self,
+        path: &Path,
+        _sample_size: usize,
+    ) -> Result<Vec<ColumnDef>, DataError> {
+        let bytes = self.read_path(path)?;
+        read_schema_bytes_as(&bytes, Format::Parquet, 0)
+    }
 }
 
 impl<T: DriverIo + ?Sized> DriverIo for &T {
+    fn open_path(&self, path: &Path) -> io::Result<Box<dyn Read + '_>> {
+        (**self).open_path(path)
+    }
+
     fn read_path(&self, path: &Path) -> io::Result<Vec<u8>> {
         (**self).read_path(path)
     }
@@ -132,6 +163,18 @@ impl<T: DriverIo + ?Sized> DriverIo for &T {
     ) -> Result<Vec<ColumnDef>, DataError> {
         (**self).load_sqlite_schema(path, query, sample_size)
     }
+
+    fn load_parquet(&self, path: &Path) -> Result<LoadResult, DataError> {
+        (**self).load_parquet(path)
+    }
+
+    fn load_parquet_schema(
+        &self,
+        path: &Path,
+        sample_size: usize,
+    ) -> Result<Vec<ColumnDef>, DataError> {
+        (**self).load_parquet_schema(path, sample_size)
+    }
 }
 
 /// Operating-system implementation used by compatibility wrappers.
@@ -139,6 +182,10 @@ impl<T: DriverIo + ?Sized> DriverIo for &T {
 pub struct OsDriverIo;
 
 impl DriverIo for OsDriverIo {
+    fn open_path(&self, path: &Path) -> io::Result<Box<dyn Read + '_>> {
+        std::fs::File::open(path).map(|file| Box::new(file) as Box<dyn Read + '_>)
+    }
+
     fn read_path(&self, path: &Path) -> io::Result<Vec<u8>> {
         std::fs::read(path)
     }
@@ -159,5 +206,17 @@ impl DriverIo for OsDriverIo {
 
     fn load_shapefile(&self, path: &Path) -> Result<LoadResult, DataError> {
         read_shapefile_path(path)
+    }
+
+    fn load_parquet(&self, path: &Path) -> Result<LoadResult, DataError> {
+        read_path_as(path, Format::Parquet)
+    }
+
+    fn load_parquet_schema(
+        &self,
+        path: &Path,
+        sample_size: usize,
+    ) -> Result<Vec<ColumnDef>, DataError> {
+        read_schema_path_as(path, Format::Parquet, sample_size)
     }
 }

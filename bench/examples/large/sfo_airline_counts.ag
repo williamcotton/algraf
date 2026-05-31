@@ -1,0 +1,11 @@
+Chart(data: Parquet("../../../benchdata/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet"),
+      width: 860, height: 460,
+      title: "SFO flights by top airline") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Airline")
+    Guide(axis: y, label: "Flights")
+
+    Space(airline_group) {
+        Bar(stat: "count", fill: airline_group, alpha: 0.86)
+    }
+}
