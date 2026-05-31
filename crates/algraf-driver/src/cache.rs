@@ -18,7 +18,9 @@ use algraf_data::{ColumnDef, Format};
 
 use crate::error::LoadContext;
 use crate::io::{DriverIo, DriverPathMetadata};
-use crate::loading::{load_schema_path_with_io, load_sqlite_schema_with_io};
+use crate::loading::{
+    load_schema_path_with_io, load_sqlite_schema_with_io, load_topojson_schema_with_io,
+};
 use crate::report::driver_error_code_message;
 
 /// Schema cache key: a normalized source path plus any explicit
@@ -31,6 +33,7 @@ pub struct DataSourceKey {
     path: PathBuf,
     format: Option<Format>,
     query: Option<String>,
+    object: Option<String>,
 }
 
 impl DataSourceKey {
@@ -40,6 +43,7 @@ impl DataSourceKey {
             path: normalize_path(&path.into()),
             format,
             query: None,
+            object: None,
         }
     }
 
@@ -49,6 +53,17 @@ impl DataSourceKey {
             path: normalize_path(&path.into()),
             format: None,
             query: Some(query.into()),
+            object: None,
+        }
+    }
+
+    /// Build a key for a TopoJSON path plus optional topology object.
+    pub fn topojson(path: impl Into<PathBuf>, object: Option<&str>) -> DataSourceKey {
+        DataSourceKey {
+            path: normalize_path(&path.into()),
+            format: Some(Format::TopoJson),
+            query: None,
+            object: object.map(str::to_string),
         }
     }
 
@@ -65,6 +80,11 @@ impl DataSourceKey {
     /// The SQL query for SQLite sources, if any.
     pub fn query(&self) -> Option<&str> {
         self.query.as_deref()
+    }
+
+    /// The selected TopoJSON object, if this key identifies a topology object.
+    pub fn object(&self) -> Option<&str> {
+        self.object.as_deref()
     }
 }
 
@@ -296,6 +316,32 @@ pub fn resolve_sqlite_schema_cached(
     }
 
     let schema = match load_sqlite_schema_with_io(path, query, sample_size, context, io) {
+        Ok(schema) => CachedSchema::Ready(schema),
+        Err(err) => {
+            let (code, message) = driver_error_code_message(&err);
+            CachedSchema::Error { code, message }
+        }
+    };
+    cache.put(key, fingerprint, schema.clone());
+    schema
+}
+
+/// Resolve a TopoJSON object's schema through the shared schema cache.
+pub fn resolve_topojson_schema_cached(
+    cache: &dyn SchemaCache,
+    io: &dyn DriverIo,
+    path: &Path,
+    object: Option<&str>,
+    context: LoadContext,
+) -> CachedSchema {
+    let key = DataSourceKey::topojson(path, object);
+    let fingerprint = fingerprint_path(io, path);
+
+    if let Some(cached) = cache.get(&key, fingerprint.as_ref()) {
+        return cached;
+    }
+
+    let schema = match load_topojson_schema_with_io(path, object, context, io) {
         Ok(schema) => CachedSchema::Ready(schema),
         Err(err) => {
             let (code, message) = driver_error_code_message(&err);

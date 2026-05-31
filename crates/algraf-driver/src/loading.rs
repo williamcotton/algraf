@@ -120,7 +120,7 @@ pub(crate) fn load_topojson_with_io(
 }
 
 /// Load only the schema of a TopoJSON source.
-fn load_topojson_schema_with_io(
+pub(crate) fn load_topojson_schema_with_io(
     path: &Path,
     object: Option<&str>,
     context: LoadContext,

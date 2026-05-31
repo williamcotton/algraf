@@ -19,7 +19,8 @@ provides:
   geometry/column/property) and a refactor that desugars a `Histogram` into an
   explicit `Derive` + `Rect`.
 - Rename for derived-table names, whole-document formatting (also via range
-  formatting), and inlay hints showing the columns a `Derive` produces.
+  formatting), and hover previews for derived-table schemas, source samples,
+  and call attributes/examples.
 - A live preview pane: run **Algraf: Open Preview** (also on the editor title
   bar) to render the chart beside the source. It refreshes as you type, watches
   the chart's data file and re-renders when it changes on disk, and offers

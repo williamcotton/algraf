@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use algraf_core::Diagnostic as CoreDiagnostic;
-use algraf_data::ColumnDef;
+use algraf_data::{ColumnDef, Format};
 use algraf_driver::SourceInput;
 use algraf_semantics::ChartIr;
 use lsp_types::Url;
@@ -17,6 +17,7 @@ pub struct DocumentState {
     pub analysis: Option<AnalysisState>,
     pub primary_schema: Option<Vec<ColumnDef>>,
     pub table_schemas: HashMap<String, Vec<ColumnDef>>,
+    pub source_previews: SourcePreviews,
     pub data_path: Option<PathBuf>,
     pub virtual_files: HashMap<String, VirtualFile>,
     pub has_external_schema_sources: bool,
@@ -32,6 +33,20 @@ impl DocumentState {
         let name = path.file_name().and_then(|name| name.to_str())?;
         self.virtual_files.get(name)
     }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SourcePreviews {
+    pub primary: Option<SourcePreview>,
+    pub tables: HashMap<String, SourcePreview>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SourcePreview {
+    pub label: String,
+    pub schema: Vec<ColumnDef>,
+    pub row_headers: Vec<String>,
+    pub rows: Vec<Vec<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -59,6 +74,7 @@ pub enum SchemaResolution {
     Ready {
         schema: Vec<ColumnDef>,
         path: Option<PathBuf>,
+        format: Option<Format>,
     },
     MissingOrInvalid,
     Unavailable {

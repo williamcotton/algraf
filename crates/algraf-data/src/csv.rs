@@ -23,6 +23,13 @@ pub struct LoadResult {
     pub warnings: Vec<DataWarning>,
 }
 
+/// Raw header and row cells sampled for editor source previews.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SampleRows {
+    pub headers: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+}
+
 fn reader_from<R: Read>(reader: R, delimiter: u8) -> csv::Reader<R> {
     csv::ReaderBuilder::new()
         .has_headers(true)
@@ -200,4 +207,33 @@ pub fn read_delimited_schema_with_temporal_policy<R: Read>(
 /// Infer a provisional schema from a string.
 pub fn read_csv_schema_str(input: &str, sample: usize) -> Result<Vec<ColumnDef>, DataError> {
     read_csv_schema(input.as_bytes(), sample)
+}
+
+/// Sample raw CSV rows for editor previews. Cells are returned before type
+/// inference so hover can show the source text authors expect to inspect.
+pub fn read_csv_sample_rows<R: Read>(reader: R, sample: usize) -> Result<SampleRows, DataError> {
+    read_delimited_sample_rows(reader, b',', sample)
+}
+
+/// Sample raw delimited rows for editor previews.
+pub fn read_delimited_sample_rows<R: Read>(
+    reader: R,
+    delimiter: u8,
+    sample: usize,
+) -> Result<SampleRows, DataError> {
+    let mut reader = reader_from(reader, delimiter);
+    let headers = headers(&mut reader)?;
+    let mut rows = Vec::new();
+    for (read, record) in reader.records().enumerate() {
+        if read >= sample {
+            break;
+        }
+        let record = record?;
+        let mut row = Vec::with_capacity(headers.len());
+        for i in 0..headers.len() {
+            row.push(record.get(i).unwrap_or("").to_string());
+        }
+        rows.push(row);
+    }
+    Ok(SampleRows { headers, rows })
 }

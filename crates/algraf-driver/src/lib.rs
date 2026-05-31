@@ -13,8 +13,9 @@ mod resolution;
 mod variables;
 
 pub use cache::{
-    fingerprint_path, resolve_schema_cached, resolve_sqlite_schema_cached, CachedSchema,
-    DataSourceKey, InMemorySchemaCache, NoSchemaCache, SchemaCache, SourceFingerprint,
+    fingerprint_path, resolve_schema_cached, resolve_sqlite_schema_cached,
+    resolve_topojson_schema_cached, CachedSchema, DataSourceKey, InMemorySchemaCache,
+    NoSchemaCache, SchemaCache, SourceFingerprint,
 };
 pub use error::{DriverError, LoadContext};
 pub use io::{DriverIo, DriverPathMetadata, DriverShapefileBundle, OsDriverIo};
@@ -1116,6 +1117,73 @@ Chart(data: "b.csv") { Space(x * y) { Line() } }"#,
         assert_eq!(
             first.query(),
             Some("SELECT region FROM sales ORDER BY region")
+        );
+    }
+
+    #[test]
+    fn data_source_key_distinguishes_topojson_objects() {
+        let regions = DataSourceKey::topojson("a/map.topojson", Some("regions"));
+        let counties = DataSourceKey::topojson("a/map.topojson", Some("counties"));
+        let sole = DataSourceKey::topojson("a/map.topojson", None);
+
+        assert_ne!(regions, counties);
+        assert_ne!(regions, sole);
+        assert_eq!(regions.format(), Some(Format::TopoJson));
+        assert_eq!(regions.object(), Some("regions"));
+    }
+
+    #[test]
+    fn schema_cache_resolves_topojson_object_schema() {
+        let path = PathBuf::from("/mem/grid.topojson");
+        let io = CountingIo::new(MemoryIo::default().with_file(
+            &path,
+            br#"{
+              "type": "Topology",
+              "objects": {
+                "grid": {
+                  "type": "GeometryCollection",
+                  "geometries": [
+                    {"type": "Point", "coordinates": [0, 0], "properties": {"cell": "A", "value": 10}}
+                  ]
+                },
+                "labels": {
+                  "type": "GeometryCollection",
+                  "geometries": [
+                    {"type": "Point", "coordinates": [1, 1], "properties": {"name": "B"}}
+                  ]
+                }
+              },
+              "arcs": []
+            }"#
+            .as_slice(),
+        ));
+        let cache = InMemorySchemaCache::new();
+
+        let grid =
+            resolve_topojson_schema_cached(&cache, &io, &path, Some("grid"), LoadContext::Primary);
+        let labels = resolve_topojson_schema_cached(
+            &cache,
+            &io,
+            &path,
+            Some("labels"),
+            LoadContext::Primary,
+        );
+        let cached_grid =
+            resolve_topojson_schema_cached(&cache, &io, &path, Some("grid"), LoadContext::Primary);
+
+        let CachedSchema::Ready(grid) = grid else {
+            panic!("expected grid schema");
+        };
+        let CachedSchema::Ready(labels) = labels else {
+            panic!("expected labels schema");
+        };
+        assert!(grid.iter().any(|column| column.name == "value"));
+        assert!(!labels.iter().any(|column| column.name == "value"));
+        assert!(matches!(cached_grid, CachedSchema::Ready(_)));
+        assert_eq!(
+            io.reads(),
+            2,
+            "different TopoJSON objects should use distinct cache entries"
         );
     }
 

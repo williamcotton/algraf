@@ -2317,6 +2317,12 @@ Derived table schemas MUST be available to semantic analysis after the stat decl
 
 Derived table schemas MUST be available to LSP completions inside `Space(..., data: derived_name)` blocks.
 
+Derived table schemas MUST be available to LSP hover on the `Derive` table name
+and on `data: derived_name` references. The hover MUST identify the producer
+stat and list the output columns and types when semantic analysis has a valid
+schema. If analysis is incomplete or invalid, hover MUST NOT invent an output
+schema.
+
 Derived tables MAY be lazily computed by the renderer.
 
 Derived table schemas SHOULD be computed without running expensive full-data transforms where possible.
@@ -2467,6 +2473,11 @@ in-memory, fingerprint-validated cache.
 Completion requests SHOULD return cached schemas if available.
 
 Completion requests SHOULD NOT block for full data loading.
+
+Hover source previews SHOULD reuse the same cached, bounded schema-sampling
+path. A hover MAY include a few raw source rows for compact CSV/TSV previews,
+but the sample MUST be bounded, labeled provisional, and omitted when the source
+is unavailable, unsupported for row preview, or too large for the editor path.
 
 ### 10.10 Named Tables
 
@@ -7283,7 +7294,24 @@ the primary or named-table source, and a small set of sample values. Sampled
 types MUST be labeled provisional in the hover text or associated analysis
 state.
 
-geometry hover shows geometry docs
+Derived-table hover shows the table name, producer stat, and output schema for
+`Derive` names and `data: derived_name` references. Column hover inside
+`Space(..., data: derived_name)` MUST resolve against that derived table's
+schema, not the primary source schema.
+
+Source-string hover for `Chart(data: "file.csv")` and `Table name = "file.csv"`
+SHOULD show the resolved source label, sampled column types, sample values from
+the schema, and a bounded raw row preview when available. Source previews MUST
+be labeled provisional and MUST degrade gracefully when data is missing,
+unreadable, unsupported for row preview, or too large to sample on the editor
+path.
+
+Declaration hover for `Chart`, `Space`, `Theme`, `Scale`, `Guide`, `Layout`, and
+`Table` shows a short description, accepted attributes with value forms/defaults
+where known, and a concise valid example.
+
+Geometry and stat hover shows shared registry docs, accepted properties or
+arguments, required properties where known, and a concise valid example.
 
 property hover shows property docs
 
@@ -7495,10 +7523,14 @@ and MUST NOT be renameable; prepare-rename returns nothing for them.
 
 ### 21.17 Inlay Hints
 
-The LSP MAY provide inlay hints (`textDocument/inlayHint`). Version 0.4.0 shows,
-after each in-document `Derive`, the output columns the stat produces with their
-inferred types (e.g. `bin_start`, `bin_end`, `bin_center`, `count`). Hints are
-filtered to the requested range.
+The LSP MAY provide inlay hints (`textDocument/inlayHint`) when there is an
+active hint family worth advertising.
+
+As of version 0.39.5, Algraf does not advertise an active inlay-hint provider.
+Derived-table schemas are inspected through hover on `Derive` names and
+`data:` references (spec §21.7), not through grey inline text after each
+declaration. Legacy clients that still issue `textDocument/inlayHint` MAY
+receive an empty list.
 
 ### 21.18 Preview Rendering
 
@@ -8028,7 +8060,7 @@ semantic tokens
 
 code actions
 
-navigation, references, rename, document symbols, and inlay hints
+navigation, references, rename, and document symbols
 
 diagnostics publication
 
@@ -8429,10 +8461,14 @@ The response is:
 state used by the requested feature. `result` MUST remain close to `lsp-types`
 serialization for hover, completion, signature help, formatting edits, semantic
 tokens, code actions, definition, references, document highlights, prepare
-rename, rename, document symbols, and inlay hints. Hosts MAY map those values
+rename, rename, and document symbols. Hosts MAY map those values
 into editor-native provider APIs, but MUST NOT reimplement Algraf parsing,
 semantic analysis, registry documentation, formatting, code actions, or hover
 decision logic in the browser client.
+
+The v0.39.5 browser demo does not advertise an inlay-hint provider. Legacy
+editor-service `inlayHints` requests MAY return an empty LSP-shaped list, but
+derived-table schema inspection belongs to hover.
 
 The editor-service ABI uses UTF-16 LSP positions and ranges at the boundary.
 Internal Algraf spans remain byte offsets. Implementations MUST test
@@ -8441,9 +8477,11 @@ typically expose UTF-16 columns.
 
 The browser editor service sees only host-supplied in-memory files. Completion
 and hover MUST use those files for primary and named-table schema samples when
-available. Navigation to host-supplied data MAY return synthetic
-`inmemory://algraf/...` locations. Navigation that would require arbitrary host
-filesystem access MUST fail gracefully in the browser rather than reading files.
+available. Hover over source strings MAY also show bounded raw CSV/TSV row
+previews from those in-memory files. Navigation to host-supplied data MAY return
+synthetic `inmemory://algraf/...` locations. Navigation that would require
+arbitrary host filesystem access MUST fail gracefully in the browser rather than
+reading files.
 
 The WASM runtime does not enable the native `sql` Cargo feature, so SQLite
 sources are unavailable in that build. A SQLite source in a no-`sql` build MUST
@@ -9162,7 +9200,9 @@ formatting if implemented
 
 Completion tests SHOULD verify schema-aware suggestions.
 
-Hover tests SHOULD verify operator docs.
+Hover tests SHOULD verify operator docs, derived-table schema hover,
+source-string schema/row previews, declaration/geometry call docs, and
+non-ASCII UTF-16 ranges.
 
 Diagnostics tests SHOULD verify ranges.
 
@@ -9459,6 +9499,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.37.0 | [`V0_37_PLAN.md`](V0_37_PLAN.md) | ggplot2 comparability: uncertainty construction and exact sugar lowerings | Implemented |
 | 0.38.0 | [`V0_38_PLAN.md`](V0_38_PLAN.md) | ggplot2 comparability: z-field statistics | Implemented |
 | 0.39.0 | [`V0_39_PLAN.md`](V0_39_PLAN.md) | ggplot2 comparability: model and summary stats | Planned |
+| 0.39.5 | [`V0_39_5_PLAN.md`](V0_39_5_PLAN.md) | Rust editor-service hover overhaul | Implemented |
 | 0.40.0 | [`V0_40_PLAN.md`](V0_40_PLAN.md) | ggplot2 comparability: scale and guide control | Planned |
 | 0.41.0 | [`V0_41_PLAN.md`](V0_41_PLAN.md) | ggplot2 comparability: layout and position control | Planned |
 | 0.42.0 | [`V0_42_PLAN.md`](V0_42_PLAN.md) | ggplot2 comparability: presentation parity and closure | Planned |

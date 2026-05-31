@@ -779,6 +779,7 @@ mod tests {
             analysis: None,
             primary_schema: None,
             table_schemas: Default::default(),
+            source_previews: Default::default(),
             data_path: None,
             virtual_files: Default::default(),
             has_external_schema_sources: false,

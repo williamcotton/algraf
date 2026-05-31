@@ -4,7 +4,7 @@ Status: Planned
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_38_PLAN.md`](V0_38_PLAN.md)
-Follow-on plan: [`V0_40_PLAN.md`](V0_40_PLAN.md)
+Follow-on plan: [`V0_39_5_PLAN.md`](V0_39_5_PLAN.md)
 Roadmap theme: ggplot2 feature comparability without ggplot2 API compatibility.
 
 ## Purpose

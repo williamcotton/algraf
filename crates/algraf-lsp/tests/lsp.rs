@@ -48,6 +48,7 @@ async fn initialized_service() -> (tower_lsp::LspService<Backend>, tower_lsp::Cl
     assert!(result.capabilities.hover_provider.is_some());
     assert!(result.capabilities.semantic_tokens_provider.is_some());
     assert!(result.capabilities.code_action_provider.is_some());
+    assert!(result.capabilities.inlay_hint_provider.is_none());
     (service, socket)
 }
 
@@ -145,6 +146,13 @@ fn labels(result: Option<CompletionResponse>) -> Vec<(String, Option<String>)> {
         .into_iter()
         .map(|item| (item.label, item.insert_text))
         .collect()
+}
+
+fn hover_markdown(hover: Option<Hover>) -> String {
+    match hover.expect("hover").contents {
+        HoverContents::Markup(markup) => markup.value,
+        other => format!("{other:?}"),
+    }
 }
 
 #[tokio::test]
@@ -294,6 +302,38 @@ async fn schema_resolution_uses_geojson_constructor_format() {
     let result: Option<CompletionResponse> = response_result(response);
     let labels = labels(result);
     assert!(labels.iter().any(|(label, _)| label == "geom"));
+}
+
+#[tokio::test]
+async fn schema_resolution_uses_topojson_constructor_object() {
+    let dir = temp_project("topojson-constructor-schema");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(
+        dir.join("grid.topojson"),
+        r#"{
+          "type": "Topology",
+          "objects": {
+            "grid": {
+              "type": "GeometryCollection",
+              "geometries": [
+                {"type": "Point", "coordinates": [0, 0], "properties": {"value": 10}}
+              ]
+            }
+          },
+          "arcs": []
+        }"#,
+    )
+    .unwrap();
+
+    let source = "Chart(data: TopoJson(\"grid.topojson\", object: \"grid\")) {\n    Space(geom, projection: \"equirectangular\") { Geo(fill: value) }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, mut socket) = initialized_service().await;
+    open_document(&mut service, uri, source).await;
+
+    let messages = diagnostic_messages(&mut socket).await;
+    assert!(messages.is_empty(), "{messages:?}");
 }
 
 #[tokio::test]
@@ -456,6 +496,81 @@ async fn hover_uses_utf16_positions_for_operator_lookup() {
         other => format!("{other:?}"),
     };
     assert!(value.contains("Cross operator"));
+}
+
+#[tokio::test]
+async fn hover_previews_source_string_schema_and_rows() {
+    let dir = temp_project("source-hover");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("samples.csv"), "x,y,group\n1.2,4.0,A\n1.8,4.6,B\n").unwrap();
+
+    let source = "Chart(data: \"samples.csv\") {\n    Space(x * y) { Point(fill: group) }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let offset = source.find("samples.csv").unwrap();
+    let params = HoverParams {
+        text_document_position_params: request_position(uri, source, offset),
+        work_done_progress_params: Default::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/hover")
+            .params(serde_json::to_value(params).unwrap())
+            .id(21)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let markdown = hover_markdown(response_result(response));
+
+    assert!(markdown.contains("Data source `samples.csv`"), "{markdown}");
+    assert!(markdown.contains("| x | float | 1.2, 1.8 |"), "{markdown}");
+    assert!(markdown.contains("| 1.2 | 4.0 | A |"), "{markdown}");
+}
+
+#[tokio::test]
+async fn hover_derived_table_reference_uses_utf16_range() {
+    let dir = temp_project("derived-hover");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("données.csv"), "x,y\n1,2\n3,4\n").unwrap();
+
+    let source = "Chart(data: \"données.csv\") {\n    Derive binned = Bin2D(x, y, bins: 10)\n    Space(x_center * y_center, data: binned) { Point() }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let offset = source.rfind("binned").unwrap();
+    let params = HoverParams {
+        text_document_position_params: request_position(uri, source, offset),
+        work_done_progress_params: Default::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/hover")
+            .params(serde_json::to_value(params).unwrap())
+            .id(22)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let hover: Option<Hover> = response_result(response);
+    let hover = hover.expect("hover");
+    let markdown = hover_markdown(Some(hover.clone()));
+    assert!(markdown.contains("Derived table `binned`"), "{markdown}");
+    assert!(markdown.contains("| x_center | float |"), "{markdown}");
+
+    let range = hover.range.expect("range");
+    assert_eq!(range.start, utf16_position(source, offset));
+    assert_eq!(
+        range.end.character - range.start.character,
+        "binned".len() as u32
+    );
 }
 
 #[tokio::test]
@@ -978,9 +1093,9 @@ async fn rename_updates_let_binding_declaration_and_uses() {
 }
 
 #[tokio::test]
-async fn inlay_hints_show_derive_output_columns() {
+async fn inlay_hints_are_empty_when_legacy_clients_request_them() {
     let (mut service, _socket) = initialized_service().await;
-    let (uri, source) = open_binned(&mut service, "inlay-derive").await;
+    let (uri, source) = open_binned(&mut service, "inlay-disabled").await;
 
     let params = InlayHintParams {
         text_document: TextDocumentIdentifier { uri },
@@ -1001,9 +1116,7 @@ async fn inlay_hints_show_derive_output_columns() {
     .unwrap();
     let result: Option<Vec<InlayHint>> = response_result(response);
     let hints = result.expect("inlay hints");
-    assert!(!hints.is_empty());
-    let serialized = serde_json::to_string(&hints).unwrap();
-    assert!(serialized.contains("bin_start"), "{serialized}");
+    assert!(hints.is_empty());
 }
 
 #[tokio::test]

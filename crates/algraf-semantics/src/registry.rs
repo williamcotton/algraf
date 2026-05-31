@@ -50,6 +50,497 @@ pub const SCALE_TYPE_NAMES: &[&str] = &["linear", "log10", "sqrt"];
 /// Named categorical palettes accepted by `Scale(palette: ...)`.
 pub const PALETTE_NAMES: &[&str] = &["default", "accent"];
 
+/// Documentation for a single call argument or property.
+#[derive(Debug, Clone, Copy)]
+pub struct ArgDoc {
+    pub name: &'static str,
+    pub value: &'static str,
+    pub default: Option<&'static str>,
+    pub doc: &'static str,
+}
+
+/// Documentation for a declaration-style call.
+#[derive(Debug, Clone, Copy)]
+pub struct CallDoc {
+    pub name: &'static str,
+    pub kind: &'static str,
+    pub description: &'static str,
+    pub args: &'static [ArgDoc],
+    pub example: &'static str,
+}
+
+const CHART_DOC_ARGS: &[ArgDoc] = &[
+    ArgDoc {
+        name: "data",
+        value: "source",
+        default: None,
+        doc: "Primary data source path, `stdin`, or a source constructor.",
+    },
+    ArgDoc {
+        name: "width",
+        value: "number",
+        default: Some("800"),
+        doc: "Viewport width in pixels.",
+    },
+    ArgDoc {
+        name: "height",
+        value: "number",
+        default: Some("520"),
+        doc: "Viewport height in pixels.",
+    },
+    ArgDoc {
+        name: "title",
+        value: "string",
+        default: None,
+        doc: "Main chart title.",
+    },
+    ArgDoc {
+        name: "subtitle",
+        value: "string",
+        default: None,
+        doc: "Secondary title text.",
+    },
+    ArgDoc {
+        name: "caption",
+        value: "string",
+        default: None,
+        doc: "Caption below the plot.",
+    },
+    ArgDoc {
+        name: "marginTop",
+        value: "number",
+        default: Some("computed"),
+        doc: "Minimum top plot margin in pixels.",
+    },
+    ArgDoc {
+        name: "marginRight",
+        value: "number",
+        default: Some("computed"),
+        doc: "Minimum right plot margin in pixels.",
+    },
+    ArgDoc {
+        name: "marginBottom",
+        value: "number",
+        default: Some("computed"),
+        doc: "Minimum bottom plot margin in pixels.",
+    },
+    ArgDoc {
+        name: "marginLeft",
+        value: "number",
+        default: Some("computed"),
+        doc: "Minimum left plot margin in pixels.",
+    },
+];
+
+const SPACE_DOC_ARGS: &[ArgDoc] = &[
+    ArgDoc {
+        name: "frame",
+        value: "algebra",
+        default: None,
+        doc: "Positional algebra expression such as `x * y` or `category / group`.",
+    },
+    ArgDoc {
+        name: "data",
+        value: "table name",
+        default: Some("primary"),
+        doc: "Bind the space to a chart-scoped `Table` or `Derive` result.",
+    },
+    ArgDoc {
+        name: "coords",
+        value: "\"cartesian\" | \"polar\"",
+        default: Some("\"cartesian\""),
+        doc: "Coordinate system for the space.",
+    },
+    ArgDoc {
+        name: "theta",
+        value: "\"x\" | \"y\"",
+        default: Some("\"x\""),
+        doc: "Polar axis mapped to angle.",
+    },
+    ArgDoc {
+        name: "innerRadius",
+        value: "number",
+        default: Some("0"),
+        doc: "Polar inner-radius fraction in `[0, 1)`.",
+    },
+    ArgDoc {
+        name: "startAngle",
+        value: "number",
+        default: Some("0"),
+        doc: "Polar start angle in degrees.",
+    },
+    ArgDoc {
+        name: "direction",
+        value: "\"clockwise\" | \"counterclockwise\"",
+        default: Some("\"clockwise\""),
+        doc: "Polar sweep direction.",
+    },
+    ArgDoc {
+        name: "projection",
+        value: "string",
+        default: None,
+        doc: "Spatial projection alias or PROJ string.",
+    },
+];
+
+const THEME_DOC_ARGS: &[ArgDoc] = &[
+    ArgDoc {
+        name: "name",
+        value: "\"minimal\" | \"classic\" | \"light\" | \"dark\" | \"void\"",
+        default: Some("inherited"),
+        doc: "Named base theme.",
+    },
+    ArgDoc {
+        name: "fontFamily",
+        value: "string",
+        default: None,
+        doc: "Font family used for chart text.",
+    },
+    ArgDoc {
+        name: "fontSize",
+        value: "number",
+        default: None,
+        doc: "Base text size in pixels.",
+    },
+    ArgDoc {
+        name: "titleSize",
+        value: "number",
+        default: None,
+        doc: "Title text size in pixels.",
+    },
+    ArgDoc {
+        name: "pointSize",
+        value: "number",
+        default: None,
+        doc: "Default point radius.",
+    },
+    ArgDoc {
+        name: "lineWidth",
+        value: "number",
+        default: None,
+        doc: "Default line width.",
+    },
+    ArgDoc {
+        name: "background",
+        value: "color",
+        default: None,
+        doc: "Chart background color.",
+    },
+    ArgDoc {
+        name: "plotBackground",
+        value: "color",
+        default: None,
+        doc: "Plot area background color.",
+    },
+    ArgDoc {
+        name: "axisColor",
+        value: "color",
+        default: None,
+        doc: "Axis stroke color.",
+    },
+    ArgDoc {
+        name: "gridColor",
+        value: "color",
+        default: None,
+        doc: "Grid-line color.",
+    },
+    ArgDoc {
+        name: "textColor",
+        value: "color",
+        default: None,
+        doc: "Default text color.",
+    },
+    ArgDoc {
+        name: "grid",
+        value: "boolean",
+        default: None,
+        doc: "Enable or disable grid lines.",
+    },
+    ArgDoc {
+        name: "axes",
+        value: "boolean",
+        default: None,
+        doc: "Enable or disable axes.",
+    },
+];
+
+const SCALE_DOC_ARGS: &[ArgDoc] = &[
+    ArgDoc {
+        name: "axis",
+        value: "x | y",
+        default: None,
+        doc: "Axis scale target.",
+    },
+    ArgDoc {
+        name: "type",
+        value: "\"linear\" | \"log10\" | \"sqrt\"",
+        default: Some("\"linear\""),
+        doc: "Continuous scale transform.",
+    },
+    ArgDoc {
+        name: "domain",
+        value: "[number | null, number | null]",
+        default: None,
+        doc: "Explicit numeric domain bounds.",
+    },
+    ArgDoc {
+        name: "reverse",
+        value: "boolean",
+        default: Some("false"),
+        doc: "Reverse scale direction.",
+    },
+    ArgDoc {
+        name: "integer",
+        value: "boolean",
+        default: Some("false"),
+        doc: "Prefer whole-number axis ticks.",
+    },
+    ArgDoc {
+        name: "fill",
+        value: "column",
+        default: None,
+        doc: "Fill aesthetic target.",
+    },
+    ArgDoc {
+        name: "stroke",
+        value: "column",
+        default: None,
+        doc: "Stroke aesthetic target.",
+    },
+    ArgDoc {
+        name: "size",
+        value: "column",
+        default: None,
+        doc: "Size aesthetic target.",
+    },
+    ArgDoc {
+        name: "strokeWidth",
+        value: "column",
+        default: None,
+        doc: "Stroke-width aesthetic target.",
+    },
+    ArgDoc {
+        name: "palette",
+        value: "\"default\" | \"accent\"",
+        default: Some("\"default\""),
+        doc: "Categorical palette.",
+    },
+    ArgDoc {
+        name: "gradient",
+        value: "array",
+        default: None,
+        doc: "Continuous color gradient.",
+    },
+    ArgDoc {
+        name: "range",
+        value: "array | map",
+        default: None,
+        doc: "Output range or categorical color map.",
+    },
+    ArgDoc {
+        name: "labels",
+        value: "map",
+        default: None,
+        doc: "Manual category labels.",
+    },
+    ArgDoc {
+        name: "label",
+        value: "string",
+        default: None,
+        doc: "Legend title for an aesthetic scale.",
+    },
+];
+
+const GUIDE_DOC_ARGS: &[ArgDoc] = &[
+    ArgDoc {
+        name: "axis",
+        value: "x | y",
+        default: None,
+        doc: "Axis targeted by guide settings.",
+    },
+    ArgDoc {
+        name: "label",
+        value: "string",
+        default: None,
+        doc: "Axis label override.",
+    },
+    ArgDoc {
+        name: "timeFormat",
+        value: "string",
+        default: None,
+        doc: "Temporal axis label format.",
+    },
+    ArgDoc {
+        name: "tickLabelAngle",
+        value: "number",
+        default: Some("0"),
+        doc: "Axis tick label angle in degrees.",
+    },
+    ArgDoc {
+        name: "legend",
+        value: "boolean",
+        default: Some("true"),
+        doc: "Enable or disable legends.",
+    },
+    ArgDoc {
+        name: "fill",
+        value: "null",
+        default: None,
+        doc: "Suppress the fill legend with `null`.",
+    },
+    ArgDoc {
+        name: "stroke",
+        value: "null",
+        default: None,
+        doc: "Suppress the stroke legend with `null`.",
+    },
+    ArgDoc {
+        name: "grid",
+        value: "boolean",
+        default: Some("true"),
+        doc: "Enable or disable grid lines.",
+    },
+];
+
+const LAYOUT_DOC_ARGS: &[ArgDoc] = &[ArgDoc {
+    name: "facetColumns",
+    value: "number",
+    default: Some("auto"),
+    doc: "Number of columns in a facet-wrap layout.",
+}];
+
+const TABLE_DOC_ARGS: &[ArgDoc] = &[
+    ArgDoc {
+        name: "name",
+        value: "identifier",
+        default: None,
+        doc: "Chart-scoped table name.",
+    },
+    ArgDoc {
+        name: "source",
+        value: "source",
+        default: None,
+        doc: "Path or source constructor loaded like `Chart(data:)`.",
+    },
+];
+
+/// Human-facing declaration documentation shared by hover providers.
+pub fn declaration_doc(name: &str) -> Option<CallDoc> {
+    match name {
+        "Chart" => Some(CallDoc {
+            name: "Chart",
+            kind: "Declaration",
+            description: "Root chart block with a primary data source and chart-level settings.",
+            args: CHART_DOC_ARGS,
+            example: "Chart(data: \"data.csv\") {\n    Space(x * y) { Point() }\n}",
+        }),
+        "Space" => Some(CallDoc {
+            name: "Space",
+            kind: "Declaration",
+            description: "Coordinate space that binds a frame algebra expression to a table.",
+            args: SPACE_DOC_ARGS,
+            example: "Space(x * y, data: binned) {\n    Rect(xmin: x_min, xmax: x_max, ymin: y_min, ymax: y_max)\n}",
+        }),
+        "Theme" => Some(CallDoc {
+            name: "Theme",
+            kind: "Declaration",
+            description: "Selects a named theme and optional source-level overrides.",
+            args: THEME_DOC_ARGS,
+            example: "Theme(name: \"minimal\", grid: false)",
+        }),
+        "Scale" => Some(CallDoc {
+            name: "Scale",
+            kind: "Declaration",
+            description: "Overrides an axis or aesthetic scale.",
+            args: SCALE_DOC_ARGS,
+            example: "Scale(axis: y, type: \"sqrt\")",
+        }),
+        "Guide" => Some(CallDoc {
+            name: "Guide",
+            kind: "Declaration",
+            description: "Overrides axis labels, tick formatting, grid lines, and legends.",
+            args: GUIDE_DOC_ARGS,
+            example: "Guide(axis: x, label: \"Flipper length\")",
+        }),
+        "Layout" => Some(CallDoc {
+            name: "Layout",
+            kind: "Declaration",
+            description: "Configures chart-level layout behavior such as facet wrapping.",
+            args: LAYOUT_DOC_ARGS,
+            example: "Layout(facetColumns: 2)",
+        }),
+        "Table" => Some(CallDoc {
+            name: "Table",
+            kind: "Declaration",
+            description: "Declares a chart-scoped named table loaded from its own source.",
+            args: TABLE_DOC_ARGS,
+            example: "Table cities = \"cities.csv\"",
+        }),
+        _ => None,
+    }
+}
+
+/// Concise examples for geometry call hover.
+pub fn geometry_example(name: &str) -> &'static str {
+    match name {
+        "Point" => "Point(fill: species, size: mass)",
+        "Line" => "Line(stroke: series, group: series)",
+        "Path" => "Path(stroke: series)",
+        "Bar" => "Bar(fill: group, layout: \"stack\")",
+        "Rect" => "Rect(xmin: x_min, xmax: x_max, ymin: y_min, ymax: y_max)",
+        "Histogram" => "Histogram(bins: 30, fill: \"#4f6bed\")",
+        "FreqPoly" => "FreqPoly(bins: 30, stroke: group)",
+        "Bin2D" => "Bin2D(bins: 20)",
+        "HexBin" => "HexBin(bins: 20)",
+        "Smooth" => "Smooth(method: \"lm\", se: true)",
+        "Boxplot" => "Boxplot(fill: group)",
+        "Violin" => "Violin(fill: group, quantiles: [0.25, 0.5, 0.75])",
+        "Density" => "Density(bandwidth: 0.8)",
+        "ErrorBar" => "ErrorBar(ymin: low, ymax: high)",
+        "LineRange" => "LineRange(ymin: low, ymax: high)",
+        "PointRange" => "PointRange(ymin: low, ymax: high)",
+        "CrossBar" => "CrossBar(ymin: low, ymax: high)",
+        "Ribbon" => "Ribbon(ymin: low, ymax: high)",
+        "Tile" => "Tile(fill: value)",
+        "HLine" => "HLine(y: 0, label: \"baseline\")",
+        "VLine" => "VLine(x: 0)",
+        "Rug" => "Rug(sides: \"b\")",
+        "Area" => "Area(fill: \"#8fb3ff\")",
+        "Text" => "Text(label: name, anchor: \"middle\")",
+        "Segment" => "Segment(x: x0, y: y0, xend: x1, yend: y1)",
+        "Geo" => "Geo(fill: region)",
+        "Graticule" => "Graticule(step: 10)",
+        _ => "",
+    }
+}
+
+/// Concise examples for stat call hover.
+pub fn stat_example(name: &str) -> &'static str {
+    match name {
+        "Bin" => "Derive bins = Bin(value, bins: 30)",
+        "Smooth" => "Derive trend = Smooth(x, y, method: \"lm\")",
+        "Bin2D" => "Derive binned = Bin2D(x, y, bins: 20)",
+        "HexBin" => "Derive hex = HexBin(x, y, bins: 20)",
+        "ContourLines" => "Derive lines = ContourLines(x, y, z: value, levels: 10)",
+        "ContourBands" => "Derive bands = ContourBands(x, y, z: value, levels: 10)",
+        "Density2D" => "Derive density = Density2D(x, y, bandwidth: 1)",
+        "Density2DContours" => "Derive lines = Density2DContours(x, y, levels: 8)",
+        "Density2DBands" => "Derive bands = Density2DBands(x, y, levels: 8)",
+        "Summary2D" => "Derive cells = Summary2D(x, y, z: value, reducer: \"mean\")",
+        "SummaryHex" => "Derive hex = SummaryHex(x, y, z: value, reducer: \"mean\")",
+        "StepVertices" => "Derive steps = StepVertices(x, y, direction: \"hv\")",
+        "VectorEndpoints" => "Derive vectors = VectorEndpoints(x, y, angle, length)",
+        "CurveSample" => "Derive curves = CurveSample(x, y, xend, yend, points: 24)",
+        "IntervalSegments" => "Derive intervals = IntervalSegments(x, low, high)",
+        "IntervalRects" => "Derive bands = IntervalRects(x, low, high)",
+        "IntervalMiddles" => "Derive mids = IntervalMiddles(x, mid)",
+        "Centroid" => "Derive points = Centroid(geom)",
+        "Simplify" => "Derive simple = Simplify(geom, tolerance: 0.01)",
+        "SpatialJoin" => "Derive joined = SpatialJoin(point_geom, table: regions)",
+        _ => "",
+    }
+}
+
 /// The ordered argument names for a declaration keyword.
 pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
     match decl {

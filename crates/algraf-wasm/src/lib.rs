@@ -466,6 +466,32 @@ mod tests {
     }
 
     #[test]
+    fn editor_service_hover_previews_in_memory_source_rows() {
+        let source = "Chart(data: \"penguins.csv\") {\n    Space(flipper_length * body_mass) { Point(fill: species) }\n}\n";
+        let offset = source.find("penguins.csv").unwrap();
+        let response = editor_service_response(
+            source.to_string(),
+            files()
+                .into_iter()
+                .map(|(name, bytes)| (name, String::from_utf8(bytes).unwrap()))
+                .collect(),
+            lsp_types::Url::parse("inmemory://algraf/demo.ag").unwrap(),
+            EditorFeatureRequest::Hover {
+                position: offset_to_position(source, offset),
+            },
+        );
+        assert!(response.error.is_none(), "{:?}", response.error);
+        let hover: Option<Hover> = serde_json::from_value(response.result).unwrap();
+        let hover = hover.expect("hover");
+        let HoverContents::Markup(markup) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(markup.value.contains("Data source `penguins.csv`"));
+        assert!(markup.value.contains("Sample rows"));
+        assert!(markup.value.contains("| 181 | 3750 | Adelie |"));
+    }
+
+    #[test]
     fn editor_service_json_accepts_camel_case_feature_fields() {
         let request = serde_json::json!({
             "source": "Chart(data: \"penguins.csv\") {\n    Space(flipper_length * body_mass) { Point() }\n}\n",

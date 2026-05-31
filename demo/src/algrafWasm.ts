@@ -62,8 +62,7 @@ export type AlgrafEditorFeatureRequest =
   | { kind: "documentHighlights"; position: LspPosition }
   | { kind: "prepareRename"; position: LspPosition }
   | { kind: "rename"; position: LspPosition; newName: string }
-  | { kind: "documentSymbols" }
-  | { kind: "inlayHints"; range: LspRange };
+  | { kind: "documentSymbols" };
 
 export interface AlgrafEditorServiceResult<T = unknown> {
   diagnostics: LspDiagnostic[];

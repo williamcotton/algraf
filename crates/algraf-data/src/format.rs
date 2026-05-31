@@ -10,8 +10,9 @@ use std::path::Path;
 use std::str::FromStr;
 
 use crate::csv::{
-    read_csv_with_temporal_policy, read_delimited_schema_with_temporal_policy,
-    read_tsv_with_temporal_policy, LoadResult,
+    read_csv_sample_rows, read_csv_with_temporal_policy, read_delimited_sample_rows,
+    read_delimited_schema_with_temporal_policy, read_tsv_with_temporal_policy, LoadResult,
+    SampleRows,
 };
 use crate::error::DataError;
 use crate::frame::Table;
@@ -215,6 +216,23 @@ pub fn read_schema_bytes_as(
     sample: usize,
 ) -> Result<Vec<ColumnDef>, DataError> {
     read_schema_bytes_as_with_temporal_policy(bytes, format, sample, None)
+}
+
+/// Sample raw source rows for delimited byte-backed formats. Non-delimited
+/// formats return `Ok(None)` because compact row rendering for nested source
+/// formats is intentionally not part of this helper.
+pub fn read_sample_rows_bytes_as(
+    bytes: &[u8],
+    format: Format,
+    sample: usize,
+) -> Result<Option<SampleRows>, DataError> {
+    match format {
+        Format::Csv => read_csv_sample_rows(bytes, sample).map(Some),
+        Format::Tsv => read_delimited_sample_rows(bytes, b'\t', sample).map(Some),
+        Format::Json | Format::NdJson | Format::GeoJson | Format::Shapefile | Format::TopoJson => {
+            Ok(None)
+        }
+    }
 }
 
 pub fn read_schema_bytes_as_with_temporal_policy(

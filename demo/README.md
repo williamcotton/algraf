@@ -30,8 +30,10 @@ Supported in the playground:
 - code actions;
 - definition, references, and document highlights;
 - prepare-rename and rename;
-- document symbols;
-- inlay hints when supported by the bundled Monaco version.
+- document symbols.
+
+Hover includes derived-table schemas, source schema/row previews from
+host-supplied files, and call attributes/examples from the shared Rust registry.
 
 Browser limitations:
 

@@ -336,6 +336,20 @@ mod tests {
         }
     }
 
+    const GRID_TOPOJSON: &str = r#"{
+      "type": "Topology",
+      "objects": {
+        "grid": {
+          "type": "GeometryCollection",
+          "geometries": [
+            {"type": "Point", "coordinates": [0, 0], "properties": {"cell": "SW", "value": 10}},
+            {"type": "Point", "coordinates": [1, 1], "properties": {"cell": "NE", "value": 20}}
+          ]
+        }
+      },
+      "arcs": []
+    }"#;
+
     #[test]
     fn service_hover_matches_shared_hover_helper_for_non_ascii_column() {
         let source =
@@ -356,6 +370,129 @@ mod tests {
             hover_markdown(&direct_hover)
         );
         assert_eq!(service_hover.range, direct_hover.range);
+    }
+
+    #[test]
+    fn service_hover_previews_primary_source_rows() {
+        let source = "Chart(data: \"samples.csv\") {\n  Space(x * y) { Point(fill: group) }\n}";
+        let (state, uri) = analyzed(
+            source,
+            &[("samples.csv", "x,y,group\n1.2,4.0,A\n1.8,4.6,B\n")],
+        );
+        let offset = source.find("\"samples.csv\"").unwrap() + 2;
+        let position = offset_to_position(source, offset);
+
+        let response =
+            handle_feature_request(&state, &uri, EditorFeatureRequest::Hover { position });
+        let hover: Option<Hover> = serde_json::from_value(response.result).unwrap();
+        let hover = hover.expect("source hover");
+        let markdown = hover_markdown(&hover);
+
+        assert!(markdown.contains("Data source `samples.csv`"), "{markdown}");
+        assert!(markdown.contains("Sampled schema"), "{markdown}");
+        assert!(markdown.contains("| x | float | 1.2, 1.8 |"), "{markdown}");
+        assert!(markdown.contains("Sample rows"), "{markdown}");
+        assert!(markdown.contains("| 1.2 | 4.0 | A |"), "{markdown}");
+        assert!(markdown.contains("Provisional LSP sample"), "{markdown}");
+    }
+
+    #[test]
+    fn service_schema_resolves_primary_topojson_object() {
+        let source = "Chart(data: TopoJson(\"grid.topojson\", object: \"grid\")) {\n  Space(geom, projection: \"equirectangular\") { Geo(fill: value) }\n}";
+        let (state, uri) = analyzed(source, &[("grid.topojson", GRID_TOPOJSON)]);
+        let offset = source.find("value").unwrap();
+        let position = offset_to_position(source, offset);
+
+        let response =
+            handle_feature_request(&state, &uri, EditorFeatureRequest::Hover { position });
+        let hover: Option<Hover> = serde_json::from_value(response.result).unwrap();
+        let hover = hover.expect("topojson column hover");
+        let markdown = hover_markdown(&hover);
+
+        assert!(markdown.contains("Column `value`"), "{markdown}");
+        assert!(markdown.contains("Type: `integer`"), "{markdown}");
+    }
+
+    #[test]
+    fn service_schema_resolves_named_table_topojson_object() {
+        let source = "Chart(data: \"main.csv\") {\n  Table grid = TopoJson(\"grid.topojson\", object: \"grid\")\n  Space(geom, data: grid, projection: \"equirectangular\") { Geo(fill: value) }\n}";
+        let (state, uri) = analyzed(
+            source,
+            &[("main.csv", "x\n1\n"), ("grid.topojson", GRID_TOPOJSON)],
+        );
+        let offset = source.rfind("value").unwrap();
+        let position = offset_to_position(source, offset);
+
+        let response =
+            handle_feature_request(&state, &uri, EditorFeatureRequest::Hover { position });
+        let hover: Option<Hover> = serde_json::from_value(response.result).unwrap();
+        let hover = hover.expect("topojson table column hover");
+        let markdown = hover_markdown(&hover);
+
+        assert!(markdown.contains("Column `value`"), "{markdown}");
+        assert!(markdown.contains("Source: Table `grid`"), "{markdown}");
+        assert!(markdown.contains("Type: `integer`"), "{markdown}");
+    }
+
+    #[test]
+    fn service_hover_previews_named_table_source_with_non_ascii_text() {
+        let source = "Chart(data: \"main.csv\") {\n  Table cities = \"cités.csv\"\n  Space(`café` * pop, data: cities) { Point() }\n}";
+        let (state, uri) = analyzed(
+            source,
+            &[
+                ("main.csv", "x,y\n1,2\n"),
+                ("cités.csv", "café,pop\nMontréal,20\nQuébec,8\n"),
+            ],
+        );
+        let offset = source.find("cités.csv").unwrap() + "cit".len();
+        let position = offset_to_position(source, offset);
+
+        let response =
+            handle_feature_request(&state, &uri, EditorFeatureRequest::Hover { position });
+        let hover: Option<Hover> = serde_json::from_value(response.result).unwrap();
+        let hover = hover.expect("table source hover");
+        let markdown = hover_markdown(&hover);
+
+        assert!(markdown.contains("Data source `cités.csv`"), "{markdown}");
+        assert!(markdown.contains("Table: `cities`"), "{markdown}");
+        assert!(markdown.contains("café"), "{markdown}");
+        assert!(markdown.contains("Montréal"), "{markdown}");
+        let range = hover.range.unwrap();
+        assert_eq!(
+            range.start,
+            offset_to_position(source, source.find("\"cités.csv\"").unwrap())
+        );
+        assert_eq!(range.end.character - range.start.character, 11);
+    }
+
+    #[test]
+    fn service_hover_handles_unavailable_source_without_echoing_diagnostics() {
+        let source = "Chart(data: \"missing.csv\") {\n  Space(x * y) { Point() }\n}";
+        let io = TestIo::default();
+        let uri = Url::parse("inmemory://algraf/demo.ag").unwrap();
+        let cache = InMemorySchemaCache::new();
+        let (state, _) = analyze_document_with_io(
+            &cache,
+            &io,
+            &uri,
+            0,
+            source.to_string(),
+            Vec::new(),
+            HashMap::new(),
+        );
+        let position = offset_to_position(source, source.find("missing.csv").unwrap());
+
+        let response =
+            handle_feature_request(&state, &uri, EditorFeatureRequest::Hover { position });
+        let hover: Option<Hover> = serde_json::from_value(response.result).unwrap();
+        let hover = hover.expect("hover");
+        let markdown = hover_markdown(&hover);
+
+        assert!(
+            markdown.contains("Source preview unavailable"),
+            "{markdown}"
+        );
+        assert!(!markdown.contains("missing missing.csv"), "{markdown}");
     }
 
     #[test]

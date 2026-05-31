@@ -1,11 +1,12 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use algraf_core::{codes, Diagnostic as CoreDiagnostic};
-use algraf_data::{ColumnDef, DEFAULT_SCHEMA_SAMPLE};
+use algraf_data::{read_sample_rows_bytes_as, ColumnDef, Format, DEFAULT_SCHEMA_SAMPLE};
 use algraf_driver::DriverIo;
 use algraf_driver::{
-    resolve_named_table_sources, resolve_schema_cached, CachedSchema, InMemorySchemaCache,
-    LoadContext, OsDriverIo,
+    resolve_named_table_sources, resolve_schema_cached, resolve_topojson_schema_cached,
+    CachedSchema, InMemorySchemaCache, LoadContext, OsDriverIo,
 };
 use algraf_semantics::analyze_with_tables;
 use algraf_syntax::ast::Root;
@@ -13,8 +14,12 @@ use algraf_syntax::{parse, SourceExpr, SyntaxNode};
 use lsp_types::Url;
 
 use crate::document::{
-    source_input_for_uri, AnalysisState, DocumentState, ParseState, SchemaResolution, VirtualFile,
+    source_input_for_uri, AnalysisState, DocumentState, ParseState, SchemaResolution,
+    SourcePreview, SourcePreviews, VirtualFile,
 };
+
+const SOURCE_PREVIEW_ROW_LIMIT: usize = 3;
+const SOURCE_PREVIEW_MAX_BYTES: u64 = 1_048_576;
 
 pub fn analyze_document_blocking(
     schema_cache: &InMemorySchemaCache,
@@ -49,7 +54,7 @@ pub fn analyze_document_with_io(
     let data_source = algraf_driver::extract_data_source(&syntax);
     let primary_has_external_schema_source = matches!(
         data_source,
-        SourceExpr::Path { .. } | SourceExpr::Sqlite { .. }
+        SourceExpr::Path { .. } | SourceExpr::Sqlite { .. } | SourceExpr::TopoJson { .. }
     );
     let sql_gated_off = parse_diagnostics
         .iter()
@@ -67,6 +72,7 @@ pub fn analyze_document_with_io(
         resolve_table_schemas(schema_cache, io, uri, &syntax)
     };
     let table_schemas = table_schema_resolution.schemas;
+    let mut source_previews = table_schema_resolution.source_previews;
     let has_external_schema_sources =
         primary_has_external_schema_source || table_schema_resolution.has_external_sources;
 
@@ -76,13 +82,26 @@ pub fn analyze_document_with_io(
     let mut data_path = None;
 
     match schema {
-        SchemaResolution::Ready { schema, path } => {
+        SchemaResolution::Ready {
+            schema,
+            path,
+            format,
+        } => {
             let result = analyze_with_tables(&syntax, &schema, &table_schemas);
             diagnostics.extend(result.diagnostics.clone());
             analysis = Some(AnalysisState {
                 ir: result.ir,
                 diagnostics: result.diagnostics,
             });
+            if let Some(path) = path.as_ref() {
+                source_previews.primary = Some(sample_source_preview(
+                    io,
+                    path,
+                    format,
+                    path.display().to_string(),
+                    &schema,
+                ));
+            }
             primary_schema = Some(schema);
             data_path = path;
         }
@@ -116,6 +135,7 @@ pub fn analyze_document_with_io(
             analysis,
             primary_schema,
             table_schemas,
+            source_previews,
             data_path,
             virtual_files,
             has_external_schema_sources,
@@ -132,12 +152,10 @@ fn resolve_schema(
     data_source: &SourceExpr,
 ) -> SchemaResolution {
     let span = match data_source {
-        SourceExpr::Path { span, .. } | SourceExpr::Sqlite { span, .. } => *span,
+        SourceExpr::Path { span, .. }
+        | SourceExpr::Sqlite { span, .. }
+        | SourceExpr::TopoJson { span, .. } => *span,
         _ => return SchemaResolution::MissingOrInvalid,
-    };
-    let query = match data_source {
-        SourceExpr::Sqlite { query, .. } => Some(query.as_str()),
-        _ => None,
     };
     let source_input = source_input_for_uri(uri);
     let Some(resolved) = algraf_driver::resolve_source_expr_path(data_source, &source_input, None)
@@ -146,16 +164,23 @@ fn resolve_schema(
     };
     let path = resolved.path;
 
-    let cached = match query {
-        Some(query) => algraf_driver::resolve_sqlite_schema_cached(
+    let cached = match data_source {
+        SourceExpr::Sqlite { query, .. } => algraf_driver::resolve_sqlite_schema_cached(
             schema_cache,
             io,
             &path,
-            query,
+            query.as_str(),
             DEFAULT_SCHEMA_SAMPLE,
             LoadContext::Primary,
         ),
-        None => resolve_schema_cached(
+        SourceExpr::TopoJson { .. } => resolve_topojson_schema_cached(
+            schema_cache,
+            io,
+            &path,
+            resolved.object.as_deref(),
+            LoadContext::Primary,
+        ),
+        _ => resolve_schema_cached(
             schema_cache,
             io,
             &path,
@@ -169,6 +194,7 @@ fn resolve_schema(
         CachedSchema::Ready(schema) => SchemaResolution::Ready {
             schema,
             path: Some(path),
+            format: resolved.format,
         },
         CachedSchema::Error { code, message } => SchemaResolution::Unavailable {
             diagnostic: CoreDiagnostic::error(code, message, span),
@@ -184,6 +210,7 @@ fn resolve_schema(
 #[derive(Default)]
 struct TableSchemaResolution {
     schemas: HashMap<String, Vec<ColumnDef>>,
+    source_previews: SourcePreviews,
     has_external_sources: bool,
 }
 
@@ -213,6 +240,15 @@ fn resolve_table_schemas(
                     DEFAULT_SCHEMA_SAMPLE,
                     context,
                 ),
+                None if resolved.format == Some(Format::TopoJson) => {
+                    resolve_topojson_schema_cached(
+                        schema_cache,
+                        io,
+                        &resolved.path,
+                        resolved.object.as_deref(),
+                        context,
+                    )
+                }
                 None => resolve_schema_cached(
                     schema_cache,
                     io,
@@ -223,9 +259,55 @@ fn resolve_table_schemas(
                 ),
             };
             if let CachedSchema::Ready(schema) = cached {
+                let preview = sample_source_preview(
+                    io,
+                    &resolved.path,
+                    resolved.format,
+                    resolved.path.display().to_string(),
+                    &schema,
+                );
+                out.source_previews
+                    .tables
+                    .insert(resolved.name.clone(), preview);
                 out.schemas.insert(resolved.name, schema);
             }
         }
     }
     out
+}
+
+fn sample_source_preview(
+    io: &dyn DriverIo,
+    path: &Path,
+    format: Option<Format>,
+    label: String,
+    schema: &[ColumnDef],
+) -> SourcePreview {
+    let mut preview = SourcePreview {
+        label,
+        schema: schema.to_vec(),
+        row_headers: Vec::new(),
+        rows: Vec::new(),
+    };
+
+    let format = format.unwrap_or_else(|| Format::from_path(path));
+    if !matches!(format, Format::Csv | Format::Tsv) {
+        return preview;
+    }
+    let Ok(metadata) = io.metadata(path) else {
+        return preview;
+    };
+    if metadata.len > SOURCE_PREVIEW_MAX_BYTES {
+        return preview;
+    }
+    let Ok(bytes) = io.read_path(path) else {
+        return preview;
+    };
+    let Ok(Some(sample)) = read_sample_rows_bytes_as(&bytes, format, SOURCE_PREVIEW_ROW_LIMIT)
+    else {
+        return preview;
+    };
+    preview.row_headers = sample.headers;
+    preview.rows = sample.rows;
+    preview
 }

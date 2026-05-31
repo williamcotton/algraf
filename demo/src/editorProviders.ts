@@ -103,14 +103,6 @@ interface LspSemanticTokens {
   data: number[] | LspSemanticTokenObject[];
 }
 
-interface LspInlayHint {
-  position: LspPosition;
-  label: string | Array<{ value: string }>;
-  kind?: number;
-  paddingLeft?: boolean;
-  paddingRight?: boolean;
-}
-
 export function registerAlgrafEditorProviders(
   languageId: string,
   getRuntime: () => AlgrafRuntime | null,
@@ -309,22 +301,6 @@ export function registerAlgrafEditorProviders(
       },
     }),
   ];
-
-  const inlayProvider = monaco.languages.registerInlayHintsProvider?.(languageId, {
-    provideInlayHints(model, range) {
-      const hints = requestFeature<LspInlayHint[] | null>(model, getRuntime, getFiles, {
-        kind: "inlayHints",
-        range: toLspRange(range),
-      });
-      return {
-        hints: (hints ?? []).map(inlayHint),
-        dispose: () => undefined,
-      };
-    },
-  });
-  if (inlayProvider) {
-    disposables.push(inlayProvider);
-  }
 
   return {
     dispose() {
@@ -586,14 +562,4 @@ function symbolKind(kind: number): monaco.languages.SymbolKind {
     default:
       return monaco.languages.SymbolKind.Object;
   }
-}
-
-function inlayHint(hint: LspInlayHint): monaco.languages.InlayHint {
-  return {
-    position: fromLspPosition(hint.position),
-    label: Array.isArray(hint.label) ? hint.label.map((part) => part.value).join("") : hint.label,
-    kind: hint.kind === 1 ? monaco.languages.InlayHintKind.Type : monaco.languages.InlayHintKind.Parameter,
-    paddingLeft: hint.paddingLeft,
-    paddingRight: hint.paddingRight,
-  };
 }
