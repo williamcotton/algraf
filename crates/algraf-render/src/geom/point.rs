@@ -7,7 +7,9 @@ use crate::marker::{emit_marker, marker_for_index, parse_marker_shape, MarkerSha
 use crate::scale::cell_category;
 use crate::sink::{MarkSink, Paint};
 
-use super::common::{mark_interaction, render_rows, DEFAULT_FILL, DEFAULT_SIZE_RANGE};
+use super::common::{
+    adjusted_position, mark_interaction, render_rows, DEFAULT_FILL, DEFAULT_SIZE_RANGE,
+};
 use super::GeometryRenderContext;
 
 pub(super) fn render(
@@ -37,6 +39,7 @@ pub(super) fn render(
         else {
             continue;
         };
+        let (cx, cy) = adjusted_position(geo, space, table, row, cx, cy, true);
         let color = fill
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());

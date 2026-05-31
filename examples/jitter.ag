@@ -1,0 +1,10 @@
+Chart(data: "demographics.csv", width: 720, height: 420,
+      title: "Deterministic jittered observations") {
+    Guide(axis: x, label: "Group")
+    Guide(axis: y, label: "Height")
+
+    Space(gender * height) {
+        Boxplot(fill: gender, alpha: 0.18, outliers: false)
+        Point(fill: gender, alpha: 0.45, size: 3, jitter: [0.32, 0])
+    }
+}

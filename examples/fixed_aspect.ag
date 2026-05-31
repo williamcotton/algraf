@@ -1,0 +1,12 @@
+Chart(data: "aspect_segments.csv", width: 720, height: 360,
+      title: "Fixed aspect calibration square") {
+    Scale(axis: x, domain: [0, 10])
+    Scale(axis: y, domain: [0, 10])
+    Guide(axis: x, label: "Measured x")
+    Guide(axis: y, label: "Measured y")
+
+    Space(x * y, aspect: 1) {
+        Segment(x: x, y: y, xend: xend, yend: yend, stroke: "#4b5563", strokeWidth: 2)
+        Point(fill: "#ffffff", stroke: "#111827", size: 3)
+    }
+}

@@ -1,0 +1,9 @@
+x,y,series,row_band,col_band,label
+1,1,A,North,Q1,A1
+2,2,A,North,Q2,A2
+3,3,A,South,Q1,A3
+10,4,A,South,Q2,A4
+100,12,B,North,Q1,B1
+150,18,B,North,Q2,B2
+200,25,B,South,Q1,B3
+250,30,B,South,Q2,B4

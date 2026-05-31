@@ -23,7 +23,7 @@ cargo run -p algraf-cli -- render examples/scatter.ag --output /tmp/scatter.svg
 | ----------- | ------ | ----- |
 | `svg` (default) | Deterministic SVG. A `.png` `--output` rasterizes the SVG through a system-font wrapper. | The canonical, pixel-faithful path. |
 | `svg+json` | Deterministic SVG plus a `.meta.json` interaction sidecar. | For host runtimes that want tooltips, crosshairs, and highlights without scraping SVG. |
-| `draw-list` | A serializable JSON draw list of scene primitives (`rect`/`circle`/`path`/`polygon`/`line`/`text`). | A complete scene description — one op per mark plus all guides — for Canvas/WebGL/raster clients. |
+| `draw-list` | A serializable JSON draw list of scene primitives (`clipStart`/`clipEnd`/`rect`/`circle`/`path`/`polygon`/`line`/`text`). | A complete scene description — one op per mark plus all guides — for Canvas/WebGL/raster clients. |
 | `raster` | A PNG drawn directly from the draw-list scene model with a CPU rasterizer (no SVG, no system fonts). | Honors `--png-scale`/`--png-dpi`. Renders shapes; **text glyphs are not drawn** (use the `svg`→PNG path for text). Deterministic per platform. |
 
 ```bash
@@ -1306,6 +1306,27 @@ Chart(data: "demographics.csv", width: 720, height: 460, title: "Height Distribu
 
 ![violin_boxplot](examples/violin_boxplot.svg)
 
+## Deterministic jittered observations
+
+`Point(jitter: [x, y])` spreads overlapping point marks with a stable,
+seed-free offset. On categorical axes the x amount is a fraction of the band
+width.
+
+```algraf
+Chart(data: "demographics.csv", width: 720, height: 420,
+      title: "Deterministic jittered observations") {
+    Guide(axis: x, label: "Group")
+    Guide(axis: y, label: "Height")
+
+    Space(gender * height) {
+        Boxplot(fill: gender, alpha: 0.18, outliers: false)
+        Point(fill: gender, alpha: 0.45, size: 3, jitter: [0.32, 0])
+    }
+}
+```
+
+![jitter](examples/jitter.svg)
+
 ## Horizontal layered violin and boxplot distributions
 
 The same overlay can be transposed, putting the density values on x and each
@@ -1626,6 +1647,48 @@ Chart(data: "regional_sales.csv") {
 
 ![facet](examples/facet.svg)
 
+## Facet grids
+
+`Layout(facetRows: ..., facetCols: ...)` places categorical facet levels into a
+row-by-column grid. Label and spacing controls keep strip text predictable.
+
+```algraf
+Chart(data: "layout_controls.csv", width: 760, height: 520,
+      title: "Facet grid by row and column") {
+    Layout(facetRows: row_band, facetCols: col_band,
+           facetLabel: "name-value", panelSpacing: [24, 56])
+    Guide(axis: x, label: "x")
+    Guide(axis: y, label: "y")
+
+    Space(x * y) {
+        Point(fill: series, alpha: 0.8, size: 4)
+    }
+}
+```
+
+![facet_grid](examples/facet_grid.svg)
+
+## Free facet scales
+
+`facetScales: "free"` trains each panel's x and y axes from the data in that
+panel while keeping the facet layout and legends shared.
+
+```algraf
+Chart(data: "layout_controls.csv", width: 760, height: 360,
+      title: "Free facet scales") {
+    Layout(facetCols: series, facetScales: "free")
+    Guide(axis: x, label: "Panel-local x")
+    Guide(axis: y, label: "Panel-local y")
+
+    Space(x * y) {
+        Line(stroke: series, strokeWidth: 2)
+        Point(fill: series, size: 4)
+    }
+}
+```
+
+![free_scales](examples/free_scales.svg)
+
 ## Faceted sales performance with target line
 
 Combining nested space algebra faceting, line and point series, custom axes/color scales, and reference overlays.
@@ -1842,6 +1905,27 @@ Chart(data: "labeled_points.csv", width: 640, height: 440, title: "Product Posit
 
 ![labeled_points](examples/labeled_points.svg)
 
+## Nudged point labels
+
+`nudgeData` offsets labels in data units, while `nudge` offsets them in pixels.
+They compose with ordinary `Text` labels for direct annotation.
+
+```algraf
+Chart(data: "layout_controls.csv", width: 720, height: 420,
+      title: "Nudged point labels") {
+    Guide(axis: x, label: "x")
+    Guide(axis: y, label: "y")
+
+    Space(x * y) {
+        Point(fill: series, size: 4)
+        Text(label: label, fill: series, anchor: "start",
+             nudgeData: [4, 0], nudge: [6, -4], size: 11)
+    }
+}
+```
+
+![nudge](examples/nudge.svg)
+
 ## Overriding labels and palettes
 
 `Guide(axis: x, label: ...)` and `Guide(axis: y, label: ...)` replace
@@ -2032,6 +2116,49 @@ Chart(data: "penguins.csv", width: 720, height: 480) {
 ```
 
 ![scale_domain](examples/scale_domain.svg)
+
+## Visual coordinate zoom
+
+`zoomX` and `zoomY` are coordinate controls on `Space`. They limit the visible
+panel range and clip marks after stats are computed, instead of changing the
+data used by the layer.
+
+```algraf
+Chart(data: "layout_controls.csv", width: 720, height: 440,
+      title: "Visual coordinate zoom") {
+    Guide(axis: x, label: "x (zoomed view)")
+    Guide(axis: y, label: "y (zoomed view)")
+
+    Space(x * y, zoomX: [0, 20], zoomY: [0, 8]) {
+        Point(fill: series, alpha: 0.75, size: 4)
+        Smooth(method: "lm", stroke: "#2f2f2f", se: false)
+    }
+}
+```
+
+![coordinate_zoom](examples/coordinate_zoom.svg)
+
+## Fixed aspect
+
+`aspect: 1` keeps one x unit visually equal to one y unit by shrinking and
+centering the plot rectangle inside the available chart area.
+
+```algraf
+Chart(data: "aspect_segments.csv", width: 720, height: 360,
+      title: "Fixed aspect calibration square") {
+    Scale(axis: x, domain: [0, 10])
+    Scale(axis: y, domain: [0, 10])
+    Guide(axis: x, label: "Measured x")
+    Guide(axis: y, label: "Measured y")
+
+    Space(x * y, aspect: 1) {
+        Segment(x: x, y: y, xend: xend, yend: yend, stroke: "#4b5563", strokeWidth: 2)
+        Point(fill: "#ffffff", stroke: "#111827", size: 3)
+    }
+}
+```
+
+![fixed_aspect](examples/fixed_aspect.svg)
 
 ## Reversing an axis
 

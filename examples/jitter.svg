@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420" role="img" aria-label="Deterministic jittered observations">
+<title>Deterministic jittered observations</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Deterministic jittered observations</text>
+<rect class="algraf-plot-area" x="60" y="66" width="510" height="304" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="60" y1="349.034" x2="570" y2="349.034" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="290.797" x2="570" y2="290.797" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="232.559" x2="570" y2="232.559" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="174.322" x2="570" y2="174.322" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="116.084" x2="570" y2="116.084" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-boxplot">
+  <line x1="145" y1="349.034" x2="145" y2="226.736" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <line x1="125.96" y1="349.034" x2="164.04" y2="349.034" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <line x1="125.96" y1="226.736" x2="164.04" y2="226.736" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <rect x="97.4" y="254.69" width="95.2" height="66.391" fill="#4E79A7" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <line x1="97.4" y1="288.467" x2="192.6" y2="288.467" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <line x1="315" y1="175.487" x2="315" y2="86.966" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <line x1="295.96" y1="175.487" x2="334.04" y2="175.487" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <line x1="295.96" y1="86.966" x2="334.04" y2="86.966" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <rect x="267.4" y="113.755" width="95.2" height="51.249" fill="#F28E2B" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <line x1="267.4" y1="139.379" x2="362.6" y2="139.379" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <line x1="485" y1="246.536" x2="485" y2="180.146" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <line x1="465.96" y1="246.536" x2="504.04" y2="246.536" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <line x1="465.96" y1="180.146" x2="504.04" y2="180.146" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <rect x="437.4" y="206.352" width="95.2" height="33.195" fill="#E15759" stroke="#333333" stroke-width="1" opacity="0.18" />
+  <line x1="437.4" y1="232.559" x2="532.6" y2="232.559" stroke="#333333" stroke-width="1" opacity="0.18" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="142.02" cy="288.467" r="3" fill="#4E79A7" opacity="0.45" />
+  <circle cx="155.696" cy="349.034" r="3" fill="#4E79A7" opacity="0.45" />
+  <circle cx="155.843" cy="226.736" r="3" fill="#4E79A7" opacity="0.45" />
+  <circle cx="153.717" cy="254.69" r="3" fill="#4E79A7" opacity="0.45" />
+  <circle cx="162.078" cy="321.08" r="3" fill="#4E79A7" opacity="0.45" />
+  <circle cx="325.98" cy="165.004" r="3" fill="#F28E2B" opacity="0.45" />
+  <circle cx="312.664" cy="113.755" r="3" fill="#F28E2B" opacity="0.45" />
+  <circle cx="293.971" cy="139.379" r="3" fill="#F28E2B" opacity="0.45" />
+  <circle cx="319.872" cy="86.966" r="3" fill="#F28E2B" opacity="0.45" />
+  <circle cx="325.91" cy="175.487" r="3" fill="#F28E2B" opacity="0.45" />
+  <circle cx="495.2" cy="232.559" r="3" fill="#E15759" opacity="0.45" />
+  <circle cx="474.658" cy="180.146" r="3" fill="#E15759" opacity="0.45" />
+  <circle cx="504.125" cy="246.536" r="3" fill="#E15759" opacity="0.45" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="370" x2="570" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="145" y1="370" x2="145" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="145" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Female</text>
+  <line x1="315" y1="370" x2="315" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="315" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Male</text>
+  <line x1="485" y1="370" x2="485" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="485" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Non-binary</text>
+  <text x="315" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Group</text>
+  <line x1="60" y1="66" x2="60" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="349.034" x2="60" y2="349.034" stroke="#333333" stroke-width="1" />
+  <text x="52" y="353.034" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">160</text>
+  <line x1="55" y1="290.797" x2="60" y2="290.797" stroke="#333333" stroke-width="1" />
+  <text x="52" y="294.797" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">165</text>
+  <line x1="55" y1="232.559" x2="60" y2="232.559" stroke="#333333" stroke-width="1" />
+  <text x="52" y="236.559" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">170</text>
+  <line x1="55" y1="174.322" x2="60" y2="174.322" stroke="#333333" stroke-width="1" />
+  <text x="52" y="178.322" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">175</text>
+  <line x1="55" y1="116.084" x2="60" y2="116.084" stroke="#333333" stroke-width="1" />
+  <text x="52" y="120.084" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">180</text>
+  <text x="18.4" y="218" text-anchor="middle" transform="rotate(-90 18.4 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Height</text>
+</g>
+<g class="algraf-legends">
+  <text x="586" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">gender</text>
+  <rect x="586" y="78" width="12" height="12" fill="#4E79A7" />
+  <text x="604" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Female</text>
+  <rect x="586" y="96" width="12" height="12" fill="#F28E2B" />
+  <text x="604" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Male</text>
+  <rect x="586" y="114" width="12" height="12" fill="#E15759" />
+  <text x="604" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Non-binary</text>
+</g>
+</svg>

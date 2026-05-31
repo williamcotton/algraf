@@ -292,6 +292,7 @@ impl Analyzer<'_> {
             theme,
             projection: None,
             coords: CoordsIr::Cartesian,
+            view: CoordinateViewIr::default(),
             span: geometry.span,
         };
         Some((vec![derive], vec![segment_space, point_space]))
@@ -993,6 +994,7 @@ impl Analyzer<'_> {
             projection: None,
             // Inherits the parent space's coordinate system (set in `space()`).
             coords: CoordsIr::Cartesian,
+            view: CoordinateViewIr::default(),
             span: density.span,
         };
         Some((derive, space))
@@ -1048,6 +1050,7 @@ impl Analyzer<'_> {
             theme,
             projection: None,
             coords: CoordsIr::Cartesian,
+            view: CoordinateViewIr::default(),
             span,
         };
         (derive, space)
@@ -1257,6 +1260,7 @@ impl Analyzer<'_> {
             projection: None,
             // Inherits the parent space's coordinate system (set in `space()`).
             coords: CoordsIr::Cartesian,
+            view: CoordinateViewIr::default(),
             span: bar.span,
         };
         Some((derive, space))
@@ -1410,6 +1414,7 @@ fn derived_space(
         projection: None,
         // Inherits the parent space's coordinate system (set in `space()`).
         coords: CoordsIr::Cartesian,
+        view: CoordinateViewIr::default(),
         span,
     }
 }

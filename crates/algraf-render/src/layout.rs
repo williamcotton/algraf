@@ -1,5 +1,7 @@
 //! Viewport layout with fixed margins (spec §17).
 
+use algraf_semantics::PanelSpacingIr;
+
 /// A rectangle in SVG coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect {
@@ -185,6 +187,7 @@ impl Layout {
             0.0,
             0.0,
             Margins::default(),
+            None,
         )
     }
 
@@ -201,6 +204,7 @@ impl Layout {
         bottom_extra: f64,
         left_extra: f64,
         margins: Margins,
+        panel_spacing: Option<PanelSpacingIr>,
     ) -> Layout {
         let mut layout = Layout::compute_with_text(
             width,
@@ -218,21 +222,74 @@ impl Layout {
             .unwrap_or_else(|| default_facet_columns(panel_count, layout.plot))
             .clamp(1, panel_count);
         let rows = panel_count.div_ceil(columns);
+        layout.populate_facets(rows, columns, panel_count, has_axes, panel_spacing);
 
-        let gap_x = if has_axes {
-            FACET_AXIS_GAP_X
-        } else {
-            FACET_GAP_X
-        };
-        let gap_y = if has_axes {
-            FACET_AXIS_GAP_Y
-        } else {
-            FACET_GAP_Y
-        };
+        layout
+    }
+
+    /// Compute an exact row-by-column facet-grid layout.
+    #[allow(clippy::too_many_arguments)]
+    pub fn compute_facet_grid_with_text(
+        width: f64,
+        height: f64,
+        has_legend: bool,
+        has_axes: bool,
+        rows: usize,
+        columns: usize,
+        top_extra: f64,
+        bottom_extra: f64,
+        left_extra: f64,
+        margins: Margins,
+        panel_spacing: Option<PanelSpacingIr>,
+    ) -> Layout {
+        let mut layout = Layout::compute_with_text(
+            width,
+            height,
+            has_legend,
+            has_axes,
+            top_extra,
+            bottom_extra,
+            left_extra,
+            margins,
+        );
+        let rows = rows.max(1);
+        let columns = columns.max(1);
+        layout.populate_facets(rows, columns, rows * columns, has_axes, panel_spacing);
+        layout
+    }
+
+    fn populate_facets(
+        &mut self,
+        rows: usize,
+        columns: usize,
+        panel_count: usize,
+        has_axes: bool,
+        panel_spacing: Option<PanelSpacingIr>,
+    ) {
+        let gap_x = panel_spacing.map_or_else(
+            || {
+                if has_axes {
+                    FACET_AXIS_GAP_X
+                } else {
+                    FACET_GAP_X
+                }
+            },
+            |spacing| spacing.x,
+        );
+        let gap_y = panel_spacing.map_or_else(
+            || {
+                if has_axes {
+                    FACET_AXIS_GAP_Y
+                } else {
+                    FACET_GAP_Y
+                }
+            },
+            |spacing| spacing.y,
+        );
         let total_gap_x = gap_x * columns.saturating_sub(1) as f64;
         let total_gap_y = gap_y * rows.saturating_sub(1) as f64;
-        let cell_width = ((layout.plot.width - total_gap_x) / columns as f64).max(1.0);
-        let cell_height = ((layout.plot.height - total_gap_y) / rows as f64).max(1.0);
+        let cell_width = ((self.plot.width - total_gap_x) / columns as f64).max(1.0);
+        let cell_height = ((self.plot.height - total_gap_y) / rows as f64).max(1.0);
 
         let strip_height = FACET_STRIP_HEIGHT.min((cell_height * 0.25).max(0.0));
         let strip_gap = if strip_height > 0.0 {
@@ -242,12 +299,12 @@ impl Layout {
         };
         let plot_height = (cell_height - strip_height - strip_gap).max(1.0);
 
-        layout.facets = (0..panel_count)
+        self.facets = (0..panel_count)
             .map(|index| {
                 let col = index % columns;
                 let row = index / columns;
-                let x = layout.plot.x + col as f64 * (cell_width + gap_x);
-                let y = layout.plot.y + row as f64 * (cell_height + gap_y);
+                let x = self.plot.x + col as f64 * (cell_width + gap_x);
+                let y = self.plot.y + row as f64 * (cell_height + gap_y);
                 let strip = Rect {
                     x,
                     y,
@@ -263,8 +320,6 @@ impl Layout {
                 FacetPanel { strip, plot }
             })
             .collect();
-
-        layout
     }
 }
 

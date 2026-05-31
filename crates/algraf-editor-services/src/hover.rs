@@ -167,6 +167,7 @@ fn is_stat_name(name: &str) -> bool {
             | "Summary2D"
             | "SummaryHex"
             | "StepVertices"
+            | "JitterPoints"
             | "VectorEndpoints"
             | "CurveSample"
             | "IntervalSegments"

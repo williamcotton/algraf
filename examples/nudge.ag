@@ -1,0 +1,11 @@
+Chart(data: "layout_controls.csv", width: 720, height: 420,
+      title: "Nudged point labels") {
+    Guide(axis: x, label: "x")
+    Guide(axis: y, label: "y")
+
+    Space(x * y) {
+        Point(fill: series, size: 4)
+        Text(label: label, fill: series, anchor: "start",
+             nudgeData: [4, 0], nudge: [6, -4], size: 11)
+    }
+}

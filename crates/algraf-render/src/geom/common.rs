@@ -353,6 +353,67 @@ pub(super) fn any_mapped(geo: &GeometryIr, names: &[PropertyKey]) -> bool {
     geo.mappings.iter().any(|m| names.contains(&m.aesthetic))
 }
 
+pub(crate) fn adjusted_position(
+    geo: &GeometryIr,
+    space: &ScaledSpace,
+    table: &dyn Table,
+    row: usize,
+    x: f64,
+    y: f64,
+    allow_jitter: bool,
+) -> (f64, f64) {
+    if space.is_polar() || space.is_spatial() {
+        return pixel_nudge(geo, x, y);
+    }
+    let mut dx = 0.0;
+    let mut dy = 0.0;
+    if allow_jitter {
+        if let Some((jx, jy)) = setting_pair(geo, PropertyKey::Jitter) {
+            dx += space.x.data_delta_px(table, row, jx).unwrap_or(0.0)
+                * deterministic_unit(row, 0x9e37_79b9_7f4a_7c15);
+            if let Some(axis) = space.y_axis() {
+                dy += axis.data_delta_px(table, row, jy).unwrap_or(0.0)
+                    * deterministic_unit(row, 0xbf58_476d_1ce4_e5b9);
+            }
+        }
+    }
+    if let Some((nx, ny)) = setting_pair(geo, PropertyKey::NudgeData) {
+        dx += space.x.data_delta_px(table, row, nx).unwrap_or(0.0);
+        if let Some(axis) = space.y_axis() {
+            dy += axis.data_delta_px(table, row, ny).unwrap_or(0.0);
+        }
+    }
+    let (x, y) = pixel_nudge(geo, x + dx, y + dy);
+    (x, y)
+}
+
+fn pixel_nudge(geo: &GeometryIr, x: f64, y: f64) -> (f64, f64) {
+    let (dx, dy) = setting_pair(geo, PropertyKey::Nudge).unwrap_or((0.0, 0.0));
+    (x + dx, y + dy)
+}
+
+fn setting_pair(geo: &GeometryIr, key: PropertyKey) -> Option<(f64, f64)> {
+    geo.settings
+        .iter()
+        .find(|setting| setting.name == key)
+        .and_then(|setting| match &setting.value {
+            SettingValue::NumberArray(values) => Some((
+                values.first().copied().unwrap_or(0.0),
+                values.get(1).copied().unwrap_or(0.0),
+            )),
+            _ => None,
+        })
+}
+
+fn deterministic_unit(row: usize, salt: u64) -> f64 {
+    let mut x = (row as u64).wrapping_add(salt);
+    x = x.wrapping_add(0x9e37_79b9_7f4a_7c15);
+    x = (x ^ (x >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    x = (x ^ (x >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+    let bits = (x ^ (x >> 31)) >> 11;
+    (bits as f64) / 9_007_199_254_740_992.0 - 0.5
+}
+
 fn categorical_bound(
     axis: &AxisScale,
     column: &str,

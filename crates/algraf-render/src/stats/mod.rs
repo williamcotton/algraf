@@ -19,9 +19,10 @@ pub use bin::{
 };
 pub use density::{density, density_blended, density_values, DensityOptions, DensityPoint};
 pub use primitive::{
-    curve_sample, interval_middles, interval_rects, interval_segments, step_vertices,
-    vector_endpoints, CurveSampleOptions, IntervalOrientation, IntervalSegmentsOptions,
-    IntervalWidthOptions, StepDirection, StepVerticesOptions, VectorEndpointsOptions,
+    curve_sample, interval_middles, interval_rects, interval_segments, jitter_points,
+    step_vertices, vector_endpoints, CurveSampleOptions, IntervalOrientation,
+    IntervalSegmentsOptions, IntervalWidthOptions, JitterPointsOptions, StepDirection,
+    StepVerticesOptions, VectorEndpointsOptions,
 };
 pub use smooth::{smooth, smooth_points, SmoothMethod, SmoothOptions};
 pub use summary::{

@@ -156,6 +156,7 @@ fn declaration_name(name: &str) -> bool {
             | "SummaryHex"
             | "Smooth"
             | "StepVertices"
+            | "JitterPoints"
             | "VectorEndpoints"
             | "CurveSample"
             | "IntervalSegments"

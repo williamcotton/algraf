@@ -22,7 +22,7 @@
 
 use algraf_core::{codes, Diagnostic};
 use tiny_skia::{
-    Color, FillRule, LineCap, Paint as SkPaint, PathBuilder, Pixmap, Stroke as SkStroke,
+    Color, FillRule, LineCap, Mask, Paint as SkPaint, PathBuilder, Pixmap, Stroke as SkStroke,
     StrokeDash, Transform,
 };
 
@@ -108,20 +108,62 @@ fn rasterize(
     let mut pixmap = Pixmap::new(width, height).unwrap_or_else(|| Pixmap::new(1, 1).expect("1x1"));
     let transform = Transform::from_scale(scale, scale);
 
+    let mut clip_stack: Vec<Mask> = Vec::new();
     for op in &list.ops {
-        draw_op(&mut pixmap, transform, op, diagnostics);
+        match op {
+            DrawOp::ClipStart {
+                x,
+                y,
+                width: clip_width,
+                height: clip_height,
+                ..
+            } => {
+                if let Some(mask) =
+                    clip_mask(width, height, transform, *x, *y, *clip_width, *clip_height)
+                {
+                    clip_stack.push(mask);
+                }
+            }
+            DrawOp::ClipEnd { .. } => {
+                clip_stack.pop();
+            }
+            _ => draw_op(&mut pixmap, transform, op, clip_stack.last(), diagnostics),
+        }
     }
 
     RasterImage { pixmap }
+}
+
+fn clip_mask(
+    width: u32,
+    height: u32,
+    transform: Transform,
+    x: f64,
+    y: f64,
+    rect_width: f64,
+    rect_height: f64,
+) -> Option<Mask> {
+    let mut mask = Mask::new(width, height)?;
+    let rect = tiny_skia::Rect::from_xywh(
+        x as f32,
+        y as f32,
+        rect_width.max(0.0) as f32,
+        rect_height.max(0.0) as f32,
+    )?;
+    let path = PathBuilder::from_rect(rect);
+    mask.fill_path(&path, FillRule::Winding, true, transform);
+    Some(mask)
 }
 
 fn draw_op(
     pixmap: &mut Pixmap,
     transform: Transform,
     op: &DrawOp,
+    mask: Option<&Mask>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     match op {
+        DrawOp::ClipStart { .. } | DrawOp::ClipEnd { .. } => {}
         DrawOp::Rect {
             x,
             y,
@@ -136,7 +178,7 @@ fn draw_op(
                 return;
             };
             let path = PathBuilder::from_rect(rect);
-            fill_and_stroke(pixmap, transform, &path, paint, None);
+            fill_and_stroke(pixmap, transform, &path, paint, None, mask);
         }
         DrawOp::Circle {
             cx, cy, r, paint, ..
@@ -144,18 +186,18 @@ fn draw_op(
             let mut pb = PathBuilder::new();
             pb.push_circle(*cx as f32, *cy as f32, *r as f32);
             if let Some(path) = pb.finish() {
-                fill_and_stroke(pixmap, transform, &path, paint, None);
+                fill_and_stroke(pixmap, transform, &path, paint, None, mask);
             }
         }
         DrawOp::Polygon { points, paint, .. } => {
             if let Some(path) = polygon_path(points) {
-                fill_and_stroke(pixmap, transform, &path, paint, None);
+                fill_and_stroke(pixmap, transform, &path, paint, None, mask);
             } else {
                 unrepresentable(diagnostics, "polygon points");
             }
         }
         DrawOp::Path { d, paint, dash, .. } => match path_from_d(d) {
-            Some(path) => fill_and_stroke(pixmap, transform, &path, paint, *dash),
+            Some(path) => fill_and_stroke(pixmap, transform, &path, paint, *dash, mask),
             None => unrepresentable(diagnostics, "path data"),
         },
         DrawOp::Line {
@@ -189,7 +231,7 @@ fn draw_op(
                 if let Some(dash) = dash {
                     s.dash = stroke_dash(*dash, *stroke_width as f32);
                 }
-                pixmap.stroke_path(&path, &sk, &s, transform, None);
+                pixmap.stroke_path(&path, &sk, &s, transform, mask);
             }
         }
         // Text glyphs are a documented equivalence limit (see module docs).
@@ -204,6 +246,7 @@ fn fill_and_stroke(
     path: &tiny_skia::Path,
     paint: &crate::sink::Paint,
     dash: Option<Dash>,
+    mask: Option<&Mask>,
 ) {
     let opacity = paint.opacity.unwrap_or(1.0);
     if let Fill::Color(color) = &paint.fill {
@@ -212,7 +255,7 @@ fn fill_and_stroke(
             ..SkPaint::default()
         };
         sk.set_color(parse_color(color, opacity));
-        pixmap.fill_path(path, &sk, FillRule::Winding, transform, None);
+        pixmap.fill_path(path, &sk, FillRule::Winding, transform, mask);
     }
     if let Stroke::Solid { color, width } = &paint.stroke {
         let mut sk = SkPaint {
@@ -227,7 +270,7 @@ fn fill_and_stroke(
         if let Some(dash) = dash {
             s.dash = stroke_dash(dash, *width as f32);
         }
-        pixmap.stroke_path(path, &sk, &s, transform, None);
+        pixmap.stroke_path(path, &sk, &s, transform, mask);
     }
 }
 

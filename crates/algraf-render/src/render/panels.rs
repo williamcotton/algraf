@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
 use algraf_core::{codes, Diagnostic};
-use algraf_data::{DataFrame, Table};
+use algraf_data::{ColumnDef, DataFrame, DataValueRef, Table};
 use algraf_semantics::{
-    AxisSelectorIr, ChartIr, ColumnRef, CoordsIr, FrameIr, GeometryIr, GuideIr, ScaleIr,
+    AxisSelectorIr, ChartIr, ColumnRef, CoordsIr, FacetGridIr, FacetLabelModeIr, FacetScaleModeIr,
+    FrameIr, GeometryIr, GuideIr, ScaleIr, SpaceIr,
 };
 
-use crate::domains::{train_space_domains, AxisDomainHints};
+use crate::domains::{train_space_domains, AxisDomainHints, SpaceDomainHints};
 use crate::guide;
 use crate::helpers::frame_axis;
 use crate::layout::{Layout, Margins, Rect, MARGIN_BOTTOM, MARGIN_LEFT};
@@ -27,6 +28,7 @@ pub(super) struct Panel<'t> {
     pub(super) rows: Option<Vec<usize>>,
     pub(super) label: Option<String>,
     pub(super) facet_index: Option<usize>,
+    pub(super) clip_marks: bool,
     pub(super) theme: Theme,
     pub(super) guides: GuideIr,
     pub(super) scales: Vec<ScaleIr>,
@@ -93,34 +95,53 @@ pub(super) fn build_render_plan<'t>(
     } else {
         0.0
     };
+    let grid_categories = ir
+        .layout
+        .facet_grid
+        .as_ref()
+        .map(|grid| facet_grid_categories(primary, grid));
     let facet_panel_count = facet_panel_count(ir, primary, derived);
-    let layout = match facet_panel_count {
-        Some(count) => Layout::compute_facets_with_text(
+    let layout = if let Some((row_categories, col_categories)) = &grid_categories {
+        Layout::compute_facet_grid_with_text(
             width,
             height,
             !legends.is_empty(),
             has_axes,
-            count,
-            ir.layout.facet_columns,
+            row_categories.len().max(1),
+            col_categories.len().max(1),
             top_extra,
             bottom_extra,
             left_extra,
             margins,
-        ),
-        None => Layout::compute_with_text(
-            width,
-            height,
-            !legends.is_empty(),
-            has_axes,
-            top_extra,
-            bottom_extra,
-            left_extra,
-            margins,
-        ),
+            ir.layout.panel_spacing,
+        )
+    } else {
+        match facet_panel_count {
+            Some(count) => Layout::compute_facets_with_text(
+                width,
+                height,
+                !legends.is_empty(),
+                has_axes,
+                count,
+                ir.layout.facet_columns,
+                top_extra,
+                bottom_extra,
+                left_extra,
+                margins,
+                ir.layout.panel_spacing,
+            ),
+            None => Layout::compute_with_text(
+                width,
+                height,
+                !legends.is_empty(),
+                has_axes,
+                top_extra,
+                bottom_extra,
+                left_extra,
+                margins,
+            ),
+        }
     };
-
-    let x_range = (layout.plot.x, layout.plot.right());
-    let y_range = (layout.plot.bottom(), layout.plot.y); // inverted for SVG
 
     // Position scales are shared across overlaid (non-faceted) spaces, even when
     // they back onto different tables (spec §17.5). Compute the unioned x/y
@@ -139,6 +160,7 @@ pub(super) fn build_render_plan<'t>(
         let panel_theme = resolve_space_theme(theme, space.theme.as_ref(), cli_theme_override);
         let space_guides = ir.guides.with_overrides(&space.guides);
         let space_scales = merged_scales(&ir.scales, &space.scales);
+        let clip_marks = space.view.has_zoom();
         validate_scale_configs(&space.frame, &space_scales, space.span, diagnostics);
         if is_spatial_space(space) {
             // A spatial space projects geographic coordinates into the plot;
@@ -153,10 +175,83 @@ pub(super) fn build_render_plan<'t>(
                         rows: None,
                         label: None,
                         facet_index: None,
+                        clip_marks: false,
                         theme: panel_theme,
                         guides: space_guides,
                         scales: space_scales,
                     });
+                }
+            }
+            continue;
+        }
+        if let (Some(grid), Some((row_categories, col_categories))) =
+            (&ir.layout.facet_grid, &grid_categories)
+        {
+            let Some(plane) = facet_grid_plane(&space.frame) else {
+                diagnostics.push(Diagnostic::warning(
+                    codes::R0003,
+                    "this space is not compatible with the facet grid",
+                    space.span,
+                ));
+                continue;
+            };
+            let fixed_hints = train_space_domains(plane, table, &space.geometries);
+            for (index, facet) in layout.facets.iter().enumerate() {
+                let row_index = index / col_categories.len().max(1);
+                let col_index = index % col_categories.len().max(1);
+                let row_value = grid
+                    .rows
+                    .as_ref()
+                    .and_then(|_| row_categories.get(row_index))
+                    .cloned();
+                let col_value = grid
+                    .columns
+                    .as_ref()
+                    .and_then(|_| col_categories.get(col_index))
+                    .cloned();
+                let rows = facet_grid_rows(table, grid, row_value.as_deref(), col_value.as_deref());
+                let filtered = FilteredTable::new(table, &rows);
+                let free_hints = train_space_domains(plane, &filtered, &space.geometries);
+                let (x_table, y_table, domain_hints) = facet_training(
+                    ir.layout.facet_scales,
+                    table,
+                    &filtered,
+                    fixed_hints.clone(),
+                    free_hints,
+                );
+                match build_cartesian_scaled(
+                    plane,
+                    x_table,
+                    y_table,
+                    facet.plot,
+                    &domain_hints,
+                    &space_scales,
+                    space,
+                ) {
+                    Some((scaled, plot)) => panels.push(Panel {
+                        table,
+                        scaled,
+                        geometries: &space.geometries,
+                        plot,
+                        rows: Some(rows),
+                        label: Some(facet_grid_label(
+                            grid,
+                            row_value.as_deref(),
+                            col_value.as_deref(),
+                            ir.layout.facet_label,
+                            &ir.layout.facet_label_map,
+                        )),
+                        facet_index: Some(index),
+                        clip_marks,
+                        theme: panel_theme.clone(),
+                        guides: space_guides.clone(),
+                        scales: space_scales.clone(),
+                    }),
+                    None => diagnostics.push(Diagnostic::warning(
+                        codes::R0003,
+                        "this facet-grid panel could not be laid out",
+                        space.span,
+                    )),
                 }
             }
             continue;
@@ -167,24 +262,39 @@ pub(super) fn build_render_plan<'t>(
                 let Some(facet) = layout.facets.get(index) else {
                     continue;
                 };
-                let x_range = (facet.plot.x, facet.plot.right());
-                let y_range = (facet.plot.bottom(), facet.plot.y);
-                match ScaledSpace::build(
-                    plane,
+                let rows = facet_rows(table, &facet_col.name, category);
+                let filtered = FilteredTable::new(table, &rows);
+                let free_hints = train_space_domains(plane, &filtered, &space.geometries);
+                let (x_table, y_table, domain_hints) = facet_training(
+                    ir.layout.facet_scales,
                     table,
-                    x_range,
-                    y_range,
+                    &filtered,
+                    domain_hints.clone(),
+                    free_hints,
+                );
+                match build_cartesian_scaled(
+                    plane,
+                    x_table,
+                    y_table,
+                    facet.plot,
                     &domain_hints,
                     &space_scales,
+                    space,
                 ) {
-                    Some(scaled) => panels.push(Panel {
+                    Some((scaled, plot)) => panels.push(Panel {
                         table,
                         scaled,
                         geometries: &space.geometries,
-                        plot: facet.plot,
-                        rows: Some(facet_rows(table, &facet_col.name, category)),
-                        label: Some(category.clone()),
+                        plot,
+                        rows: Some(rows),
+                        label: Some(facet_value_label(
+                            &facet_col.name,
+                            category,
+                            ir.layout.facet_label,
+                            &ir.layout.facet_label_map,
+                        )),
                         facet_index: Some(index),
+                        clip_marks,
                         theme: panel_theme.clone(),
                         guides: space_guides.clone(),
                         scales: space_scales.clone(),
@@ -200,14 +310,14 @@ pub(super) fn build_render_plan<'t>(
             let mut domain_hints = train_space_domains(&space.frame, table, &space.geometries);
             // Polar spaces are self-contained (one circular plot); Cartesian
             // axis-sharing across overlaid spaces does not apply (spec §16.16).
-            let scaled = if let CoordsIr::Polar {
+            if let CoordsIr::Polar {
                 theta,
                 inner_radius,
                 start_angle,
                 direction,
             } = space.coords
             {
-                ScaledSpace::build_polar(
+                match ScaledSpace::build_polar(
                     &space.frame,
                     table,
                     layout.plot,
@@ -218,37 +328,57 @@ pub(super) fn build_render_plan<'t>(
                     start_angle,
                     direction,
                     panel_theme.font_size,
-                )
+                ) {
+                    Some(scaled) => panels.push(Panel {
+                        table,
+                        scaled,
+                        geometries: &space.geometries,
+                        plot: layout.plot,
+                        rows: None,
+                        label: None,
+                        facet_index: None,
+                        clip_marks: false,
+                        theme: panel_theme,
+                        guides: space_guides,
+                        scales: space_scales,
+                    }),
+                    None => diagnostics.push(Diagnostic::warning(
+                        codes::R0003,
+                        "this space could not be laid out",
+                        space.span,
+                    )),
+                }
             } else {
                 shared_x.apply(&mut domain_hints.x);
                 shared_y.apply(&mut domain_hints.y);
-                ScaledSpace::build(
+                match build_cartesian_scaled(
                     &space.frame,
                     table,
-                    x_range,
-                    y_range,
+                    table,
+                    layout.plot,
                     &domain_hints,
                     &space_scales,
-                )
-            };
-            match scaled {
-                Some(scaled) => panels.push(Panel {
-                    table,
-                    scaled,
-                    geometries: &space.geometries,
-                    plot: layout.plot,
-                    rows: None,
-                    label: None,
-                    facet_index: None,
-                    theme: panel_theme,
-                    guides: space_guides,
-                    scales: space_scales,
-                }),
-                None => diagnostics.push(Diagnostic::warning(
-                    codes::R0003,
-                    "this space could not be laid out",
-                    space.span,
-                )),
+                    space,
+                ) {
+                    Some((scaled, plot)) => panels.push(Panel {
+                        table,
+                        scaled,
+                        geometries: &space.geometries,
+                        plot,
+                        rows: None,
+                        label: None,
+                        facet_index: None,
+                        clip_marks,
+                        theme: panel_theme,
+                        guides: space_guides,
+                        scales: space_scales,
+                    }),
+                    None => diagnostics.push(Diagnostic::warning(
+                        codes::R0003,
+                        "this space could not be laid out",
+                        space.span,
+                    )),
+                }
             }
         }
     }
@@ -260,14 +390,186 @@ pub(super) fn build_render_plan<'t>(
     }
 }
 
+struct FilteredTable<'t, 'r> {
+    table: &'t dyn Table,
+    rows: &'r [usize],
+}
+
+impl<'t, 'r> FilteredTable<'t, 'r> {
+    fn new(table: &'t dyn Table, rows: &'r [usize]) -> Self {
+        FilteredTable { table, rows }
+    }
+}
+
+impl Table for FilteredTable<'_, '_> {
+    fn schema(&self) -> &[ColumnDef] {
+        self.table.schema()
+    }
+
+    fn row_count(&self) -> usize {
+        self.rows.len()
+    }
+
+    fn value(&self, column: &str, row: usize) -> Option<DataValueRef<'_>> {
+        let source_row = *self.rows.get(row)?;
+        self.table.value(column, source_row)
+    }
+}
+
+fn build_cartesian_scaled(
+    frame: &FrameIr,
+    x_table: &dyn Table,
+    y_table: &dyn Table,
+    plot: Rect,
+    hints: &SpaceDomainHints,
+    scales: &[ScaleIr],
+    space: &SpaceIr,
+) -> Option<(ScaledSpace, Rect)> {
+    let x_range = (plot.x, plot.right());
+    let y_range = (plot.bottom(), plot.y);
+    let scaled = ScaledSpace::build_with_axis_tables(
+        frame, x_table, y_table, x_range, y_range, hints, scales, space.view,
+    )?;
+    let Some(aspect) = space.view.aspect else {
+        return Some((scaled, plot));
+    };
+    let adjusted = scaled.fixed_aspect_plot(plot, aspect);
+    if adjusted == plot {
+        return Some((scaled, plot));
+    }
+    let adjusted_scaled = ScaledSpace::build_with_axis_tables(
+        frame,
+        x_table,
+        y_table,
+        (adjusted.x, adjusted.right()),
+        (adjusted.bottom(), adjusted.y),
+        hints,
+        scales,
+        space.view,
+    )?;
+    Some((adjusted_scaled, adjusted))
+}
+
+fn facet_training<'a>(
+    mode: FacetScaleModeIr,
+    full: &'a dyn Table,
+    filtered: &'a dyn Table,
+    fixed_hints: SpaceDomainHints,
+    free_hints: SpaceDomainHints,
+) -> (&'a dyn Table, &'a dyn Table, SpaceDomainHints) {
+    match mode {
+        FacetScaleModeIr::Fixed => (full, full, fixed_hints),
+        FacetScaleModeIr::FreeX => (
+            filtered,
+            full,
+            SpaceDomainHints {
+                x: free_hints.x,
+                y: fixed_hints.y,
+            },
+        ),
+        FacetScaleModeIr::FreeY => (
+            full,
+            filtered,
+            SpaceDomainHints {
+                x: fixed_hints.x,
+                y: free_hints.y,
+            },
+        ),
+        FacetScaleModeIr::Free => (filtered, filtered, free_hints),
+    }
+}
+
+fn facet_grid_plane(frame: &FrameIr) -> Option<&FrameIr> {
+    if let Some((plane, _)) = facet_frame(frame) {
+        return Some(plane);
+    }
+    matches!(frame, FrameIr::Cartesian(axes) if axes.len() == 2).then_some(frame)
+}
+
+fn facet_grid_categories(table: &dyn Table, grid: &FacetGridIr) -> (Vec<String>, Vec<String>) {
+    let rows = grid
+        .rows
+        .as_ref()
+        .map(|column| facet_categories(table, &column.name))
+        .unwrap_or_else(|| vec![String::new()]);
+    let cols = grid
+        .columns
+        .as_ref()
+        .map(|column| facet_categories(table, &column.name))
+        .unwrap_or_else(|| vec![String::new()]);
+    (rows, cols)
+}
+
+fn facet_grid_rows(
+    table: &dyn Table,
+    grid: &FacetGridIr,
+    row_value: Option<&str>,
+    col_value: Option<&str>,
+) -> Vec<usize> {
+    (0..table.row_count())
+        .filter(|&row| {
+            let row_ok = match (&grid.rows, row_value) {
+                (Some(column), Some(value)) => {
+                    cell_category(table, &column.name, row).as_deref() == Some(value)
+                }
+                (Some(_), None) => false,
+                (None, _) => true,
+            };
+            let col_ok = match (&grid.columns, col_value) {
+                (Some(column), Some(value)) => {
+                    cell_category(table, &column.name, row).as_deref() == Some(value)
+                }
+                (Some(_), None) => false,
+                (None, _) => true,
+            };
+            row_ok && col_ok
+        })
+        .collect()
+}
+
+fn facet_grid_label(
+    grid: &FacetGridIr,
+    row_value: Option<&str>,
+    col_value: Option<&str>,
+    mode: FacetLabelModeIr,
+    label_map: &[(String, String)],
+) -> String {
+    let mut parts = Vec::new();
+    if let (Some(column), Some(value)) = (&grid.rows, row_value) {
+        parts.push(facet_value_label(&column.name, value, mode, label_map));
+    }
+    if let (Some(column), Some(value)) = (&grid.columns, col_value) {
+        parts.push(facet_value_label(&column.name, value, mode, label_map));
+    }
+    parts.join("\n")
+}
+
+fn facet_value_label(
+    column: &str,
+    value: &str,
+    mode: FacetLabelModeIr,
+    label_map: &[(String, String)],
+) -> String {
+    let label = label_map
+        .iter()
+        .find(|(raw, _)| raw == value)
+        .map(|(_, label)| label.as_str())
+        .unwrap_or(value);
+    match mode {
+        FacetLabelModeIr::Value => label.to_string(),
+        FacetLabelModeIr::NameValue => format!("{column}: {label}"),
+    }
+}
+
 pub(super) fn panel_slots<'a>(layout: &'a Layout, panels: &'a [Panel<'a>]) -> Vec<PanelSlot<'a>> {
     if layout.facets.is_empty() {
+        let panel = panels.first();
         return vec![PanelSlot {
-            plot: layout.plot,
+            plot: panel.map_or(layout.plot, |panel| panel.plot),
             strip: None,
             label: None,
             facet_index: None,
-            panel: panels.first(),
+            panel,
         }];
     }
 
@@ -278,7 +580,7 @@ pub(super) fn panel_slots<'a>(layout: &'a Layout, panels: &'a [Panel<'a>]) -> Ve
         .map(|(index, facet)| {
             let panel = panels.iter().find(|panel| panel.facet_index == Some(index));
             PanelSlot {
-                plot: facet.plot,
+                plot: panel.map_or(facet.plot, |panel| panel.plot),
                 strip: Some(facet.strip),
                 label: panel.and_then(|panel| panel.label.as_deref()),
                 facet_index: Some(index),
@@ -310,9 +612,15 @@ fn x_label_bottom_extra(
             None => &space.frame,
         };
         let hints = train_space_domains(frame, table, &space.geometries);
-        if let Some(scaled) =
-            ScaledSpace::build(frame, table, x_range, y_range, &hints, &space_scales)
-        {
+        if let Some(scaled) = ScaledSpace::build(
+            frame,
+            table,
+            x_range,
+            y_range,
+            &hints,
+            &space_scales,
+            space.view,
+        ) {
             let guides = ir.guides.with_overrides(&space.guides);
             max_label_height = max_label_height.max(guide::max_x_tick_label_height(
                 &scaled,
@@ -351,9 +659,15 @@ fn y_label_left_extra(
             None => &space.frame,
         };
         let hints = train_space_domains(frame, table, &space.geometries);
-        if let Some(scaled) =
-            ScaledSpace::build(frame, table, x_range, y_range, &hints, &space_scales)
-        {
+        if let Some(scaled) = ScaledSpace::build(
+            frame,
+            table,
+            x_range,
+            y_range,
+            &hints,
+            &space_scales,
+            space.view,
+        ) {
             let guides = ir.guides.with_overrides(&space.guides);
             max_label_width = max_label_width.max(guide::max_y_tick_label_width(
                 &scaled,

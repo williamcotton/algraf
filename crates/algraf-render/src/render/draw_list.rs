@@ -96,6 +96,17 @@ impl TextAnchor {
 /// A single drawable primitive.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DrawOp {
+    /// Start a rectangular clip scope. All following primitives until the
+    /// matching `ClipEnd` are clipped to this rectangle.
+    ClipStart {
+        role: DrawRole,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    },
+    /// End the current clip scope.
+    ClipEnd { role: DrawRole },
     /// A rectangle.
     Rect {
         role: DrawRole,
@@ -159,6 +170,7 @@ pub enum DrawOp {
 impl DrawOp {
     fn role(&self) -> DrawRole {
         match self {
+            DrawOp::ClipStart { role, .. } | DrawOp::ClipEnd { role } => *role,
             DrawOp::Rect { role, .. }
             | DrawOp::Circle { role, .. }
             | DrawOp::Path { role, .. }
@@ -211,6 +223,26 @@ impl DrawOp {
     fn write_json(&self, out: &mut String) {
         let role = self.role().as_str();
         match self {
+            DrawOp::ClipStart {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
+                let _ = write!(
+                    out,
+                    "{{\"op\":\"clipStart\",\"role\":\"{}\",\"x\":{},\"y\":{},\"width\":{},\"height\":{}}}",
+                    role,
+                    num(*x),
+                    num(*y),
+                    num(*width),
+                    num(*height),
+                );
+            }
+            DrawOp::ClipEnd { .. } => {
+                let _ = write!(out, "{{\"op\":\"clipEnd\",\"role\":\"{}\"}}", role);
+            }
             DrawOp::Rect {
                 x,
                 y,

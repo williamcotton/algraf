@@ -1127,6 +1127,11 @@ An empty `Space` body SHOULD produce a warning in CLI render mode.
 coordinate system (§4.2, §16.16). These are ordinary named `Arg` nodes — no
 grammar change — validated in semantics (`E1901`–`E1905`).
 
+`Space` MAY include Cartesian coordinate-view arguments `zoomX`, `zoomY`, and
+`aspect` (§16.17). These are coordinate controls, not scale declarations:
+`zoomX`/`zoomY` clip the visible panel range after stats and scale training, and
+`aspect` controls the final plot rectangle's x/y unit ratio.
+
 The `data` argument MUST be a bare identifier that resolves to a derived table.
 
 Example:
@@ -1537,9 +1542,23 @@ Expression `(x * y) / group` MUST produce a facet-wrap layout by default.
 
 Facets MUST share x and y scales by default.
 
+Version 0.41 MUST support panel-local facet scales through
+`Layout(facetScales: "fixed" | "free-x" | "free-y" | "free")`. `"fixed"` is
+the default and shares both axes; `"free-x"` trains x panel-locally and shares
+y; `"free-y"` shares x and trains y panel-locally; `"free"` trains both axes
+from each panel's rows. Legends remain chart-level and are not retrained per
+facet.
+
 Facet columns MUST be chosen automatically when not specified.
 
 Facet column count MAY be overridden with `Layout(facetColumns: n)`.
+
+Version 0.41 MUST support facet grids through `Layout(facetRows: col,
+facetCols: col)`. Either side MAY be omitted; when both are present the renderer
+lays panels out row-major over the row-domain cross product with the
+column-domain. Empty combinations MUST still reserve a panel. `facetRows` and
+`facetCols` columns MUST be categorical (or unknown during editing); otherwise
+`E1303`.
 
 ### 8.5 Blend Operator
 
@@ -2328,10 +2347,10 @@ Derived tables MAY be lazily computed by the renderer.
 Derived table schemas SHOULD be computed without running expensive full-data transforms where possible.
 
 Schema-only stat planning lives in semantic planning helpers. The built-in
-schemas for `Bin`, `Smooth`, `StepVertices`, `VectorEndpoints`, `CurveSample`,
-`Bin2D`, `HexBin`, `Density`, and `Count` MUST be derivable from typed input
-frames and options without reading row values. Full stat execution remains a
-render/runtime responsibility.
+schemas for `Bin`, `Smooth`, `StepVertices`, `JitterPoints`,
+`VectorEndpoints`, `CurveSample`, `Bin2D`, `HexBin`, `Density`, and `Count` MUST
+be derivable from typed input frames and options without reading row values.
+Full stat execution remains a render/runtime responsibility.
 
 Derived table names are chart-scoped.
 
@@ -3929,6 +3948,10 @@ Common properties:
 
 `position`
 
+`nudge`
+
+`nudgeData`
+
 Geometry-specific properties are defined below.
 
 ### 14.2 Point
@@ -3980,6 +4003,12 @@ size number
 
 shape string option
 
+jitter numeric array `[x, y]`
+
+nudge numeric array `[dx, dy]`
+
+nudgeData numeric array `[dx, dy]`
+
 Default fill:
 
 theme point fill
@@ -4020,6 +4049,17 @@ Point rendering emits SVG `circle`, `path`, or `use` elements.
 Point MUST skip rows with missing x, or with missing y in 2D spaces.
 
 Point SHOULD skip rows with non-finite x or y after scale mapping.
+
+Version 0.41 point marks MAY use deterministic position adjustments. `jitter:
+[x, y]` offsets the point by a stable, row-index-derived value in
+`[-0.5, 0.5)` times the requested x/y amount. On continuous and temporal axes
+the amount is in data units; on band and nested-band axes it is a fraction of
+the resolved band width. `nudge: [dx, dy]` is a pixel offset applied after
+data-space adjustments. `nudgeData: [dx, dy]` is a data-space offset converted
+through the trained axis; on band axes it is a band-width fraction. These
+adjustments are ignored for polar and spatial spaces except that pixel `nudge`
+still applies after projection. The algorithm MUST be deterministic,
+seed-free, and independent of wall-clock randomness.
 
 ### 14.3 Line
 
@@ -4811,10 +4851,20 @@ A mapped non-numeric cell contributes a zero offset.
 `dy` — offsets the rendered text vertically, in pixels, with the same literal-or-
 column semantics as `dx`.
 
+`nudge` — since version 0.41, a numeric array `[dx, dy]` that offsets text in
+pixels, after resolving its inherited or explicit coordinates. It composes with
+`dx`/`dy`.
+
+`nudgeData` — since version 0.41, a numeric array `[dx, dy]` in data units. The
+renderer converts the values through the trained x/y axes before applying
+pixel-space `nudge` and `dx`/`dy`. On band axes the value is a band-width
+fraction. `nudgeData` is ignored for polar and spatial spaces.
+
 `declutter` — boolean literal; default `false`. When `true`, labels that overlap
 vertically are spread apart before rendering. Decluttering operates on the final
-positions (after `dx`/`dy`), is scoped to labels sharing an x column (rounded to
-the nearest pixel), and keeps each adjusted group within the plot's vertical
+positions (after `nudgeData`, `nudge`, `dx`, and `dy`), is scoped to labels
+sharing an x column (rounded to the nearest pixel), and keeps each adjusted
+group within the plot's vertical
 extent. The result MUST be deterministic: within a column, labels are laid out at
 a minimum gap of `1.2 ×` the font size, minimizing displacement from their
 targets, with stable ordering. Horizontal de-overlap and connector lines are not
@@ -5702,6 +5752,17 @@ orthogonal vertex followed by the source vertex. A row missing x or y emits one
 null sentinel between valid runs, increments `step_group`, and causes `Line`/
 `Path` renderers to break the path instead of connecting across the gap.
 
+`JitterPoints(x, y, width: w, height: h)` emits primitive float `x` and `y`
+columns with deterministic source-row jitter added to each coordinate, followed
+by non-conflicting source columns. `width` and `height` default to `0`, MUST be
+non-negative finite numbers, and are measured in the input coordinate's data
+units. Required inputs MUST be numeric, temporal, or unknown at analysis time;
+runtime rows missing either coordinate are dropped. The jitter function MUST be
+stable across platforms and seed-free. A point-layer sugar form
+`Point(jitter: [w, h])` over fixed continuous scale domains MUST render
+byte-for-byte identically to `JitterPoints(x, y, width: w, height: h)` followed
+by primitive `Point()`.
+
 `VectorEndpoints(x, y, angle, length, lengthScale: n)` emits primitive Segment
 columns `x`, `y`, `xend`, and `yend`, all floats. The angle is in radians.
 `lengthScale` defaults to `1.0` and MUST be a non-negative finite number.
@@ -6194,7 +6255,7 @@ expansion `0`. A two-number array is `[mult, add]`. Continuous axes expand by
 Temporal axes use the same rule in microsecond units. Categorical axes use
 `mult` as deterministic outer band padding. Explicit `domain:` bounds remain
 data-domain training constraints and are not visual zoom or clipping; visual
-coordinate zoom is deferred to coordinate work after v0.40.
+coordinate zoom is a separate `Space` coordinate-view control (§16.17).
 
 Version 0.2.0 MUST support `reverse: true` for position axes.
 
@@ -6441,6 +6502,44 @@ around the circle) and the coxcomb path (categorical angle, value radius). The
 `Bar`; otherwise `E1910`. The mode reuses the same wedge/annular-segment emission
 as other polar bars and adds no new geometry.
 
+### 16.17 Cartesian Coordinate View
+
+> Since version 0.41.
+
+A Cartesian `Space` MAY declare visual coordinate controls:
+
+```ag
+Space(x * y, zoomX: [0, 10], zoomY: [null, 100], aspect: 1) { ... }
+```
+
+`zoomX` and `zoomY` are two-element arrays of numeric, temporal, or `null`
+bounds. A `null` bound preserves the trained scale bound on that side. Temporal
+bounds MAY use `date(...)` or `datetime(...)` literals and are normalized to UTC
+microseconds. Non-finite numbers, arrays of any other length, and non-temporal
+call values MUST emit `E1204`.
+
+Coordinate zoom is visual-only. It MUST be applied after source data loading,
+derived stat materialization, stat-generated geometry rows, scale-domain
+training, scale expansion, and explicit `Scale(domain:)` bounds. It changes the
+axis view domain and guide ticks, but MUST NOT filter rows before stats or
+before draw-list/sidecar mark enumeration.
+
+Zoomed Cartesian panels MUST clip data marks to the final plot rectangle. SVG
+uses a deterministic `clipPath`; the draw-list backend emits matching
+`clipStart`/`clipEnd` scope ops; the render-model raster backend applies the
+same rectangular mask. The interaction sidecar keeps per-row mark coordinates;
+marks whose point coordinate lies outside a clipped panel carry
+`"clipped": true`, and each clipped plot carries `clip_rect` equal to the plot
+rectangle. Host runtimes MAY use `clip_rect` to hide or ignore clipped marks.
+
+`aspect` is a positive finite number specifying the ratio of x pixels per data
+unit to y pixels per data unit. The renderer MUST preserve the chart viewport,
+margins, legends, facet strips, and facet grid allocation, then shrink and
+center the Cartesian plot rectangle inside its allocated panel when needed. It
+MUST apply only when both axes have continuous or temporal data-unit spans; it
+is ignored for categorical, polar, and spatial spaces. `aspect: 1` makes equal
+x/y data-unit distances visually equal after the final layout.
+
 ## 17. Layout
 
 ### 17.1 Viewport Model
@@ -6555,6 +6654,28 @@ Default column count SHOULD produce a compact grid based on panel count and view
 Facet rows are derived from panel count and column count.
 
 Facet labels are guides.
+
+Version 0.41 MUST also support facet grids through `Layout(facetRows: col,
+facetCols: col)`. Row and column facet domains use first-appearance categorical
+order, and panels are assigned row-major. Empty row/column combinations MUST
+still reserve plot rectangles and strips. When either `facetRows` or `facetCols`
+is omitted, that dimension has one implicit level.
+
+`Layout(facetScales: mode)` controls per-facet position-scale training. The
+accepted string modes are `"fixed"` (default), `"free-x"`/`"free_x"`,
+`"free-y"`/`"free_y"`, and `"free"`. Free scales are panel-local for axes named
+by the mode; the other axes continue to share the full faceted data domain.
+Coordinate zoom, when present, is applied after each panel's fixed or free
+domain has been trained.
+
+`Layout(facetLabel: "value" | "name-value")` controls strip text. `"value"` is
+the default. `"name-value"` prefixes each value with its facet column name.
+`Layout(facetLabels: ["raw" => "Label"])` MAY map raw facet values to custom
+strip labels. Map keys and values MUST be string literals (`E1204` otherwise).
+
+`Layout(panelSpacing: n)` sets both horizontal and vertical facet gaps in pixels.
+`Layout(panelSpacing: [x, y])` sets them independently. Values MUST be
+non-negative finite numbers (`E1204` otherwise).
 
 ### 17.5 Multiple Space Blocks
 
@@ -8525,7 +8646,8 @@ The renderer ships three backends over this seam:
   sidecar MUST carry `version: 1`, `plot_rect`, `axes`, `marks`, `groups`, and
   `plots` fields in stable key order. `plot_rect` is the first plot area's SVG
   pixel rectangle. `plots[]` carries every plot area's `id`, `plot_rect`, and
-  `axes` so faceted charts are addressable without re-running layout. `axes.x`
+  `axes` so faceted charts are addressable without re-running layout. A plot MAY
+  include `clip_rect` when coordinate zoom clips data marks (§16.17). `axes.x`
   and `axes.y`, when present, describe host-invertible scales with `scale`,
   `domain`, `range`, `format`, and `label`; band scales also carry padding and
   bandwidth metadata. Continuous scale names are `linear`, `log10`, and `sqrt`;
@@ -8534,9 +8656,10 @@ The renderer ships three backends over this seam:
   axis by applying the inverse of the named transform over `domain` and `range`;
   it inverts `time` the same way as `linear` and formats the resulting UTC
   microseconds; it inverts a band axis by selecting the nearest domain band.
-  `marks[]` carries stable `id`, `plot`, `x_px`, `y_px`, `groups`, and
-  display-ready `tooltip` rows for each pickable per-datum mark that survives
-  layout. `groups` maps each highlight key to its first-appearance-ordered
+  `marks[]` carries stable `id`, `plot`, `x_px`, `y_px`, optional `clipped:
+  true`, `groups`, and display-ready `tooltip` rows for each pickable per-datum
+  mark that survives layout. `groups` maps each highlight key to its
+  first-appearance-ordered
   values. Host runtimes MAY use the mark coordinates and group values to
   implement host-owned legend selection or plot brushing; Algraf MUST NOT
   serialize mutable selection state. The sidecar is inert data: it MUST NOT
@@ -8547,8 +8670,9 @@ The renderer ships three backends over this seam:
   number formatting as §18.8 and MUST be deterministic. It is a *complete* scene
   description: every SVG element the renderer emits for the chart body and guides
   has a corresponding draw-list op with identical coordinates and colors. The op
-  set is `rect`, `circle`, `path`, `polygon`, `line`, and `text`; geometry and
-  guide emission both produce these primitives through one shared mark sink, so
+  set is `clipStart`, `clipEnd`, `rect`, `circle`, `path`, `polygon`, `line`,
+  and `text`; geometry and guide emission both produce these primitives through
+  one shared mark sink, so
   the two backends cannot diverge below the panel level. The draw list covers the
   canvas, background, plot panels (with facet strips and labels), chart
   title/subtitle/caption, per-datum geometry marks (including polar arc/wedge
@@ -9704,7 +9828,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.39.0 | [`V0_39_PLAN.md`](V0_39_PLAN.md) | ggplot2 comparability: model and summary stats | Superseded; scope merged into 0.40.0 |
 | 0.39.5 | [`V0_39_5_PLAN.md`](V0_39_5_PLAN.md) | Rust editor-service hover overhaul | Implemented |
 | 0.40.0 | [`V0_40_PLAN.md`](V0_40_PLAN.md) | ggplot2 comparability: derived stats plus scale and guide control | Implemented |
-| 0.41.0 | [`V0_41_PLAN.md`](V0_41_PLAN.md) | ggplot2 comparability: layout and position control | Planned |
+| 0.41.0 | [`V0_41_PLAN.md`](V0_41_PLAN.md) | ggplot2 comparability: layout and position control | Implemented |
 | 0.42.0 | [`V0_42_PLAN.md`](V0_42_PLAN.md) | ggplot2 comparability: presentation parity and closure | Planned |
 
 The earliest unreleased plan is the active implementation target; later

@@ -1472,6 +1472,11 @@ fn stat_options_json(options: &StatOptionsIr) -> Value {
             "kind": "stepVertices",
             "direction": direction.as_str(),
         }),
+        StatOptionsIr::JitterPoints { width, height } => json!({
+            "kind": "jitterPoints",
+            "width": width,
+            "height": height,
+        }),
         StatOptionsIr::VectorEndpoints { length_scale } => json!({
             "kind": "vectorEndpoints",
             "lengthScale": length_scale,

@@ -14,8 +14,8 @@ use crate::scale::{
 };
 use algraf_data::{DataType, Table, TemporalPrecision};
 use algraf_semantics::{
-    AxisSelectorIr, ColumnRef, FrameIr, PolarDirectionIr, PolarThetaIr, ScaleExpansionIr, ScaleIr,
-    ScaleTargetIr, ScaleTypeIr, TemporalFormatIr,
+    AxisSelectorIr, AxisViewDomainIr, ColumnRef, CoordinateViewIr, FrameIr, PolarDirectionIr,
+    PolarThetaIr, ScaleExpansionIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, TemporalFormatIr,
 };
 
 mod polar;
@@ -219,6 +219,57 @@ impl AxisScale {
                 .collect(),
         }
     }
+
+    /// Domain span in data units for fixed-aspect layout. Returns `None` for
+    /// categorical axes, whose units are visual bands rather than data units.
+    pub fn continuous_domain_span(&self) -> Option<f64> {
+        match self {
+            AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => {
+                Some((scale.max - scale.min).abs())
+            }
+            AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
+                Some((scale.max - scale.min).abs() as f64)
+            }
+            AxisScale::Band { .. } | AxisScale::NestedBand { .. } => None,
+        }
+    }
+
+    /// Pixel delta corresponding to a data-space offset on this axis. For band
+    /// axes the offset is a fraction of the resolved band width.
+    pub(crate) fn data_delta_px(&self, table: &dyn Table, row: usize, value: f64) -> Option<f64> {
+        match self {
+            AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => {
+                let span = scale.max - scale.min;
+                if span.abs() <= f64::EPSILON {
+                    return Some(0.0);
+                }
+                Some((scale.range.1 - scale.range.0) / span * value)
+            }
+            AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
+                let span = (scale.max - scale.min) as f64;
+                if span.abs() <= f64::EPSILON {
+                    return Some(0.0);
+                }
+                Some((scale.range.1 - scale.range.0) / span * value)
+            }
+            AxisScale::Band { scale, .. } => Some(scale.bandwidth() * value),
+            AxisScale::NestedBand { scale, .. } => {
+                let outer = match self {
+                    AxisScale::NestedBand { outer_col, .. } => {
+                        cell_category(table, outer_col, row)?
+                    }
+                    _ => return None,
+                };
+                let inner = match self {
+                    AxisScale::NestedBand { inner_col, .. } => {
+                        cell_category(table, inner_col, row)?
+                    }
+                    _ => return None,
+                };
+                scale.band(&outer, &inner).map(|(_, width)| width * value)
+            }
+        }
+    }
 }
 
 fn midpoint(range: (f64, f64)) -> f64 {
@@ -254,13 +305,30 @@ impl ScaledSpace {
         y_range: (f64, f64),
         hints: &SpaceDomainHints,
         scales: &[ScaleIr],
+        view: CoordinateViewIr,
     ) -> Option<ScaledSpace> {
-        let x_config = axis_config(scales, AxisSelectorIr::X);
-        let y_config = axis_config(scales, AxisSelectorIr::Y);
+        Self::build_with_axis_tables(frame, table, table, x_range, y_range, hints, scales, view)
+    }
+
+    /// Build position scales while allowing a facet-free mode to train one axis
+    /// from panel-local rows and the other from the full facet data.
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_with_axis_tables(
+        frame: &FrameIr,
+        x_table: &dyn Table,
+        y_table: &dyn Table,
+        x_range: (f64, f64),
+        y_range: (f64, f64),
+        hints: &SpaceDomainHints,
+        scales: &[ScaleIr],
+        view: CoordinateViewIr,
+    ) -> Option<ScaledSpace> {
+        let x_config = axis_config(scales, AxisSelectorIr::X, view.zoom_x);
+        let y_config = axis_config(scales, AxisSelectorIr::Y, view.zoom_y);
         match frame {
             FrameIr::Cartesian(axes) if axes.len() >= 2 => {
-                let x = build_axis(&axes[0], table, x_range, Some(&hints.x), &x_config)?;
-                let y = build_axis(&axes[1], table, y_range, Some(&hints.y), &y_config)?;
+                let x = build_axis(&axes[0], x_table, x_range, Some(&hints.x), &x_config)?;
+                let y = build_axis(&axes[1], y_table, y_range, Some(&hints.y), &y_config)?;
                 Some(ScaledSpace {
                     x,
                     y: Some(y),
@@ -270,7 +338,7 @@ impl ScaledSpace {
                 })
             }
             FrameIr::Cartesian(axes) if axes.len() == 1 => {
-                let x = build_axis(&axes[0], table, x_range, Some(&hints.x), &x_config)?;
+                let x = build_axis(&axes[0], x_table, x_range, Some(&hints.x), &x_config)?;
                 Some(ScaledSpace {
                     x,
                     y: None,
@@ -280,7 +348,7 @@ impl ScaledSpace {
                 })
             }
             FrameIr::Vector(_) | FrameIr::Nested { .. } | FrameIr::Union(_) => {
-                let x = build_axis(frame, table, x_range, Some(&hints.x), &x_config)?;
+                let x = build_axis(frame, x_table, x_range, Some(&hints.x), &x_config)?;
                 Some(ScaledSpace {
                     x,
                     y: None,
@@ -367,8 +435,8 @@ impl ScaledSpace {
         let theta = polar.theta;
         let angular = (polar.theta_start, polar.theta_end);
         let radial = (polar.r_inner, polar.r_outer);
-        let x_config = axis_config(scales, AxisSelectorIr::X);
-        let y_config = axis_config(scales, AxisSelectorIr::Y);
+        let x_config = axis_config(scales, AxisSelectorIr::X, None);
+        let y_config = axis_config(scales, AxisSelectorIr::Y, None);
 
         match frame {
             FrameIr::Cartesian(axes) if axes.len() >= 2 => {
@@ -640,6 +708,36 @@ impl ScaledSpace {
     pub fn y_axis(&self) -> Option<&AxisScale> {
         self.y.as_ref()
     }
+
+    pub fn fixed_aspect_plot(&self, plot: Rect, ratio: f64) -> Rect {
+        let Some(x_span) = self.x.continuous_domain_span() else {
+            return plot;
+        };
+        let Some(y_span) = self.y.as_ref().and_then(AxisScale::continuous_domain_span) else {
+            return plot;
+        };
+        if x_span <= f64::EPSILON || y_span <= f64::EPSILON || ratio <= 0.0 {
+            return plot;
+        }
+        let desired_width = plot.height * ratio * (x_span / y_span);
+        if desired_width <= plot.width {
+            let width = desired_width.max(1.0);
+            return Rect {
+                x: plot.x + (plot.width - width) / 2.0,
+                y: plot.y,
+                width,
+                height: plot.height,
+            };
+        }
+        let desired_height = plot.width / (ratio * (x_span / y_span));
+        let height = desired_height.max(1.0);
+        Rect {
+            x: plot.x,
+            y: plot.y + (plot.height - height) / 2.0,
+            width: plot.width,
+            height,
+        }
+    }
 }
 
 /// Remove band padding so an angular band axis tiles the full circle without
@@ -741,6 +839,9 @@ fn build_axis(
                 if let Some(bounds) = config.domain {
                     apply_temporal_domain_bounds(bounds, &mut min, &mut max);
                 }
+                if let Some(bounds) = config.view_domain {
+                    apply_temporal_view_domain_bounds(bounds, &mut min, &mut max);
+                }
                 let mut scale = TemporalScale::new(min, max, range, precision);
                 if let Some(hints) = hints {
                     scale.tick_values = hints.temporal_tick_values();
@@ -771,6 +872,9 @@ fn build_axis(
             if let Some(bounds) = config.domain {
                 apply_domain_bounds(bounds, &mut min, &mut max);
             }
+            if let Some(bounds) = config.view_domain {
+                apply_view_domain_bounds(bounds, &mut min, &mut max);
+            }
             Some(AxisScale::Union {
                 label,
                 scale: continuous_scale(min, max, range, config),
@@ -800,6 +904,9 @@ fn build_vector_axis(
             if let Some(bounds) = config.domain {
                 apply_domain_bounds(bounds, &mut min, &mut max);
             }
+            if let Some(bounds) = config.view_domain {
+                apply_view_domain_bounds(bounds, &mut min, &mut max);
+            }
             AxisScale::Continuous {
                 col: col.name.clone(),
                 scale: continuous_scale(min, max, range, config),
@@ -816,6 +923,9 @@ fn build_vector_axis(
             }
             if let Some(bounds) = config.domain {
                 apply_temporal_domain_bounds(bounds, &mut min, &mut max);
+            }
+            if let Some(bounds) = config.view_domain {
+                apply_temporal_view_domain_bounds(bounds, &mut min, &mut max);
             }
             let mut scale = TemporalScale::new(min, max, range, precision);
             if let Some(hints) = hints {
@@ -857,6 +967,7 @@ struct AxisScaleConfig {
     breaks: Option<Vec<f64>>,
     break_labels: Option<Vec<String>>,
     expansion: Option<ScaleExpansionIr>,
+    view_domain: Option<AxisViewDomainIr>,
     reverse: bool,
     integer: bool,
 }
@@ -888,6 +999,30 @@ fn apply_temporal_domain_bounds(bounds: [Option<f64>; 2], min: &mut i64, max: &m
     }
 }
 
+fn apply_view_domain_bounds(bounds: AxisViewDomainIr, min: &mut f64, max: &mut f64) {
+    match (bounds.min, bounds.max) {
+        (Some(a), Some(b)) => {
+            *min = a.min(b);
+            *max = a.max(b);
+        }
+        (Some(a), None) => *min = a,
+        (None, Some(b)) => *max = b,
+        (None, None) => {}
+    }
+}
+
+fn apply_temporal_view_domain_bounds(bounds: AxisViewDomainIr, min: &mut i64, max: &mut i64) {
+    match (bounds.min, bounds.max) {
+        (Some(a), Some(b)) => {
+            *min = a.min(b) as i64;
+            *max = a.max(b) as i64;
+        }
+        (Some(a), None) => *min = a as i64,
+        (None, Some(b)) => *max = b as i64,
+        (None, None) => {}
+    }
+}
+
 impl AxisScaleConfig {
     fn apply_range(&self, range: (f64, f64)) -> (f64, f64) {
         if self.reverse {
@@ -898,8 +1033,15 @@ impl AxisScaleConfig {
     }
 }
 
-fn axis_config(scales: &[ScaleIr], axis: AxisSelectorIr) -> AxisScaleConfig {
-    let mut config = AxisScaleConfig::default();
+fn axis_config(
+    scales: &[ScaleIr],
+    axis: AxisSelectorIr,
+    view_domain: Option<AxisViewDomainIr>,
+) -> AxisScaleConfig {
+    let mut config = AxisScaleConfig {
+        view_domain,
+        ..AxisScaleConfig::default()
+    };
     for scale in scales {
         if scale.target == ScaleTargetIr::Axis(axis) {
             if scale.scale_type.is_some() {

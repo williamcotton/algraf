@@ -134,6 +134,7 @@ impl Analyzer<'_> {
             "Bin" => StatKind::Bin,
             "Smooth" => StatKind::Smooth,
             "StepVertices" => StatKind::StepVertices,
+            "JitterPoints" => StatKind::JitterPoints,
             "VectorEndpoints" => StatKind::VectorEndpoints,
             "CurveSample" => StatKind::CurveSample,
             "IntervalSegments" => StatKind::IntervalSegments,
@@ -160,7 +161,7 @@ impl Analyzer<'_> {
             _ => {
                 self.diag(Diagnostic::error(
                     codes::E1403,
-                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `StepVertices`, `VectorEndpoints`, `CurveSample`, `IntervalSegments`, `IntervalRects`, `IntervalMiddles`, `Bin2D`, `HexBin`, `Summary2D`, `SummaryHex`, `ContourLines`, `ContourBands`, `Density2D`, `Density2DContours`, `Density2DBands`, `Distinct`, `Ecdf`, `Qq`, `Summary`, `SummaryBin`, `Cut`, `Centroid`, `Simplify`, and `SpatialJoin`"),
+                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `StepVertices`, `JitterPoints`, `VectorEndpoints`, `CurveSample`, `IntervalSegments`, `IntervalRects`, `IntervalMiddles`, `Bin2D`, `HexBin`, `Summary2D`, `SummaryHex`, `ContourLines`, `ContourBands`, `Density2D`, `Density2DContours`, `Density2DBands`, `Distinct`, `Ecdf`, `Qq`, `Summary`, `SummaryBin`, `Cut`, `Centroid`, `Simplify`, and `SpatialJoin`"),
                     stat_span,
                 ));
                 return None;
@@ -236,6 +237,18 @@ impl Analyzer<'_> {
                 }
                 let options = self.collect_step_vertices_options(&stat.args());
                 let output_schema = stat_output_schema(kind, &input_frame);
+                (input_frame, options, output_schema)
+            }
+            StatKind::JitterPoints => {
+                let input_frame =
+                    self.n_stat_inputs(&inputs, table, stat_span, "JitterPoints", 2)?;
+                self.require_numeric_or_temporal_stat_inputs(&input_frame, "JitterPoints");
+                let options = self.collect_jitter_points_options(&stat.args());
+                let output_schema = primitive_output_schema(
+                    crate::planning::jitter_points_output_schema(),
+                    table,
+                    &["x", "y"],
+                );
                 (input_frame, options, output_schema)
             }
             StatKind::VectorEndpoints => {
@@ -925,6 +938,31 @@ impl Analyzer<'_> {
         }
     }
 
+    fn require_numeric_or_temporal_stat_inputs(&mut self, frame: &FrameIr, stat_name: &str) {
+        if let FrameIr::Cartesian(columns) = frame {
+            for frame in columns {
+                if let FrameIr::Vector(col) = frame {
+                    if !matches!(
+                        col.dtype,
+                        DataType::Integer
+                            | DataType::Float
+                            | DataType::Temporal
+                            | DataType::Unknown
+                    ) {
+                        self.diag(Diagnostic::error(
+                            codes::E1404,
+                            format!(
+                                "{stat_name} input column `{}` is not numeric or temporal",
+                                col.name
+                            ),
+                            col.span,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
     fn require_single_numeric_stat_input(&mut self, frame: &FrameIr, stat_name: &str) {
         if let FrameIr::Vector(col) = frame {
             if !matches!(
@@ -1154,6 +1192,37 @@ impl Analyzer<'_> {
             }
         }
         StatOptionsIr::VectorEndpoints { length_scale }
+    }
+
+    fn collect_jitter_points_options(&mut self, args: &[Arg]) -> StatOptionsIr {
+        let mut width = 0.0;
+        let mut height = 0.0;
+        let mut dup = DupGuard::new(codes::E1404, "JitterPoints setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "width" => {
+                    if let Some(value) = self.non_negative_number_option(arg, "width") {
+                        width = value;
+                    }
+                }
+                "height" => {
+                    if let Some(value) = self.non_negative_number_option(arg, "height") {
+                        height = value;
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown JitterPoints setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        StatOptionsIr::JitterPoints { width, height }
     }
 
     fn collect_curve_sample_options(&mut self, args: &[Arg]) -> StatOptionsIr {

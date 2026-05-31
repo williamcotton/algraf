@@ -12,7 +12,10 @@ mod polar;
 mod rect_tile;
 mod text;
 
-pub(crate) use common::{DEFAULT_FILL, DEFAULT_SIZE_RANGE, DEFAULT_STROKE_WIDTH_RANGE};
+pub(crate) use common::{
+    adjusted_position as adjusted_mark_position, DEFAULT_FILL, DEFAULT_SIZE_RANGE,
+    DEFAULT_STROKE_WIDTH_RANGE,
+};
 
 use algraf_core::{codes, Diagnostic};
 use algraf_data::Table;

@@ -1,6 +1,6 @@
 # Algraf v0.41.0 Plan
 
-Status: Planned
+Status: Implemented.
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_40_PLAN.md`](V0_40_PLAN.md)
@@ -232,7 +232,7 @@ source must render byte-for-byte identically.
 
 ### 1. Add visual coordinate zoom
 
-Status: Planned.
+Status: Implemented.
 
 - Add a coordinate-level zoom concept that limits the visible range without
   filtering data before stats.
@@ -242,7 +242,7 @@ Status: Planned.
 
 ### 2. Add fixed-aspect Cartesian layout
 
-Status: Planned.
+Status: Implemented.
 
 - Add fixed x/y unit ratio support for Cartesian spaces.
 - Define interactions with margins, legends, facets, polar/spatial spaces, and
@@ -252,7 +252,7 @@ Status: Planned.
 
 ### 3. Add facet-grid semantics
 
-Status: Planned.
+Status: Implemented.
 
 - Extend facet layout to support row facets, column facets, and row-by-column
   facet grids.
@@ -262,7 +262,7 @@ Status: Planned.
 
 ### 4. Add free scales per facet
 
-Status: Planned.
+Status: Implemented.
 
 - Support fixed, free-x, free-y, and fully free scale modes for facets.
 - Decide how free scales interact with overlaid spaces, legends, polar spaces,
@@ -271,7 +271,7 @@ Status: Planned.
 
 ### 5. Add deterministic jitter and nudge
 
-Status: Planned.
+Status: Implemented.
 
 - Add deterministic jitter for point-like marks. The algorithm must be stable
   across platforms and independent of wall-clock randomness.
@@ -284,7 +284,7 @@ Status: Planned.
 
 ### 6. Audit generalized dodge
 
-Status: Planned.
+Status: Implemented.
 
 - Document where Algraf's existing nested algebra already covers dodge better
   than a position setting.
@@ -295,7 +295,7 @@ Status: Planned.
 
 ### 7. Spec, examples, README, and release hygiene
 
-Status: Planned.
+Status: Implemented.
 
 - Update spec sections for layout, scales, coordinates, guides, diagnostics,
   sidecar, and examples.
@@ -306,14 +306,14 @@ Status: Planned.
 
 ### Facet label formatting
 
-Status: Planned.
+Status: Implemented.
 
 - Add a small deterministic labeller model for value-only, name-and-value, and
   custom map labels. Avoid arbitrary formatting code.
 
 ### Panel spacing controls
 
-Status: Planned.
+Status: Implemented.
 
 - Add layout controls for facet panel spacing if the new grid layout exposes
   spacing needs that current theme fields cannot cover.

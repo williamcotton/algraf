@@ -15,6 +15,7 @@
 //! Because both sinks see the same calls, the two backends agree on coordinates
 //! and colors by construction (spec §24.6).
 
+use crate::layout::Rect;
 use crate::render::{DrawOp, DrawRole, TextAnchor};
 use crate::svg::{escape_attr, escape_text, num, SvgWriter};
 
@@ -192,6 +193,12 @@ pub(crate) trait MarkSink {
     /// Clear the interaction metadata set by [`MarkSink::begin_mark`].
     fn end_mark(&mut self);
 
+    /// Open a rectangular clip scope for data marks. Coordinate zoom uses this
+    /// to hide out-of-view primitives after scales and stats have been trained.
+    fn open_clip(&mut self, rect: Rect);
+    /// Close the most recently opened clip scope.
+    fn close_clip(&mut self);
+
     fn rect(&mut self, x: f64, y: f64, width: f64, height: f64, paint: &Paint);
     fn circle(&mut self, cx: f64, cy: f64, r: f64, paint: &Paint);
     fn path(&mut self, d: &str, paint: &Paint);
@@ -263,6 +270,7 @@ pub(crate) fn json_string(value: &str) -> String {
 pub(crate) struct SvgSink<'w> {
     w: &'w mut SvgWriter,
     count: usize,
+    clip_id: usize,
     /// Interaction metadata for the mark currently being emitted (spec §14.25).
     /// `None` (the common case) produces byte-for-byte unchanged SVG.
     mark: Option<MarkInteraction>,
@@ -273,6 +281,7 @@ impl<'w> SvgSink<'w> {
         SvgSink {
             w,
             count: 0,
+            clip_id: 0,
             mark: None,
         }
     }
@@ -326,6 +335,26 @@ impl MarkSink for SvgSink<'_> {
 
     fn end_mark(&mut self) {
         self.mark = None;
+    }
+
+    fn open_clip(&mut self, rect: Rect) {
+        let id = self.clip_id;
+        self.clip_id += 1;
+        self.w.line("<defs>");
+        self.w.line(&format!(
+            "<clipPath id=\"algraf-clip-{id}\"><rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" /></clipPath>",
+            num(rect.x),
+            num(rect.y),
+            num(rect.width),
+            num(rect.height),
+        ));
+        self.w.line("</defs>");
+        self.w
+            .open_group(&format!("clip-path=\"url(#algraf-clip-{id})\""));
+    }
+
+    fn close_clip(&mut self) {
+        self.w.close_group();
     }
 
     fn rect(&mut self, x: f64, y: f64, width: f64, height: f64, paint: &Paint) {
@@ -587,6 +616,20 @@ impl MarkSink for DrawListSink {
 
     fn end_mark(&mut self) {
         self.mark = None;
+    }
+
+    fn open_clip(&mut self, rect: Rect) {
+        self.ops.push(DrawOp::ClipStart {
+            role: self.role,
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+        });
+    }
+
+    fn close_clip(&mut self) {
+        self.ops.push(DrawOp::ClipEnd { role: self.role });
     }
 
     fn rect(&mut self, x: f64, y: f64, width: f64, height: f64, paint: &Paint) {

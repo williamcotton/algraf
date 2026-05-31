@@ -43,6 +43,8 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | `histogram.ag` | `distribution.csv` | `histogram.svg`, `histogram.png` | Explicit `Derive` + `Rect` histogram primitive |
 | `histogram_direct.ag` | `distribution.csv` | `histogram_direct.svg`, `histogram_direct.png` | High-level `Histogram` desugaring |
 | `facet.ag` | `regional_sales.csv` | `facet.svg`, `facet.png` | Facet wrap via `(x * y) / group` |
+| `facet_grid.ag` | `layout_controls.csv` | `facet_grid.svg`, `facet_grid.png` | Row-by-column facet grid with strip labelling and panel spacing |
+| `free_scales.ag` | `layout_controls.csv` | `free_scales.svg`, `free_scales.png` | Panel-local free facet scales |
 | `connected_scatter.ag` | `timeseries.csv` | `connected_scatter.svg`, `connected_scatter.png` | Layered line and point marks |
 | `barcode.ag` | `demographics.csv` | `barcode.svg`, `barcode.png` | Point strip/barcode-style categorical plot |
 | `floating.ag` | `intervals.csv` | `floating.svg`, `floating.png` | Primitive `Rect` intervals over temporal data |
@@ -67,6 +69,10 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | `summaryhex_z.ag` | `sensor_z_samples.csv` | `summaryhex_z.svg`, `summaryhex_z.png` | Hexagonal x/y/z summary bins with a mean reducer |
 | `ribbon.ag` | `ribbon.csv` | `ribbon.svg`, `ribbon.png` | Closed ribbon interval path |
 | `reference.ag` | `penguins.csv` | `reference.svg`, `reference.png` | `HLine`, `VLine`, `Rug`, title, and legend suppression |
+| `coordinate_zoom.ag` | `layout_controls.csv` | `coordinate_zoom.svg`, `coordinate_zoom.png` | Visual coordinate zoom that clips marks without filtering stats |
+| `fixed_aspect.ag` | `aspect_segments.csv` | `fixed_aspect.svg`, `fixed_aspect.png` | Fixed x/y unit ratio inside a wide chart |
+| `jitter.ag` | `demographics.csv` | `jitter.svg`, `jitter.png` | Deterministic point jitter over categorical bands |
+| `nudge.ag` | `layout_controls.csv` | `nudge.svg`, `nudge.png` | Pixel and data-space nudge for direct labels |
 | `satisfaction_slope.ag` | `satisfaction.csv` | `satisfaction_slope.svg`, `satisfaction_slope.png` | Slopegraph with line grouping and text labels |
 | `flight_dumbbell.ag` | `flights.csv` | `flight_dumbbell.svg`, `flight_dumbbell.png` | Dumbbell plot showing category-continuous range segments |
 | `violin_boxplot.ag` | `demographics.csv` | `violin_boxplot.svg`, `violin_boxplot.png` | Layered violin and boxplot distributions |

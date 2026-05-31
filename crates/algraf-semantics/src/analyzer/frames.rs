@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 use algraf_core::{codes, Diagnostic, Span};
-use algraf_data::DataType;
+use algraf_data::{parse_temporal_literal, DataType};
 use algraf_syntax::ast::{
     AlgebraBinary, AlgebraCall, AlgebraExpr, AlgebraName, AlgebraOp, Arg, LetDecl, LiteralKind,
     SpaceBlock, SpaceItem, ValueExpr,
@@ -55,6 +55,7 @@ impl Analyzer<'_> {
         };
         let projection = self.space_projection(space);
         let coords = self.space_coords(space, &frame, projection.is_some(), transpose_span);
+        let view = self.space_view(space, &coords, projection.is_some());
 
         let mut geometry_layers = Vec::new();
         let mut theme: Option<ThemeIr> = None;
@@ -130,6 +131,7 @@ impl Analyzer<'_> {
                         guides.clone(),
                         scales.clone(),
                         projection.clone(),
+                        view,
                         span,
                     );
                     if let Some((derive, histogram_space)) = self.desugar_histogram(
@@ -154,6 +156,7 @@ impl Analyzer<'_> {
                         guides.clone(),
                         scales.clone(),
                         projection.clone(),
+                        view,
                         span,
                     );
                     if let Some((derive, freq_space)) = self.desugar_freq_poly(
@@ -177,6 +180,7 @@ impl Analyzer<'_> {
                         guides.clone(),
                         scales.clone(),
                         projection.clone(),
+                        view,
                         span,
                     );
                     if let Some((derive, bin2d_space)) = self.desugar_bin2d(
@@ -200,6 +204,7 @@ impl Analyzer<'_> {
                         guides.clone(),
                         scales.clone(),
                         projection.clone(),
+                        view,
                         span,
                     );
                     if let Some((derive, density_space)) = self.desugar_density(
@@ -223,6 +228,7 @@ impl Analyzer<'_> {
                         guides.clone(),
                         scales.clone(),
                         projection.clone(),
+                        view,
                         span,
                     );
                     if let Some((derive, count_space)) = self.desugar_count_bar(
@@ -247,6 +253,7 @@ impl Analyzer<'_> {
                         guides.clone(),
                         scales.clone(),
                         projection.clone(),
+                        view,
                         span,
                     );
                     if let Some((derives, spaces)) = self.desugar_interval_sugar(
@@ -273,6 +280,7 @@ impl Analyzer<'_> {
             guides.clone(),
             scales.clone(),
             projection.clone(),
+            view,
             span,
         );
         if analysis.spaces.is_empty() {
@@ -285,6 +293,7 @@ impl Analyzer<'_> {
                 theme,
                 projection,
                 coords,
+                view,
                 span,
             });
         }
@@ -293,6 +302,7 @@ impl Analyzer<'_> {
         // circular histogram (spec §16.16).
         for produced in &mut analysis.spaces {
             produced.coords = coords;
+            produced.view = view;
         }
         // Space-scope bindings do not leak into sibling spaces (spec §9.6).
         self.space_vars = HashMap::new();
@@ -320,6 +330,153 @@ impl Analyzer<'_> {
                 None
             }
             None => None,
+        }
+    }
+
+    /// Read Cartesian coordinate-view controls (`zoomX`, `zoomY`, and
+    /// `aspect`). They affect rendering after stat materialization and are
+    /// ignored for polar or spatial spaces.
+    fn space_view(
+        &mut self,
+        space: &SpaceBlock,
+        coords: &CoordsIr,
+        has_projection: bool,
+    ) -> CoordinateViewIr {
+        if matches!(coords, CoordsIr::Polar { .. }) || has_projection {
+            return CoordinateViewIr::default();
+        }
+        let args = space.args();
+        CoordinateViewIr {
+            zoom_x: self.space_zoom_arg(&args, "zoomX"),
+            zoom_y: self.space_zoom_arg(&args, "zoomY"),
+            aspect: self.space_aspect_arg(&args),
+        }
+    }
+
+    fn space_zoom_arg(&mut self, args: &[Arg], key: &str) -> Option<AxisViewDomainIr> {
+        let arg = args.iter().find(|a| a.key().as_deref() == Some(key))?;
+        let value = arg.value()?;
+        let Some(bounds) = self.view_bounds(&value) else {
+            self.diag(Diagnostic::error(
+                codes::E1204,
+                format!("`{key}` expects [min, max] with numbers, temporal literals, or null"),
+                node_span(value.syntax()),
+            ));
+            return None;
+        };
+        Some(AxisViewDomainIr {
+            min: bounds[0],
+            max: bounds[1],
+        })
+    }
+
+    fn space_aspect_arg(&mut self, args: &[Arg]) -> Option<f64> {
+        let arg = args.iter().find(|a| a.key().as_deref() == Some("aspect"))?;
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Number) => {
+                let value = lit
+                    .text()
+                    .and_then(|t| t.parse::<f64>().ok())
+                    .unwrap_or(0.0);
+                if value.is_finite() && value > 0.0 {
+                    Some(value)
+                } else {
+                    self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`aspect` expects a positive finite number",
+                        node_span(lit.syntax()),
+                    ));
+                    None
+                }
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E1204,
+                    "`aspect` expects a positive finite number",
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn view_bounds(&mut self, value: &ValueExpr) -> Option<[Option<f64>; 2]> {
+        let ValueExpr::Array(array) = value else {
+            return None;
+        };
+        let elems = array.values();
+        if elems.len() != 2 {
+            return None;
+        }
+        let mut out = [None, None];
+        for (index, elem) in elems.iter().enumerate() {
+            match elem {
+                ValueExpr::Literal(lit) => match lit.kind() {
+                    Some(LiteralKind::Number) => {
+                        let n = lit.text().and_then(|t| t.parse::<f64>().ok())?;
+                        if !n.is_finite() {
+                            return None;
+                        }
+                        out[index] = Some(n);
+                    }
+                    Some(LiteralKind::Null) => out[index] = None,
+                    _ => return None,
+                },
+                ValueExpr::Call(call) => {
+                    out[index] = Some(self.temporal_view_bound(call)? as f64);
+                }
+                _ => return None,
+            }
+        }
+        Some(out)
+    }
+
+    fn temporal_view_bound(&mut self, call: &algraf_syntax::ast::CallValue) -> Option<i64> {
+        let name = call.name().unwrap_or_default();
+        let require_date = match name.as_str() {
+            "date" => true,
+            "datetime" => false,
+            _ => return None,
+        };
+        let span = node_span(call.syntax());
+        let args = call.args();
+        let text = match args.first() {
+            Some(arg) if args.len() == 1 && arg.key().is_none() => match arg.value() {
+                Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                    string_value(&lit.text().unwrap_or_default())
+                }
+                _ => {
+                    self.diag(Diagnostic::error(
+                        codes::E1017,
+                        format!("`{name}(...)` expects a single quoted temporal string"),
+                        span,
+                    ));
+                    return None;
+                }
+            },
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1017,
+                    format!("`{name}(...)` expects a single quoted temporal string"),
+                    span,
+                ));
+                return None;
+            }
+        };
+        match parse_temporal_literal(&text, require_date) {
+            Some(micros) => Some(micros),
+            None => {
+                self.diag(Diagnostic::error(
+                    codes::E1017,
+                    format!(
+                        "{text:?} is not a recognized {} literal",
+                        if require_date { "date" } else { "datetime" }
+                    ),
+                    span,
+                ));
+                None
+            }
         }
     }
 
@@ -955,6 +1112,7 @@ fn push_pending_space(
     guides: GuideOverridesIr,
     scales: Vec<ScaleIr>,
     projection: Option<String>,
+    view: CoordinateViewIr,
     span: Span,
 ) {
     if pending.is_empty() {
@@ -969,6 +1127,7 @@ fn push_pending_space(
         theme,
         projection,
         coords: CoordsIr::Cartesian,
+        view,
         span,
     });
 }

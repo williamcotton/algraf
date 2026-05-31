@@ -539,6 +539,27 @@ pub(super) fn compute_derived(
                         None
                     }
                 }
+                StatOptionsIr::JitterPoints { width, height } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(y))) =
+                            (cols.first(), cols.get(1))
+                        {
+                            Some(stats::jitter_points(
+                                source,
+                                &x.name,
+                                &y.name,
+                                stats::JitterPointsOptions {
+                                    width: *width,
+                                    height: *height,
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
                 StatOptionsIr::CurveSample { curvature, points } => {
                     if let FrameIr::Cartesian(cols) = &d.stat.input {
                         if let (

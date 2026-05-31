@@ -35,6 +35,7 @@ pub fn stat_output_schema(kind: StatKind, input: &FrameIr) -> Vec<ColumnDefIr> {
         // The plain (no-`se`) schema; the analyzer rebuilds with bands when the
         // `se` option is set (spec §15.x).
         StatKind::Smooth => smooth_output_schema(false),
+        StatKind::JitterPoints => jitter_points_output_schema(),
         StatKind::StepVertices => match input {
             FrameIr::Cartesian(columns) => {
                 let x_dtype = vector_dtype(columns.first());
@@ -114,6 +115,7 @@ pub(crate) fn stat_output_names_for_source(stat_name: &str) -> Vec<String> {
                 dtype: DataType::Integer,
             },
         ],
+        "JitterPoints" => jitter_points_output_schema(),
         "VectorEndpoints" => vector_endpoints_output_schema(),
         "CurveSample" => curve_sample_output_schema(),
         "IntervalSegments" => vec![
@@ -154,6 +156,19 @@ pub(crate) fn stat_output_names_for_source(stat_name: &str) -> Vec<String> {
     .into_iter()
     .map(|column| column.name)
     .collect()
+}
+
+pub fn jitter_points_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "x".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y".into(),
+            dtype: DataType::Float,
+        },
+    ]
 }
 
 /// Output schema for an empirical CDF vertex table.

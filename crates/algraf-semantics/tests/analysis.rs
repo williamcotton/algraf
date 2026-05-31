@@ -53,6 +53,84 @@ fn has(source: &str, code: &str) -> bool {
     codes(source).contains(&code)
 }
 
+#[test]
+fn v041_layout_grid_free_scales_labels_and_spacing_analyze() {
+    let src = r#"Chart(data: "p.csv") {
+  Layout(facetRows: species, facetCols: type, facetScales: "free-y",
+         facetLabel: "name-value", facetLabels: ["A" => "Alpha"],
+         panelSpacing: [12, 8])
+  Space(flipper_length * body_mass) { Point() }
+}"#;
+    let ir = analyze_source(src, &schema()).ir.expect("ir");
+    let grid = ir.layout.facet_grid.expect("facet grid");
+    assert_eq!(grid.rows.unwrap().name, "species");
+    assert_eq!(grid.columns.unwrap().name, "type");
+    assert_eq!(
+        ir.layout.facet_scales,
+        algraf_semantics::FacetScaleModeIr::FreeY
+    );
+    assert_eq!(
+        ir.layout.facet_label,
+        algraf_semantics::FacetLabelModeIr::NameValue
+    );
+    assert_eq!(
+        ir.layout.facet_label_map,
+        vec![("A".to_string(), "Alpha".to_string())]
+    );
+    assert_eq!(
+        ir.layout.panel_spacing,
+        Some(algraf_semantics::PanelSpacingIr { x: 12.0, y: 8.0 })
+    );
+}
+
+#[test]
+fn v041_coordinate_zoom_and_fixed_aspect_analyze() {
+    let src = r#"Chart(data: "p.csv") {
+  Space(flipper_length * body_mass, zoomX: [170, 220], zoomY: [3000, 6000], aspect: 1) {
+    Point()
+  }
+}"#;
+    let ir = analyze_source(src, &schema()).ir.expect("ir");
+    let view = ir.spaces[0].view;
+    assert_eq!(view.zoom_x.unwrap().min, Some(170.0));
+    assert_eq!(view.zoom_x.unwrap().max, Some(220.0));
+    assert_eq!(view.zoom_y.unwrap().min, Some(3000.0));
+    assert_eq!(view.zoom_y.unwrap().max, Some(6000.0));
+    assert_eq!(view.aspect, Some(1.0));
+}
+
+#[test]
+fn v041_jitter_points_stat_analyzes() {
+    let src = r#"Chart(data: "p.csv") {
+  Derive jittered = JitterPoints(x, y, width: 0.2, height: 0.1)
+  Space(x * y, data: jittered) { Point() }
+}"#;
+    let ir = analyze_source(src, &schema()).ir.expect("ir");
+    let derived = &ir.derived_tables[0];
+    assert_eq!(derived.stat.kind, StatKind::JitterPoints);
+    match derived.stat.options {
+        StatOptionsIr::JitterPoints { width, height } => {
+            assert_eq!(width, 0.2);
+            assert_eq!(height, 0.1);
+        }
+        ref other => panic!("unexpected options: {other:?}"),
+    }
+    let names = derived
+        .output_schema
+        .iter()
+        .map(|column| column.name.as_str())
+        .collect::<Vec<_>>();
+    assert!(names.starts_with(&["x", "y"]));
+}
+
+#[test]
+fn v041_bar_layout_dodge_remains_rejected() {
+    assert!(has(
+        r#"Chart(data: "p.csv") { Space((quarter / group) * value) { Bar(layout: "dodge") } }"#,
+        "E1204"
+    ));
+}
+
 /// Analyzer resilience: deeply nested algebra must analyze without panicking,
 /// recursion overflow, or hangs (spec §12.1, §13.17, §27.4). The analyzer walks
 /// the frame tree recursively, so it shares the parser's nesting risk.

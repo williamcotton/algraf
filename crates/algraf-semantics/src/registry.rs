@@ -181,6 +181,24 @@ const SPACE_DOC_ARGS: &[ArgDoc] = &[
         default: None,
         doc: "Spatial projection alias or PROJ string.",
     },
+    ArgDoc {
+        name: "zoomX",
+        value: "[number | null, number | null]",
+        default: None,
+        doc: "Visual x-axis zoom without pre-stat data filtering.",
+    },
+    ArgDoc {
+        name: "zoomY",
+        value: "[number | null, number | null]",
+        default: None,
+        doc: "Visual y-axis zoom without pre-stat data filtering.",
+    },
+    ArgDoc {
+        name: "aspect",
+        value: "number",
+        default: None,
+        doc: "Fixed Cartesian x/y unit aspect ratio.",
+    },
 ];
 
 const THEME_DOC_ARGS: &[ArgDoc] = &[
@@ -426,12 +444,50 @@ const GUIDE_DOC_ARGS: &[ArgDoc] = &[
     },
 ];
 
-const LAYOUT_DOC_ARGS: &[ArgDoc] = &[ArgDoc {
-    name: "facetColumns",
-    value: "number",
-    default: Some("auto"),
-    doc: "Number of columns in a facet-wrap layout.",
-}];
+const LAYOUT_DOC_ARGS: &[ArgDoc] = &[
+    ArgDoc {
+        name: "facetColumns",
+        value: "number",
+        default: Some("auto"),
+        doc: "Number of columns in a facet-wrap layout.",
+    },
+    ArgDoc {
+        name: "facetRows",
+        value: "column",
+        default: None,
+        doc: "Facet-grid row column.",
+    },
+    ArgDoc {
+        name: "facetCols",
+        value: "column",
+        default: None,
+        doc: "Facet-grid column column.",
+    },
+    ArgDoc {
+        name: "facetScales",
+        value: "\"fixed\" | \"free-x\" | \"free-y\" | \"free\"",
+        default: Some("\"fixed\""),
+        doc: "Facet panel scale-sharing mode.",
+    },
+    ArgDoc {
+        name: "facetLabel",
+        value: "\"value\" | \"name-value\"",
+        default: Some("\"value\""),
+        doc: "Facet strip label format.",
+    },
+    ArgDoc {
+        name: "facetLabels",
+        value: "map",
+        default: None,
+        doc: "Facet value label map.",
+    },
+    ArgDoc {
+        name: "panelSpacing",
+        value: "number | [number, number]",
+        default: Some("theme"),
+        doc: "Horizontal/vertical facet panel spacing in pixels.",
+    },
+];
 
 const TABLE_DOC_ARGS: &[ArgDoc] = &[
     ArgDoc {
@@ -561,6 +617,7 @@ pub fn stat_example(name: &str) -> &'static str {
         "Summary2D" => "Derive cells = Summary2D(x, y, z: value, reducer: \"mean\")",
         "SummaryHex" => "Derive hex = SummaryHex(x, y, z: value, reducer: \"mean\")",
         "StepVertices" => "Derive steps = StepVertices(x, y, direction: \"hv\")",
+        "JitterPoints" => "Derive jittered = JitterPoints(x, y, width: 0.2, height: 0)",
         "VectorEndpoints" => "Derive vectors = VectorEndpoints(x, y, angle, length)",
         "CurveSample" => "Derive curves = CurveSample(x, y, xend, yend, points: 24)",
         "IntervalSegments" => "Derive intervals = IntervalSegments(x, low, high)",
@@ -577,7 +634,15 @@ pub fn stat_example(name: &str) -> &'static str {
 pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
     match decl {
         "Algraf" => &["version", "features"],
-        "Layout" => &["facetColumns"],
+        "Layout" => &[
+            "facetColumns",
+            "facetRows",
+            "facetCols",
+            "facetScales",
+            "facetLabel",
+            "facetLabels",
+            "panelSpacing",
+        ],
         "Parse" => &[
             "table", "column", "as", "format", "formats", "unit", "timezone", "onError", "anchor",
         ],
@@ -643,6 +708,8 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
             "label",
             "dx",
             "dy",
+            "nudge",
+            "nudgeData",
         ],
         "Stop" => &["value", "color"],
         "Bin" => &["bins", "binWidth", "boundary", "closed", "interval"],
@@ -661,6 +728,7 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
         "SummaryHex" => &["z", "bins", "reducer"],
         "Smooth" => &["method", "span", "se"],
         "StepVertices" => &["direction"],
+        "JitterPoints" => &["width", "height"],
         "VectorEndpoints" => &["lengthScale"],
         "CurveSample" => &["curvature", "points"],
         "IntervalSegments" => &["orientation", "capWidth"],
@@ -693,6 +761,7 @@ pub fn stat_doc(name: &str) -> &'static str {
         "Summary2D" => "Aggregates a z column into rectangular x/y bins.",
         "SummaryHex" => "Aggregates a z column into hexagonal x/y bins.",
         "StepVertices" => "Expands source x/y rows into orthogonal Path vertices.",
+        "JitterPoints" => "Derives deterministic x/y point coordinates with data-space jitter.",
         "VectorEndpoints" => {
             "Computes Segment endpoint columns from x/y, angle in radians, and length."
         }
@@ -792,6 +861,7 @@ const GROUP: &[Accept] = &[Accept::Column];
 const BIN_INTERVAL: &[Accept] = &[Accept::Enum(&[
     "minute", "hour", "day", "week", "month", "quarter", "year",
 ])];
+const POSITION_ADJUST: &[Accept] = &[Accept::NumberArray];
 
 const POINT: &[PropSpec] = &[
     opt(PropertyKey::Fill, FILL),
@@ -799,6 +869,9 @@ const POINT: &[PropSpec] = &[
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Size, SIZE),
     opt(PropertyKey::Shape, SHAPE),
+    opt(PropertyKey::Jitter, POSITION_ADJUST),
+    opt(PropertyKey::Nudge, POSITION_ADJUST),
+    opt(PropertyKey::NudgeData, POSITION_ADJUST),
 ];
 
 const LINE: &[PropSpec] = &[
@@ -1045,6 +1118,8 @@ const TEXT: &[PropSpec] = &[
     ),
     opt(PropertyKey::Dx, &[Accept::Column, Accept::Number]),
     opt(PropertyKey::Dy, &[Accept::Column, Accept::Number]),
+    opt(PropertyKey::Nudge, POSITION_ADJUST),
+    opt(PropertyKey::NudgeData, POSITION_ADJUST),
     opt(PropertyKey::Declutter, &[Accept::Bool]),
     // Format a temporal `label:` column using the §19.4 named/custom model.
     opt(PropertyKey::TimeFormat, &[Accept::Str]),
@@ -1226,6 +1301,9 @@ pub fn property_doc(name: &str) -> &'static str {
         "anchor" => "Text anchor: `\"start\"`, `\"middle\"`, or `\"end\"`.",
         "dx" => "Horizontal text offset, in pixels: a number or a column mapping.",
         "dy" => "Vertical text offset, in pixels: a number or a column mapping.",
+        "jitter" => "Deterministic point jitter as [x, y] in data units for continuous axes or band fractions for categorical axes.",
+        "nudge" => "Pixel-space position offset as [dx, dy].",
+        "nudgeData" => "Data-space position offset as [dx, dy] before scale mapping.",
         "declutter" => "Spread vertically-overlapping Text labels apart (boolean).",
         "taper" => {
             "Render a Line/Path with mapped strokeWidth as a filled tapered ribbon (boolean)."

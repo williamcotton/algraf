@@ -11,7 +11,7 @@ use crate::sink::{MarkSink, TextRun};
 use algraf_data::Table;
 use chrono::DateTime;
 
-use super::common::{any_mapped, pos_center, render_rows};
+use super::common::{adjusted_position, any_mapped, pos_center, render_rows};
 use super::GeometryRenderContext;
 
 /// A label placed at its (possibly decluttered) screen position.
@@ -98,6 +98,7 @@ pub(super) fn render(sink: &mut dyn MarkSink, geo: &GeometryIr, ctx: GeometryRen
         };
         let dx = number_for_row(geo, PropertyKey::Dx, table, row, 0.0);
         let dy = number_for_row(geo, PropertyKey::Dy, table, row, 0.0);
+        let (cx, cy) = adjusted_position(geo, space, table, row, cx, cy, false);
         let color = fill
             .resolve(table, row)
             .unwrap_or_else(|| theme.text_color.clone());

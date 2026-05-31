@@ -44,11 +44,26 @@ pub struct CurveSampleOptions {
     pub points: usize,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct JitterPointsOptions {
+    pub width: f64,
+    pub height: f64,
+}
+
 impl Default for CurveSampleOptions {
     fn default() -> Self {
         CurveSampleOptions {
             curvature: 0.35,
             points: 16,
+        }
+    }
+}
+
+impl Default for JitterPointsOptions {
+    fn default() -> Self {
+        JitterPointsOptions {
+            width: 0.0,
+            height: 0.0,
         }
     }
 }
@@ -213,6 +228,45 @@ pub fn vector_endpoints(
         Column::Float(xends),
         Column::Float(yends),
     ];
+    columns.extend(finish_builders(passthrough_builders));
+    deterministic_frame(schema, columns)
+}
+
+/// Produce primitive point coordinate columns with deterministic data-space
+/// jitter. Source scalar columns are passed through when their names do not
+/// collide with the primitive `x`/`y` columns.
+pub fn jitter_points(
+    table: &dyn Table,
+    x_col: &str,
+    y_col: &str,
+    options: JitterPointsOptions,
+) -> DataFrame {
+    let passthrough = passthrough_columns(table, &["x", "y"]);
+    let mut xs = Vec::new();
+    let mut ys = Vec::new();
+    let mut passthrough_builders = builders_for_schema(&passthrough);
+    for row in 0..table.row_count() {
+        let Some(x) = jitter_input(table, x_col, row) else {
+            continue;
+        };
+        let Some(y) = jitter_input(table, y_col, row) else {
+            continue;
+        };
+        xs.push(Some(
+            x + options.width.max(0.0) * deterministic_unit(row, 0x9e37_79b9_7f4a_7c15),
+        ));
+        ys.push(Some(
+            y + options.height.max(0.0) * deterministic_unit(row, 0xbf58_476d_1ce4_e5b9),
+        ));
+        push_passthrough(table, row, &passthrough, &mut passthrough_builders);
+    }
+
+    let mut schema = vec![
+        output_col("x", DataType::Float, false),
+        output_col("y", DataType::Float, false),
+    ];
+    schema.extend(passthrough);
+    let mut columns = vec![Column::Float(xs), Column::Float(ys)];
     columns.extend(finish_builders(passthrough_builders));
     deterministic_frame(schema, columns)
 }
@@ -537,6 +591,25 @@ fn curve_control_point(x0: f64, y0: f64, x1: f64, y1: f64, curvature: f64) -> (f
         mid.0 + normal.0 * distance * curvature,
         mid.1 + normal.1 * distance * curvature,
     )
+}
+
+fn jitter_input(table: &dyn Table, column: &str, row: usize) -> Option<f64> {
+    match table.value(column, row)? {
+        DataValueRef::Int(value) => Some(value as f64),
+        DataValueRef::Float(value) if value.is_finite() => Some(value),
+        DataValueRef::Temporal(value) => Some(value.instant.and_utc().timestamp_micros() as f64),
+        DataValueRef::Null | DataValueRef::Float(_) => None,
+        DataValueRef::Bool(_) | DataValueRef::String(_) | DataValueRef::Geometry(_) => None,
+    }
+}
+
+fn deterministic_unit(row: usize, salt: u64) -> f64 {
+    let mut x = (row as u64).wrapping_add(salt);
+    x = x.wrapping_add(0x9e37_79b9_7f4a_7c15);
+    x = (x ^ (x >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    x = (x ^ (x >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+    let bits = (x ^ (x >> 31)) >> 11;
+    (bits as f64) / 9_007_199_254_740_992.0 - 0.5
 }
 
 fn column_dtype(table: &dyn Table, name: &str) -> DataType {

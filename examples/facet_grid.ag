@@ -1,0 +1,11 @@
+Chart(data: "layout_controls.csv", width: 760, height: 520,
+      title: "Facet grid by row and column") {
+    Layout(facetRows: row_band, facetCols: col_band,
+           facetLabel: "name-value", panelSpacing: [24, 56])
+    Guide(axis: x, label: "x")
+    Guide(axis: y, label: "y")
+
+    Space(x * y) {
+        Point(fill: series, alpha: 0.8, size: 4)
+    }
+}

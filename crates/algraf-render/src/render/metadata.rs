@@ -44,6 +44,7 @@ pub struct InteractionAxes {
 pub struct InteractionPlot {
     pub id: String,
     pub plot_rect: Rect,
+    pub clip_rect: Option<Rect>,
     pub axes: InteractionAxes,
 }
 
@@ -77,6 +78,7 @@ pub struct InteractionMark {
     pub plot: String,
     pub x_px: f64,
     pub y_px: f64,
+    pub clipped: bool,
     pub groups: Vec<InteractionGroupValue>,
     pub tooltip: Vec<TooltipRow>,
 }
@@ -172,6 +174,9 @@ pub(super) fn build_interaction_metadata(scene: &RenderScene<'_>) -> Interaction
             InteractionPlot {
                 id: plot_id(index),
                 plot_rect: slot.plot,
+                clip_rect: slot
+                    .panel
+                    .and_then(|panel| panel.clip_marks.then_some(panel.plot)),
                 axes,
             }
         })
@@ -201,12 +206,23 @@ fn collect_geometry_marks(
     plot_id: &str,
 ) {
     for row in render_rows(panel.table, panel.rows.as_deref()) {
-        let (Some(x_px), Some(y_px)) = (
+        let (Some(mut x_px), Some(mut y_px)) = (
             panel.scaled.resolve_x(panel.table, row),
             panel.scaled.resolve_y(panel.table, row),
         ) else {
             continue;
         };
+        if geo.kind == GeometryKind::Point {
+            (x_px, y_px) = crate::geom::adjusted_mark_position(
+                geo,
+                &panel.scaled,
+                panel.table,
+                row,
+                x_px,
+                y_px,
+                true,
+            );
+        }
         let tooltip = geo
             .interaction
             .tooltip
@@ -231,10 +247,18 @@ fn collect_geometry_marks(
             plot: plot_id.to_string(),
             x_px,
             y_px,
+            clipped: panel.clip_marks && !rect_contains(panel.plot, x_px, y_px),
             groups: mark_groups,
             tooltip,
         });
     }
+}
+
+fn rect_contains(rect: Rect, x: f64, y: f64) -> bool {
+    x >= rect.x - f64::EPSILON
+        && x <= rect.right() + f64::EPSILON
+        && y >= rect.y - f64::EPSILON
+        && y <= rect.bottom() + f64::EPSILON
 }
 
 fn render_rows(table: &dyn Table, rows: Option<&[usize]>) -> Vec<usize> {
@@ -371,6 +395,10 @@ fn plot_id(index: usize) -> String {
 fn write_plot_json(out: &mut String, plot: &InteractionPlot) {
     let _ = write!(out, "{{\"id\":{},\"plot_rect\":", json_string(&plot.id));
     write_rect_json(out, plot.plot_rect);
+    if let Some(rect) = plot.clip_rect {
+        out.push_str(",\"clip_rect\":");
+        write_rect_json(out, rect);
+    }
     out.push_str(",\"axes\":");
     write_axes_json(out, &plot.axes);
     out.push('}');
@@ -462,12 +490,16 @@ fn write_domain_json(out: &mut String, domain: &InteractionDomain) {
 fn write_mark_json(out: &mut String, mark: &InteractionMark) {
     let _ = write!(
         out,
-        "{{\"id\":{},\"plot\":{},\"x_px\":{},\"y_px\":{},\"groups\":",
+        "{{\"id\":{},\"plot\":{},\"x_px\":{},\"y_px\":{}",
         json_string(&mark.id),
         json_string(&mark.plot),
         num(mark.x_px),
         num(mark.y_px),
     );
+    if mark.clipped {
+        out.push_str(",\"clipped\":true");
+    }
+    out.push_str(",\"groups\":");
     write_group_values_json(out, &mark.groups);
     out.push_str(",\"tooltip\":[");
     for (index, row) in mark.tooltip.iter().enumerate() {

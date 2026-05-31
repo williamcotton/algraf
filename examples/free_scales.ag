@@ -1,0 +1,11 @@
+Chart(data: "layout_controls.csv", width: 760, height: 360,
+      title: "Free facet scales") {
+    Layout(facetCols: series, facetScales: "free")
+    Guide(axis: x, label: "Panel-local x")
+    Guide(axis: y, label: "Panel-local y")
+
+    Space(x * y) {
+        Line(stroke: series, strokeWidth: 2)
+        Point(fill: series, size: 4)
+    }
+}

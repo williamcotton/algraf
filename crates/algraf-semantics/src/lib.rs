@@ -16,12 +16,14 @@ pub use analyzer::{
     Analysis,
 };
 pub use ir::{
-    AestheticMapping, AxisSelectorIr, BinClosedIr, BinIntervalIr, ChartIr, ColumnRef, CoordsIr,
-    DataSourceIr, DeriveIr, FrameIr, GeometryIr, GeometryKind, GradientIr, GradientStopIr,
-    GridBinsIr, GridShapeIr, GuideIr, GuideOverridesIr, InteractionIr, IntervalOrientationIr,
-    LevelSpecIr, PolarDirectionIr, PolarThetaIr, PropertyKey, QqDistributionIr, ScaleExpansionIr,
-    ScaleIr, ScaleModeIr, ScaleTargetIr, ScaleTypeIr, SettingValue, SmoothMethodIr, SpaceDataRef,
-    SpaceIr, SpatialPredicateIr, StatCallIr, StatKind, StatOptionsIr, StepDirectionIr,
-    SummaryReducerIr, TableDeclIr, TemporalFormatIr, ThemeIr, ThemeOverrides, PROPERTY_KEYS,
+    AestheticMapping, AxisSelectorIr, AxisViewDomainIr, BinClosedIr, BinIntervalIr, ChartIr,
+    ColumnRef, CoordinateViewIr, CoordsIr, DataSourceIr, DeriveIr, FacetGridIr, FacetLabelModeIr,
+    FacetScaleModeIr, FrameIr, GeometryIr, GeometryKind, GradientIr, GradientStopIr, GridBinsIr,
+    GridShapeIr, GuideIr, GuideOverridesIr, InteractionIr, IntervalOrientationIr, LevelSpecIr,
+    PanelSpacingIr, PolarDirectionIr, PolarThetaIr, PropertyKey, QqDistributionIr,
+    ScaleExpansionIr, ScaleIr, ScaleModeIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
+    SmoothMethodIr, SpaceDataRef, SpaceIr, SpatialPredicateIr, StatCallIr, StatKind, StatOptionsIr,
+    StepDirectionIr, SummaryReducerIr, TableDeclIr, TemporalFormatIr, ThemeIr, ThemeOverrides,
+    PROPERTY_KEYS,
 };
 pub use planning::{geometry_column_name, spatial_join_appended_columns};

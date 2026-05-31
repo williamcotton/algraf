@@ -1,0 +1,10 @@
+Chart(data: "layout_controls.csv", width: 720, height: 440,
+      title: "Visual coordinate zoom") {
+    Guide(axis: x, label: "x (zoomed view)")
+    Guide(axis: y, label: "y (zoomed view)")
+
+    Space(x * y, zoomX: [0, 20], zoomY: [0, 8]) {
+        Point(fill: series, alpha: 0.75, size: 4)
+        Smooth(method: "lm", stroke: "#2f2f2f", se: false)
+    }
+}

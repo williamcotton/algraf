@@ -49,6 +49,12 @@ charts=(
     log_scale
     sqrt_scale
     scale_domain
+    coordinate_zoom
+    fixed_aspect
+    facet_grid
+    free_scales
+    jitter
+    nudge
     reversed_axis
     temporal_formats_auto
     temporal_parse_custom

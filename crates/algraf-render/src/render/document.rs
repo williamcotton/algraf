@@ -563,6 +563,9 @@ pub(super) fn paint_geometries(
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     for panel in panels {
+        if panel.clip_marks {
+            sink.open_clip(panel.plot);
+        }
         for geo in panel.geometries {
             crate::geom::render(
                 sink,
@@ -577,6 +580,9 @@ pub(super) fn paint_geometries(
                 },
                 diagnostics,
             );
+        }
+        if panel.clip_marks {
+            sink.close_clip();
         }
     }
 }

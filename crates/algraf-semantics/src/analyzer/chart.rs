@@ -4,9 +4,12 @@
 use std::collections::HashSet;
 
 use algraf_core::{codes, Diagnostic};
-use algraf_syntax::ast::{Arg, ChartBlock, ChartItem, Decl, LetDecl, LiteralKind, ValueExpr};
+use algraf_syntax::ast::{
+    AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, LetDecl, LiteralKind, MapValue, ValueExpr,
+};
 use algraf_syntax::{
-    is_source_constructor, node_span, source_expr_from_arg, SourceExpr, SourceFormat,
+    is_source_constructor, node_span, source_expr_from_arg,
+    unescape_string_literal as string_value, SourceExpr, SourceFormat,
 };
 
 use super::args::DupGuard;
@@ -92,7 +95,7 @@ impl Analyzer<'_> {
                     }
                     spaces.extend(analysis.spaces);
                 }
-                ChartItem::Layout(decl) => self.layout_decl(&decl, &mut layout),
+                ChartItem::Layout(decl) => self.layout_decl(&decl, &mut layout, &primary_table),
                 ChartItem::Guide(decl) => {
                     let mut overrides = GuideOverridesIr::default();
                     self.guide_decl(&decl, &mut overrides);
@@ -282,7 +285,7 @@ impl Analyzer<'_> {
         }
     }
 
-    fn layout_decl(&mut self, decl: &Decl, layout: &mut LayoutIr) {
+    fn layout_decl(&mut self, decl: &Decl, layout: &mut LayoutIr, table: &ActiveTable) {
         let mut dup = DupGuard::new(codes::E1002, "Layout argument");
         for arg in decl.args() {
             let Some(key) = arg.key() else { continue };
@@ -300,11 +303,267 @@ impl Analyzer<'_> {
                         key_span,
                     )),
                 },
+                "facetRows" => {
+                    let column =
+                        self.layout_column(&arg, table, "`facetRows` expects a column name");
+                    if let Some(column) = column {
+                        if column.dtype != algraf_data::DataType::Unknown
+                            && !column.dtype.is_categorical()
+                        {
+                            self.diag(
+                                Diagnostic::error(
+                                    codes::E1303,
+                                    format!(
+                                        "facet row column `{}` must be categorical",
+                                        column.name
+                                    ),
+                                    column.span,
+                                )
+                                .with_help(
+                                    "use a string, boolean, or pre-binned column for facet rows",
+                                ),
+                            );
+                        }
+                        let mut grid = layout.facet_grid.take().unwrap_or(FacetGridIr {
+                            rows: None,
+                            columns: None,
+                        });
+                        grid.rows = Some(column);
+                        layout.facet_grid = Some(grid);
+                    }
+                }
+                "facetCols" => {
+                    let column =
+                        self.layout_column(&arg, table, "`facetCols` expects a column name");
+                    if let Some(column) = column {
+                        if column.dtype != algraf_data::DataType::Unknown
+                            && !column.dtype.is_categorical()
+                        {
+                            self.diag(
+                                Diagnostic::error(
+                                    codes::E1303,
+                                    format!("facet column `{}` must be categorical", column.name),
+                                    column.span,
+                                )
+                                .with_help(
+                                    "use a string, boolean, or pre-binned column for facet columns",
+                                ),
+                            );
+                        }
+                        let mut grid = layout.facet_grid.take().unwrap_or(FacetGridIr {
+                            rows: None,
+                            columns: None,
+                        });
+                        grid.columns = Some(column);
+                        layout.facet_grid = Some(grid);
+                    }
+                }
+                "facetScales" => match self
+                    .layout_string(&arg, "`facetScales` expects a string literal")
+                    .as_deref()
+                {
+                    Some("fixed") => layout.facet_scales = FacetScaleModeIr::Fixed,
+                    Some("free-x") | Some("free_x") => {
+                        layout.facet_scales = FacetScaleModeIr::FreeX
+                    }
+                    Some("free-y") | Some("free_y") => {
+                        layout.facet_scales = FacetScaleModeIr::FreeY
+                    }
+                    Some("free") => layout.facet_scales = FacetScaleModeIr::Free,
+                    Some(other) => self.diag(Diagnostic::error(
+                        codes::E1204,
+                        format!("unknown facet scale mode `{other}`"),
+                        key_span,
+                    )),
+                    None => {}
+                },
+                "facetLabel" => match self
+                    .layout_string(&arg, "`facetLabel` expects a string literal")
+                    .as_deref()
+                {
+                    Some("value") => layout.facet_label = FacetLabelModeIr::Value,
+                    Some("name-value") | Some("name_value") => {
+                        layout.facet_label = FacetLabelModeIr::NameValue
+                    }
+                    Some(other) => self.diag(Diagnostic::error(
+                        codes::E1204,
+                        format!("unknown facet label mode `{other}`"),
+                        key_span,
+                    )),
+                    None => {}
+                },
+                "facetLabels" => {
+                    if let Some(ValueExpr::Map(map)) = arg.value() {
+                        if let Some(entries) = self.layout_label_map(&map) {
+                            layout.facet_label_map = entries;
+                        }
+                    } else if let Some(value) = arg.value() {
+                        self.diag(Diagnostic::error(
+                            codes::E1204,
+                            "`facetLabels` expects a string map",
+                            node_span(value.syntax()),
+                        ));
+                    }
+                }
+                "panelSpacing" => {
+                    if let Some(spacing) = self.layout_spacing(&arg) {
+                        layout.panel_spacing = Some(spacing);
+                    }
+                }
                 _ => self.diag(Diagnostic::error(
                     codes::E1003,
                     format!("unsupported Layout argument `{key}`"),
                     key_span,
                 )),
+            }
+        }
+    }
+
+    fn layout_column(
+        &mut self,
+        arg: &Arg,
+        table: &ActiveTable,
+        message: &'static str,
+    ) -> Option<ColumnRef> {
+        match arg.value() {
+            Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
+                Some(self.resolve_column(&name, table))
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E1204,
+                    message,
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn layout_string(&mut self, arg: &Arg, message: &'static str) -> Option<String> {
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                Some(string_value(&lit.text().unwrap_or_default()))
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E1204,
+                    message,
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn layout_label_map(&mut self, map: &MapValue) -> Option<Vec<(String, String)>> {
+        let mut entries = Vec::new();
+        for entry in map.entries() {
+            let key = match entry.key() {
+                Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                    string_value(&lit.text().unwrap_or_default())
+                }
+                other => {
+                    let span = other
+                        .map(|value| node_span(value.syntax()))
+                        .unwrap_or_else(|| node_span(map.syntax()));
+                    self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`facetLabels` map keys must be string literals",
+                        span,
+                    ));
+                    return None;
+                }
+            };
+            let value = match entry.value() {
+                Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                    string_value(&lit.text().unwrap_or_default())
+                }
+                other => {
+                    let span = other
+                        .map(|value| node_span(value.syntax()))
+                        .unwrap_or_else(|| node_span(map.syntax()));
+                    self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`facetLabels` map values must be string literals",
+                        span,
+                    ));
+                    return None;
+                }
+            };
+            entries.push((key, value));
+        }
+        Some(entries)
+    }
+
+    fn layout_spacing(&mut self, arg: &Arg) -> Option<PanelSpacingIr> {
+        let value = arg.value()?;
+        match value {
+            ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::Number) => {
+                let n = lit.text().and_then(|t| t.parse::<f64>().ok())?;
+                if n.is_finite() && n >= 0.0 {
+                    Some(PanelSpacingIr { x: n, y: n })
+                } else {
+                    self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`panelSpacing` expects a non-negative number or [x, y]",
+                        node_span(lit.syntax()),
+                    ));
+                    None
+                }
+            }
+            ValueExpr::Array(array) => {
+                let values = array.values();
+                if values.len() != 2 {
+                    self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`panelSpacing` expects a non-negative number or [x, y]",
+                        node_span(array.syntax()),
+                    ));
+                    return None;
+                }
+                let mut out = [0.0, 0.0];
+                for (index, item) in values.iter().enumerate() {
+                    let ValueExpr::Literal(lit) = item else {
+                        self.diag(Diagnostic::error(
+                            codes::E1204,
+                            "`panelSpacing` expects numeric array entries",
+                            node_span(item.syntax()),
+                        ));
+                        return None;
+                    };
+                    let Some(n) = lit.text().and_then(|t| t.parse::<f64>().ok()) else {
+                        self.diag(Diagnostic::error(
+                            codes::E1204,
+                            "`panelSpacing` expects numeric array entries",
+                            node_span(lit.syntax()),
+                        ));
+                        return None;
+                    };
+                    if !n.is_finite() || n < 0.0 {
+                        self.diag(Diagnostic::error(
+                            codes::E1204,
+                            "`panelSpacing` expects non-negative numbers",
+                            node_span(lit.syntax()),
+                        ));
+                        return None;
+                    }
+                    out[index] = n;
+                }
+                Some(PanelSpacingIr {
+                    x: out[0],
+                    y: out[1],
+                })
+            }
+            other => {
+                self.diag(Diagnostic::error(
+                    codes::E1204,
+                    "`panelSpacing` expects a non-negative number or [x, y]",
+                    node_span(other.syntax()),
+                ));
+                None
             }
         }
     }

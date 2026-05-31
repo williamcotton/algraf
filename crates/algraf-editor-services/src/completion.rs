@@ -112,11 +112,11 @@ pub fn completion_context(text: &str, offset: usize) -> CompletionContext {
         },
         Some(
             "Algraf" | "Scale" | "Guide" | "Theme" | "Layout" | "Parse" | "Style" | "Stop" | "Bin"
-            | "Smooth" | "StepVertices" | "VectorEndpoints" | "CurveSample" | "Bin2D" | "HexBin"
-            | "ContourLines" | "ContourBands" | "Density2D" | "Density2DContours"
-            | "Density2DBands" | "Distinct" | "Ecdf" | "Qq" | "Summary" | "SummaryBin" | "Cut"
-            | "Summary2D" | "SummaryHex" | "IntervalSegments" | "IntervalRects" | "IntervalMiddles"
-            | "Simplify" | "SpatialJoin",
+            | "Smooth" | "StepVertices" | "JitterPoints" | "VectorEndpoints" | "CurveSample"
+            | "Bin2D" | "HexBin" | "ContourLines" | "ContourBands" | "Density2D"
+            | "Density2DContours" | "Density2DBands" | "Distinct" | "Ecdf" | "Qq" | "Summary"
+            | "SummaryBin" | "Cut" | "Summary2D" | "SummaryHex" | "IntervalSegments"
+            | "IntervalRects" | "IntervalMiddles" | "Simplify" | "SpatialJoin",
         ) => CompletionContext::DeclArgs {
             decl: call_name_stack
                 .last()
@@ -520,6 +520,7 @@ fn declaration_value_items(
             .iter()
             .map(|value| value_item(&format!("\"{value}\""), "Step direction"))
             .collect(),
+        ("JitterPoints", "width" | "height") => vec![value_item("0.2", "Jitter amount")],
         ("VectorEndpoints", "lengthScale") => vec![value_item("1", "Length scale")],
         ("CurveSample", "curvature") => vec![value_item("0.35", "Curve bend amount")],
         ("CurveSample", "points") => vec![value_item("16", "Sample count")],

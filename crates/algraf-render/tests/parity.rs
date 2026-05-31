@@ -59,6 +59,7 @@ fn draw_op_counts(list: &DrawList) -> BTreeMap<&'static str, usize> {
     let mut counts = BTreeMap::new();
     for op in &list.ops {
         let kind = match op {
+            DrawOp::ClipStart { .. } | DrawOp::ClipEnd { .. } => continue,
             DrawOp::Rect { .. } => "rect",
             DrawOp::Circle { .. } => "circle",
             DrawOp::Path { .. } => "path",
@@ -199,6 +200,7 @@ fn polar_marks_are_paths_not_rects() {
 
 fn op_role(op: &DrawOp) -> DrawRole {
     match op {
+        DrawOp::ClipStart { role, .. } | DrawOp::ClipEnd { role } => *role,
         DrawOp::Rect { role, .. }
         | DrawOp::Circle { role, .. }
         | DrawOp::Path { role, .. }

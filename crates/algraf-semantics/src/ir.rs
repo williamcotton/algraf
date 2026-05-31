@@ -108,9 +108,72 @@ pub struct ThemeOverrides {
 }
 
 /// Chart-level layout settings that affect viewport allocation (spec §17.4).
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct LayoutIr {
+    /// Facet-wrap column count for `(x * y) / group`.
     pub facet_columns: Option<usize>,
+    /// Optional chart-level facet grid assignment. When present, eligible
+    /// Cartesian spaces are repeated over the row/column category product.
+    pub facet_grid: Option<FacetGridIr>,
+    /// Whether facet panels share position scales or train them per panel.
+    pub facet_scales: FacetScaleModeIr,
+    /// Deterministic facet strip label formatting.
+    pub facet_label: FacetLabelModeIr,
+    /// Optional category-value relabeling for facet strips.
+    pub facet_label_map: Vec<(String, String)>,
+    /// Optional explicit facet panel spacing in pixels.
+    pub panel_spacing: Option<PanelSpacingIr>,
+}
+
+/// Row/column assignment for a facet grid (spec §17.4).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FacetGridIr {
+    pub rows: Option<ColumnRef>,
+    pub columns: Option<ColumnRef>,
+}
+
+/// Facet scale-sharing mode (spec §17.4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FacetScaleModeIr {
+    #[default]
+    Fixed,
+    FreeX,
+    FreeY,
+    Free,
+}
+
+impl FacetScaleModeIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FacetScaleModeIr::Fixed => "fixed",
+            FacetScaleModeIr::FreeX => "free-x",
+            FacetScaleModeIr::FreeY => "free-y",
+            FacetScaleModeIr::Free => "free",
+        }
+    }
+}
+
+/// Facet strip labeller mode (spec §17.4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FacetLabelModeIr {
+    #[default]
+    Value,
+    NameValue,
+}
+
+impl FacetLabelModeIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FacetLabelModeIr::Value => "value",
+            FacetLabelModeIr::NameValue => "name-value",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PanelSpacingIr {
+    pub x: f64,
+    pub y: f64,
 }
 
 /// Chart-level guide configuration (spec §19).
@@ -434,6 +497,7 @@ pub enum StatKind {
     Count,
     Smooth,
     StepVertices,
+    JitterPoints,
     VectorEndpoints,
     CurveSample,
     IntervalSegments,
@@ -473,6 +537,7 @@ impl StatKind {
             StatKind::Count => "Count",
             StatKind::Smooth => "Smooth",
             StatKind::StepVertices => "StepVertices",
+            StatKind::JitterPoints => "JitterPoints",
             StatKind::VectorEndpoints => "VectorEndpoints",
             StatKind::CurveSample => "CurveSample",
             StatKind::IntervalSegments => "IntervalSegments",
@@ -566,6 +631,10 @@ pub enum StatOptionsIr {
     },
     StepVertices {
         direction: StepDirectionIr,
+    },
+    JitterPoints {
+        width: f64,
+        height: f64,
     },
     VectorEndpoints {
         length_scale: Option<f64>,
@@ -813,7 +882,33 @@ pub struct SpaceIr {
     /// The coordinate system for this space (spec §4.2, §16.16). Cartesian is the
     /// default; `coords: "polar"` remaps scale ranges into a polar frame.
     pub coords: CoordsIr,
+    /// Coordinate-level view controls such as visual zoom and fixed aspect.
+    /// These affect post-stat rendering only; they do not filter source data
+    /// before derived tables are computed.
+    pub view: CoordinateViewIr,
     pub span: Span,
+}
+
+/// Coordinate-level view controls for a Cartesian space (spec §16.17).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct CoordinateViewIr {
+    pub zoom_x: Option<AxisViewDomainIr>,
+    pub zoom_y: Option<AxisViewDomainIr>,
+    /// Fixed ratio of x pixels per data unit to y pixels per data unit.
+    pub aspect: Option<f64>,
+}
+
+impl CoordinateViewIr {
+    pub fn has_zoom(self) -> bool {
+        self.zoom_x.is_some() || self.zoom_y.is_some()
+    }
+}
+
+/// A visual axis-domain override. `None` keeps the trained bound.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AxisViewDomainIr {
+    pub min: Option<f64>,
+    pub max: Option<f64>,
 }
 
 /// The coordinate system of a space (spec §4.2, §16.16). Cartesian is implicit
@@ -1118,6 +1213,9 @@ pub enum PropertyKey {
     Step,
     Radius,
     TimeFormat,
+    Jitter,
+    Nudge,
+    NudgeData,
 }
 
 /// Every [`PropertyKey`] variant, in declaration order. Used by registry
@@ -1167,6 +1265,9 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::Step,
     PropertyKey::Radius,
     PropertyKey::TimeFormat,
+    PropertyKey::Jitter,
+    PropertyKey::Nudge,
+    PropertyKey::NudgeData,
 ];
 
 impl PropertyKey {
@@ -1217,6 +1318,9 @@ impl PropertyKey {
             PropertyKey::Step => "step",
             PropertyKey::Radius => "radius",
             PropertyKey::TimeFormat => "timeFormat",
+            PropertyKey::Jitter => "jitter",
+            PropertyKey::Nudge => "nudge",
+            PropertyKey::NudgeData => "nudgeData",
         }
     }
 
