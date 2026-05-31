@@ -8,15 +8,25 @@
 use std::fmt::Write as _;
 
 use algraf_data::Table;
-use algraf_semantics::{GeometryIr, GeometryKind, LegendPositionIr, TemporalFormatIr};
+use algraf_semantics::{
+    CoordsIr, GeometryIr, GeometryKind, GuideIr, InsetClipIr, InsetIr, InsetScalePolicyIr,
+    LegendPositionIr, SpaceIr, SpaceLayerIr, TemporalFormatIr,
+};
 
+use crate::domains::train_space_domains;
 use crate::layout::Rect;
 use crate::scale::{cell_category, BandScale, ContinuousTransform, NestedBandScale};
 use crate::sink::json_string;
-use crate::space::AxisScale;
+use crate::space::{AxisScale, ScaledSpace};
 use crate::svg::num;
 
 use super::backend::RenderScene;
+use super::common::{merged_scales, resolve_space_theme};
+use super::derived::active_table;
+use super::inset::{
+    inset_anchor, inset_plot, inset_size, mapped_size_domain, matched_child_rows, union_rows,
+    RowContext, RowsTable, MAX_INSET_DEPTH,
+};
 use super::panels::{panel_slots, Panel};
 
 /// Versioned interaction metadata emitted as a JSON sidecar and carried by the
@@ -167,27 +177,7 @@ pub(super) fn build_interaction_metadata(scene: &RenderScene<'_>) -> Interaction
         .map(|slot| slot.plot)
         .unwrap_or(scene.layout.plot);
 
-    let mut groups = Vec::new();
-    let mut marks = Vec::new();
-    for (panel_index, panel) in scene.panels.iter().enumerate() {
-        let plot_id = plot_id(panel_index);
-        for (geometry_index, geo) in panel.geometries.iter().enumerate() {
-            if !supports_mark_metadata(geo.kind) {
-                continue;
-            }
-            collect_geometry_marks(
-                &mut marks,
-                &mut groups,
-                panel,
-                geo,
-                panel_index,
-                geometry_index,
-                &plot_id,
-            );
-        }
-    }
-
-    let plots = slots
+    let mut plots = slots
         .iter()
         .enumerate()
         .map(|(index, slot)| {
@@ -205,6 +195,26 @@ pub(super) fn build_interaction_metadata(scene: &RenderScene<'_>) -> Interaction
             }
         })
         .collect::<Vec<_>>();
+    let mut groups = Vec::new();
+    let mut marks = Vec::new();
+    for (panel_index, panel) in scene.panels.iter().enumerate() {
+        let plot_id = plot_id(panel_index);
+        collect_layer_metadata(
+            &mut marks,
+            &mut groups,
+            &mut plots,
+            scene,
+            panel.layers,
+            panel.table,
+            &panel.scaled,
+            panel.rows.as_deref(),
+            panel.clip_marks.then_some(panel.plot),
+            &plot_id,
+            &format!("p{panel_index}"),
+            &[],
+            0,
+        );
+    }
     let axes = plots
         .first()
         .map(|plot| plot.axes.clone())
@@ -243,32 +253,86 @@ fn chart_description(ir: &algraf_semantics::ChartIr) -> Option<String> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn collect_layer_metadata(
+    marks: &mut Vec<InteractionMark>,
+    groups: &mut Vec<InteractionGroup>,
+    plots: &mut Vec<InteractionPlot>,
+    scene: &RenderScene<'_>,
+    layers: &[SpaceLayerIr],
+    table: &dyn Table,
+    scaled: &ScaledSpace,
+    rows: Option<&[usize]>,
+    clip_rect: Option<Rect>,
+    plot_id: &str,
+    mark_prefix: &str,
+    ancestors: &[RowContext<'_>],
+    depth: usize,
+) {
+    let mut geometry_index = 0;
+    let mut inset_index = 0;
+    for layer in layers {
+        match layer {
+            SpaceLayerIr::Geometry(geo) => {
+                if supports_mark_metadata(geo.kind) {
+                    collect_geometry_marks(
+                        marks,
+                        groups,
+                        table,
+                        scaled,
+                        rows,
+                        clip_rect,
+                        geo,
+                        geometry_index,
+                        plot_id,
+                        mark_prefix,
+                    );
+                }
+                geometry_index += 1;
+            }
+            SpaceLayerIr::Inset(inset) => {
+                collect_inset_metadata(
+                    marks,
+                    groups,
+                    plots,
+                    scene,
+                    inset,
+                    table,
+                    scaled,
+                    rows,
+                    mark_prefix,
+                    inset_index,
+                    ancestors,
+                    depth,
+                );
+                inset_index += 1;
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn collect_geometry_marks(
     marks: &mut Vec<InteractionMark>,
     groups: &mut Vec<InteractionGroup>,
-    panel: &Panel<'_>,
+    table: &dyn Table,
+    scaled: &ScaledSpace,
+    rows: Option<&[usize]>,
+    clip_rect: Option<Rect>,
     geo: &GeometryIr,
-    panel_index: usize,
     geometry_index: usize,
     plot_id: &str,
+    mark_prefix: &str,
 ) {
-    for row in render_rows(panel.table, panel.rows.as_deref()) {
-        let (Some(mut x_px), Some(mut y_px)) = (
-            panel.scaled.resolve_x(panel.table, row),
-            panel.scaled.resolve_y(panel.table, row),
-        ) else {
+    for row in render_rows(table, rows) {
+        let (Some(mut x_px), Some(mut y_px)) =
+            (scaled.resolve_x(table, row), scaled.resolve_y(table, row))
+        else {
             continue;
         };
         if geo.kind == GeometryKind::Point {
-            (x_px, y_px) = crate::geom::adjusted_mark_position(
-                geo,
-                &panel.scaled,
-                panel.table,
-                row,
-                x_px,
-                y_px,
-                true,
-            );
+            (x_px, y_px) =
+                crate::geom::adjusted_mark_position(geo, scaled, table, row, x_px, y_px, true);
         }
         let tooltip = geo
             .interaction
@@ -276,12 +340,12 @@ fn collect_geometry_marks(
             .iter()
             .map(|col| TooltipRow {
                 label: col.name.clone(),
-                value: cell_category(panel.table, &col.name, row).unwrap_or_default(),
+                value: cell_category(table, &col.name, row).unwrap_or_default(),
             })
             .collect::<Vec<_>>();
         let mut mark_groups = Vec::new();
         if let Some(col) = &geo.interaction.highlight {
-            if let Some(value) = cell_category(panel.table, &col.name, row) {
+            if let Some(value) = cell_category(table, &col.name, row) {
                 append_group_value(groups, &col.name, &value);
                 mark_groups.push(InteractionGroupValue {
                     key: col.name.clone(),
@@ -290,15 +354,188 @@ fn collect_geometry_marks(
             }
         }
         marks.push(InteractionMark {
-            id: format!("p{panel_index}:g{geometry_index}:r{row}"),
+            id: format!("{mark_prefix}:g{geometry_index}:r{row}"),
             plot: plot_id.to_string(),
             x_px,
             y_px,
-            clipped: panel.clip_marks && !rect_contains(panel.plot, x_px, y_px),
+            clipped: clip_rect.is_some_and(|rect| !rect_contains(rect, x_px, y_px)),
             groups: mark_groups,
             tooltip,
         });
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_inset_metadata(
+    marks: &mut Vec<InteractionMark>,
+    groups: &mut Vec<InteractionGroup>,
+    plots: &mut Vec<InteractionPlot>,
+    scene: &RenderScene<'_>,
+    inset: &InsetIr,
+    parent_table: &dyn Table,
+    parent_scaled: &ScaledSpace,
+    parent_rows: Option<&[usize]>,
+    mark_prefix: &str,
+    inset_index: usize,
+    ancestors: &[RowContext<'_>],
+    depth: usize,
+) {
+    if depth >= MAX_INSET_DEPTH {
+        return;
+    }
+    let parent_row_list = render_rows(parent_table, parent_rows);
+    let child_table = active_table(&inset.data, scene.primary, scene.derived);
+    let matches = parent_row_list
+        .iter()
+        .map(|&row| matched_child_rows(inset, child_table, parent_table, row, ancestors))
+        .collect::<Vec<_>>();
+    let shared_rows = union_rows(&matches);
+    let size_domain = mapped_size_domain(inset, parent_table, &parent_row_list);
+
+    for (instance_index, parent_row) in parent_row_list.iter().copied().enumerate() {
+        let child_rows = &matches[instance_index];
+        if child_rows.is_empty() {
+            continue;
+        }
+        let Some((x, y)) =
+            inset_anchor(inset, parent_scaled, parent_table, parent_row, parent_rows)
+        else {
+            continue;
+        };
+        let (width, height) = inset_size(inset, parent_table, parent_row, size_domain);
+        if width <= 0.0 || height <= 0.0 {
+            continue;
+        }
+        let viewport = Rect {
+            x: x + inset.dx - width / 2.0,
+            y: y + inset.dy - height / 2.0,
+            width,
+            height,
+        };
+        let plot = inset_plot(viewport, inset.padding);
+        let clip_rect = (!matches!(inset.clip, InsetClipIr::None)).then_some(viewport);
+        let mut contexts = Vec::with_capacity(ancestors.len() + 1);
+        contexts.push(RowContext {
+            table: parent_table,
+            row: parent_row,
+        });
+        contexts.extend_from_slice(ancestors);
+
+        for (space_index, child_space) in inset.child_spaces.iter().enumerate() {
+            let Some(plan) = plan_metadata_child_space(
+                scene,
+                inset,
+                child_space,
+                child_table,
+                child_rows,
+                &shared_rows,
+                plot,
+            ) else {
+                continue;
+            };
+            let child_plot_id =
+                format!("{mark_prefix}:i{inset_index}[{parent_row}]:s{space_index}");
+            plots.push(InteractionPlot {
+                id: child_plot_id.clone(),
+                plot_rect: plot,
+                clip_rect,
+                axes: scaled_axes(&plan.scaled, &plan.guides),
+            });
+            collect_layer_metadata(
+                marks,
+                groups,
+                plots,
+                scene,
+                &child_space.layers,
+                plan.table,
+                &plan.scaled,
+                Some(&plan.rows),
+                clip_rect,
+                &child_plot_id,
+                &child_plot_id,
+                &contexts,
+                depth + 1,
+            );
+        }
+    }
+}
+
+struct MetadataChildSpace<'a> {
+    table: &'a dyn Table,
+    rows: Vec<usize>,
+    scaled: ScaledSpace,
+    guides: GuideIr,
+}
+
+fn plan_metadata_child_space<'a>(
+    scene: &'a RenderScene<'a>,
+    inset: &InsetIr,
+    space: &SpaceIr,
+    inset_table: &'a dyn Table,
+    child_rows: &[usize],
+    shared_rows: &[usize],
+    plot: Rect,
+) -> Option<MetadataChildSpace<'a>> {
+    let table = active_table(&space.data, scene.primary, scene.derived);
+    let rows = if space.data == inset.data {
+        child_rows.to_vec()
+    } else {
+        render_rows(table, None)
+    };
+    let training_rows = match inset.scale_policy {
+        InsetScalePolicyIr::Shared if space.data == inset.data => shared_rows,
+        _ => &rows,
+    };
+    let training_table_ref = if space.data == inset.data {
+        inset_table
+    } else {
+        table
+    };
+    let training = RowsTable::new(training_table_ref, training_rows);
+    let panel_theme =
+        resolve_space_theme(scene.theme, space.theme.as_ref(), scene.cli_theme_override);
+    let space_guides = scene.ir.guides.with_overrides(&space.guides);
+    let space_scales = merged_scales(&scene.ir.scales, &space.scales);
+    let hints = train_space_domains(&space.frame, &training, &space.geometries);
+    let scaled = match space.coords {
+        CoordsIr::Polar {
+            theta,
+            inner_radius,
+            start_angle,
+            direction,
+        } => ScaledSpace::build_polar(
+            &space.frame,
+            &training,
+            plot,
+            &hints,
+            &space_scales,
+            theta,
+            inner_radius,
+            start_angle,
+            direction,
+            panel_theme.font_size,
+        ),
+        CoordsIr::Cartesian => ScaledSpace::build(
+            &space.frame,
+            &training,
+            (plot.x, plot.right()),
+            (plot.bottom(), plot.y),
+            &hints,
+            &space_scales,
+            space.view,
+        ),
+    }?;
+    let table = if space.data == inset.data {
+        inset_table
+    } else {
+        table
+    };
+    Some(MetadataChildSpace {
+        table,
+        rows,
+        scaled,
+        guides: space_guides,
+    })
 }
 
 fn rect_contains(rect: Rect, x: f64, y: f64) -> bool {
@@ -336,20 +573,24 @@ fn append_group_value(groups: &mut Vec<InteractionGroup>, key: &str, value: &str
 }
 
 fn panel_axes(panel: &Panel<'_>) -> InteractionAxes {
-    if panel.scaled.is_spatial() || panel.scaled.is_polar() {
+    scaled_axes(&panel.scaled, &panel.guides)
+}
+
+fn scaled_axes(scaled: &ScaledSpace, guides: &GuideIr) -> InteractionAxes {
+    if scaled.is_spatial() || scaled.is_polar() {
         return InteractionAxes { x: None, y: None };
     }
     InteractionAxes {
         x: Some(axis_metadata(
-            &panel.scaled.x,
-            panel.guides.x_label.as_deref(),
-            panel.guides.x_time_format.as_ref(),
+            &scaled.x,
+            guides.x_label.as_deref(),
+            guides.x_time_format.as_ref(),
         )),
-        y: panel.scaled.y.as_ref().map(|axis| {
+        y: scaled.y.as_ref().map(|axis| {
             axis_metadata(
                 axis,
-                panel.guides.y_label.as_deref(),
-                panel.guides.y_time_format.as_ref(),
+                guides.y_label.as_deref(),
+                guides.y_time_format.as_ref(),
             )
         }),
     }

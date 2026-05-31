@@ -124,6 +124,11 @@ fn rasterize(
                     clip_stack.push(mask);
                 }
             }
+            DrawOp::CircleClipStart { cx, cy, r, .. } => {
+                if let Some(mask) = circle_clip_mask(width, height, transform, *cx, *cy, *r) {
+                    clip_stack.push(mask);
+                }
+            }
             DrawOp::ClipEnd { .. } => {
                 clip_stack.pop();
             }
@@ -155,6 +160,20 @@ fn clip_mask(
     Some(mask)
 }
 
+fn circle_clip_mask(
+    width: u32,
+    height: u32,
+    transform: Transform,
+    cx: f64,
+    cy: f64,
+    r: f64,
+) -> Option<Mask> {
+    let mut mask = Mask::new(width, height)?;
+    let path = PathBuilder::from_circle(cx as f32, cy as f32, r.max(0.0) as f32)?;
+    mask.fill_path(&path, FillRule::Winding, true, transform);
+    Some(mask)
+}
+
 fn draw_op(
     pixmap: &mut Pixmap,
     transform: Transform,
@@ -163,7 +182,7 @@ fn draw_op(
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     match op {
-        DrawOp::ClipStart { .. } | DrawOp::ClipEnd { .. } => {}
+        DrawOp::ClipStart { .. } | DrawOp::CircleClipStart { .. } | DrawOp::ClipEnd { .. } => {}
         DrawOp::Rect {
             x,
             y,

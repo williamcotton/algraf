@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="500" viewBox="0 0 760 500" role="img" aria-label="Life expectancy, income, and GDP trend">
+<title>Life expectancy, income, and GDP trend</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="500" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Life expectancy, income, and GDP trend</text>
+<rect class="algraf-plot-area" x="60" y="66" width="670" height="384" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="208.889" y1="66" x2="208.889" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="337.241" y1="66" x2="337.241" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="465.594" y1="66" x2="465.594" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="593.946" y1="66" x2="593.946" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="368.345" x2="730" y2="368.345" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="287.209" x2="730" y2="287.209" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="206.073" x2="730" y2="206.073" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="124.937" x2="730" y2="124.937" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="144.713" y1="66" x2="144.713" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="273.065" y1="66" x2="273.065" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="401.418" y1="66" x2="401.418" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="529.77" y1="66" x2="529.77" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="658.123" y1="66" x2="658.123" y2="450" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="408.913" x2="730" y2="408.913" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="327.777" x2="730" y2="327.777" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="246.641" x2="730" y2="246.641" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="165.505" x2="730" y2="165.505" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="84.369" x2="730" y2="84.369" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-inset">
+  <defs>
+  <clipPath id="algraf-clip-0"><rect x="539.276" y="80.483" width="58" height="24" /></clipPath>
+  </defs>
+  <g clip-path="url(#algraf-clip-0)">
+    <g class="algraf-layer algraf-geom-line">
+      <path d="M545 88.154 L556.638 88.378 L568.276 87.855 L579.914 87.482 L591.552 87.221" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+    </g>
+  </g>
+</g>
+<g class="algraf-inset">
+  <defs>
+  <clipPath id="algraf-clip-1"><rect x="654.793" y="134.032" width="58" height="24" /></clipPath>
+  </defs>
+  <g clip-path="url(#algraf-clip-1)">
+    <g class="algraf-layer algraf-geom-line">
+      <path d="M660.517 138.158 L672.155 138.681 L683.793 137.972 L695.431 137.598 L707.069 137.412" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+    </g>
+  </g>
+</g>
+<g class="algraf-inset">
+  <defs>
+  <clipPath id="algraf-clip-2"><rect x="179.889" y="220.037" width="58" height="24" /></clipPath>
+  </defs>
+  <g clip-path="url(#algraf-clip-2)">
+    <g class="algraf-layer algraf-geom-line">
+      <path d="M185.613 237.522 L197.251 237.821 L208.889 237.597 L220.527 237.373 L232.165 237.224" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+    </g>
+  </g>
+</g>
+<g class="algraf-inset">
+  <defs>
+  <clipPath id="algraf-clip-3"><rect x="160.636" y="411.517" width="58" height="24" /></clipPath>
+  </defs>
+  <g clip-path="url(#algraf-clip-3)">
+    <g class="algraf-layer algraf-geom-line">
+      <path d="M166.36 429.451 L177.998 429.75 L189.636 429.526 L201.274 429.376 L212.912 429.264" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+    </g>
+  </g>
+</g>
+<g class="algraf-inset">
+  <defs>
+  <clipPath id="algraf-clip-4"><rect x="77.207" y="312.531" width="58" height="24" /></clipPath>
+  </defs>
+  <g clip-path="url(#algraf-clip-4)">
+    <g class="algraf-layer algraf-geom-line">
+      <path d="M82.931 333.003 L94.569 333.152 L106.207 332.928 L117.845 332.779 L129.483 332.704" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+    </g>
+  </g>
+</g>
+<g class="algraf-inset">
+  <defs>
+  <clipPath id="algraf-clip-5"><rect x="231.23" y="233.018" width="58" height="24" /></clipPath>
+  </defs>
+  <g clip-path="url(#algraf-clip-5)">
+    <g class="algraf-layer algraf-geom-line">
+      <path d="M236.954 249.011 L248.592 249.422 L260.23 249.086 L271.868 248.825 L283.506 248.713" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+    </g>
+  </g>
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="568.276" y="70.483" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Japan</text>
+  <text x="683.793" y="124.032" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Germany</text>
+  <text x="208.889" y="210.037" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Brazil</text>
+  <text x="189.636" y="401.517" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">South Africa</text>
+  <text x="106.207" y="302.531" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">India</text>
+  <text x="260.23" y="223.018" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Mexico</text>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="450" x2="730" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="144.713" y1="450" x2="144.713" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="144.713" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10000</text>
+  <line x1="273.065" y1="450" x2="273.065" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="273.065" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20000</text>
+  <line x1="401.418" y1="450" x2="401.418" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="401.418" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30000</text>
+  <line x1="529.77" y1="450" x2="529.77" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="529.77" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40000</text>
+  <line x1="658.123" y1="450" x2="658.123" y2="455" stroke="#333333" stroke-width="1" />
+  <text x="658.123" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50000</text>
+  <text x="395" y="488" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">income</text>
+  <line x1="60" y1="66" x2="60" y2="450" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="408.913" x2="60" y2="408.913" stroke="#333333" stroke-width="1" />
+  <text x="52" y="412.913" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">65</text>
+  <line x1="55" y1="327.777" x2="60" y2="327.777" stroke="#333333" stroke-width="1" />
+  <text x="52" y="331.777" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">70</text>
+  <line x1="55" y1="246.641" x2="60" y2="246.641" stroke="#333333" stroke-width="1" />
+  <text x="52" y="250.641" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">75</text>
+  <line x1="55" y1="165.505" x2="60" y2="165.505" stroke="#333333" stroke-width="1" />
+  <text x="52" y="169.505" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
+  <line x1="55" y1="84.369" x2="60" y2="84.369" stroke="#333333" stroke-width="1" />
+  <text x="52" y="88.369" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">85</text>
+  <text x="25.6" y="258" text-anchor="middle" transform="rotate(-90 25.6 258)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">life expectancy</text>
+</g>
+</svg>

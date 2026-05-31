@@ -105,6 +105,13 @@ pub enum DrawOp {
         width: f64,
         height: f64,
     },
+    /// Start a circular clip scope.
+    CircleClipStart {
+        role: DrawRole,
+        cx: f64,
+        cy: f64,
+        r: f64,
+    },
     /// End the current clip scope.
     ClipEnd { role: DrawRole },
     /// A rectangle.
@@ -170,7 +177,9 @@ pub enum DrawOp {
 impl DrawOp {
     fn role(&self) -> DrawRole {
         match self {
-            DrawOp::ClipStart { role, .. } | DrawOp::ClipEnd { role } => *role,
+            DrawOp::ClipStart { role, .. }
+            | DrawOp::CircleClipStart { role, .. }
+            | DrawOp::ClipEnd { role } => *role,
             DrawOp::Rect { role, .. }
             | DrawOp::Circle { role, .. }
             | DrawOp::Path { role, .. }
@@ -238,6 +247,16 @@ impl DrawOp {
                     num(*y),
                     num(*width),
                     num(*height),
+                );
+            }
+            DrawOp::CircleClipStart { cx, cy, r, .. } => {
+                let _ = write!(
+                    out,
+                    "{{\"op\":\"circleClipStart\",\"role\":\"{}\",\"cx\":{},\"cy\":{},\"r\":{}}}",
+                    role,
+                    num(*cx),
+                    num(*cy),
+                    num(*r),
                 );
             }
             DrawOp::ClipEnd { .. } => {
@@ -426,7 +445,7 @@ impl RenderBackend for DrawListBackend {
             legends,
             panels,
             theme,
-            limits,
+            ..
         } = *scene;
         let width = ir.width as f64;
         let height = ir.height as f64;
@@ -527,7 +546,7 @@ impl RenderBackend for DrawListBackend {
         // through the shared mark sink (spec §24.6).
         let mut sink = DrawListSink::new();
         super::document::paint_grid(&mut sink, &slots);
-        super::document::paint_geometries(&mut sink, panels, limits, diagnostics);
+        super::inset::paint_panel_layers(&mut sink, scene, diagnostics);
         super::document::paint_axes_and_legends(&mut sink, &slots, legends, layout, theme);
         ops.extend(sink.into_ops());
 

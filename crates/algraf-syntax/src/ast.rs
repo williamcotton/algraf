@@ -163,6 +163,7 @@ impl SpaceBlock {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpaceItem {
     Geometry(GeometryCall),
+    Inset(InsetBlock),
     Let(LetDecl),
     Scale(Decl),
     Guide(Decl),
@@ -174,11 +175,54 @@ impl SpaceItem {
     pub fn cast(node: SyntaxNode) -> Option<SpaceItem> {
         match node.kind() {
             SyntaxKind::GEOMETRY_CALL => GeometryCall::cast(node).map(SpaceItem::Geometry),
+            SyntaxKind::INSET_BLOCK => InsetBlock::cast(node).map(SpaceItem::Inset),
             SyntaxKind::LET_DECL => LetDecl::cast(node).map(SpaceItem::Let),
             SyntaxKind::SCALE_DECL => Decl::cast(node).map(SpaceItem::Scale),
             SyntaxKind::GUIDE_DECL => Decl::cast(node).map(SpaceItem::Guide),
             SyntaxKind::THEME_DECL => Decl::cast(node).map(SpaceItem::Theme),
             SyntaxKind::ERROR => Error::cast(node).map(SpaceItem::Error),
+            _ => None,
+        }
+    }
+}
+
+ast_node!(
+    /// An `Inset(...) { ... }` block nested inside a `Space`.
+    InsetBlock = INSET_BLOCK
+);
+
+impl InsetBlock {
+    /// The inset's arguments.
+    pub fn args(&self) -> Vec<Arg> {
+        child_nodes(&self.syntax, Arg::cast)
+    }
+
+    /// The inset's body items.
+    pub fn items(&self) -> Vec<InsetItem> {
+        child_nodes(&self.syntax, InsetItem::cast)
+    }
+}
+
+/// An inset-body item. Inset bodies can own child spaces and local declarations.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InsetItem {
+    Space(SpaceBlock),
+    Let(LetDecl),
+    Scale(Decl),
+    Guide(Decl),
+    Theme(Decl),
+    Error(Error),
+}
+
+impl InsetItem {
+    pub fn cast(node: SyntaxNode) -> Option<InsetItem> {
+        match node.kind() {
+            SyntaxKind::SPACE_BLOCK => SpaceBlock::cast(node).map(InsetItem::Space),
+            SyntaxKind::LET_DECL => LetDecl::cast(node).map(InsetItem::Let),
+            SyntaxKind::SCALE_DECL => Decl::cast(node).map(InsetItem::Scale),
+            SyntaxKind::GUIDE_DECL => Decl::cast(node).map(InsetItem::Guide),
+            SyntaxKind::THEME_DECL => Decl::cast(node).map(InsetItem::Theme),
+            SyntaxKind::ERROR => Error::cast(node).map(InsetItem::Error),
             _ => None,
         }
     }
@@ -590,11 +634,17 @@ ast_node!(
 );
 
 impl AlgebraName {
-    fn ident_token(&self) -> Option<SyntaxToken> {
+    fn ident_tokens(&self) -> Vec<SyntaxToken> {
         self.syntax
             .children_with_tokens()
             .filter_map(|e| e.into_token())
-            .find(|t| matches!(t.kind(), SyntaxKind::IDENT | SyntaxKind::QUOTED_IDENT))
+            .filter(|t| matches!(t.kind(), SyntaxKind::IDENT | SyntaxKind::QUOTED_IDENT))
+            .collect()
+    }
+
+    fn ident_token(&self) -> Option<SyntaxToken> {
+        let tokens = self.ident_tokens();
+        tokens.last().cloned()
     }
 
     /// Whether the column was written with backtick syntax.
@@ -611,9 +661,20 @@ impl AlgebraName {
         })
     }
 
+    /// The optional row-context qualifier (currently `parent`), if written as
+    /// `qualifier.name`.
+    pub fn qualifier(&self) -> Option<String> {
+        let tokens = self.ident_tokens();
+        (tokens.len() >= 2).then(|| tokens[0].text().to_string())
+    }
+
     /// The raw source lexeme, including backticks for quoted identifiers.
     pub fn raw_text(&self) -> Option<String> {
-        self.ident_token().map(|t| t.text().to_string())
+        if self.qualifier().is_some() {
+            Some(self.syntax.text().to_string())
+        } else {
+            self.ident_token().map(|t| t.text().to_string())
+        }
     }
 
     /// The span of the identifier token, excluding preserved leading trivia.

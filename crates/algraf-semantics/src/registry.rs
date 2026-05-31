@@ -609,6 +609,75 @@ const TABLE_DOC_ARGS: &[ArgDoc] = &[
     },
 ];
 
+const INSET_DOC_ARGS: &[ArgDoc] = &[
+    ArgDoc {
+        name: "data",
+        value: "table name",
+        default: None,
+        doc: "Child table rendered inside each inset instance.",
+    },
+    ArgDoc {
+        name: "match",
+        value: "map",
+        default: None,
+        doc: "Explicit child-to-parent equi-match rules.",
+    },
+    ArgDoc {
+        name: "size",
+        value: "number | column",
+        default: Some("32"),
+        doc: "Square inset size or mapped parent column.",
+    },
+    ArgDoc {
+        name: "width",
+        value: "number",
+        default: None,
+        doc: "Fixed rectangular inset width.",
+    },
+    ArgDoc {
+        name: "height",
+        value: "number",
+        default: None,
+        doc: "Fixed rectangular inset height.",
+    },
+    ArgDoc {
+        name: "scales",
+        value: "\"shared\" | \"local\"",
+        default: Some("\"shared\""),
+        doc: "Child scale training policy across inset instances.",
+    },
+    ArgDoc {
+        name: "guides",
+        value: "boolean",
+        default: Some("false"),
+        doc: "Whether to draw child position guides inside each inset.",
+    },
+    ArgDoc {
+        name: "clip",
+        value: "\"rect\" | \"circle\" | false",
+        default: Some("\"rect\""),
+        doc: "Clip shape for child marks.",
+    },
+    ArgDoc {
+        name: "anchor",
+        value: "\"position\" | \"centroid\"",
+        default: Some("\"position\""),
+        doc: "Parent-row anchor used for inset placement.",
+    },
+    ArgDoc {
+        name: "dx",
+        value: "number",
+        default: Some("0"),
+        doc: "Horizontal pixel offset after anchor resolution.",
+    },
+    ArgDoc {
+        name: "dy",
+        value: "number",
+        default: Some("0"),
+        doc: "Vertical pixel offset after anchor resolution.",
+    },
+];
+
 /// Human-facing declaration documentation shared by hover providers.
 pub fn declaration_doc(name: &str) -> Option<CallDoc> {
     match name {
@@ -625,6 +694,13 @@ pub fn declaration_doc(name: &str) -> Option<CallDoc> {
             description: "Coordinate space that binds a frame algebra expression to a table.",
             args: SPACE_DOC_ARGS,
             example: "Space(x * y, data: binned) {\n    Rect(xmin: x_min, xmax: x_max, ymin: y_min, ymax: y_max)\n}",
+        }),
+        "Inset" => Some(CallDoc {
+            name: "Inset",
+            kind: "Declaration",
+            description: "Mark-anchored child plot with explicit row matching and local viewport.",
+            args: INSET_DOC_ARGS,
+            example: "Inset(data: child, match: [id => id], size: 32) {\n    Space(value) { Bar(fill: group, layout: \"fill\") }\n}",
         }),
         "Theme" => Some(CallDoc {
             name: "Theme",
@@ -801,6 +877,23 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
             "range",
             "labels",
             "label",
+        ],
+        "Inset" => &[
+            "data",
+            "match",
+            "size",
+            "width",
+            "height",
+            "minSize",
+            "maxSize",
+            "scales",
+            "guides",
+            "clip",
+            "padding",
+            "placement",
+            "dx",
+            "dy",
+            "anchor",
         ],
         "Style" => &[
             "fill",

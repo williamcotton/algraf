@@ -3,9 +3,14 @@
 //! (spec §24.6, §27.1). These guard the documented equivalence limits of the
 //! v0.24 backend contract.
 
-use algraf_data::{read_csv_str, Table};
-use algraf_render::{render, render_draw_list, Dash, DrawList, DrawOp, DrawRole, Fill, Theme};
-use algraf_semantics::analyze;
+use std::collections::HashMap;
+
+use algraf_data::{read_csv_str, DataFrame, Table};
+use algraf_render::{
+    render, render_draw_list, render_draw_list_with_tables, Dash, DrawList, DrawOp, DrawRole, Fill,
+    Theme,
+};
+use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
 
 fn draw_list(source: &str, csv: &str) -> DrawList {
@@ -14,6 +19,23 @@ fn draw_list(source: &str, csv: &str) -> DrawList {
     let analysis = analyze(&parsed.syntax(), frame.schema());
     let ir = analysis.ir.expect("ir");
     render_draw_list(&ir, &frame, &Theme::minimal(), None)
+        .expect("draw list")
+        .draw_list
+}
+
+fn draw_list_with_tables(source: &str, primary_csv: &str, tables: &[(&str, &str)]) -> DrawList {
+    let frame = read_csv_str(primary_csv).expect("primary csv").frame;
+    let mut named = HashMap::<String, DataFrame>::new();
+    let mut schemas = HashMap::new();
+    for (name, csv) in tables {
+        let table = read_csv_str(csv).expect("named csv").frame;
+        schemas.insert((*name).to_string(), table.schema().to_vec());
+        named.insert((*name).to_string(), table);
+    }
+    let parsed = parse(source);
+    let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
+    let ir = analysis.ir.expect("ir");
+    render_draw_list_with_tables(&ir, &frame, &named, &Theme::minimal(), None)
         .expect("draw list")
         .draw_list
 }
@@ -271,4 +293,42 @@ fn draw_list_interactions_match_svg_sidecar_metadata() {
         draw_result.draw_list.interactions.to_json()
     );
     assert_eq!(draw_result.metadata, draw_result.draw_list.interactions);
+}
+
+#[test]
+fn draw_list_records_inset_clip_and_nested_metadata() {
+    let source = r##"Chart(data: "parents.csv", width: 260, height: 220) {
+  Table child = "child.csv"
+  Space(x * y) {
+    Inset(data: child, match: [id => id], width: 44, height: 44, clip: "circle", guides: false) {
+      Space(t * value) {
+        Point(tooltip: [label], highlight: "label")
+      }
+    }
+  }
+}"##;
+    let list = draw_list_with_tables(
+        source,
+        "id,x,y\nA,1,1\nB,2,2\n",
+        &[(
+            "child",
+            "id,t,value,label\nA,1,1,a1\nA,2,2,a2\nB,1,3,b1\nB,2,4,b2\n",
+        )],
+    );
+
+    assert!(list
+        .ops
+        .iter()
+        .any(|op| matches!(op, DrawOp::CircleClipStart { .. })));
+    assert!(list
+        .interactions
+        .plots
+        .iter()
+        .any(|plot| plot.id == "p0:i0[0]:s0"));
+    assert!(list
+        .interactions
+        .marks
+        .iter()
+        .any(|mark| mark.id == "p0:i0[1]:s0:g0:r2" && mark.plot == "p0:i0[1]:s0"));
+    assert!(list.to_json().contains("\"op\":\"circleClipStart\""));
 }

@@ -2,13 +2,11 @@
 //! 8–12): space data binding, projection, frame construction, column
 //! resolution, and structural frame checks.
 
-use std::collections::HashMap;
-
 use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::{parse_temporal_literal, DataType};
 use algraf_syntax::ast::{
-    AlgebraBinary, AlgebraCall, AlgebraExpr, AlgebraName, AlgebraOp, Arg, LetDecl, LiteralKind,
-    SpaceBlock, SpaceItem, ValueExpr,
+    AlgebraBinary, AlgebraCall, AlgebraExpr, AlgebraName, AlgebraOp, Arg, InsetBlock, InsetItem,
+    LetDecl, LiteralKind, SpaceBlock, SpaceItem, ValueExpr,
 };
 use algraf_syntax::{node_span, unescape_string_literal as string_value, SyntaxKind};
 
@@ -26,8 +24,23 @@ impl Analyzer<'_> {
     // --- Space (spec §13.3, §13.17 phases 8–12) ---
 
     pub(super) fn space(&mut self, space: &SpaceBlock) -> SpaceAnalysis {
+        self.space_with_default(space, None)
+    }
+
+    fn space_with_default(
+        &mut self,
+        space: &SpaceBlock,
+        default_data: Option<(SpaceDataRef, ActiveTable)>,
+    ) -> SpaceAnalysis {
         let span = node_span(space.syntax());
-        let (data_ref, table) = self.space_data(space);
+        let (data_ref, table) = self.space_data(space, default_data);
+
+        let previous_row_context = self.row_context_tables.clone();
+        let previous_space_vars = self.space_vars.clone();
+        let mut row_context = Vec::with_capacity(previous_row_context.len() + 1);
+        row_context.push(table.clone());
+        row_context.extend(previous_row_context.iter().cloned());
+        self.row_context_tables = row_context;
 
         // Collect space-scope `let` bindings; these shadow chart-scope bindings
         // of the same name for the duration of this space (spec §9.6).
@@ -39,7 +52,9 @@ impl Analyzer<'_> {
                 _ => None,
             })
             .collect();
-        self.space_vars = self.collect_let_decls(&space_lets);
+        let mut scope_vars = previous_space_vars.clone();
+        scope_vars.extend(self.collect_let_decls(&space_lets));
+        self.space_vars = scope_vars;
 
         let frame_expr = space.frame();
         let transpose_span = frame_expr.as_ref().and_then(first_transpose_call_span);
@@ -58,16 +73,25 @@ impl Analyzer<'_> {
         let view = self.space_view(space, &coords, projection.is_some());
 
         let mut geometry_layers = Vec::new();
+        let mut source_layers = Vec::new();
+        let mut inset_derived = Vec::new();
         let mut theme: Option<ThemeIr> = None;
         let mut guides = GuideOverridesIr::default();
         let mut scales = Vec::new();
-        let mut saw_geometry = false;
+        let mut saw_layer = false;
         for item in space.items() {
             match item {
                 SpaceItem::Geometry(call) => {
-                    saw_geometry = true;
+                    saw_layer = true;
                     if let Some(geo) = self.geometry(&call, &frame, &coords, &table) {
+                        source_layers.push(SpaceLayerIr::Geometry(geo.clone()));
                         geometry_layers.push(geo);
+                    }
+                }
+                SpaceItem::Inset(block) => {
+                    saw_layer = true;
+                    if let Some(inset) = self.inset(&block, &table, &mut inset_derived) {
+                        source_layers.push(SpaceLayerIr::Inset(inset));
                     }
                 }
                 SpaceItem::Theme(decl) => {
@@ -85,7 +109,7 @@ impl Analyzer<'_> {
                 SpaceItem::Error(_) => {}
             }
         }
-        if !saw_geometry {
+        if !saw_layer {
             self.diag(Diagnostic::warning(codes::W2001, "empty Space block", span));
         }
 
@@ -115,6 +139,42 @@ impl Analyzer<'_> {
         };
 
         let mut analysis = SpaceAnalysis::default();
+        analysis.derived.extend(inset_derived);
+
+        if source_layers
+            .iter()
+            .any(|layer| matches!(layer, SpaceLayerIr::Inset(_)))
+        {
+            for geo in &geometry_layers {
+                if is_lowered_geometry(geo) {
+                    self.diag(
+                        Diagnostic::error(
+                            codes::E2101,
+                            "high-level geometry lowering inside a space with `Inset` is not supported",
+                            geo.span,
+                        )
+                        .with_help("move the derived table into an explicit `Derive` and render a primitive mark"),
+                    );
+                }
+            }
+            analysis.spaces.push(SpaceIr {
+                data: data_ref,
+                frame,
+                layers: source_layers,
+                geometries: primitive_geometries,
+                guides,
+                scales,
+                theme,
+                projection,
+                coords,
+                view,
+                span,
+            });
+            self.space_vars = previous_space_vars;
+            self.row_context_tables = previous_row_context;
+            return analysis;
+        }
+
         let mut pending = Vec::new();
         for geo in geometry_layers {
             if histogram_annotation_mode && geo.kind != GeometryKind::Histogram {
@@ -287,6 +347,7 @@ impl Analyzer<'_> {
             analysis.spaces.push(SpaceIr {
                 data: data_ref,
                 frame,
+                layers: Vec::new(),
                 geometries: Vec::new(),
                 guides,
                 scales,
@@ -305,7 +366,8 @@ impl Analyzer<'_> {
             produced.view = view;
         }
         // Space-scope bindings do not leak into sibling spaces (spec §9.6).
-        self.space_vars = HashMap::new();
+        self.space_vars = previous_space_vars;
+        self.row_context_tables = previous_row_context;
         analysis
     }
 
@@ -774,7 +836,542 @@ impl Analyzer<'_> {
         }
     }
 
-    fn space_data(&mut self, space: &SpaceBlock) -> (SpaceDataRef, ActiveTable) {
+    fn inset(
+        &mut self,
+        block: &InsetBlock,
+        parent_table: &ActiveTable,
+        derived_out: &mut Vec<DeriveIr>,
+    ) -> Option<InsetIr> {
+        let span = node_span(block.syntax());
+        let args = block.args();
+        let mut data_ref = None;
+        let mut child_table = None;
+        let mut match_rules = Vec::new();
+        let mut width = None;
+        let mut height = None;
+        let mut size_number = None;
+        let mut size_column = None;
+        let mut min_size = 16.0;
+        let mut max_size = 48.0;
+        let mut scale_policy = InsetScalePolicyIr::Shared;
+        let mut guides = false;
+        let mut clip = InsetClipIr::Rect;
+        let mut padding = 2.0;
+        let mut placement = InsetPlacementIr::Center;
+        let mut dx = 0.0;
+        let mut dy = 0.0;
+        let mut anchor = InsetAnchorIr::Position;
+
+        for arg in &args {
+            let Some(key) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            match key.as_str() {
+                "data" => {
+                    if let Some((data, table)) = self.inset_data_ref(arg) {
+                        data_ref = Some(data);
+                        child_table = Some(table);
+                    }
+                }
+                "match" => {
+                    if let Some(table) = child_table.as_ref() {
+                        match_rules = self.inset_match_rules(arg, table);
+                    }
+                }
+                "width" => width = self.inset_number_arg(arg, "`width`"),
+                "height" => height = self.inset_number_arg(arg, "`height`"),
+                "size" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Number) => {
+                        size_number = self.inset_number_arg(arg, "`size`");
+                    }
+                    Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
+                        size_column = Some(self.resolve_column(&name, parent_table));
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        codes::E2106,
+                        "`size` expects a number or a numeric column in the parent table",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                "minSize" => {
+                    if let Some(value) = self.inset_number_arg(arg, "`minSize`") {
+                        min_size = value;
+                    }
+                }
+                "maxSize" => {
+                    if let Some(value) = self.inset_number_arg(arg, "`maxSize`") {
+                        max_size = value;
+                    }
+                }
+                "scales" => {
+                    if let Some(value) = self.inset_string_arg(arg, "`scales`") {
+                        match value.as_str() {
+                            "shared" => scale_policy = InsetScalePolicyIr::Shared,
+                            "local" => scale_policy = InsetScalePolicyIr::Local,
+                            _ => self.diag(Diagnostic::error(
+                                codes::E2101,
+                                "`scales` must be \"shared\" or \"local\"",
+                                key_span,
+                            )),
+                        }
+                    }
+                }
+                "guides" => {
+                    if let Some(value) = self.inset_bool_arg(arg, "`guides`") {
+                        guides = value;
+                    }
+                }
+                "clip" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        match string_value(&lit.text().unwrap_or_default()).as_str() {
+                            "rect" => clip = InsetClipIr::Rect,
+                            "circle" => clip = InsetClipIr::Circle,
+                            other => self.diag(Diagnostic::error(
+                                codes::E2101,
+                                format!(
+                                    "`clip` must be \"rect\", \"circle\", or false, not {other:?}"
+                                ),
+                                node_span(lit.syntax()),
+                            )),
+                        }
+                    }
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Bool) => {
+                        if lit.text().as_deref() == Some("false") {
+                            clip = InsetClipIr::None;
+                        } else {
+                            self.diag(Diagnostic::error(
+                                codes::E2101,
+                                "`clip` must be \"rect\", \"circle\", or false",
+                                node_span(lit.syntax()),
+                            ));
+                        }
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        codes::E2101,
+                        "`clip` must be \"rect\", \"circle\", or false",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                "padding" => {
+                    if let Some(value) = self.inset_number_arg(arg, "`padding`") {
+                        padding = value.max(0.0);
+                    }
+                }
+                "placement" => {
+                    if let Some(value) = self.inset_string_arg(arg, "`placement`") {
+                        match value.as_str() {
+                            "center" => placement = InsetPlacementIr::Center,
+                            "mark-center" => placement = InsetPlacementIr::MarkCenter,
+                            _ => self.diag(Diagnostic::error(
+                                codes::E2101,
+                                "`placement` must be \"center\" or \"mark-center\"",
+                                key_span,
+                            )),
+                        }
+                    }
+                }
+                "dx" => {
+                    if let Some(value) = self.inset_number_arg(arg, "`dx`") {
+                        dx = value;
+                    }
+                }
+                "dy" => {
+                    if let Some(value) = self.inset_number_arg(arg, "`dy`") {
+                        dy = value;
+                    }
+                }
+                "anchor" => {
+                    if let Some(value) = self.inset_string_arg(arg, "`anchor`") {
+                        match value.as_str() {
+                            "position" => anchor = InsetAnchorIr::Position,
+                            "centroid" => anchor = InsetAnchorIr::Centroid,
+                            _ => self.diag(Diagnostic::error(
+                                codes::E2105,
+                                "`anchor` must be \"position\" or \"centroid\"",
+                                key_span,
+                            )),
+                        }
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E2101,
+                    format!("unsupported Inset argument `{key}`"),
+                    key_span,
+                )),
+            }
+        }
+
+        if match_rules.is_empty() {
+            if let (Some(table), Some(match_arg)) = (
+                child_table.as_ref(),
+                args.iter()
+                    .find(|arg| arg.key().as_deref() == Some("match")),
+            ) {
+                match_rules = self.inset_match_rules(match_arg, table);
+            }
+        }
+
+        if child_table.is_some()
+            && match_rules.is_empty()
+            && !args.iter().any(|arg| arg.key().as_deref() == Some("match"))
+        {
+            self.diag(
+                Diagnostic::error(codes::E2103, "`Inset` requires an explicit `match:`", span)
+                    .with_help("write an equi-match such as `match: [city => city]`"),
+            );
+        }
+
+        let Some(data_ref) = data_ref else {
+            self.diag(Diagnostic::error(
+                codes::E2102,
+                "`Inset` requires `data:` naming a chart table or derived table",
+                span,
+            ));
+            return None;
+        };
+        let child_table = child_table.unwrap_or_else(|| ActiveTable {
+            columns: Vec::new(),
+        });
+
+        if (width.is_some() || height.is_some()) && (size_number.is_some() || size_column.is_some())
+        {
+            self.diag(Diagnostic::error(
+                codes::E2106,
+                "`Inset` cannot combine `size` with `width` or `height`",
+                span,
+            ));
+        }
+        if min_size > max_size {
+            std::mem::swap(&mut min_size, &mut max_size);
+        }
+        let size = match size_column {
+            Some(column) => InsetSizeIr::Mapped {
+                column,
+                min: min_size.max(0.0),
+                max: max_size.max(0.0),
+            },
+            None => {
+                let w = width.or(size_number).unwrap_or(32.0).max(0.0);
+                let h = height.or(size_number).unwrap_or(w).max(0.0);
+                InsetSizeIr::Fixed {
+                    width: w,
+                    height: h,
+                }
+            }
+        };
+
+        let mut inset_theme: Option<ThemeIr> = None;
+        let mut inset_guides = GuideOverridesIr::default();
+        let mut inset_scales = Vec::new();
+        let inset_lets = block
+            .items()
+            .into_iter()
+            .filter_map(|item| match item {
+                InsetItem::Let(decl) => Some(decl),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        for item in block.items() {
+            match item {
+                InsetItem::Theme(decl) => {
+                    if let Some(theme) = self.theme_decl(&decl) {
+                        inset_theme = Some(theme);
+                    }
+                }
+                InsetItem::Scale(decl) => {
+                    if let Some(scale) = self.scale_decl(&decl, &child_table) {
+                        inset_scales.push(scale);
+                    }
+                }
+                InsetItem::Guide(decl) => self.guide_decl(&decl, &mut inset_guides),
+                InsetItem::Space(_) | InsetItem::Let(_) | InsetItem::Error(_) => {}
+            }
+        }
+
+        let previous_space_vars = self.space_vars.clone();
+        let mut inset_scope_vars = previous_space_vars.clone();
+        inset_scope_vars.extend(self.collect_let_decls(&inset_lets));
+        self.space_vars = inset_scope_vars;
+
+        let mut child_spaces = Vec::new();
+        for item in block.items() {
+            if let InsetItem::Space(space) = item {
+                let mut analysis =
+                    self.space_with_default(&space, Some((data_ref.clone(), child_table.clone())));
+                derived_out.extend(analysis.derived);
+                for child in &mut analysis.spaces {
+                    if child.theme.is_none() {
+                        child.theme = inset_theme.clone();
+                    }
+                    child.guides = merge_guide_overrides(&inset_guides, &child.guides);
+                    if !inset_scales.is_empty() {
+                        let mut scales = inset_scales.clone();
+                        scales.extend(child.scales.clone());
+                        child.scales = scales;
+                    }
+                }
+                child_spaces.extend(analysis.spaces);
+            }
+        }
+        self.space_vars = previous_space_vars;
+        if child_spaces.is_empty() {
+            self.diag(Diagnostic::warning(
+                codes::W2001,
+                "`Inset` block contains no child Space",
+                span,
+            ));
+        }
+
+        Some(InsetIr {
+            data: data_ref,
+            match_rules,
+            size,
+            scale_policy,
+            guides,
+            clip,
+            padding,
+            placement,
+            dx,
+            dy,
+            anchor,
+            child_spaces,
+            span,
+        })
+    }
+
+    fn inset_data_ref(&mut self, arg: &Arg) -> Option<(SpaceDataRef, ActiveTable)> {
+        match arg.value() {
+            Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) if name.qualifier().is_none() => {
+                let table_name = name.name().unwrap_or_default();
+                if let Some(schema) = self.derived.get(&table_name) {
+                    return Some((
+                        SpaceDataRef::Derived(table_name),
+                        ActiveTable::from_ir(schema),
+                    ));
+                }
+                if self.table_names.contains(&table_name) {
+                    let table = self.table_active(&table_name);
+                    return Some((SpaceDataRef::Table(table_name), table));
+                }
+                self.diag(Diagnostic::error(
+                    codes::E2102,
+                    format!("unknown inset child table `{table_name}`"),
+                    node_span(name.syntax()),
+                ));
+                None
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E2102,
+                    "`Inset(data:)` must name a chart table or derived table",
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn inset_match_rules(&mut self, arg: &Arg, child_table: &ActiveTable) -> Vec<InsetMatchIr> {
+        let Some(value) = arg.value() else {
+            return Vec::new();
+        };
+        let ValueExpr::Map(map) = value else {
+            self.diag(Diagnostic::error(
+                codes::E2103,
+                "`match` expects a map such as `[child_key => parent_key]`",
+                node_span(value.syntax()),
+            ));
+            return Vec::new();
+        };
+        let mut rules = Vec::new();
+        for entry in map.entries() {
+            let span = node_span(entry.syntax());
+            let Some(child_expr) = entry.key() else {
+                continue;
+            };
+            let Some(parent_expr) = entry.value() else {
+                continue;
+            };
+            let Some(child) = self.inset_child_match_column(&child_expr, child_table) else {
+                continue;
+            };
+            let Some(parent) = self.inset_parent_match_column(&parent_expr) else {
+                continue;
+            };
+            if !match_types_compatible(child.dtype, parent.column().dtype) {
+                self.diag(Diagnostic::error(
+                    codes::E2105,
+                    format!(
+                        "inset match compares `{}` ({:?}) with `{}` ({:?})",
+                        child.name,
+                        child.dtype,
+                        parent.column().name,
+                        parent.column().dtype
+                    ),
+                    span,
+                ));
+            }
+            rules.push(InsetMatchIr {
+                child,
+                parent,
+                span,
+            });
+        }
+        rules
+    }
+
+    fn inset_child_match_column(
+        &mut self,
+        value: &ValueExpr,
+        child_table: &ActiveTable,
+    ) -> Option<ColumnRef> {
+        match value {
+            ValueExpr::Algebra(AlgebraExpr::Name(name)) if name.qualifier().is_none() => {
+                Some(self.resolve_column(name, child_table))
+            }
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E2103,
+                    "left side of an inset match must be a child-table column",
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+        }
+    }
+
+    fn inset_parent_match_column(&mut self, value: &ValueExpr) -> Option<InsetParentRefIr> {
+        let ValueExpr::Algebra(AlgebraExpr::Name(name)) = value else {
+            self.diag(Diagnostic::error(
+                codes::E2104,
+                "right side of an inset match must be a current or parent row column",
+                node_span(value.syntax()),
+            ));
+            return None;
+        };
+        let qualifier = name.qualifier();
+        let table_index = match qualifier.as_deref() {
+            None => 0,
+            Some("parent") => 1,
+            Some(other) => {
+                self.diag(Diagnostic::error(
+                    codes::E2104,
+                    format!("unknown row-context qualifier `{other}`"),
+                    node_span(name.syntax()),
+                ));
+                return None;
+            }
+        };
+        let Some(table) = self.row_context_tables.get(table_index).cloned() else {
+            self.diag(Diagnostic::error(
+                codes::E2104,
+                "`parent.` reference has no parent row context here",
+                node_span(name.syntax()),
+            ));
+            return None;
+        };
+        let column = if qualifier.is_some() {
+            let col_name = name.name().unwrap_or_default();
+            let span = name
+                .ident_span()
+                .unwrap_or_else(|| node_span(name.syntax()));
+            match table.get(&col_name) {
+                Some(dtype) => ColumnRef {
+                    name: col_name,
+                    dtype,
+                    span,
+                },
+                None => {
+                    self.diag(Diagnostic::error(
+                        codes::E1101,
+                        format!("unknown parent row column `{col_name}`"),
+                        span,
+                    ));
+                    ColumnRef {
+                        name: col_name,
+                        dtype: DataType::Unknown,
+                        span,
+                    }
+                }
+            }
+        } else {
+            self.resolve_column(name, &table)
+        };
+        if qualifier.is_some() {
+            Some(InsetParentRefIr::Parent(column))
+        } else {
+            Some(InsetParentRefIr::Current(column))
+        }
+    }
+
+    fn inset_number_arg(&mut self, arg: &Arg, label: &str) -> Option<f64> {
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Number) => {
+                let value = lit.text().and_then(|text| text.parse::<f64>().ok())?;
+                if value.is_finite() {
+                    Some(value)
+                } else {
+                    self.diag(Diagnostic::error(
+                        codes::E2106,
+                        format!("{label} expects a finite number"),
+                        node_span(lit.syntax()),
+                    ));
+                    None
+                }
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E2106,
+                    format!("{label} expects a number"),
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn inset_string_arg(&mut self, arg: &Arg, label: &str) -> Option<String> {
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                Some(string_value(&lit.text().unwrap_or_default()))
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E2101,
+                    format!("{label} expects a string literal"),
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn inset_bool_arg(&mut self, arg: &Arg, label: &str) -> Option<bool> {
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Bool) => {
+                Some(lit.text().as_deref() == Some("true"))
+            }
+            Some(value) => {
+                self.diag(Diagnostic::error(
+                    codes::E2101,
+                    format!("{label} expects a boolean"),
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn space_data(
+        &mut self,
+        space: &SpaceBlock,
+        default_data: Option<(SpaceDataRef, ActiveTable)>,
+    ) -> (SpaceDataRef, ActiveTable) {
         let data_arg = space
             .args()
             .into_iter()
@@ -807,10 +1404,12 @@ impl Analyzer<'_> {
             }
         }
 
-        (
-            SpaceDataRef::Primary,
-            ActiveTable::from_schema(self.primary),
-        )
+        default_data.unwrap_or_else(|| {
+            (
+                SpaceDataRef::Primary,
+                ActiveTable::from_schema(self.primary),
+            )
+        })
     }
 
     // --- Algebra frame (spec §8, §13.5) ---
@@ -934,6 +1533,21 @@ impl Analyzer<'_> {
         let span = name
             .ident_span()
             .unwrap_or_else(|| node_span(name.syntax()));
+        if let Some(qualifier) = name.qualifier() {
+            self.diag(
+                Diagnostic::error(
+                    codes::E2104,
+                    format!("qualified row reference `{qualifier}.{col_name}` is only valid in `Inset(match:)`"),
+                    node_span(name.syntax()),
+                )
+                .with_help("use `parent.column` only on the right side of an inset match rule"),
+            );
+            return ColumnRef {
+                name: col_name,
+                dtype: DataType::Unknown,
+                span,
+            };
+        }
         match table.get(&col_name) {
             Some(dtype) => ColumnRef {
                 name: col_name,
@@ -1102,6 +1716,43 @@ fn is_lowered_geometry(geo: &GeometryIr) -> bool {
         || is_interval_sugar(geo)
 }
 
+fn merge_guide_overrides(
+    inherited: &GuideOverridesIr,
+    local: &GuideOverridesIr,
+) -> GuideOverridesIr {
+    GuideOverridesIr {
+        legend: local.legend.or(inherited.legend),
+        fill_legend: local.fill_legend.or(inherited.fill_legend),
+        stroke_legend: local.stroke_legend.or(inherited.stroke_legend),
+        grid: local.grid.or(inherited.grid),
+        x_label: local.x_label.clone().or_else(|| inherited.x_label.clone()),
+        y_label: local.y_label.clone().or_else(|| inherited.y_label.clone()),
+        x_time_format: local
+            .x_time_format
+            .clone()
+            .or_else(|| inherited.x_time_format.clone()),
+        y_time_format: local
+            .y_time_format
+            .clone()
+            .or_else(|| inherited.y_time_format.clone()),
+        x_tick_label_angle: local.x_tick_label_angle.or(inherited.x_tick_label_angle),
+        y_tick_label_angle: local.y_tick_label_angle.or(inherited.y_tick_label_angle),
+        x_tick_label_rows: local.x_tick_label_rows.or(inherited.x_tick_label_rows),
+        y_tick_label_rows: local.y_tick_label_rows.or(inherited.y_tick_label_rows),
+        grid_shape: local.grid_shape.or(inherited.grid_shape),
+    }
+}
+
+fn match_types_compatible(left: DataType, right: DataType) -> bool {
+    left == DataType::Unknown
+        || right == DataType::Unknown
+        || left == right
+        || matches!(
+            (left, right),
+            (DataType::Integer, DataType::Float) | (DataType::Float, DataType::Integer)
+        )
+}
+
 #[allow(clippy::too_many_arguments)]
 fn push_pending_space(
     analysis: &mut SpaceAnalysis,
@@ -1118,10 +1769,17 @@ fn push_pending_space(
     if pending.is_empty() {
         return;
     }
+    let geometries = std::mem::take(pending);
+    let layers = geometries
+        .iter()
+        .cloned()
+        .map(SpaceLayerIr::Geometry)
+        .collect();
     analysis.spaces.push(SpaceIr {
         data: data_ref.clone(),
         frame: frame.clone(),
-        geometries: std::mem::take(pending),
+        layers,
+        geometries,
         guides,
         scales,
         theme,

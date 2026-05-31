@@ -12,8 +12,8 @@
 use std::collections::HashMap;
 
 use crate::ast::{
-    AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, DeriveDecl, LetDecl, Root, SourceHeader,
-    SpaceBlock, SpaceItem, StatCall, TableDecl, ValueExpr,
+    AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, DeriveDecl, InsetBlock, InsetItem, LetDecl,
+    Root, SourceHeader, SpaceBlock, SpaceItem, StatCall, TableDecl, ValueExpr,
 };
 use crate::parser::parse;
 use crate::syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken};
@@ -229,11 +229,40 @@ impl Printer {
                 let name = call.name().unwrap_or_default();
                 self.call_item(call.syntax(), &name, &call.args());
             }
+            SpaceItem::Inset(inset) => self.inset(inset),
             SpaceItem::Let(decl) => self.let_binding(decl),
             SpaceItem::Scale(decl) | SpaceItem::Guide(decl) | SpaceItem::Theme(decl) => {
                 self.decl(decl)
             }
             SpaceItem::Error(err) => self.raw(err.syntax()),
+        }
+    }
+
+    fn inset(&mut self, inset: &InsetBlock) {
+        let node = inset.syntax();
+        self.emit_standalone(first_code(node));
+        self.block_header("Inset", None, &inset.args());
+        self.append_trailing(brace(node, SyntaxKind::L_BRACE));
+
+        self.indent += 1;
+        for item in inset.items() {
+            self.inset_item(&item);
+        }
+        self.indent -= 1;
+
+        self.emit_standalone(brace(node, SyntaxKind::R_BRACE));
+        self.line("}");
+        self.append_trailing(brace(node, SyntaxKind::R_BRACE));
+    }
+
+    fn inset_item(&mut self, item: &InsetItem) {
+        match item {
+            InsetItem::Space(space) => self.space(space),
+            InsetItem::Let(decl) => self.let_binding(decl),
+            InsetItem::Scale(decl) | InsetItem::Guide(decl) | InsetItem::Theme(decl) => {
+                self.decl(decl)
+            }
+            InsetItem::Error(err) => self.raw(err.syntax()),
         }
     }
 

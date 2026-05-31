@@ -54,6 +54,19 @@ impl Parser {
                 self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
                 self.builder.finish_node();
             }
+            TokenKind::Ident(_)
+                if self.nth_kind(1) == SyntaxKind::DOT
+                    && matches!(
+                        self.nth_kind(2),
+                        SyntaxKind::IDENT | SyntaxKind::QUOTED_IDENT
+                    ) =>
+            {
+                self.builder.start_node(SyntaxKind::ALGEBRA_NAME.into());
+                self.bump(); // qualifier
+                self.bump(); // '.'
+                self.bump(); // field name
+                self.builder.finish_node();
+            }
             TokenKind::Ident(_) | TokenKind::QuotedIdent(_) => {
                 self.builder.start_node(SyntaxKind::ALGEBRA_NAME.into());
                 self.bump();

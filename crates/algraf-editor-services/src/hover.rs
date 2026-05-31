@@ -192,6 +192,7 @@ fn call_name_context_at(text: &str, offset: usize) -> Option<CallNameContext> {
         let context = match node.kind() {
             SyntaxKind::CHART_BLOCK
             | SyntaxKind::SPACE_BLOCK
+            | SyntaxKind::INSET_BLOCK
             | SyntaxKind::SCALE_DECL
             | SyntaxKind::GUIDE_DECL
             | SyntaxKind::THEME_DECL

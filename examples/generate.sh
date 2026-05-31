@@ -9,6 +9,7 @@ charts=(
     scatter
     line
     sparkline
+    inset_sparklines
     grouped_bar
     stacked_bar
     horizontal_bar
@@ -137,10 +138,12 @@ charts=(
     radar
     radial_bar
     polar_start_angle
+    nested_insets
     temporal_literal
     off_axis_time
     time_only_anchor
     us_city_bubbles
+    inset_city_pies
     flight_routes_map
     tooltips
     highlight

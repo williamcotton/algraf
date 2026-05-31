@@ -80,7 +80,7 @@ fn signature_params(name: &str) -> Option<Vec<&'static str>> {
     match name {
         "Algraf" => Some(registry::declaration_arg_names(name).to_vec()),
         "Chart" => Some(registry::CHART_ARGS.to_vec()),
-        "Scale" | "Guide" | "Theme" | "Layout" | "Style" | "Stop" => {
+        "Scale" | "Guide" | "Theme" | "Layout" | "Inset" | "Style" | "Stop" => {
             Some(registry::declaration_arg_names(name).to_vec())
         }
         "Bin" | "Smooth" | "StepVertices" | "JitterPoints" | "VectorEndpoints" | "CurveSample"

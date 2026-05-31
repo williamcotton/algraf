@@ -222,10 +222,59 @@ impl Parser {
                 Some("Scale") => self.decl(SyntaxKind::SCALE_DECL, SyntaxKind::SCALE_KW),
                 Some("Guide") => self.decl(SyntaxKind::GUIDE_DECL, SyntaxKind::GUIDE_KW),
                 Some("Theme") => self.decl(SyntaxKind::THEME_DECL, SyntaxKind::THEME_KW),
+                Some("Inset") => self.inset_block(),
                 Some(_) if self.nth_kind(1) == SyntaxKind::L_PAREN => self.geometry_call(),
                 _ => {
                     let span = self.current_span();
                     self.error(codes::E0007, "unexpected token in space body", span);
+                    self.recover_item(/* in_space */ true);
+                }
+            }
+            if self.pos == before {
+                break;
+            }
+        }
+    }
+
+    pub(super) fn inset_block(&mut self) {
+        self.builder.start_node(SyntaxKind::INSET_BLOCK.into());
+        self.bump_as(SyntaxKind::INSET_KW);
+        self.expect(
+            SyntaxKind::L_PAREN,
+            codes::E0002,
+            "expected '(' after Inset",
+        );
+        self.arg_list();
+        self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
+        self.expect(SyntaxKind::L_BRACE, codes::E0007, "expected '{'");
+        self.inset_body();
+        self.expect(SyntaxKind::R_BRACE, codes::E0008, "expected '}'");
+        self.builder.finish_node();
+    }
+
+    pub(super) fn inset_body(&mut self) {
+        loop {
+            if self.at(SyntaxKind::R_BRACE) || self.at_eof() {
+                break;
+            }
+            if self.at_kw("Derive")
+                || self.at_kw("Table")
+                || self.at_kw("Parse")
+                || self.at_kw("Layout")
+                || self.at_kw("Chart")
+            {
+                break;
+            }
+            let before = self.pos;
+            match self.current_ident_text() {
+                Some("Space") => self.space_block(),
+                Some("let") => self.let_decl(),
+                Some("Scale") => self.decl(SyntaxKind::SCALE_DECL, SyntaxKind::SCALE_KW),
+                Some("Guide") => self.decl(SyntaxKind::GUIDE_DECL, SyntaxKind::GUIDE_KW),
+                Some("Theme") => self.decl(SyntaxKind::THEME_DECL, SyntaxKind::THEME_KW),
+                _ => {
+                    let span = self.current_span();
+                    self.error(codes::E0007, "unexpected token in inset body", span);
                     self.recover_item(/* in_space */ true);
                 }
             }

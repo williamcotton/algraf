@@ -5,9 +5,14 @@
 //! mark placement, determinism, and a full-image comparison against the
 //! SVG-rasterized baseline within a documented tolerance.
 
-use algraf_data::{read_csv_str, Table};
-use algraf_render::{render, render_raster, RasterImage, Theme};
-use algraf_semantics::analyze;
+use std::collections::HashMap;
+
+use algraf_data::{read_csv_str, DataFrame, Table};
+use algraf_render::{
+    render, render_raster, render_raster_with_tables, render_with_tables, RasterImage,
+    RasterResult, Theme,
+};
+use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
 use resvg::usvg::{Options, Tree};
 use tiny_skia::{Pixmap, Transform};
@@ -30,6 +35,56 @@ fn svg_string(source: &str, csv: &str, theme_override: Option<&str>) -> String {
         .ir
         .expect("ir");
     render(&ir, &frame, &Theme::minimal(), theme_override)
+        .expect("svg")
+        .svg
+}
+
+fn raster_with_tables(
+    source: &str,
+    primary_csv: &str,
+    tables: &[(&str, &str)],
+    theme_override: Option<&str>,
+) -> RasterResult {
+    let frame = read_csv_str(primary_csv).expect("primary csv").frame;
+    let mut named = HashMap::<String, DataFrame>::new();
+    let mut schemas = HashMap::new();
+    for (name, csv) in tables {
+        let table = read_csv_str(csv).expect("named csv").frame;
+        schemas.insert((*name).to_string(), table.schema().to_vec());
+        named.insert((*name).to_string(), table);
+    }
+    let parsed = parse(source);
+    let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
+    let ir = analysis.ir.expect("ir");
+    render_raster_with_tables(
+        &ir,
+        &frame,
+        &named,
+        &Theme::minimal(),
+        theme_override,
+        SCALE,
+    )
+    .expect("raster")
+}
+
+fn svg_string_with_tables(
+    source: &str,
+    primary_csv: &str,
+    tables: &[(&str, &str)],
+    theme_override: Option<&str>,
+) -> String {
+    let frame = read_csv_str(primary_csv).expect("primary csv").frame;
+    let mut named = HashMap::<String, DataFrame>::new();
+    let mut schemas = HashMap::new();
+    for (name, csv) in tables {
+        let table = read_csv_str(csv).expect("named csv").frame;
+        schemas.insert((*name).to_string(), table.schema().to_vec());
+        named.insert((*name).to_string(), table);
+    }
+    let parsed = parse(source);
+    let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
+    let ir = analysis.ir.expect("ir");
+    render_with_tables(&ir, &frame, &named, &Theme::minimal(), theme_override)
         .expect("svg")
         .svg
 }
@@ -125,6 +180,47 @@ fn raster_matches_svg_baseline_within_tolerance() {
     assert!(
         mean < 2.0,
         "render-model raster diverged from SVG baseline: mean abs diff {mean}",
+    );
+}
+
+#[test]
+fn raster_matches_svg_baseline_for_circle_clipped_insets() {
+    let source = r##"Chart(data: "parents.csv", width: 260, height: 220) {
+  Table child = "child.csv"
+  Space(x * y) {
+    Inset(data: child, match: [id => id], width: 48, height: 48, clip: "circle", guides: false) {
+      Space(t * value) {
+        Point(fill: "#d94801", size: 5)
+      }
+    }
+  }
+}"##;
+    let primary = "id,x,y\nA,1,1\nB,2,2\n";
+    let child = "id,t,value\nA,1,1\nA,2,2\nB,1,3\nB,2,4\n";
+    let model = raster_with_tables(source, primary, &[("child", child)], Some("void"));
+    let baseline = rasterize_svg(&svg_string_with_tables(
+        source,
+        primary,
+        &[("child", child)],
+        Some("void"),
+    ));
+
+    assert!(model
+        .diagnostics
+        .iter()
+        .all(|diagnostic| !diagnostic.code.starts_with('E')));
+    assert!(model
+        .metadata
+        .plots
+        .iter()
+        .any(|plot| plot.id == "p0:i0[0]:s0"));
+    assert_eq!(model.image.width(), baseline.width());
+    assert_eq!(model.image.height(), baseline.height());
+
+    let mean = mean_abs_diff(model.image.data(), baseline.data());
+    assert!(
+        mean < 2.5,
+        "inset render-model raster diverged from SVG baseline: mean abs diff {mean}",
     );
 }
 

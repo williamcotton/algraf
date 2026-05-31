@@ -22,6 +22,7 @@ mod common;
 mod derived;
 mod document;
 mod draw_list;
+mod inset;
 mod legend;
 mod metadata;
 mod panels;
@@ -383,10 +384,13 @@ fn render_with_backend<B: RenderBackend>(
     );
     let scene = RenderScene {
         ir,
+        primary,
+        derived: &derived,
         layout: &plan.layout,
         legends: &plan.legends,
         panels: &plan.panels,
         theme,
+        cli_theme_override,
         limits: &limits,
     };
     let metadata = metadata::build_interaction_metadata(&scene);

@@ -930,6 +930,11 @@ pub struct ColumnDefIr {
 pub struct SpaceIr {
     pub data: SpaceDataRef,
     pub frame: FrameIr,
+    /// Source-ordered layers in this space. This is the rendering order for
+    /// ordinary geometries and recursive inset blocks.
+    pub layers: Vec<SpaceLayerIr>,
+    /// Flat geometry subset retained for scale training, legends, and existing
+    /// callers that do not need recursive layer structure.
     pub geometries: Vec<GeometryIr>,
     pub guides: GuideOverridesIr,
     pub scales: Vec<ScaleIr>,
@@ -949,6 +954,92 @@ pub struct SpaceIr {
     /// before derived tables are computed.
     pub view: CoordinateViewIr,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SpaceLayerIr {
+    Geometry(GeometryIr),
+    Inset(InsetIr),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct InsetIr {
+    pub data: SpaceDataRef,
+    pub match_rules: Vec<InsetMatchIr>,
+    pub size: InsetSizeIr,
+    pub scale_policy: InsetScalePolicyIr,
+    pub guides: bool,
+    pub clip: InsetClipIr,
+    pub padding: f64,
+    pub placement: InsetPlacementIr,
+    pub dx: f64,
+    pub dy: f64,
+    pub anchor: InsetAnchorIr,
+    pub child_spaces: Vec<SpaceIr>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct InsetMatchIr {
+    pub child: ColumnRef,
+    pub parent: InsetParentRefIr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum InsetParentRefIr {
+    Current(ColumnRef),
+    Parent(ColumnRef),
+}
+
+impl InsetParentRefIr {
+    pub fn column(&self) -> &ColumnRef {
+        match self {
+            InsetParentRefIr::Current(column) | InsetParentRefIr::Parent(column) => column,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum InsetSizeIr {
+    Fixed {
+        width: f64,
+        height: f64,
+    },
+    Mapped {
+        column: ColumnRef,
+        min: f64,
+        max: f64,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum InsetScalePolicyIr {
+    #[default]
+    Shared,
+    Local,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum InsetClipIr {
+    #[default]
+    Rect,
+    Circle,
+    None,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum InsetPlacementIr {
+    #[default]
+    Center,
+    MarkCenter,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum InsetAnchorIr {
+    #[default]
+    Position,
+    Centroid,
 }
 
 /// Coordinate-level view controls for a Cartesian space (spec §16.17).

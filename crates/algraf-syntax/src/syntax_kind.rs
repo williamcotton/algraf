@@ -40,6 +40,7 @@ pub enum SyntaxKind {
     COMMA,
     EQ,
     FAT_ARROW,
+    DOT,
     STAR,
     SLASH,
     PLUS,
@@ -50,6 +51,7 @@ pub enum SyntaxKind {
     // the parser so typed accessors can tell a keyword apart from a user name.
     CHART_KW,
     SPACE_KW,
+    INSET_KW,
     DERIVE_KW,
     SCALE_KW,
     GUIDE_KW,
@@ -84,6 +86,8 @@ pub enum SyntaxKind {
     SOURCE_HEADER,
     /// A space block.
     SPACE_BLOCK,
+    /// An `Inset(...) { ... }` block inside a space.
+    INSET_BLOCK,
     /// A `Derive` declaration.
     DERIVE_DECL,
     /// A statistical transform call on the right of a `Derive`.
@@ -149,6 +153,7 @@ impl SyntaxKind {
             TokenKind::Comma => SyntaxKind::COMMA,
             TokenKind::Equal => SyntaxKind::EQ,
             TokenKind::FatArrow => SyntaxKind::FAT_ARROW,
+            TokenKind::Dot => SyntaxKind::DOT,
             TokenKind::Star => SyntaxKind::STAR,
             TokenKind::Slash => SyntaxKind::SLASH,
             TokenKind::Plus => SyntaxKind::PLUS,

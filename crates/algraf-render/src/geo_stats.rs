@@ -314,7 +314,7 @@ fn ring_contains(ring: &LineString<f64>, x: f64, y: f64) -> bool {
 
 /// The centroid of a geometry: the area-weighted centroid for areal geometries,
 /// the mean vertex otherwise. Returns `None` for an empty geometry.
-fn centroid_point(geometry: &Geometry<f64>) -> Option<Point<f64>> {
+pub(crate) fn centroid_point(geometry: &Geometry<f64>) -> Option<Point<f64>> {
     match geometry {
         Geometry::Point(p) => Some(*p),
         Geometry::MultiPoint(MultiPoint(points)) => mean_point(points.iter().map(|p| p.0)),

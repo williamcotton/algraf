@@ -4,7 +4,7 @@ use algraf_core::{codes, Diagnostic};
 use algraf_data::{ColumnDef, DataFrame, DataValueRef, Table};
 use algraf_semantics::{
     AxisSelectorIr, ChartIr, ColumnRef, CoordsIr, FacetGridIr, FacetLabelModeIr, FacetScaleModeIr,
-    FrameIr, GeometryIr, GuideIr, ScaleIr, SpaceIr,
+    FrameIr, GuideIr, ScaleIr, SpaceIr, SpaceLayerIr,
 };
 
 use crate::domains::{train_space_domains, AxisDomainHints, SpaceDomainHints};
@@ -23,7 +23,7 @@ use super::spatial::{build_spatial_plan, is_spatial_space};
 pub(super) struct Panel<'t> {
     pub(super) table: &'t dyn Table,
     pub(super) scaled: ScaledSpace,
-    pub(super) geometries: &'t [GeometryIr],
+    pub(super) layers: &'t [SpaceLayerIr],
     pub(super) plot: Rect,
     pub(super) rows: Option<Vec<usize>>,
     pub(super) label: Option<String>,
@@ -174,7 +174,7 @@ pub(super) fn build_render_plan<'t>(
                     panels.push(Panel {
                         table,
                         scaled,
-                        geometries: &space.geometries,
+                        layers: &space.layers,
                         plot: layout.plot,
                         rows: None,
                         label: None,
@@ -235,7 +235,7 @@ pub(super) fn build_render_plan<'t>(
                     Some((scaled, plot)) => panels.push(Panel {
                         table,
                         scaled,
-                        geometries: &space.geometries,
+                        layers: &space.layers,
                         plot,
                         rows: Some(rows),
                         label: Some(facet_grid_label(
@@ -288,7 +288,7 @@ pub(super) fn build_render_plan<'t>(
                     Some((scaled, plot)) => panels.push(Panel {
                         table,
                         scaled,
-                        geometries: &space.geometries,
+                        layers: &space.layers,
                         plot,
                         rows: Some(rows),
                         label: Some(facet_value_label(
@@ -336,7 +336,7 @@ pub(super) fn build_render_plan<'t>(
                     Some(scaled) => panels.push(Panel {
                         table,
                         scaled,
-                        geometries: &space.geometries,
+                        layers: &space.layers,
                         plot: layout.plot,
                         rows: None,
                         label: None,
@@ -367,7 +367,7 @@ pub(super) fn build_render_plan<'t>(
                     Some((scaled, plot)) => panels.push(Panel {
                         table,
                         scaled,
-                        geometries: &space.geometries,
+                        layers: &space.layers,
                         plot,
                         rows: None,
                         label: None,

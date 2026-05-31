@@ -78,6 +78,14 @@ fn test_stdin_value_formatting() {
 }
 
 #[test]
+fn test_inset_formatting() {
+    let source = "Chart(data:\"p.csv\"){Table mix=\"mix.csv\" Space(x*y){Inset(data:mix,match:[id=>parent.id],size:32){Space(value,coords:\"polar\",theta:\"y\"){Bar(fill:category,layout:\"fill\")}}}}";
+    let formatted = format(source);
+    assert!(formatted.contains("Inset(data: mix, match: [id => parent.id], size: 32) {"));
+    assert!(formatted.contains("Space(value, coords: \"polar\", theta: \"y\") {"));
+}
+
+#[test]
 fn test_standalone_comment_preserved() {
     let source =
         "Chart(data: \"d.csv\") {\n    // a note\n    Space(a * b) {\n        Point()\n    }\n}";

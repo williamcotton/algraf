@@ -1,6 +1,6 @@
 # Algraf v0.44.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_43_PLAN.md`](V0_43_PLAN.md)
@@ -146,8 +146,9 @@ native.
 
 ## Feature Target Sketches
 
-The sketches in this section are non-runnable design targets until the feature
-is promoted into the spec and implementation.
+The sketches in this section are now implemented by the normative spec, runtime,
+and compact examples in `examples/inset_city_pies.ag`,
+`examples/inset_sparklines.ag`, and `examples/nested_insets.ag`.
 
 ### City map with demographic pies
 
@@ -447,7 +448,7 @@ raster, and metadata parity.
 
 ### 1. Specify inset syntax and diagnostics
 
-Status: Planned.
+Status: Implemented.
 
 - Add normative spec sections for `Inset` as a space item and for the allowed
   `Inset(...)` arguments.
@@ -464,7 +465,7 @@ Status: Planned.
 
 ### 2. Add inset IR and row-context semantics
 
-Status: Planned.
+Status: Implemented.
 
 - Replace or supplement flat `SpaceIr.geometries` with a layer/item model that
   can hold both geometries and inset blocks in source order.
@@ -480,7 +481,7 @@ Status: Planned.
 
 ### 3. Implement recursive render planning
 
-Status: Planned.
+Status: Implemented.
 
 - Refactor render planning from a flat panel list into a scene representation
   that can contain child inset scenes.
@@ -497,7 +498,7 @@ Status: Planned.
 
 ### 4. Define and implement scale sharing
 
-Status: Planned.
+Status: Implemented.
 
 - Implement `scales: "shared"` and `scales: "local"` for child spaces.
 - For shared scales, train domains across all matched child rows for one inset
@@ -512,7 +513,7 @@ Status: Planned.
 
 ### 5. Add recursive mark budgets and diagnostics
 
-Status: Planned.
+Status: Implemented.
 
 - Extend v0.43.0 mark-budget estimation to recursive inset scenes.
 - Count parent rows, matched child rows, derived child rows, and emitted child
@@ -525,7 +526,7 @@ Status: Planned.
 
 ### 6. Support all render backends and metadata
 
-Status: Planned.
+Status: Implemented.
 
 - Emit nested inset scenes through SVG, draw-list, and render-model raster using
   the same planned scene.
@@ -540,7 +541,7 @@ Status: Planned.
 
 ### 7. Add inset examples and README tutorial coverage
 
-Status: Planned.
+Status: Implemented.
 
 - Add a checked-in compact example that replaces city points with inset pies on
   a projected map.
@@ -554,7 +555,7 @@ Status: Planned.
 
 ### 8. Document design limits
 
-Status: Planned.
+Status: Implemented.
 
 - Document when to use insets and when to prefer faceting, aggregation, labels,
   or separate charts.
@@ -567,7 +568,7 @@ Status: Planned.
 
 ### Spatial geometry anchors
 
-Status: Planned.
+Status: Implemented.
 
 - Support `anchor: "centroid"` for spatial `Space(geom)` rows if a deterministic
   projected centroid is straightforward.
@@ -578,7 +579,7 @@ Status: Planned.
 
 ### Composite match keys
 
-Status: Planned.
+Status: Implemented.
 
 - Support composite matches such as
   `match: [city => parent.city, category => category]`.
@@ -589,7 +590,7 @@ Status: Planned.
 
 ### Inset placement controls
 
-Status: Planned.
+Status: Implemented.
 
 - Add `dx`/`dy` offsets and deterministic placement values where examples need
   them.
@@ -599,7 +600,7 @@ Status: Planned.
 
 ### Accessibility for nested charts
 
-Status: Planned.
+Status: Implemented.
 
 - Add concise generated labels for inset groups in SVG and sidecar metadata.
 - Ensure screen-reader metadata does not explode for charts with many repeated

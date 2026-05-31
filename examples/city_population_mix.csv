@@ -1,0 +1,25 @@
+city,age_group,count
+New York,under 25,2600
+New York,25-64,4700
+New York,65+,1100
+Los Angeles,under 25,1300
+Los Angeles,25-64,2100
+Los Angeles,65+,500
+Chicago,under 25,850
+Chicago,25-64,1500
+Chicago,65+,350
+Houston,under 25,760
+Houston,25-64,1240
+Houston,65+,300
+Phoenix,under 25,470
+Phoenix,25-64,900
+Phoenix,65+,230
+Seattle,under 25,190
+Seattle,25-64,470
+Seattle,65+,90
+Miami,under 25,120
+Miami,25-64,260
+Miami,65+,90
+Denver,under 25,180
+Denver,25-64,430
+Denver,65+,105

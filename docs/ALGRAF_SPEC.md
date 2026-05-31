@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.43.0
+Status: Draft 0.44.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.43.0 specification.
+This working copy is the active Draft 0.44.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -348,9 +348,9 @@ two axes of a two-dimensional frame before scale training and rendering.
 `transpose` MUST NOT be combined with `coords: "polar"`; implementations MUST
 emit `E1911` and keep the space Cartesian for recovery.
 
-Nested spaces are reserved for later versions.
-
-The first implementation SHOULD reject nested `Space` blocks with a diagnostic.
+Nested spaces are legal only as children of an `Inset` block (§7.3). A `Space`
+nested directly in another `Space` outside `Inset` is reserved for later
+versions and SHOULD produce a diagnostic.
 
 ### 4.3 Algebra
 
@@ -1112,6 +1112,15 @@ SpaceBlock     ::= "Space" "(" Algebra SpaceArgs? ")" BlockStart SpaceBody Block
 SpaceArgs      ::= "," Arg ("," Arg)* ","?
 SpaceBody      ::= SpaceItem*
 SpaceItem      ::= GeometryCall
+                 | InsetBlock
+                 | LetDecl
+                 | ScaleDecl
+                 | GuideDecl
+                 | ThemeDecl
+                 | ErrorItem
+InsetBlock     ::= "Inset" "(" ArgList? ")" BlockStart InsetBody BlockEnd
+InsetBody      ::= InsetItem*
+InsetItem      ::= SpaceBlock
                  | LetDecl
                  | ScaleDecl
                  | GuideDecl
@@ -1129,7 +1138,8 @@ An empty `Space` body SHOULD produce a warning in CLI render mode.
 
 `Space` MAY include a `data` argument.
 
-`Space(..., data: name)` binds that space to a chart-scoped derived table.
+`Space(..., data: name)` binds that space to a chart-scoped named table or
+derived table.
 
 `Space` MAY include `coords`, `theta`, and `innerRadius` arguments for a polar
 coordinate system (§4.2, §16.16). These are ordinary named `Arg` nodes — no
@@ -1140,7 +1150,8 @@ grammar change — validated in semantics (`E1901`–`E1905`).
 `zoomX`/`zoomY` clip the visible panel range after stats and scale training, and
 `aspect` controls the final plot rectangle's x/y unit ratio.
 
-The `data` argument MUST be a bare identifier that resolves to a derived table.
+The `data` argument MUST be a bare identifier that resolves to a named or
+derived table.
 
 Example:
 
@@ -1155,6 +1166,59 @@ Space(bin_start * count, data: bins) {
 Space-local themes override chart-level theme values for that space only.
 
 Space-local themes MUST NOT mutate chart-level theme state.
+
+`Inset(...) { ... }` is a first-class `Space` item. It MUST occur inside a
+`Space` body, and its body MUST contain zero or more child `Space` blocks plus
+ordinary local declarations. A `Space` nested directly in another `Space`
+outside an `Inset` remains invalid. An inset renders each child `Space` inside a
+bounded viewport anchored to the current parent row; it is not a geometry call,
+shape shortcut, or raw SVG/HTML injection surface.
+
+`Inset` arguments:
+
+- `data` is required and MUST name a chart-scoped named or derived table.
+- `match` is required and MUST be a map of child-table columns to row-context
+  columns, e.g. `match: [city => city]` or
+  `match: [city => parent.city, category => category]`.
+- `size` gives a square viewport. It MAY be a finite number of pixels or a
+  numeric parent-table column. A mapped `size` uses `minSize` and `maxSize`,
+  defaulting to `12` and `48`.
+- `width` and `height` give a rectangular viewport and MUST NOT be combined with
+  `size`. If only `width` is present, `height` defaults to the same value.
+- `scales` MUST be `"shared"` or `"local"` and defaults to `"shared"`.
+- `guides` is a boolean and defaults to `false`, so repeated child axes and
+  grids are not emitted unless requested.
+- `clip` MUST be `"rect"`, `"circle"`, or `false` and defaults to `"rect"`.
+- `padding`, `dx`, and `dy` are finite pixel numbers and default to `2`, `0`,
+  and `0`.
+- `placement` MUST be `"center"` or `"mark-center"`. `"center"` uses the row
+  anchor. `"mark-center"` uses the rendered mark center when it can be computed
+  (notably polar area marks such as pie slices) and otherwise falls back to the
+  row anchor.
+- `anchor` MUST be `"position"` or `"centroid"`. `"position"` anchors to the
+  current row's resolved x/y point. `"centroid"` MAY be used in a spatial
+  `Space(geom)` and anchors to the deterministic projected geometry centroid
+  when one can be computed; otherwise render emits no child marks for that
+  instance.
+
+Inset matching is an explicit equi-match. The left side of each `match` entry
+MUST be an unqualified child-table column. The right side MUST be an
+unqualified current-row column or `parent.<column>` for the immediate parent row
+context in a nested inset. Implementations MUST reject unknown row-context
+qualifiers. Null match values never match, including null-to-null. Matched child
+rows preserve child table order, and duplicate child rows are rendered
+deterministically.
+
+With `scales: "shared"`, each child `Space` trains its position scales across
+the union of all matched child rows for that inset declaration. With
+`scales: "local"`, each inset instance trains from only that instance's matched
+rows. Position guides in child spaces default off, but child marks remain
+ordinary Algraf marks and may carry tooltips, highlights, themes, scales, and
+nested insets. `let`, `Scale`, `Guide`, and `Theme` declarations directly
+inside an `Inset` body apply as inherited defaults to each child `Space`;
+declarations inside a child `Space` override those defaults. Inset contents
+MUST NOT contain user-authored JavaScript, CSS, HTML, external images, or raw SVG
+fragments.
 
 Example:
 
@@ -1281,10 +1345,13 @@ Algebra        ::= BlendExpr
 BlendExpr      ::= CrossExpr ("+" CrossExpr)*
 CrossExpr      ::= NestExpr ("*" NestExpr)*
 NestExpr       ::= PrimaryExpr ("/" PrimaryExpr)*
-PrimaryExpr    ::= Ident
-                 | QuotedIdent
+PrimaryExpr    ::= QualifiedName
                  | "(" Algebra ")"
                  | ErrorExpr
+QualifiedName  ::= Ident
+                 | QuotedIdent
+                 | Ident "." Ident
+                 | Ident "." QuotedIdent
 ```
 
 Operator precedence from tightest to loosest:
@@ -1328,6 +1395,10 @@ Space((lower + upper)) {
 Unparenthesized blend expressions such as `time * lower + upper` and `lower + upper` MUST produce semantic diagnostics.
 
 The formatter MUST NOT remove parentheses that make a blend expression valid.
+
+Qualified algebra names are reserved for row-context references such as
+`parent.id` inside inset `match` maps (§7.3). Outside those contexts, a
+qualified name MUST produce `E2104`.
 
 ### 7.8 Literals
 
@@ -2882,6 +2953,25 @@ pub struct SpaceBlock {
 ```rust
 pub enum SpaceItem {
     Geometry(Spanned<GeometryCall>),
+    Inset(Spanned<InsetBlock>),
+    Scale(Spanned<Call>),
+    Guide(Spanned<Call>),
+    Theme(Spanned<Call>),
+    Error(ErrorNode),
+}
+```
+
+```rust
+pub struct InsetBlock {
+    pub args: Vec<Spanned<Argument>>,
+    pub body: Vec<Spanned<InsetItem>>,
+}
+```
+
+```rust
+pub enum InsetItem {
+    Space(Spanned<SpaceBlock>),
+    Let(Spanned<LetDecl>),
     Scale(Spanned<Call>),
     Guide(Spanned<Call>),
     Theme(Spanned<Call>),
@@ -3558,6 +3648,7 @@ pub struct ChartIr {
 pub struct SpaceIr {
     pub data: SpaceDataRef,
     pub frame: FrameIr,
+    pub layers: Vec<SpaceLayerIr>,
     pub geometries: Vec<GeometryIr>,
     pub span: Span,
 }
@@ -3566,9 +3657,45 @@ pub struct SpaceIr {
 ```rust
 pub enum SpaceDataRef {
     Primary,
+    Table(String),
     Derived(String),
 }
 ```
+
+```rust
+pub enum SpaceLayerIr {
+    Geometry(GeometryIr),
+    Inset(InsetIr),
+}
+```
+
+`layers` preserves source order for geometry calls and inset blocks. The legacy
+`geometries` list is retained for scale training and existing geometry
+lowerings, but emission MUST use `layers` when a space contains insets so marks
+and child scenes render in the order authored.
+
+```rust
+pub struct InsetIr {
+    pub data: SpaceDataRef,
+    pub match_rules: Vec<InsetMatchIr>,
+    pub size: InsetSizeIr,
+    pub scale_policy: InsetScalePolicyIr,
+    pub guides: bool,
+    pub clip: InsetClipIr,
+    pub padding: f64,
+    pub placement: InsetPlacementIr,
+    pub dx: f64,
+    pub dy: f64,
+    pub anchor: InsetAnchorIr,
+    pub child_spaces: Vec<SpaceIr>,
+    pub span: Span,
+}
+```
+
+Inset IR MUST carry validated child data, explicit match rules, viewport
+settings, scale policy, guide/clip policy, child spaces, and source span. The
+semantic analyzer MUST validate child table names, match columns, row-context
+references, size settings, and type compatibility before rendering.
 
 ### 13.4 Derived Table IR
 
@@ -6947,6 +7074,8 @@ y range is `[plot.y + plot.height, plot.y]`.
 
 Data marks SHOULD be clipped to plot area by default.
 
+Inset clips MAY be rectangular or circular, according to `Inset(clip:)`.
+
 SVG clip path IDs MUST be deterministic.
 
 If multiple charts appear in one document later, IDs MUST be unique.
@@ -7011,6 +7140,18 @@ the deterministic SVG of this section; the draw-list backend's sink records an
 equivalent op (§24.6). Because both backends observe the same primitive calls,
 they agree on coordinates and colors by construction, and a new geometry or
 guide primitive reaches every backend at once.
+
+Inset rendering is recursive over the same planned scene. For each inset
+instance, the renderer MUST resolve the parent anchor in pixel coordinates,
+match child rows explicitly, allocate the child viewport, train each child space
+using the declared shared/local policy, and emit child layers through the same
+mark sink using absolute SVG coordinates. Nested insets MUST be supported with a
+deterministic maximum depth of at least 8; exceeding that limit emits `E2109`
+and skips the over-depth child scene. Recursive mark budgets MUST estimate
+matched child output before emission and emit `E2110` when the configured
+budget would be exceeded. Inset clipping MUST be represented as rectangular or
+circular clip scopes in SVG, draw-list, and raster output, or omitted when
+`clip: false`.
 
 ### 18.8 Path Formatting
 
@@ -8851,9 +8992,14 @@ The renderer ships three backends over this seam:
   `caption`, `alt`, and resolved `description` values, using `null` for absent
   values. `legend` is `null` when no legend is present; otherwise it carries the
   resolved `position` (`"right"`, `"bottom"`, `"top"`, or `"left"`) and SVG
-  pixel `rect`. `plots[]` carries every plot area's `id`, `plot_rect`, and
-  `axes` so faceted charts are addressable without re-running layout. A plot MAY
-  include `clip_rect` when coordinate zoom clips data marks (§16.17). `axes.x`
+  pixel `rect`. `plots[]` carries every top-level, faceted, and inset plot
+  area's `id`, `plot_rect`, and `axes` so nested charts are addressable without
+  re-running layout. Top-level plot IDs are `plot0`, `plot1`, etc. Inset plot
+  IDs are hierarchical and include the parent panel, inset declaration index,
+  parent row index, and child-space index, e.g. `p0:i0[3]:s0`. A plot MAY
+  include `clip_rect` when coordinate zoom or an inset clip bounds data marks
+  (§16.17). Circular inset clips report their bounding rectangle in metadata;
+  the draw scene carries the exact circle clip. `axes.x`
   and `axes.y`, when present, describe host-invertible scales with `scale`,
   `domain`, `range`, `format`, and `label`; band scales also carry padding and
   bandwidth metadata. Continuous scale names are `linear`, `log10`, and `sqrt`;
@@ -8864,7 +9010,9 @@ The renderer ships three backends over this seam:
   microseconds; it inverts a band axis by selecting the nearest domain band.
   `marks[]` carries stable `id`, `plot`, `x_px`, `y_px`, optional `clipped:
   true`, `groups`, and display-ready `tooltip` rows for each pickable per-datum
-  mark that survives layout. `groups` maps each highlight key to its
+  mark that survives layout. Top-level mark IDs use `p{panel}:g{geometry}:r{row}`;
+  inset mark IDs prefix the hierarchical inset plot ID, e.g.
+  `p0:i0[3]:s0:g0:r2`. `groups` maps each highlight key to its
   first-appearance-ordered
   values. Host runtimes MAY use the mark coordinates and group values to
   implement host-owned legend selection or plot brushing; Algraf MUST NOT
@@ -8876,9 +9024,9 @@ The renderer ships three backends over this seam:
   number formatting as §18.8 and MUST be deterministic. It is a *complete* scene
   description: every SVG element the renderer emits for the chart body and guides
   has a corresponding draw-list op with identical coordinates and colors. The op
-  set is `clipStart`, `clipEnd`, `rect`, `circle`, `path`, `polygon`, `line`,
-  and `text`; geometry and guide emission both produce these primitives through
-  one shared mark sink, so
+  set is `clipStart`, `circleClipStart`, `clipEnd`, `rect`, `circle`, `path`,
+  `polygon`, `line`, and `text`; geometry, guide, and inset emission all produce
+  these primitives through one shared mark sink, so
   the two backends cannot diverge below the panel level. The draw list covers the
   canvas, background, plot panels (with facet strips and labels), chart
   title/subtitle/caption, per-datum geometry marks (including polar arc/wedge
@@ -9440,6 +9588,26 @@ missing `=>`/stray separator in a map literal)
 `E1913 transpose requires a two-dimensional Cartesian frame`
 
 `E2001 render mark budget exceeded`
+
+`E2101 invalid or unsupported Inset argument`
+
+`E2102 unknown or invalid Inset child data table`
+
+`E2103 invalid or missing Inset match map`
+
+`E2104 invalid Inset row-context reference`
+
+`E2105 unsupported Inset anchor or incompatible match column types`
+
+`E2106 invalid Inset viewport sizing`
+
+`E2107 reserved for inset guide/legend policy errors`
+
+`E2108 reserved for inset placement policy errors`
+
+`E2109 nested Inset depth exceeded`
+
+`E2110 recursive Inset mark budget exceeded`
 
 ### 26.3 Warning Diagnostics
 
@@ -10043,6 +10211,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.40.0 | [`V0_40_PLAN.md`](V0_40_PLAN.md) | ggplot2 comparability: derived stats plus scale and guide control | Implemented |
 | 0.41.0 | [`V0_41_PLAN.md`](V0_41_PLAN.md) | ggplot2 comparability: layout and position control | Implemented |
 | 0.42.0 | [`V0_42_PLAN.md`](V0_42_PLAN.md) | ggplot2 comparability: presentation parity and closure | Implemented |
+| 0.43.0 | [`V0_43_PLAN.md`](V0_43_PLAN.md) | Big-data readiness and backend-friendly data execution | Implemented |
+| 0.44.0 | [`V0_44_PLAN.md`](V0_44_PLAN.md) | Compositional glyph charts and recursive render scenes | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
@@ -10263,6 +10433,15 @@ SpaceBlock     ::= "Space" "(" Algebra SpaceArgs? ")" "{" SpaceBody "}"
 SpaceArgs      ::= "," Arg ("," Arg)* ","?
 SpaceBody      ::= SpaceItem*
 SpaceItem      ::= GeometryCall
+                 | InsetBlock
+                 | LetDecl
+                 | ScaleDecl
+                 | GuideDecl
+                 | ThemeDecl
+                 | ErrorItem
+InsetBlock     ::= "Inset" "(" ArgList? ")" "{" InsetBody "}"
+InsetBody      ::= InsetItem*
+InsetItem      ::= SpaceBlock
                  | LetDecl
                  | ScaleDecl
                  | GuideDecl
@@ -10304,10 +10483,13 @@ Algebra        ::= BlendExpr
 BlendExpr      ::= CrossExpr ("+" CrossExpr)*
 CrossExpr      ::= NestExpr ("*" NestExpr)*
 NestExpr       ::= PrimaryExpr ("/" PrimaryExpr)*
-PrimaryExpr    ::= Ident
-                 | QuotedIdent
+PrimaryExpr    ::= QualifiedName
                  | "(" Algebra ")"
                  | ErrorExpr
+QualifiedName  ::= Ident
+                 | QuotedIdent
+                 | Ident "." Ident
+                 | Ident "." QuotedIdent
 ```
 
 `StdinSentinel` is the bare token `input` or `stdin` and is only semantically
@@ -10377,8 +10559,26 @@ pub struct StatCall {
 #[derive(Debug, Clone)]
 pub enum SpaceItem {
     Geometry(Spanned<GeometryCall>),
+    Inset(Spanned<InsetBlock>),
     Scale(Spanned<Call>),
     Guide(Spanned<Call>),
+    Theme(Spanned<Call>),
+    Error(ErrorNode),
+}
+
+#[derive(Debug, Clone)]
+pub struct InsetBlock {
+    pub args: Vec<Spanned<Argument>>,
+    pub body: Vec<Spanned<InsetItem>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum InsetItem {
+    Space(Spanned<SpaceBlock>),
+    Let(Spanned<LetDecl>),
+    Scale(Spanned<Call>),
+    Guide(Spanned<Call>),
+    Theme(Spanned<Call>),
     Error(ErrorNode),
 }
 

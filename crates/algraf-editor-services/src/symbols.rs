@@ -66,6 +66,15 @@ pub fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol
                                 Vec::new(),
                             ));
                         }
+                        SpaceItem::Inset(inset) => {
+                            space_children.push(symbol(
+                                source,
+                                "Inset",
+                                SymbolKind::OBJECT,
+                                inset.syntax(),
+                                Vec::new(),
+                            ));
+                        }
                         SpaceItem::Scale(decl)
                         | SpaceItem::Guide(decl)
                         | SpaceItem::Theme(decl) => {

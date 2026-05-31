@@ -1,11 +1,13 @@
 //! End-to-end render tests: source + CSV to SVG (spec §18, §24, §27.1).
 
-use algraf_data::{read_csv_str, Table};
+use std::collections::HashMap;
+
+use algraf_data::{read_csv_str, DataFrame, Table};
 use algraf_render::{
-    render, render_embedded, render_with_tables_and_limits, EmbeddedOutputFormat,
-    EmbeddedRenderOptions, RenderLimits, RenderResult, Theme,
+    render, render_embedded, render_with_tables, render_with_tables_and_limits,
+    EmbeddedOutputFormat, EmbeddedRenderOptions, RenderLimits, RenderResult, Theme,
 };
-use algraf_semantics::analyze;
+use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
 
 /// Parse + analyze + render `source` against `csv`, returning the SVG.
@@ -19,6 +21,31 @@ fn render_result(source: &str, csv: &str) -> RenderResult {
     let analysis = analyze(&parsed.syntax(), frame.schema());
     let ir = analysis.ir.expect("ir");
     render(&ir, &frame, &Theme::minimal(), None).expect("render")
+}
+
+fn render_result_with_tables(
+    source: &str,
+    primary_csv: &str,
+    tables: &[(&str, &str)],
+) -> RenderResult {
+    let frame = read_csv_str(primary_csv).expect("primary csv").frame;
+    let mut named = HashMap::<String, DataFrame>::new();
+    let mut schemas = HashMap::new();
+    for (name, csv) in tables {
+        let table = read_csv_str(csv).expect("named csv").frame;
+        schemas.insert((*name).to_string(), table.schema().to_vec());
+        named.insert((*name).to_string(), table);
+    }
+    let parsed = parse(source);
+    let mut analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
+    let mut diagnostics = parsed.into_diagnostics();
+    diagnostics.append(&mut analysis.diagnostics);
+    assert!(
+        diagnostics.iter().all(|d| !d.code.starts_with('E')),
+        "{diagnostics:#?}"
+    );
+    let ir = analysis.ir.expect("ir");
+    render_with_tables(&ir, &frame, &named, &Theme::minimal(), None).expect("render")
 }
 
 #[test]
@@ -42,6 +69,194 @@ fn render_mark_budget_rejects_pathological_raw_points() {
 
     assert!(result.diagnostics.iter().any(|d| d.code == "E2001"));
     assert_eq!(result.svg.matches("<circle").count(), 0);
+}
+
+#[test]
+fn render_inset_pies_inside_parent_points() {
+    let source = r##"Chart(data: "parents.csv", width: 360, height: 260) {
+  Table mix = "mix.csv"
+  Space(x * y) {
+    Inset(data: mix, match: [id => id], size: 46, scales: "shared", guides: false, clip: "circle") {
+      Space(value, coords: "polar", theta: "y") {
+        Bar(fill: category, layout: "fill")
+      }
+    }
+  }
+}"##;
+    let result = render_result_with_tables(
+        source,
+        "id,x,y\nA,1,1\nB,2,2\n",
+        &[(
+            "mix",
+            "id,category,value\nA,one,3\nA,two,2\nB,one,1\nB,two,4\n",
+        )],
+    );
+
+    assert!(result.svg.contains("algraf-inset"));
+    assert!(result.svg.contains("<clipPath"));
+    assert!(result.svg.contains("<circle"));
+    assert!(result.svg.contains("algraf-geom-bar"));
+}
+
+#[test]
+fn render_inset_interaction_metadata_has_nested_paths() {
+    let source = r##"Chart(data: "parents.csv", width: 360, height: 260) {
+  Table child = "child.csv"
+  Space(x * y) {
+    Inset(data: child, match: [id => id], width: 58, height: 32, scales: "shared", guides: false) {
+      Space(t * value) {
+        Point(tooltip: [label], highlight: "label")
+      }
+    }
+  }
+}"##;
+    let result = render_result_with_tables(
+        source,
+        "id,x,y\nA,1,1\nB,2,2\n",
+        &[(
+            "child",
+            "id,t,value,label\nA,1,1,a1\nA,2,2,a2\nB,1,3,b1\nB,2,4,b2\n",
+        )],
+    );
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+
+    assert!(metadata["plots"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|plot| plot["id"] == "p0:i0[0]:s0"));
+    assert!(metadata["marks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|mark| mark["id"] == "p0:i0[0]:s0:g0:r0" && mark["plot"] == "p0:i0[0]:s0"));
+    assert_eq!(
+        metadata["groups"]["label"],
+        serde_json::json!(["a1", "a2", "b1", "b2"])
+    );
+}
+
+#[test]
+fn render_inset_shared_and_local_scales_differ() {
+    let shared = r##"Chart(data: "parents.csv", width: 360, height: 260) {
+  Table trend = "trend.csv"
+  Space(x * y) {
+    Inset(data: trend, match: [id => id], width: 60, height: 30, scales: "shared", guides: false) {
+      Space(t * value) { Line() }
+    }
+  }
+}"##;
+    let local = shared.replace("scales: \"shared\"", "scales: \"local\"");
+    let primary = "id,x,y\nA,1,1\nB,2,2\n";
+    let trend = "id,t,value\nA,1,1\nA,2,2\nB,1,100\nB,2,200\n";
+
+    let shared_svg = render_result_with_tables(shared, primary, &[("trend", trend)]).svg;
+    let local_svg = render_result_with_tables(&local, primary, &[("trend", trend)]).svg;
+
+    assert_ne!(shared_svg, local_svg);
+}
+
+#[test]
+fn render_nested_inset_with_composite_parent_match() {
+    let source = r##"Chart(data: "parents.csv", width: 360, height: 260) {
+  Table mix = "mix.csv"
+  Table trend = "trend.csv"
+  Space(x * y) {
+    Inset(data: mix, match: [id => id], size: 58, guides: false, clip: "circle") {
+      Space(value, coords: "polar", theta: "y") {
+        Bar(fill: category, layout: "fill")
+        Inset(data: trend, match: [id => parent.id, category => category], width: 16, height: 8, scales: "local", guides: false) {
+          Space(t * value) { Line(stroke: "#222222", strokeWidth: 0.7) }
+        }
+      }
+    }
+  }
+}"##;
+    let result = render_result_with_tables(
+        source,
+        "id,x,y\nA,1,1\nB,2,2\n",
+        &[
+            (
+                "mix",
+                "id,category,value\nA,one,3\nA,two,2\nB,one,1\nB,two,4\n",
+            ),
+            (
+                "trend",
+                "id,category,t,value\nA,one,1,1\nA,one,2,2\nA,two,1,3\nA,two,2,1\nB,one,1,2\nB,one,2,4\nB,two,1,3\nB,two,2,5\n",
+            ),
+        ],
+    );
+
+    assert!(result.svg.matches("algraf-inset").count() >= 3);
+    assert!(result.svg.contains("algraf-geom-line"));
+}
+
+#[test]
+fn render_nested_inset_mark_center_changes_slice_anchor() {
+    let mark_center = r##"Chart(data: "parents.csv", width: 360, height: 260) {
+  Table mix = "mix.csv"
+  Table trend = "trend.csv"
+  Space(x * y) {
+    Inset(data: mix, match: [id => id], size: 58, guides: false, clip: "circle") {
+      Space(value, coords: "polar", theta: "y") {
+        Bar(fill: category, layout: "fill")
+        Inset(data: trend, match: [id => parent.id, category => category], width: 16, height: 8, placement: "mark-center", scales: "local", guides: false) {
+          Space(t * value) { Line(stroke: "#222222", strokeWidth: 0.7) }
+        }
+      }
+    }
+  }
+}"##;
+    let center = mark_center.replace("placement: \"mark-center\"", "placement: \"center\"");
+    let primary = "id,x,y\nA,1,1\n";
+    let mix = "id,category,value\nA,one,3\nA,two,2\n";
+    let trend = "id,category,t,value\nA,one,1,1\nA,one,2,2\nA,two,1,3\nA,two,2,1\n";
+
+    let mark_center_svg =
+        render_result_with_tables(mark_center, primary, &[("mix", mix), ("trend", trend)]).svg;
+    let center_svg =
+        render_result_with_tables(&center, primary, &[("mix", mix), ("trend", trend)]).svg;
+
+    assert_ne!(mark_center_svg, center_svg);
+}
+
+#[test]
+fn render_inset_budget_rejects_recursive_expansion() {
+    let frame = read_csv_str("id,x,y\nA,1,1\nB,2,2\n")
+        .expect("primary csv")
+        .frame;
+    let mix = read_csv_str("id,category,value\nA,one,3\nA,two,2\nB,one,1\nB,two,4\n")
+        .expect("mix")
+        .frame;
+    let source = r##"Chart(data: "parents.csv") {
+  Table mix = "mix.csv"
+  Space(x * y) {
+    Inset(data: mix, match: [id => id], size: 40) {
+      Space(value, coords: "polar", theta: "y") { Bar(fill: category, layout: "fill") }
+    }
+  }
+}"##;
+    let parsed = parse(source);
+    let mut schemas = HashMap::new();
+    schemas.insert("mix".to_string(), mix.schema().to_vec());
+    let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
+    let ir = analysis.ir.expect("ir");
+    let mut named = HashMap::new();
+    named.insert("mix".to_string(), mix);
+    let result = render_with_tables_and_limits(
+        &ir,
+        &frame,
+        &named,
+        &Theme::minimal(),
+        None,
+        RenderLimits {
+            mark_budget: Some(2),
+        },
+    )
+    .expect("render");
+
+    assert!(result.diagnostics.iter().any(|d| d.code == "E2110"));
 }
 
 fn svg_num(value: f64) -> String {
@@ -1666,9 +1881,6 @@ fn structured_theme_overrides_reach_chart_axes_and_legends() {
 }
 
 // --- v0.6.0: Path, per-segment width, manual color maps, axis suppression ---
-
-use algraf_render::render_with_tables;
-use std::collections::HashMap;
 
 fn first_path_d(svg: &str, after: &str) -> String {
     let start = svg.find(after).expect("layer");

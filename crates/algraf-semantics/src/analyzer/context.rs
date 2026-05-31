@@ -17,6 +17,7 @@ use algraf_syntax::{node_span, unescape_string_literal as string_value};
 use crate::ir::*;
 
 /// A resolvable table: column name to type, in declared order.
+#[derive(Clone)]
 pub(super) struct ActiveTable {
     pub(super) columns: Vec<(String, DataType)>,
 }
@@ -119,6 +120,9 @@ pub(super) struct Analyzer<'a> {
     /// Space-scope `let` bindings for the space under analysis; these shadow
     /// chart-scope bindings of the same name (spec §9.6).
     pub(super) space_vars: HashMap<String, LetVar>,
+    /// Row-context tables for inset match validation. Index 0 is the current
+    /// space's active table; index 1 is the immediate parent row context.
+    pub(super) row_context_tables: Vec<ActiveTable>,
     pub(super) synthetic_counter: usize,
     pub(super) diagnostics: Vec<Diagnostic>,
 }
@@ -136,6 +140,7 @@ impl<'a> Analyzer<'a> {
             reserved_derived_names: HashSet::new(),
             chart_vars: HashMap::new(),
             space_vars: HashMap::new(),
+            row_context_tables: Vec::new(),
             synthetic_counter: 0,
             diagnostics: Vec::new(),
         }

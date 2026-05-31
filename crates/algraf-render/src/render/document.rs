@@ -3,13 +3,12 @@ use algraf_semantics::ChartIr;
 
 use crate::guide;
 use crate::layout::Layout;
-use crate::render::RenderLimits;
 use crate::sink::{MarkSink, SvgSink};
 use crate::svg::{escape_attr, escape_text, num, SvgAttr, SvgWriter};
 use crate::theme::Theme;
 
 use super::backend::RenderScene;
-use super::panels::{panel_slots, Panel, PanelSlot};
+use super::panels::{panel_slots, PanelSlot};
 
 /// The fixed, audited interactive runtime embedded when `--interactive` is set
 /// (spec §29.3). It is identical for every chart and is the *only* path by which
@@ -455,7 +454,7 @@ pub(super) fn emit_document(
         legends,
         panels,
         theme,
-        limits,
+        ..
     } = *scene;
     let width = ir.width as f64;
     let height = ir.height as f64;
@@ -528,7 +527,7 @@ pub(super) fn emit_document(
             }
         }
         paint_grid(&mut sink, &slots);
-        paint_geometries(&mut sink, panels, limits, diagnostics);
+        super::inset::paint_panel_layers(&mut sink, scene, diagnostics);
         paint_axes_and_legends(&mut sink, &slots, legends, layout, theme);
     }
 
@@ -554,40 +553,6 @@ pub(super) fn paint_grid(sink: &mut dyn MarkSink, slots: &[PanelSlot<'_>]) {
             } else if panel.guides.grid && !panel.scaled.is_spatial() {
                 guide::render_grid(sink, &panel.scaled, panel.plot, &panel.theme);
             }
-        }
-    }
-}
-
-/// Draw the per-datum geometry marks of every layer in source order (spec
-/// §18.3). Shared by the SVG and draw-list backends.
-pub(super) fn paint_geometries(
-    sink: &mut dyn MarkSink,
-    panels: &[Panel<'_>],
-    limits: &RenderLimits,
-    diagnostics: &mut Vec<Diagnostic>,
-) {
-    for panel in panels {
-        if panel.clip_marks {
-            sink.open_clip(panel.plot);
-        }
-        for geo in panel.geometries {
-            crate::geom::render(
-                sink,
-                geo,
-                crate::geom::GeometryRenderContext {
-                    space: &panel.scaled,
-                    table: panel.table,
-                    rows: panel.rows.as_deref(),
-                    plot: panel.plot,
-                    theme: &panel.theme,
-                    scales: &panel.scales,
-                    limits,
-                },
-                diagnostics,
-            );
-        }
-        if panel.clip_marks {
-            sink.close_clip();
         }
     }
 }

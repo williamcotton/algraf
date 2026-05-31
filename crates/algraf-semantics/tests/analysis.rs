@@ -2086,6 +2086,149 @@ fn test_named_table_resolves_and_binds() {
 }
 
 #[test]
+fn test_inset_ir_preserves_source_order_and_composite_match() {
+    let primary = vec![
+        col("id", DataType::String),
+        col("category", DataType::String),
+        col("x", DataType::Float),
+        col("y", DataType::Float),
+    ];
+    let child = vec![
+        col("id", DataType::String),
+        col("category", DataType::String),
+        col("t", DataType::Float),
+        col("value", DataType::Float),
+    ];
+    let analysis = analyze_tables(
+        r#"Chart(data: "parents.csv") {
+  Table child = "child.csv"
+  Space(x * y) {
+    Point()
+    Inset(data: child, match: [id => id, category => category], width: 40, height: 20, scales: "local") {
+      Space(t * value) { Point() }
+    }
+    Text(label: id)
+  }
+}"#,
+        &primary,
+        &[("child", child)],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let layers = &ir.spaces[0].layers;
+    assert!(matches!(
+        &layers[0],
+        algraf_semantics::SpaceLayerIr::Geometry(geo) if geo.kind == GeometryKind::Point
+    ));
+    let algraf_semantics::SpaceLayerIr::Inset(inset) = &layers[1] else {
+        panic!("expected inset layer");
+    };
+    assert_eq!(inset.match_rules.len(), 2);
+    assert_eq!(inset.child_spaces.len(), 1);
+    assert!(matches!(
+        &layers[2],
+        algraf_semantics::SpaceLayerIr::Geometry(geo) if geo.kind == GeometryKind::Text
+    ));
+}
+
+#[test]
+fn test_inset_body_declarations_apply_and_outer_let_scope_survives() {
+    let primary = vec![
+        col("id", DataType::String),
+        col("x", DataType::Float),
+        col("y", DataType::Float),
+    ];
+    let child = vec![
+        col("id", DataType::String),
+        col("category", DataType::String),
+        col("t", DataType::Float),
+        col("value", DataType::Float),
+    ];
+    let analysis = analyze_tables(
+        r##"Chart(data: "parents.csv") {
+  Table child = "child.csv"
+  Space(x * y) {
+    let outerColor = "#3366cc"
+    Inset(data: child, match: [id => id], width: 40, height: 20) {
+      let lineColor = "#111827"
+      Guide(grid: false)
+      Theme(name: "void")
+      Scale(fill: category, range: ["a" => "#4E79A7", "b" => "#F28E2B"])
+      Space(t * value) {
+        Line(stroke: lineColor)
+        Point(fill: category)
+      }
+    }
+    Point(fill: outerColor)
+  }
+}"##,
+        &primary,
+        &[("child", child)],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let algraf_semantics::SpaceLayerIr::Inset(inset) = &ir.spaces[0].layers[0] else {
+        panic!("expected inset layer");
+    };
+    let child_space = &inset.child_spaces[0];
+    assert!(child_space.theme.is_some());
+    assert_eq!(child_space.guides.grid, Some(false));
+    assert_eq!(child_space.scales.len(), 1);
+}
+
+#[test]
+fn test_inset_semantic_diagnostics() {
+    let primary = vec![
+        col("id", DataType::String),
+        col("x", DataType::Float),
+        col("y", DataType::Float),
+    ];
+    let child = vec![col("id", DataType::Integer), col("value", DataType::Float)];
+    let missing_match = analyze_tables(
+        r#"Chart(data: "parents.csv") {
+  Table child = "child.csv"
+  Space(x * y) {
+    Inset(data: child) { Space(value) { Point() } }
+  }
+}"#,
+        &primary,
+        &[("child", child.clone())],
+    );
+    assert!(missing_match.diagnostics.iter().any(|d| d.code == "E2103"));
+
+    let unknown_table = analyze_tables(
+        r#"Chart(data: "parents.csv") {
+  Space(x * y) {
+    Inset(data: missing, match: [id => id]) { Space(value) { Point() } }
+  }
+}"#,
+        &primary,
+        &[],
+    );
+    assert!(unknown_table.diagnostics.iter().any(|d| d.code == "E2102"));
+
+    let type_mismatch = analyze_tables(
+        r#"Chart(data: "parents.csv") {
+  Table child = "child.csv"
+  Space(x * y) {
+    Inset(data: child, match: [id => id]) { Space(value) { Point() } }
+  }
+}"#,
+        &primary,
+        &[("child", child)],
+    );
+    assert!(type_mismatch.diagnostics.iter().any(|d| d.code == "E2105"));
+}
+
+#[test]
 fn test_duplicate_table_name_e1105() {
     let primary = vec![col("x", DataType::Float)];
     let analysis = analyze_tables(

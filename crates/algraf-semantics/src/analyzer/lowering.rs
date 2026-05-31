@@ -286,6 +286,7 @@ impl Analyzer<'_> {
         let point_space = SpaceIr {
             data: data_ref.clone(),
             frame: frame.clone(),
+            layers: vec![SpaceLayerIr::Geometry(point.clone())],
             geometries: vec![point],
             guides,
             scales,
@@ -987,6 +988,7 @@ impl Analyzer<'_> {
         let space = SpaceIr {
             data: SpaceDataRef::Derived(name),
             frame: FrameIr::Cartesian(vec![FrameIr::Vector(density_x), FrameIr::Vector(density_y)]),
+            layers: vec![SpaceLayerIr::Geometry(area.clone())],
             geometries: vec![area],
             guides,
             scales,
@@ -1044,6 +1046,7 @@ impl Analyzer<'_> {
         let space = SpaceIr {
             data: SpaceDataRef::Derived(name),
             frame: FrameIr::Cartesian(vec![FrameIr::Vector(density_x), FrameIr::Vector(density_y)]),
+            layers: vec![SpaceLayerIr::Geometry(area.clone())],
             geometries: vec![area],
             guides,
             scales,
@@ -1253,6 +1256,7 @@ impl Analyzer<'_> {
         let space = SpaceIr {
             data: SpaceDataRef::Derived(name),
             frame: FrameIr::Cartesian(vec![x_frame, FrameIr::Vector(count_col)]),
+            layers: vec![SpaceLayerIr::Geometry(bar_ir.clone())],
             geometries: vec![bar_ir],
             guides,
             scales,
@@ -1404,9 +1408,15 @@ fn derived_space(
     scales: Vec<ScaleIr>,
     span: Span,
 ) -> SpaceIr {
+    let layers = geometries
+        .iter()
+        .cloned()
+        .map(SpaceLayerIr::Geometry)
+        .collect();
     SpaceIr {
         data: SpaceDataRef::Derived(name),
         frame,
+        layers,
         geometries,
         guides,
         scales,

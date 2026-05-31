@@ -1,0 +1,31 @@
+country,year,gdp_per_capita
+Japan,2019,40500
+Japan,2020,39900
+Japan,2021,41300
+Japan,2022,42300
+Japan,2023,43000
+Germany,2019,50000
+Germany,2020,48600
+Germany,2021,50500
+Germany,2022,51500
+Germany,2023,52000
+Brazil,2019,14200
+Brazil,2020,13400
+Brazil,2021,14000
+Brazil,2022,14600
+Brazil,2023,15000
+South Africa,2019,13000
+South Africa,2020,12200
+South Africa,2021,12800
+South Africa,2022,13200
+South Africa,2023,13500
+India,2019,6200
+India,2020,5800
+India,2021,6400
+India,2022,6800
+India,2023,7000
+Mexico,2019,18200
+Mexico,2020,17100
+Mexico,2021,18000
+Mexico,2022,18700
+Mexico,2023,19000

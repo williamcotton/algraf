@@ -196,6 +196,8 @@ pub(crate) trait MarkSink {
     /// Open a rectangular clip scope for data marks. Coordinate zoom uses this
     /// to hide out-of-view primitives after scales and stats have been trained.
     fn open_clip(&mut self, rect: Rect);
+    /// Open a circular clip scope, used by circular inset plots.
+    fn open_circle_clip(&mut self, cx: f64, cy: f64, r: f64);
     /// Close the most recently opened clip scope.
     fn close_clip(&mut self);
 
@@ -347,6 +349,21 @@ impl MarkSink for SvgSink<'_> {
             num(rect.y),
             num(rect.width),
             num(rect.height),
+        ));
+        self.w.line("</defs>");
+        self.w
+            .open_group(&format!("clip-path=\"url(#algraf-clip-{id})\""));
+    }
+
+    fn open_circle_clip(&mut self, cx: f64, cy: f64, r: f64) {
+        let id = self.clip_id;
+        self.clip_id += 1;
+        self.w.line("<defs>");
+        self.w.line(&format!(
+            "<clipPath id=\"algraf-clip-{id}\"><circle cx=\"{}\" cy=\"{}\" r=\"{}\" /></clipPath>",
+            num(cx),
+            num(cy),
+            num(r.max(0.0)),
         ));
         self.w.line("</defs>");
         self.w
@@ -625,6 +642,15 @@ impl MarkSink for DrawListSink {
             y: rect.y,
             width: rect.width,
             height: rect.height,
+        });
+    }
+
+    fn open_circle_clip(&mut self, cx: f64, cy: f64, r: f64) {
+        self.ops.push(DrawOp::CircleClipStart {
+            role: self.role,
+            cx,
+            cy,
+            r: r.max(0.0),
         });
     }
 

@@ -6,11 +6,14 @@
 //! op-by-op parity for representative charts and guard against a new SVG
 //! primitive being added without a matching draw-list op.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
-use algraf_data::{read_csv_str, Table};
-use algraf_render::{render, render_draw_list, DrawList, DrawOp, DrawRole, Theme};
-use algraf_semantics::analyze;
+use algraf_data::{read_csv_str, DataFrame, Table};
+use algraf_render::{
+    render, render_draw_list, render_draw_list_with_tables, render_with_tables, DrawList, DrawOp,
+    DrawRole, Theme,
+};
+use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
 
 fn draw_list(source: &str, csv: &str) -> DrawList {
@@ -29,6 +32,40 @@ fn svg(source: &str, csv: &str) -> String {
         .ir
         .expect("ir");
     render(&ir, &frame, &Theme::minimal(), None)
+        .expect("render")
+        .svg
+}
+
+fn draw_list_with_tables(source: &str, primary_csv: &str, tables: &[(&str, &str)]) -> DrawList {
+    let frame = read_csv_str(primary_csv).expect("primary csv").frame;
+    let mut named = HashMap::<String, DataFrame>::new();
+    let mut schemas = HashMap::new();
+    for (name, csv) in tables {
+        let table = read_csv_str(csv).expect("named csv").frame;
+        schemas.insert((*name).to_string(), table.schema().to_vec());
+        named.insert((*name).to_string(), table);
+    }
+    let parsed = parse(source);
+    let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
+    let ir = analysis.ir.expect("ir");
+    render_draw_list_with_tables(&ir, &frame, &named, &Theme::minimal(), None)
+        .expect("draw list")
+        .draw_list
+}
+
+fn svg_with_tables(source: &str, primary_csv: &str, tables: &[(&str, &str)]) -> String {
+    let frame = read_csv_str(primary_csv).expect("primary csv").frame;
+    let mut named = HashMap::<String, DataFrame>::new();
+    let mut schemas = HashMap::new();
+    for (name, csv) in tables {
+        let table = read_csv_str(csv).expect("named csv").frame;
+        schemas.insert((*name).to_string(), table.schema().to_vec());
+        named.insert((*name).to_string(), table);
+    }
+    let parsed = parse(source);
+    let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
+    let ir = analysis.ir.expect("ir");
+    render_with_tables(&ir, &frame, &named, &Theme::minimal(), None)
         .expect("render")
         .svg
 }
@@ -59,7 +96,9 @@ fn draw_op_counts(list: &DrawList) -> BTreeMap<&'static str, usize> {
     let mut counts = BTreeMap::new();
     for op in &list.ops {
         let kind = match op {
-            DrawOp::ClipStart { .. } | DrawOp::ClipEnd { .. } => continue,
+            DrawOp::ClipStart { .. } => "rect",
+            DrawOp::CircleClipStart { .. } => "circle",
+            DrawOp::ClipEnd { .. } => continue,
             DrawOp::Rect { .. } => "rect",
             DrawOp::Circle { .. } => "circle",
             DrawOp::Path { .. } => "path",
@@ -70,6 +109,25 @@ fn draw_op_counts(list: &DrawList) -> BTreeMap<&'static str, usize> {
         *counts.entry(kind).or_insert(0) += 1;
     }
     counts
+}
+
+#[test]
+fn svg_and_draw_list_have_matching_inset_primitive_counts() {
+    let source = r##"Chart(data: "parents.csv", width: 280, height: 220) {
+  Table child = "child.csv"
+  Space(x * y) {
+    Inset(data: child, match: [id => id], width: 46, height: 46, clip: "circle", guides: false) {
+      Space(t * value) {
+        Point(fill: "#2b8cbe")
+      }
+    }
+  }
+}"##;
+    let primary = "id,x,y\nA,1,1\nB,2,2\n";
+    let child = "id,t,value\nA,1,1\nA,2,2\nB,1,3\nB,2,4\n";
+    let svg_counts = svg_primitive_counts(&svg_with_tables(source, primary, &[("child", child)]));
+    let draw_counts = draw_op_counts(&draw_list_with_tables(source, primary, &[("child", child)]));
+    assert_eq!(svg_counts, draw_counts);
 }
 
 /// Every representative chart must emit the same primitive counts through both
@@ -200,7 +258,9 @@ fn polar_marks_are_paths_not_rects() {
 
 fn op_role(op: &DrawOp) -> DrawRole {
     match op {
-        DrawOp::ClipStart { role, .. } | DrawOp::ClipEnd { role } => *role,
+        DrawOp::ClipStart { role, .. }
+        | DrawOp::CircleClipStart { role, .. }
+        | DrawOp::ClipEnd { role } => *role,
         DrawOp::Rect { role, .. }
         | DrawOp::Circle { role, .. }
         | DrawOp::Path { role, .. }

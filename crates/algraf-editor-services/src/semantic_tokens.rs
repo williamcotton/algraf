@@ -129,6 +129,7 @@ fn declaration_name(name: &str) -> bool {
         "Algraf"
             | "Chart"
             | "Space"
+            | "Inset"
             | "Derive"
             | "Table"
             | "Parse"
