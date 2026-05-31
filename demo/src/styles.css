@@ -69,6 +69,63 @@ button {
   gap: 8px;
 }
 
+.preset-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  gap: 8px;
+}
+
+.preset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 10px 11px;
+  border: 1px solid #cfd9df;
+  border-radius: 8px;
+  color: #273136;
+  background: #ffffff;
+  text-align: left;
+  box-shadow: 0 1px 2px rgba(29, 36, 40, 0.05);
+}
+
+.preset-card:hover {
+  border-color: #8aa9a0;
+  background: #f6fbf9;
+}
+
+.preset-card-active {
+  border-color: #2f7868;
+  background: #edf8f4;
+  box-shadow: inset 0 0 0 1px rgba(47, 120, 104, 0.25);
+}
+
+.preset-title {
+  overflow: hidden;
+  color: #1f2b30;
+  font-weight: 730;
+  font-size: 0.88rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preset-meta,
+.preset-summary {
+  overflow: hidden;
+  color: #607079;
+  font-size: 0.76rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preset-summary {
+  color: #46555c;
+}
+
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.35fr);
@@ -508,6 +565,10 @@ button {
 
   .header-actions {
     justify-content: flex-start;
+  }
+
+  .preset-strip {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 
   .workspace-grid {

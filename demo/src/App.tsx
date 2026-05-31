@@ -18,23 +18,187 @@ import {
 import { AlgrafChart } from "./AlgrafChart";
 import { AlgrafEditor } from "./AlgrafEditor";
 
-const DATA_URL = "/data/penguins.json";
-const DATA_FILE = "penguins.json";
+interface DemoDataset {
+  file: string;
+  label: string;
+  rows: number;
+  columns: number;
+  url: string;
+}
 
-const DEFAULT_SOURCE = `Chart(data: "penguins.json", width: 760, height: 500) {
+interface ChartPreset {
+  id: string;
+  title: string;
+  dataset: string;
+  summary: string;
+  source: string;
+}
+
+const DATASETS: Record<string, DemoDataset> = {
+  penguins: {
+    file: "penguins.csv",
+    label: "Palmer penguins",
+    rows: 344,
+    columns: 8,
+    url: "/data/penguins.csv",
+  },
+  gapminder: {
+    file: "gapminder.csv",
+    label: "Gapminder",
+    rows: 1704,
+    columns: 6,
+    url: "/data/gapminder.csv",
+  },
+  iris: {
+    file: "iris.csv",
+    label: "Iris flowers",
+    rows: 150,
+    columns: 5,
+    url: "/data/iris.csv",
+  },
+  stocks: {
+    file: "stocks.csv",
+    label: "Tech stocks",
+    rows: 559,
+    columns: 3,
+    url: "/data/stocks.csv",
+  },
+  weather: {
+    file: "seattle-weather.csv",
+    label: "Seattle weather",
+    rows: 1461,
+    columns: 6,
+    url: "/data/seattle-weather.csv",
+  },
+};
+
+const CHART_PRESETS: ChartPreset[] = [
+  {
+    id: "penguins-morphology",
+    title: "Penguins",
+    dataset: "penguins",
+    summary: "Scatter, trend, tooltips, highlight",
+    source: `Chart(data: "penguins.csv", width: 820, height: 520, title: "Palmer penguin morphology") {
     Theme(name: "minimal")
+    Scale(fill: species, palette: "accent")
+    Scale(size: bill_length_mm, range: [2.5, 8.5], label: "Bill length (mm)")
+    Guide(axis: x, label: "Flipper length (mm)")
+    Guide(axis: y, label: "Body mass (g)")
 
-    Space(flipper_length * body_mass) {
+    Space(flipper_length_mm * body_mass_g) {
         Point(
             fill: species,
-            alpha: 0.82,
-            size: 4,
-            tooltip: [species, flipper_length, body_mass],
+            shape: island,
+            size: bill_length_mm,
+            alpha: 0.68,
+            tooltip: [species, island, sex, bill_length_mm, flipper_length_mm, body_mass_g],
             highlight: species
+        )
+        Smooth(method: "lm", stroke: species, strokeWidth: 2.4)
+    }
+}
+`,
+  },
+  {
+    id: "gapminder-bubbles",
+    title: "Gapminder",
+    dataset: "gapminder",
+    summary: "Log scale, bubbles, 1,704 rows",
+    source: `Chart(data: "gapminder.csv", width: 840, height: 520, title: "Wealth, health, and population") {
+    Theme(name: "minimal")
+    Scale(axis: x, type: "log10")
+    Scale(fill: continent, palette: "default")
+    Scale(size: pop, range: [1.5, 16], label: "Population")
+    Guide(axis: x, label: "GDP per capita")
+    Guide(axis: y, label: "Life expectancy")
+
+    Space(gdpPercap * lifeExp) {
+        Point(
+            fill: continent,
+            size: pop,
+            alpha: 0.36,
+            tooltip: [country, year, continent, lifeExp, gdpPercap, pop],
+            highlight: continent
         )
     }
 }
-`;
+`,
+  },
+  {
+    id: "iris-petals",
+    title: "Iris",
+    dataset: "iris",
+    summary: "Quoted fields, shape and color",
+    source: `Chart(data: "iris.csv", width: 760, height: 500, title: "Iris petal measurements") {
+    Theme(name: "minimal")
+    Scale(fill: \`class\`, palette: "accent")
+    Guide(axis: x, label: "Petal length")
+    Guide(axis: y, label: "Petal width")
+
+    Space(\`petal length\` * \`petal width\`) {
+        Point(
+            fill: \`class\`,
+            shape: \`class\`,
+            size: \`sepal width\`,
+            alpha: 0.72,
+            tooltip: [\`class\`, \`sepal length\`, \`sepal width\`, \`petal length\`, \`petal width\`],
+            highlight: \`class\`
+        )
+    }
+}
+`,
+  },
+  {
+    id: "stocks-lines",
+    title: "Stocks",
+    dataset: "stocks",
+    summary: "Temporal parse and grouped lines",
+    source: `Chart(data: "stocks.csv", width: 840, height: 500, title: "Stock prices by symbol") {
+    Theme(name: "minimal")
+    Parse(column: date, as: "date", format: "%b %-d %Y")
+    Guide(axis: x, label: "Month", timeFormat: "%Y")
+    Guide(axis: y, label: "Price")
+
+    Space(date * price) {
+        Line(stroke: symbol, strokeWidth: 2.1)
+        Point(
+            fill: symbol,
+            size: 2.2,
+            alpha: 0.5,
+            tooltip: [symbol, date, price],
+            highlight: symbol
+        )
+    }
+}
+`,
+  },
+  {
+    id: "weather-range",
+    title: "Weather",
+    dataset: "weather",
+    summary: "Ribbon, line, daily categories",
+    source: `Chart(data: "seattle-weather.csv", width: 840, height: 500, title: "Seattle daily temperature range") {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Date", timeFormat: "%Y")
+    Guide(axis: y, label: "Temperature (C)")
+
+    Space(date * temp_max) {
+        Ribbon(ymin: temp_min, ymax: temp_max, fill: "#9ecae1", alpha: 0.36)
+        Line(stroke: "#d95f02", strokeWidth: 1.8)
+        Point(
+            fill: weather,
+            size: 1.8,
+            alpha: 0.45,
+            tooltip: [date, weather, temp_min, temp_max, precipitation, wind],
+            highlight: weather
+        )
+    }
+}
+`,
+  },
+];
+
+const DEFAULT_PRESET = CHART_PRESETS[0];
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -46,13 +210,15 @@ interface PreviewStats {
 interface RenderSnapshot {
   source: string;
   dataText: string;
+  dataFile: string;
   result: AlgrafRenderResult;
 }
 
 export function App(): React.ReactElement {
   const [runtime, setRuntime] = React.useState<AlgrafRuntime | null>(null);
   const [runtimeState, setRuntimeState] = React.useState<LoadState>("loading");
-  const [source, setSource] = React.useState(DEFAULT_SOURCE);
+  const [selectedPresetId, setSelectedPresetId] = React.useState(DEFAULT_PRESET.id);
+  const [source, setSource] = React.useState(DEFAULT_PRESET.source);
   const [dataText, setDataText] = React.useState("");
   const [dataState, setDataState] = React.useState<LoadState>("loading");
   const [dataRevision, setDataRevision] = React.useState(0);
@@ -60,6 +226,8 @@ export function App(): React.ReactElement {
   const [rendering, setRendering] = React.useState(false);
   const [runtimeError, setRuntimeError] = React.useState<string | null>(null);
   const [dataError, setDataError] = React.useState<string | null>(null);
+  const selectedPreset = CHART_PRESETS.find((preset) => preset.id === selectedPresetId) ?? DEFAULT_PRESET;
+  const selectedDataset = DATASETS[selectedPreset.dataset] ?? DATASETS.penguins;
 
   React.useEffect(() => {
     let cancelled = false;
@@ -84,17 +252,18 @@ export function App(): React.ReactElement {
     let cancelled = false;
     setDataState("loading");
     setDataError(null);
+    setDataText("");
 
-    fetch(DATA_URL)
+    fetch(selectedDataset.url)
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`failed to fetch ${DATA_URL}: ${response.status}`);
+          throw new Error(`failed to fetch ${selectedDataset.url}: ${response.status}`);
         }
-        return response.json() as Promise<unknown>;
+        return response.text();
       })
-      .then((json) => {
+      .then((text) => {
         if (cancelled) return;
-        setDataText(JSON.stringify(json, null, 2));
+        setDataText(text);
         setDataState("ready");
       })
       .catch((err: unknown) => {
@@ -106,10 +275,10 @@ export function App(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [dataRevision]);
+  }, [dataRevision, selectedDataset.url]);
 
   const renderCurrent = React.useCallback(() => {
-    if (!runtime) {
+    if (!runtime || dataState !== "ready") {
       return;
     }
 
@@ -118,16 +287,17 @@ export function App(): React.ReactElement {
     setRendering(true);
     window.setTimeout(() => {
       try {
-        JSON.parse(renderDataText);
         setRenderSnapshot({
           source: renderSource,
           dataText: renderDataText,
-          result: runtime.render(renderSource, { [DATA_FILE]: renderDataText }),
+          dataFile: selectedDataset.file,
+          result: runtime.render(renderSource, { [selectedDataset.file]: renderDataText }),
         });
       } catch (err: unknown) {
         setRenderSnapshot({
           source: renderSource,
           dataText: renderDataText,
+          dataFile: selectedDataset.file,
           result: {
             svg: null,
             sidecar: null,
@@ -139,7 +309,7 @@ export function App(): React.ReactElement {
         setRendering(false);
       }
     }, 0);
-  }, [dataText, runtime, source]);
+  }, [dataState, dataText, runtime, selectedDataset.file, source]);
 
   React.useEffect(() => {
     if (!runtime || dataState !== "ready") {
@@ -147,26 +317,39 @@ export function App(): React.ReactElement {
     }
 
     const timer = window.setTimeout(() => {
-      setRendering(true);
       renderCurrent();
     }, 260);
 
     return () => window.clearTimeout(timer);
   }, [dataState, renderCurrent, runtime]);
 
+  const selectPreset = React.useCallback((preset: ChartPreset) => {
+    setSelectedPresetId(preset.id);
+    setSource(preset.source);
+    setRenderSnapshot(null);
+    setDataRevision((revision) => revision + 1);
+  }, []);
+
   const result = renderSnapshot?.result ?? null;
-  const diagnosticsAreCurrent = Boolean(renderSnapshot && renderSnapshot.source === source && renderSnapshot.dataText === dataText);
+  const diagnosticsAreCurrent = Boolean(
+    renderSnapshot &&
+      renderSnapshot.source === source &&
+      renderSnapshot.dataText === dataText &&
+      renderSnapshot.dataFile === selectedDataset.file,
+  );
   const diagnostics = diagnosticsAreCurrent ? (result?.diagnostics ?? []) : [];
   const currentError = diagnosticsAreCurrent ? (result?.error ?? null) : null;
   const hasErrors = diagnostics.some((diagnostic) => diagnostic.severity === "error") || Boolean(currentError);
   const stats = React.useMemo(() => previewStats(result?.sidecar), [result?.sidecar]);
+  const dataRows = React.useMemo(() => estimateRows(dataText, selectedDataset.file), [dataText, selectedDataset.file]);
+  const editorFiles = React.useMemo(() => ({ [selectedDataset.file]: dataText }), [dataText, selectedDataset.file]);
 
   return (
     <main className="app-shell">
       <header className="app-header">
         <div>
           <h1>Algraf WASM Playground</h1>
-          <p>{DATA_FILE} fetched from the dev server and rendered in the browser runtime.</p>
+          <p>{selectedDataset.label} served from the dev server and rendered in the browser runtime.</p>
         </div>
         <div className="header-actions">
           <StatusBadge state={runtimeState} label="WASM" error={runtimeError} />
@@ -178,12 +361,33 @@ export function App(): React.ReactElement {
         </div>
       </header>
 
+      <section className="preset-strip" aria-label="Chart presets">
+        {CHART_PRESETS.map((preset) => {
+          const dataset = DATASETS[preset.dataset];
+          const active = preset.id === selectedPreset.id;
+          return (
+            <button
+              className={`preset-card ${active ? "preset-card-active" : ""}`}
+              key={preset.id}
+              type="button"
+              onClick={() => selectPreset(preset)}
+            >
+              <span className="preset-title">{preset.title}</span>
+              <span className="preset-meta">
+                {dataset.label} - {dataset.rows.toLocaleString()} rows
+              </span>
+              <span className="preset-summary">{preset.summary}</span>
+            </button>
+          );
+        })}
+      </section>
+
       <section className="workspace-grid">
         <div className="pane editor-pane">
           <PaneHeader icon={<Code2 size={17} aria-hidden="true" />} title="Algraf" detail={`${source.length} bytes`} />
           <AlgrafEditor
             diagnostics={diagnostics}
-            files={{ [DATA_FILE]: dataText }}
+            files={editorFiles}
             onChange={setSource}
             runtime={runtime}
             value={source}
@@ -193,8 +397,8 @@ export function App(): React.ReactElement {
         <div className="pane data-pane">
           <PaneHeader
             icon={<Database size={17} aria-hidden="true" />}
-            title="Network JSON"
-            detail={DATA_URL}
+            title={selectedDataset.file}
+            detail={`${dataRows ?? selectedDataset.rows} rows, ${selectedDataset.columns} cols, ${formatBytes(dataText.length)}`}
             action={
               <button className="compact-button" type="button" onClick={() => setDataRevision((revision) => revision + 1)}>
                 <RefreshCw size={15} aria-hidden="true" />
@@ -203,7 +407,7 @@ export function App(): React.ReactElement {
             }
           />
           <textarea
-            aria-label="JSON data"
+            aria-label={`${selectedDataset.label} data`}
             className="data-input"
             spellCheck={false}
             value={dataText}
@@ -349,6 +553,37 @@ function previewStats(sidecar: string | null | undefined): PreviewStats | null {
   } catch {
     return null;
   }
+}
+
+function estimateRows(text: string, file: string): number | null {
+  if (!text.trim()) {
+    return null;
+  }
+
+  if (file.endsWith(".json")) {
+    try {
+      const parsed = JSON.parse(text) as unknown;
+      return Array.isArray(parsed) ? parsed.length : null;
+    } catch {
+      return null;
+    }
+  }
+
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length === 0) {
+    return null;
+  }
+  return Math.max(0, lines.length - 1);
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${bytes} B`;
 }
 
 function errorMessage(err: unknown): string {

@@ -10,8 +10,19 @@ npm run dev
 
 `npm run dev` builds `crates/algraf-wasm` for `wasm32-unknown-unknown`, copies
 the generated binary to `public/wasm/algraf.wasm`, then starts Vite. The app
-fetches `public/data/penguins.json` and passes that JSON text to the WASM
-runtime as an in-memory Algraf data source named `penguins.json`.
+ships a small gallery of chart presets backed by public CSV datasets in
+`public/data/`, and passes the selected file to the WASM runtime as an
+in-memory Algraf data source.
+
+Included gallery data:
+
+- `penguins.csv` - full Palmer penguins data, 344 rows.
+- `gapminder.csv` - Gapminder five-year country panel, 1,704 rows.
+- `iris.csv` - Iris flower measurements, 150 rows.
+- `stocks.csv` - example stock prices, 559 rows.
+- `seattle-weather.csv` - daily Seattle weather, 1,461 rows.
+
+See `public/data/README.md` for source URLs.
 
 ## Editor Features
 
@@ -38,7 +49,8 @@ host-supplied files, and call attributes/examples from the shared Rust registry.
 Browser limitations:
 
 - Data/schema-aware features can only see host-supplied in-memory files, such
-  as `penguins.json`; arbitrary workspace filesystem access is not available.
+  as the selected gallery CSV; arbitrary workspace filesystem access is not
+  available.
 - Navigation to in-memory data uses synthetic `inmemory://algraf/...` URIs.
 - SQLite sources are not available in the WASM build.
 - The playground does not run a JSON-RPC LSP transport or publish an
