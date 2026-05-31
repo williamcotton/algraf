@@ -609,6 +609,8 @@ pub(super) fn paint_axes_and_legends(
                         y_time_format: panel.guides.y_time_format.as_ref(),
                         x_tick_label_angle: panel.guides.x_tick_label_angle,
                         y_tick_label_angle: panel.guides.y_tick_label_angle,
+                        x_tick_label_rows: panel.guides.x_tick_label_rows,
+                        y_tick_label_rows: panel.guides.y_tick_label_rows,
                     },
                 );
             }

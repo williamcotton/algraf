@@ -1,0 +1,16 @@
+Chart(data: "density_points.csv", width: 720, height: 440, title: "Density classes from a binned scale") {
+    Theme(name: "minimal")
+    Scale(fill: density,
+          mode: "binned",
+          breaks: [0, 100, 250, 500, 800],
+          labels: ["0-100", "100-250", "250-500", "500-800", "800+"],
+          range: ["#eff3ff", "#bdd7e7", "#6baed6", "#3182bd", "#08519c"],
+          label: "Density")
+
+    Guide(axis: x, label: "Longitude index")
+    Guide(axis: y, label: "Latitude index")
+
+    Space(x * y) {
+        Point(fill: density, stroke: "#ffffff", size: 8)
+    }
+}

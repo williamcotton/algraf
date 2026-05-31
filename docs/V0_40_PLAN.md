@@ -1,6 +1,6 @@
 # Algraf v0.40.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_39_5_PLAN.md`](V0_39_5_PLAN.md)
@@ -286,7 +286,7 @@ sections should use ordinary input data and Algraf stats.
 
 ### 1. Settle computed-stat variable policy
 
-Status: Planned.
+Status: Implemented.
 
 - Document that Algraf computed variables are named output columns on derived
   tables, not an `after_stat(...)` expression language.
@@ -298,7 +298,7 @@ Status: Planned.
 
 ### 2. Add identity, distinct, ECDF, and QQ stats
 
-Status: Planned.
+Status: Implemented.
 
 - Add an identity stat only if it serves a real derived-table workflow; otherwise
   document that binding the original table is already identity.
@@ -313,7 +313,7 @@ Status: Planned.
 
 ### 3. Add summary, summary-bin, and classing stats
 
-Status: Planned.
+Status: Implemented.
 
 - Add grouped summary reducers over one or more grouping columns.
 - Add binned summary over a continuous axis, reusing bin-boundary policy from
@@ -329,7 +329,7 @@ Status: Planned.
 
 ### 4. Evaluate quantile regression
 
-Status: Planned.
+Status: Evaluated and deferred.
 
 - Decide whether quantile regression is implementable with acceptable dependency,
   determinism, and WASM cost.
@@ -339,7 +339,7 @@ Status: Planned.
 
 ### 5. Add explicit breaks and labels
 
-Status: Planned.
+Status: Implemented.
 
 - Define break values for position axes and aesthetic legends.
 - Extend label maps or arrays to all targets where labels are meaningful.
@@ -349,7 +349,7 @@ Status: Planned.
 
 ### 6. Clarify domain, limits, clipping, and expansion
 
-Status: Planned.
+Status: Implemented.
 
 - Write the normative distinction between data-domain training, explicit domain
   bounds, visual coordinate zoom, and clipping.
@@ -359,7 +359,7 @@ Status: Planned.
 
 ### 7. Add binned aesthetic scales
 
-Status: Planned.
+Status: Implemented.
 
 - Add a scale mode that maps continuous values into deterministic bins and then
   into discrete colors or other aesthetics.
@@ -376,7 +376,7 @@ Status: Planned.
 
 ### 8. Add identity scale mode where safe
 
-Status: Planned.
+Status: Implemented.
 
 - Allow selected aesthetics to use data values as visual values when validation
   is deterministic and secure.
@@ -390,7 +390,7 @@ Status: Planned.
 
 ### 9. Add alpha and stroke-style scale targets if promoted
 
-Status: Planned.
+Status: Evaluated and deferred.
 
 - Decide whether alpha and dash/stroke-style become scale targets in this
   release.
@@ -400,7 +400,7 @@ Status: Planned.
 
 ### 10. Improve guide layout controls
 
-Status: Planned.
+Status: Implemented.
 
 - Add axis tick-label dodging or multi-row layout for crowded categorical axes.
 - Add legend position controls only if theme layout is ready; otherwise defer to
@@ -409,7 +409,7 @@ Status: Planned.
 
 ### 11. Spec, examples, README, and release hygiene
 
-Status: Planned.
+Status: Implemented.
 
 - Update stat, scale, guide, diagnostic, LSP, CLI schema/IR output, sidecar, and
   tests.
@@ -424,20 +424,20 @@ Status: Planned.
 
 ### Shared numeric summary helpers
 
-Status: Planned.
+Status: Implemented.
 
 - Centralize mean, median, quantile, variance, standard error, and confidence
   interval helpers so boxplot, summary stats, and future tests agree.
 
 ### Stat execution performance audit
 
-Status: Planned.
+Status: Implemented.
 
 - Add focused performance fixtures for stats that sort or group heavily.
 
 ### Palette audit
 
-Status: Planned.
+Status: Evaluated; no new palettes added.
 
 - Evaluate whether additional built-in categorical and sequential palettes are
   needed for practical parity. If added, keep names stable and document exact
@@ -445,7 +445,7 @@ Status: Planned.
 
 ### Legend ordering
 
-Status: Planned.
+Status: Evaluated and deferred.
 
 - Add ordering controls only if the guide collection code can support them
   without destabilizing existing legend merging.
@@ -457,6 +457,9 @@ Status: Planned.
 - Full distribution families for QQ plots.
 - Robust or nonlinear modeling beyond already-supported smoothers unless a
   deterministic dependency is chosen.
+- Quantile regression lines.
+- Alpha and dash/stroke-style scale targets.
+- Legend position and legend ordering controls.
 - ggplot2-style stat function names as aliases.
 - Arbitrary scale transformation functions beyond enumerated transforms.
 - Locale-aware date labels.

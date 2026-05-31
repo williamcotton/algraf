@@ -319,6 +319,7 @@ fn x_label_bottom_extra(
                 theme.font_size,
                 guides.x_time_format.as_ref(),
                 guides.x_tick_label_angle,
+                guides.x_tick_label_rows,
             ));
         }
     }
@@ -359,6 +360,7 @@ fn y_label_left_extra(
                 theme.font_size,
                 guides.y_time_format.as_ref(),
                 guides.y_tick_label_angle,
+                guides.y_tick_label_rows,
             ));
         }
     }

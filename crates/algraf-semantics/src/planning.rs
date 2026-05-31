@@ -26,6 +26,12 @@ pub fn stat_output_schema(kind: StatKind, input: &FrameIr) -> Vec<ColumnDefIr> {
         StatKind::Density2D => density2d_output_schema(),
         StatKind::Density2DContours => density2d_contours_output_schema(),
         StatKind::Density2DBands => density2d_bands_output_schema(),
+        StatKind::Distinct => Vec::new(),
+        StatKind::Ecdf => ecdf_output_schema(),
+        StatKind::Qq => qq_output_schema(),
+        StatKind::Summary => summary_output_schema(&[], false),
+        StatKind::SummaryBin => summarybin_output_schema(&[], false),
+        StatKind::Cut => Vec::new(),
         // The plain (no-`se`) schema; the analyzer rebuilds with bands when the
         // `se` option is set (spec §15.x).
         StatKind::Smooth => smooth_output_schema(false),
@@ -88,6 +94,12 @@ pub(crate) fn stat_output_names_for_source(stat_name: &str) -> Vec<String> {
         "Density2D" => density2d_output_schema(),
         "Density2DContours" => density2d_contours_output_schema(),
         "Density2DBands" => density2d_bands_output_schema(),
+        "Distinct" => Vec::new(),
+        "Ecdf" => ecdf_output_schema(),
+        "Qq" => qq_output_schema(),
+        "Summary" => summary_output_schema(&[], false),
+        "SummaryBin" => summarybin_output_schema(&[], false),
+        "Cut" => Vec::new(),
         "StepVertices" => vec![
             ColumnDefIr {
                 name: "x".into(),
@@ -142,6 +154,112 @@ pub(crate) fn stat_output_names_for_source(stat_name: &str) -> Vec<String> {
     .into_iter()
     .map(|column| column.name)
     .collect()
+}
+
+/// Output schema for an empirical CDF vertex table.
+pub fn ecdf_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "x".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "y".into(),
+            dtype: DataType::Float,
+        },
+    ]
+}
+
+/// Output schema for normal QQ plot points plus optional reference-line columns.
+pub fn qq_output_schema() -> Vec<ColumnDefIr> {
+    vec![
+        ColumnDefIr {
+            name: "theoretical".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "sample".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "line_x".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "line_y".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "line_xend".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "line_yend".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "role".into(),
+            dtype: DataType::String,
+        },
+    ]
+}
+
+/// Output schema for grouped one-dimensional summaries.
+pub fn summary_output_schema(groups: &[ColumnDefIr], has_bounds: bool) -> Vec<ColumnDefIr> {
+    let mut schema = groups.to_vec();
+    schema.extend(summary_measure_schema(has_bounds));
+    schema
+}
+
+/// Output schema for binned one-dimensional summaries.
+pub fn summarybin_output_schema(groups: &[ColumnDefIr], has_bounds: bool) -> Vec<ColumnDefIr> {
+    let mut schema = vec![
+        ColumnDefIr {
+            name: "bin_start".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "bin_end".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "bin_center".into(),
+            dtype: DataType::Float,
+        },
+    ];
+    schema.extend_from_slice(groups);
+    schema.extend(summary_measure_schema(has_bounds));
+    schema
+}
+
+fn summary_measure_schema(has_bounds: bool) -> Vec<ColumnDefIr> {
+    let mut schema = vec![
+        ColumnDefIr {
+            name: "value".into(),
+            dtype: DataType::Float,
+        },
+        ColumnDefIr {
+            name: "count".into(),
+            dtype: DataType::Integer,
+        },
+    ];
+    if has_bounds {
+        schema.extend([
+            ColumnDefIr {
+                name: "lower".into(),
+                dtype: DataType::Float,
+            },
+            ColumnDefIr {
+                name: "upper".into(),
+                dtype: DataType::Float,
+            },
+            ColumnDefIr {
+                name: "se".into(),
+                dtype: DataType::Float,
+            },
+        ]);
+    }
+    schema
 }
 
 fn vector_name(frame: Option<&FrameIr>) -> Option<&str> {

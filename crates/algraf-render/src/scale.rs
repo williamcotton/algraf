@@ -12,6 +12,10 @@ pub struct ContinuousScale {
     pub transform: ContinuousTransform,
     /// Constrain ticks to whole integers (`Scale(integer: true)`, spec §16.10).
     pub integer: bool,
+    /// Exact user-specified tick values, if any.
+    pub tick_values: Vec<f64>,
+    /// Labels paired with `tick_values`.
+    pub tick_labels: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,6 +62,8 @@ impl ContinuousScale {
             range,
             transform,
             integer: false,
+            tick_values: Vec::new(),
+            tick_labels: Vec::new(),
         }
     }
 
@@ -79,6 +85,14 @@ impl ContinuousScale {
     }
 
     pub fn ticks(&self, target: usize) -> Vec<f64> {
+        if !self.tick_values.is_empty() {
+            return self
+                .tick_values
+                .iter()
+                .copied()
+                .filter(|t| *t >= self.min - f64::EPSILON && *t <= self.max + f64::EPSILON)
+                .collect();
+        }
         match self.transform {
             ContinuousTransform::Linear if self.integer => {
                 integer_ticks(self.min, self.max, target)
@@ -101,6 +115,7 @@ pub struct TemporalScale {
     pub range: (f64, f64),
     pub precision: TemporalPrecision,
     pub tick_values: Vec<i64>,
+    pub tick_labels: Vec<String>,
     pub tick_span: Option<(i64, i64)>,
 }
 
@@ -117,6 +132,7 @@ impl TemporalScale {
             range,
             precision,
             tick_values: Vec::new(),
+            tick_labels: Vec::new(),
             tick_span: None,
         }
     }

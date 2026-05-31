@@ -817,6 +817,96 @@ Chart(data: "distribution.csv", width: 760, height: 460, title: "Frequency polyg
 
 ![freqpoly](examples/freqpoly.svg)
 
+## Empirical CDF from raw samples
+
+`Ecdf(...)` creates step vertices from one numeric column. The derived table has
+ordinary `x` and `y` columns, so rendering is still a primitive `Path`.
+
+```algraf
+Chart(data: "latency_samples.csv", width: 720, height: 420, title: "Latency empirical CDF") {
+    Theme(name: "minimal")
+    Derive ecdf_rows = Ecdf(latency_ms)
+
+    Guide(axis: x, label: "Latency (ms)")
+    Guide(axis: y, label: "Share of requests")
+    Scale(axis: y, domain: [0, 1], breaks: [0, 0.25, 0.5, 0.75, 1], labels: ["0", "25%", "50%", "75%", "100%"])
+
+    Space(x * y, data: ecdf_rows) {
+        Path(stroke: "#2f6fbb", strokeWidth: 2.5)
+    }
+}
+```
+
+![ecdf](examples/ecdf.svg)
+
+## Normal QQ plot
+
+`Qq(...)` computes sample and theoretical quantiles. The optional reference-line
+endpoint columns can feed `Segment`; this example keeps only the point rows.
+
+```algraf
+Chart(data: "model_residuals.csv", width: 560, height: 560, title: "Normal QQ check") {
+    Theme(name: "minimal")
+    Derive qq = Qq(residual, distribution: "normal", reference: false)
+
+    Guide(axis: x, label: "Theoretical quantile")
+    Guide(axis: y, label: "Sample quantile")
+
+    Space(theoretical * sample, data: qq) {
+        Point(fill: "#4c78a8", alpha: 0.75, size: 2.8)
+    }
+}
+```
+
+![qq](examples/qq.svg)
+
+## Grouped summaries with intervals
+
+`Summary(..., reducer: "mean_se")` groups raw observations, computes the mean,
+and emits `lower`/`upper` standard-error bounds for interval marks.
+
+```algraf
+Chart(data: "trial_observations.csv", width: 760, height: 460, title: "Mean outcome with standard error") {
+    Theme(name: "minimal")
+    Derive summary = Summary(outcome, by: [treatment, cohort], reducer: "mean_se")
+
+    Scale(fill: cohort, palette: "accent")
+    Scale(stroke: cohort, palette: "accent")
+    Guide(axis: x, label: "Treatment")
+    Guide(axis: y, label: "Outcome")
+
+    Space(treatment * value, data: summary) {
+        ErrorBar(ymin: lower, ymax: upper, capWidth: 0.25, stroke: cohort, strokeWidth: 2)
+        Point(fill: cohort, stroke: "#ffffff", size: 4)
+    }
+}
+```
+
+![summary_intervals](examples/summary_intervals.svg)
+
+## Binned summaries
+
+`SummaryBin(...)` shares `Bin`'s boundary rules, then summarizes another value
+inside each bin. The result feeds a plain `Line` and `Point` layer.
+
+```algraf
+Chart(data: "traffic_events.csv", width: 760, height: 430, title: "Average conversion by traffic bin") {
+    Theme(name: "minimal")
+    Derive bins = SummaryBin(traffic, conversion, bins: 8, reducer: "mean")
+
+    Guide(axis: x, label: "Traffic")
+    Guide(axis: y, label: "Mean conversion rate")
+    Scale(axis: y, domain: [0, 0.25], breaks: [0, 0.05, 0.10, 0.15, 0.20, 0.25], labels: ["0", "5%", "10%", "15%", "20%", "25%"])
+
+    Space(bin_center * value, data: bins) {
+        Line(stroke: "#111827", strokeWidth: 2)
+        Point(fill: "#111827", size: 2.6)
+    }
+}
+```
+
+![summary_bin](examples/summary_bin.svg)
+
 ## Chained derived tables
 
 A `Derive` can reference columns produced by an earlier derived table. Here
@@ -1790,6 +1880,82 @@ Chart(data: "penguins.csv", width: 720, height: 480, title: "Scale-driven legend
 ```
 
 ![scale_label](examples/scale_label.svg)
+
+## Exact breaks, labels, and tick rows
+
+Scale `breaks:` place axis ticks exactly, and a parallel `labels:` array controls
+their text. `expand:` pads the trained domain, while `tickLabelRows:` dodges
+crowded tick labels deterministically.
+
+```algraf
+Chart(data: "revenue_breaks.csv", width: 760, height: 460, title: "Revenue against target") {
+    Theme(name: "minimal")
+    Scale(axis: y,
+          domain: [0, 1000000],
+          breaks: [0, 250000, 500000, 750000, 1000000],
+          labels: ["0", "250k", "500k", "750k", "1M"],
+          expand: [0.02, 0])
+    Scale(fill: region, palette: "accent")
+    Guide(axis: x, tickLabelRows: 2)
+    Guide(axis: y, label: "Revenue")
+
+    Space(quarter * revenue) {
+        Bar(fill: region, layout: "stack")
+    }
+}
+```
+
+![breaks_labels_expansion](examples/breaks_labels_expansion.svg)
+
+## Binned color scale
+
+When a continuous value only needs visual classes, `mode: "binned"` classifies
+the original column inside the scale instead of requiring a prepared category
+column.
+
+```algraf
+Chart(data: "density_points.csv", width: 720, height: 440, title: "Density classes from a binned scale") {
+    Theme(name: "minimal")
+    Scale(fill: density,
+          mode: "binned",
+          breaks: [0, 100, 250, 500, 800],
+          labels: ["0-100", "100-250", "250-500", "500-800", "800+"],
+          range: ["#eff3ff", "#bdd7e7", "#6baed6", "#3182bd", "#08519c"],
+          label: "Density")
+
+    Guide(axis: x, label: "Longitude index")
+    Guide(axis: y, label: "Latitude index")
+
+    Space(x * y) {
+        Point(fill: density, stroke: "#ffffff", size: 8)
+    }
+}
+```
+
+![binned_scale](examples/binned_scale.svg)
+
+## Identity color scale
+
+`mode: "identity"` uses safe color values from the data directly. It is useful
+for brand or status colors that are already encoded as hex colors or approved
+SVG color names.
+
+```algraf
+Chart(data: "brand_points.csv", width: 700, height: 430, title: "Brand colors from data") {
+    Theme(name: "minimal")
+    Scale(fill: brand_color, mode: "identity")
+    Guide(fill: null)
+    Guide(axis: x, label: "Campaign")
+    Guide(axis: y, label: "Response")
+
+    Space(x * y) {
+        Point(fill: brand_color, size: 5, alpha: 0.9)
+        Text(label: label, dy: -14, anchor: "middle", size: 11)
+    }
+}
+```
+
+![identity_color](examples/identity_color.svg)
 
 ## Merging fill and stroke legends
 

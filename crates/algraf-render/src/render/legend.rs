@@ -203,6 +203,8 @@ fn hexbin_count_legend(
         min,
         max,
         stops,
+        breaks: None,
+        labels: None,
     };
     let title = scale_label(scales, "fill").unwrap_or_else(|| "count".to_string());
     spec.legend(&title)

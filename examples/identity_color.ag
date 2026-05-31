@@ -1,0 +1,12 @@
+Chart(data: "brand_points.csv", width: 700, height: 430, title: "Brand colors from data") {
+    Theme(name: "minimal")
+    Scale(fill: brand_color, mode: "identity")
+    Guide(fill: null)
+    Guide(axis: x, label: "Campaign")
+    Guide(axis: y, label: "Response")
+
+    Space(x * y) {
+        Point(fill: brand_color, size: 5, alpha: 0.9)
+        Text(label: label, dy: -14, anchor: "middle", size: 11)
+    }
+}

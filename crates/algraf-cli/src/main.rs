@@ -1226,6 +1226,8 @@ fn guide_overrides_json(guides: &GuideOverridesIr) -> Value {
         "yTimeFormat": guides.y_time_format.as_ref().map(|format| format.as_str()),
         "xTickLabelAngle": guides.x_tick_label_angle,
         "yTickLabelAngle": guides.y_tick_label_angle,
+        "xTickLabelRows": guides.x_tick_label_rows,
+        "yTickLabelRows": guides.y_tick_label_rows,
     })
 }
 
@@ -1233,10 +1235,22 @@ fn scale_json(scale: &ScaleIr) -> Value {
     json!({
         "target": scale_target_json(&scale.target),
         "type": scale.scale_type.map(scale_type_str),
+        "mode": scale.mode.map(|mode| mode.as_str()),
         "domain": scale.domain,
+        "breaks": scale.breaks.as_ref(),
+        "labels": scale.break_labels.as_ref(),
+        "expansion": scale.expansion.as_ref().map(|expansion| {
+            json!({ "mult": expansion.mult, "add": expansion.add })
+        }),
+        "range": scale.range,
+        "colorRange": scale.color_range.as_ref(),
         "reverse": scale.reverse,
+        "integer": scale.integer,
         "palette": scale.palette.as_deref(),
         "gradient": scale.gradient.as_ref().map(gradient_json),
+        "colorMap": scale.color_map.as_ref(),
+        "labelMap": scale.label_map.as_ref(),
+        "label": scale.label.as_deref(),
         "span": span_json(scale.span),
     })
 }
@@ -1406,6 +1420,47 @@ fn stat_options_json(options: &StatOptionsIr) -> Value {
             "bandwidth": bandwidth,
             "grid": { "x": grid.x, "y": grid.y },
             "levels": levels_json(levels),
+        }),
+        StatOptionsIr::Distinct => json!({ "kind": "distinct" }),
+        StatOptionsIr::Ecdf => json!({ "kind": "ecdf" }),
+        StatOptionsIr::Qq {
+            distribution,
+            reference,
+        } => json!({
+            "kind": "qq",
+            "distribution": distribution.as_str(),
+            "reference": reference,
+        }),
+        StatOptionsIr::Summary { by, reducer } => json!({
+            "kind": "summary",
+            "by": by.iter().map(column_json).collect::<Vec<_>>(),
+            "reducer": reducer.as_str(),
+        }),
+        StatOptionsIr::SummaryBin {
+            by,
+            bins,
+            bin_width,
+            boundary,
+            closed,
+            reducer,
+        } => json!({
+            "kind": "summaryBin",
+            "by": by.iter().map(column_json).collect::<Vec<_>>(),
+            "bins": bins,
+            "binWidth": bin_width,
+            "boundary": boundary,
+            "closed": closed.as_str(),
+            "reducer": reducer.as_str(),
+        }),
+        StatOptionsIr::Cut {
+            breaks,
+            labels,
+            output,
+        } => json!({
+            "kind": "cut",
+            "breaks": breaks,
+            "labels": labels,
+            "output": output,
         }),
         StatOptionsIr::Smooth { method, span, se } => json!({
             "kind": "smooth",

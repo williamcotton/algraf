@@ -4,11 +4,11 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Request latency around a deploy</text>
 <rect class="algraf-plot-area" x="60" y="66" width="730" height="304" fill="#ffffff" />
 <g class="algraf-grid">
-  <line x1="60" y1="66" x2="60" y2="370" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="242.5" y1="66" x2="242.5" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="133" y1="66" x2="133" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="279" y1="66" x2="279" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="425" y1="66" x2="425" y2="370" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="607.5" y1="66" x2="607.5" y2="370" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="790" y1="66" x2="790" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="571" y1="66" x2="571" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="717" y1="66" x2="717" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="349.034" x2="790" y2="349.034" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="311.596" x2="790" y2="311.596" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="274.158" x2="790" y2="274.158" stroke="#e6e6e6" stroke-width="1" />
@@ -19,7 +19,7 @@
   <line x1="60" y1="86.966" x2="790" y2="86.966" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-layer algraf-geom-line">
-  <path d="M60 349.034 L242.5 311.596 L425 86.966 L607.5 236.719 L790 292.877" fill="none" stroke="#3b6ea5" stroke-width="1.5" opacity="1" />
+  <path d="M133 349.034 L279 311.596 L425 86.966 L571 236.719 L717 292.877" fill="none" stroke="#3b6ea5" stroke-width="1.5" opacity="1" />
 </g>
 <g class="algraf-layer algraf-geom-vline">
   <line x1="425" y1="66" x2="425" y2="370" stroke="#c0392b" stroke-width="1.5" opacity="1" stroke-dasharray="4 4" />
@@ -27,16 +27,16 @@
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="370" x2="790" y2="370" stroke="#333333" stroke-width="1" />
-  <line x1="60" y1="370" x2="60" y2="375" stroke="#333333" stroke-width="1" />
-  <text x="60" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-27 23:00</text>
-  <line x1="242.5" y1="370" x2="242.5" y2="375" stroke="#333333" stroke-width="1" />
-  <text x="242.5" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 00:00</text>
+  <line x1="133" y1="370" x2="133" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="133" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-27 23:00</text>
+  <line x1="279" y1="370" x2="279" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="279" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 00:00</text>
   <line x1="425" y1="370" x2="425" y2="375" stroke="#333333" stroke-width="1" />
   <text x="425" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 01:00</text>
-  <line x1="607.5" y1="370" x2="607.5" y2="375" stroke="#333333" stroke-width="1" />
-  <text x="607.5" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 02:00</text>
-  <line x1="790" y1="370" x2="790" y2="375" stroke="#333333" stroke-width="1" />
-  <text x="790" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 03:00</text>
+  <line x1="571" y1="370" x2="571" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="571" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 02:00</text>
+  <line x1="717" y1="370" x2="717" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="717" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-28 03:00</text>
   <text x="425" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">started at</text>
   <line x1="60" y1="66" x2="60" y2="370" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="349.034" x2="60" y2="349.034" stroke="#333333" stroke-width="1" />

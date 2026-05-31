@@ -148,13 +148,19 @@ impl Analyzer<'_> {
             "Density2D" => StatKind::Density2D,
             "Density2DContours" => StatKind::Density2DContours,
             "Density2DBands" => StatKind::Density2DBands,
+            "Distinct" => StatKind::Distinct,
+            "Ecdf" => StatKind::Ecdf,
+            "Qq" => StatKind::Qq,
+            "Summary" => StatKind::Summary,
+            "SummaryBin" => StatKind::SummaryBin,
+            "Cut" => StatKind::Cut,
             "Centroid" => StatKind::Centroid,
             "Simplify" => StatKind::Simplify,
             "SpatialJoin" => StatKind::SpatialJoin,
             _ => {
                 self.diag(Diagnostic::error(
                     codes::E1403,
-                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `StepVertices`, `VectorEndpoints`, `CurveSample`, `IntervalSegments`, `IntervalRects`, `IntervalMiddles`, `Bin2D`, `HexBin`, `Summary2D`, `SummaryHex`, `ContourLines`, `ContourBands`, `Density2D`, `Density2DContours`, `Density2DBands`, `Centroid`, `Simplify`, and `SpatialJoin`"),
+                    format!("unknown stat `{stat_name}`; supported stats are `Bin`, `Smooth`, `StepVertices`, `VectorEndpoints`, `CurveSample`, `IntervalSegments`, `IntervalRects`, `IntervalMiddles`, `Bin2D`, `HexBin`, `Summary2D`, `SummaryHex`, `ContourLines`, `ContourBands`, `Density2D`, `Density2DContours`, `Density2DBands`, `Distinct`, `Ecdf`, `Qq`, `Summary`, `SummaryBin`, `Cut`, `Centroid`, `Simplify`, and `SpatialJoin`"),
                     stat_span,
                 ));
                 return None;
@@ -391,6 +397,83 @@ impl Analyzer<'_> {
                 };
                 let output_schema = stat_output_schema(kind, &input_frame);
                 (input_frame, options, output_schema)
+            }
+            StatKind::Distinct => {
+                let input_frame =
+                    self.at_least_one_stat_input(&inputs, table, stat_span, "Distinct")?;
+                self.reject_stat_args(&stat.args(), "Distinct");
+                let output_schema = pass_through_output_schema(table);
+                (input_frame, StatOptionsIr::Distinct, output_schema)
+            }
+            StatKind::Ecdf => {
+                let input_frame = self.single_stat_input(&inputs, table, stat_span, "Ecdf")?;
+                self.require_single_numeric_stat_input(&input_frame, "Ecdf");
+                self.reject_stat_args(&stat.args(), "Ecdf");
+                let output_schema = crate::planning::ecdf_output_schema();
+                (input_frame, StatOptionsIr::Ecdf, output_schema)
+            }
+            StatKind::Qq => {
+                let input_frame = self.single_stat_input(&inputs, table, stat_span, "Qq")?;
+                self.require_single_numeric_stat_input(&input_frame, "Qq");
+                let options = self.collect_qq_options(&stat.args());
+                let output_schema = crate::planning::qq_output_schema();
+                (input_frame, options, output_schema)
+            }
+            StatKind::Summary => {
+                let input_frame = self.single_stat_input(&inputs, table, stat_span, "Summary")?;
+                let (by, reducer) = self.collect_summary_options(&stat.args(), table, "Summary");
+                if reducer != SummaryReducerIr::Count {
+                    self.require_single_numeric_stat_input(&input_frame, "Summary");
+                }
+                let group_schema = column_defs_from_refs(&by);
+                let output_schema = crate::planning::summary_output_schema(
+                    &group_schema,
+                    reducer == SummaryReducerIr::MeanSe,
+                );
+                (
+                    input_frame,
+                    StatOptionsIr::Summary { by, reducer },
+                    output_schema,
+                )
+            }
+            StatKind::SummaryBin => {
+                let input_frame = self.two_stat_inputs(&inputs, table, stat_span, "SummaryBin")?;
+                self.require_xy_numeric_stat_inputs(&input_frame, "SummaryBin");
+                let (by, reducer, bins, bin_width, boundary, closed) =
+                    self.collect_summarybin_options(&stat.args(), table, stat_span);
+                let group_schema = column_defs_from_refs(&by);
+                let output_schema = crate::planning::summarybin_output_schema(
+                    &group_schema,
+                    reducer == SummaryReducerIr::MeanSe,
+                );
+                (
+                    input_frame,
+                    StatOptionsIr::SummaryBin {
+                        by,
+                        bins,
+                        bin_width,
+                        boundary,
+                        closed,
+                        reducer,
+                    },
+                    output_schema,
+                )
+            }
+            StatKind::Cut => {
+                let input_frame = self.single_stat_input(&inputs, table, stat_span, "Cut")?;
+                self.require_single_numeric_stat_input(&input_frame, "Cut");
+                let (breaks, labels, output) =
+                    self.collect_cut_options(&stat.args(), &input_frame, table, stat_span);
+                let output_schema = cut_output_schema(table, &output);
+                (
+                    input_frame,
+                    StatOptionsIr::Cut {
+                        breaks,
+                        labels,
+                        output,
+                    },
+                    output_schema,
+                )
             }
             StatKind::Centroid => {
                 let input_frame =
@@ -667,6 +750,42 @@ impl Analyzer<'_> {
         Some(FrameIr::Cartesian(frames))
     }
 
+    fn at_least_one_stat_input(
+        &mut self,
+        inputs: &[AlgebraExpr],
+        table: &ActiveTable,
+        stat_span: Span,
+        stat_name: &str,
+    ) -> Option<FrameIr> {
+        if inputs.is_empty() {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                format!("{stat_name} requires at least one input column"),
+                stat_span,
+            ));
+            return None;
+        }
+        let mut frames = Vec::with_capacity(inputs.len());
+        for input in inputs {
+            match input {
+                AlgebraExpr::Name(n) => frames.push(FrameIr::Vector(self.resolve_column(n, table))),
+                _ => {
+                    self.diag(Diagnostic::error(
+                        codes::E1404,
+                        format!("{stat_name} requires column inputs"),
+                        stat_span,
+                    ));
+                    frames.push(FrameIr::Invalid);
+                }
+            }
+        }
+        if frames.len() == 1 {
+            frames.into_iter().next()
+        } else {
+            Some(FrameIr::Cartesian(frames))
+        }
+    }
+
     /// Resolve z-field stat inputs. `x` and `y` are positional inherited-frame
     /// columns; `z` may be a third positional input or a named `z:` argument.
     fn xyz_stat_inputs(
@@ -802,6 +921,21 @@ impl Analyzer<'_> {
                         ));
                     }
                 }
+            }
+        }
+    }
+
+    fn require_single_numeric_stat_input(&mut self, frame: &FrameIr, stat_name: &str) {
+        if let FrameIr::Vector(col) = frame {
+            if !matches!(
+                col.dtype,
+                DataType::Integer | DataType::Float | DataType::Unknown
+            ) {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("{stat_name} input column `{}` is not numeric", col.name),
+                    col.span,
+                ));
             }
         }
     }
@@ -1346,6 +1480,353 @@ impl Analyzer<'_> {
         (bandwidth, grid, levels)
     }
 
+    fn collect_qq_options(&mut self, args: &[Arg]) -> StatOptionsIr {
+        let mut distribution = QqDistributionIr::Normal;
+        let mut reference = true;
+        let mut dup = DupGuard::new(codes::E1404, "Qq setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "distribution" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Str(s) if s == "normal" => {
+                            distribution = QqDistributionIr::Normal
+                        }
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`distribution` expects \"normal\"",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                "reference" => {
+                    if let Some(value) = arg.value() {
+                        match ValueForm::of(&value) {
+                            ValueForm::Bool(b) => reference = b,
+                            _ => self.diag(Diagnostic::error(
+                                codes::E1404,
+                                "`reference` expects a boolean",
+                                node_span(value.syntax()),
+                            )),
+                        }
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown Qq setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        StatOptionsIr::Qq {
+            distribution,
+            reference,
+        }
+    }
+
+    fn collect_summary_options(
+        &mut self,
+        args: &[Arg],
+        table: &ActiveTable,
+        stat_name: &str,
+    ) -> (Vec<ColumnRef>, SummaryReducerIr) {
+        let mut by = Vec::new();
+        let mut reducer = SummaryReducerIr::Mean;
+        let mut dup = DupGuard::new(codes::E1404, "Summary setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "by" => by = self.column_array_arg(arg, table, "`by`"),
+                "reducer" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Str(s) => match parse_summary_reducer(&s) {
+                            Some(parsed) => reducer = parsed,
+                            None => self.diag(Diagnostic::error(
+                                codes::E1404,
+                                format!("unknown reducer `{s}`"),
+                                node_span(value.syntax()),
+                            )),
+                        },
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`reducer` expects \"count\", \"mean\", \"min\", \"max\", \"sum\", \"median\", or \"mean_se\"",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown {stat_name} setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        (by, reducer)
+    }
+
+    fn collect_summarybin_options(
+        &mut self,
+        args: &[Arg],
+        table: &ActiveTable,
+        stat_span: Span,
+    ) -> (
+        Vec<ColumnRef>,
+        SummaryReducerIr,
+        Option<f64>,
+        Option<f64>,
+        Option<f64>,
+        BinClosedIr,
+    ) {
+        let mut by = Vec::new();
+        let mut reducer = SummaryReducerIr::Mean;
+        let mut bins = None;
+        let mut bin_width = None;
+        let mut boundary = None;
+        let mut closed = BinClosedIr::Left;
+        let mut dup = DupGuard::new(codes::E1404, "SummaryBin setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "by" => by = self.column_array_arg(arg, table, "`by`"),
+                "reducer" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Str(s) => match parse_summary_reducer(&s) {
+                            Some(parsed) => reducer = parsed,
+                            None => self.diag(Diagnostic::error(
+                                codes::E1404,
+                                format!("unknown reducer `{s}`"),
+                                node_span(value.syntax()),
+                            )),
+                        },
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`reducer` expects \"count\", \"mean\", \"min\", \"max\", \"sum\", \"median\", or \"mean_se\"",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                "bins" | "binWidth" | "boundary" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Number(n) if n.is_finite() => {
+                            if name == "bins" && n < 1.0 {
+                                self.diag(Diagnostic::error(
+                                    codes::E1404,
+                                    "`bins` must be at least 1",
+                                    node_span(value.syntax()),
+                                ));
+                            } else if name == "binWidth" && n <= 0.0 {
+                                self.diag(Diagnostic::error(
+                                    codes::E1404,
+                                    "`binWidth` must be greater than 0",
+                                    node_span(value.syntax()),
+                                ));
+                            } else {
+                                match name.as_str() {
+                                    "bins" => bins = Some(n),
+                                    "binWidth" => bin_width = Some(n),
+                                    _ => boundary = Some(n),
+                                }
+                            }
+                        }
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            format!("`{name}` expects a finite number"),
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                "closed" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Str(s) if s == "left" => closed = BinClosedIr::Left,
+                        ValueForm::Str(s) if s == "right" => closed = BinClosedIr::Right,
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`closed` expects \"left\" or \"right\"",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown SummaryBin setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        self.check_bin_conflict(
+            bins.is_some(),
+            bin_width.is_some(),
+            boundary.is_some(),
+            false,
+            stat_span,
+        );
+        (by, reducer, bins, bin_width, boundary, closed)
+    }
+
+    fn collect_cut_options(
+        &mut self,
+        args: &[Arg],
+        input_frame: &FrameIr,
+        table: &ActiveTable,
+        stat_span: Span,
+    ) -> (Vec<f64>, Option<Vec<String>>, String) {
+        let mut breaks = None;
+        let mut labels = None;
+        let mut output = match input_frame {
+            FrameIr::Vector(column) => format!("{}_class", column.name),
+            _ => "class".to_string(),
+        };
+        let mut dup = DupGuard::new(codes::E1404, "Cut setting");
+        for arg in args {
+            let Some(name) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            if dup.is_duplicate(&mut self.diagnostics, &name, key_span) {
+                continue;
+            }
+            match name.as_str() {
+                "breaks" => {
+                    if let Some(value) = arg.value() {
+                        breaks = self.strict_number_array(&value, "`breaks`");
+                    }
+                }
+                "labels" => {
+                    if let Some(value) = arg.value() {
+                        labels = self.string_array(&value, "`labels`");
+                    }
+                }
+                "output" => {
+                    let Some(value) = arg.value() else { continue };
+                    match ValueForm::of(&value) {
+                        ValueForm::Str(s) if !s.is_empty() => output = s,
+                        _ => self.diag(Diagnostic::error(
+                            codes::E1404,
+                            "`output` expects a non-empty string",
+                            node_span(value.syntax()),
+                        )),
+                    }
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("unknown Cut setting `{name}`"),
+                    key_span,
+                )),
+            }
+        }
+        let breaks = match breaks {
+            Some(values) if !values.is_empty() => values,
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    "Cut requires `breaks:` with at least one finite number",
+                    stat_span,
+                ));
+                vec![0.0]
+            }
+        };
+        if let Some(labels) = &labels {
+            if labels.len() != breaks.len() {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    "`labels` length must match `breaks` length for Cut",
+                    stat_span,
+                ));
+            }
+        }
+        if table.get(&output).is_some() {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                format!("Cut output column `{output}` already exists"),
+                stat_span,
+            ));
+        }
+        (breaks, labels, output)
+    }
+
+    fn column_array_arg(&mut self, arg: &Arg, table: &ActiveTable, label: &str) -> Vec<ColumnRef> {
+        let Some(value) = arg.value() else {
+            return Vec::new();
+        };
+        match value {
+            ValueExpr::Array(array) => array
+                .values()
+                .into_iter()
+                .filter_map(|item| match item {
+                    ValueExpr::Algebra(AlgebraExpr::Name(name)) => {
+                        Some(self.resolve_column(&name, table))
+                    }
+                    _ => {
+                        self.diag(Diagnostic::error(
+                            codes::E1404,
+                            format!("{label} expects an array of column names"),
+                            node_span(item.syntax()),
+                        ));
+                        None
+                    }
+                })
+                .collect(),
+            ValueExpr::Algebra(AlgebraExpr::Name(name)) => vec![self.resolve_column(&name, table)],
+            other => {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("{label} expects a column name or array of column names"),
+                    node_span(other.syntax()),
+                ));
+                Vec::new()
+            }
+        }
+    }
+
+    fn strict_number_array(&mut self, value: &ValueExpr, label: &str) -> Option<Vec<f64>> {
+        let ValueForm::Array(Some(values)) = ValueForm::of(value) else {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                format!("{label} expects an array of finite numbers"),
+                node_span(value.syntax()),
+            ));
+            return None;
+        };
+        if values.iter().any(|n| !n.is_finite()) || !values.windows(2).all(|w| w[0] < w[1]) {
+            self.diag(Diagnostic::error(
+                codes::E1404,
+                format!("{label} values must be strictly increasing finite numbers"),
+                node_span(value.syntax()),
+            ));
+            return None;
+        }
+        Some(values)
+    }
+
+    fn string_array(&mut self, value: &ValueExpr, label: &str) -> Option<Vec<String>> {
+        match ValueForm::of(value) {
+            ValueForm::StringArray(Some(values)) => Some(values),
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    format!("{label} expects an array of strings"),
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+        }
+    }
+
     fn grid_bins_arg(&mut self, arg: &Arg, name: &str, min: f64) -> GridBinsIr {
         let Some(value) = arg.value() else {
             return GridBinsIr::default();
@@ -1565,6 +2046,37 @@ fn geometry_stat_output_schema(table: &ActiveTable) -> Vec<ColumnDefIr> {
         .collect()
 }
 
+fn pass_through_output_schema(table: &ActiveTable) -> Vec<ColumnDefIr> {
+    table
+        .names()
+        .map(|name| ColumnDefIr {
+            name: name.to_string(),
+            dtype: table.get(name).unwrap_or(DataType::Unknown),
+        })
+        .collect()
+}
+
+fn column_defs_from_refs(columns: &[ColumnRef]) -> Vec<ColumnDefIr> {
+    columns
+        .iter()
+        .map(|column| ColumnDefIr {
+            name: column.name.clone(),
+            dtype: column.dtype,
+        })
+        .collect()
+}
+
+fn cut_output_schema(table: &ActiveTable, output: &str) -> Vec<ColumnDefIr> {
+    let mut schema = pass_through_output_schema(table);
+    if !schema.iter().any(|column| column.name == output) {
+        schema.push(ColumnDefIr {
+            name: output.to_string(),
+            dtype: DataType::String,
+        });
+    }
+    schema
+}
+
 /// Output schema for primitive-construction stats: fixed primitive columns
 /// first, followed by non-conflicting source columns so aesthetics such as
 /// `stroke: cohort` remain available in the derived table (spec §15.15).
@@ -1606,6 +2118,7 @@ fn parse_summary_reducer(value: &str) -> Option<SummaryReducerIr> {
         "max" => Some(SummaryReducerIr::Max),
         "sum" => Some(SummaryReducerIr::Sum),
         "median" => Some(SummaryReducerIr::Median),
+        "mean_se" | "se" => Some(SummaryReducerIr::MeanSe),
         _ => None,
     }
 }
@@ -1655,6 +2168,30 @@ fn derive_input_names(derive: &DeriveDecl) -> Vec<String> {
                 if let Some(name) = name.name() {
                     names.push(name);
                 }
+            }
+        }
+    }
+    if matches!(stat.name().as_deref(), Some("Summary" | "SummaryBin")) {
+        for arg in stat.args() {
+            if arg.key().as_deref() != Some("by") {
+                continue;
+            }
+            match arg.value() {
+                Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
+                    if let Some(name) = name.name() {
+                        names.push(name);
+                    }
+                }
+                Some(ValueExpr::Array(array)) => {
+                    for value in array.values() {
+                        if let ValueExpr::Algebra(AlgebraExpr::Name(name)) = value {
+                            if let Some(name) = name.name() {
+                                names.push(name);
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }

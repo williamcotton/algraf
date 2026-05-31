@@ -111,6 +111,76 @@ fn density_output_is_row_order_independent() {
 }
 
 #[test]
+fn ecdf_output_is_row_order_independent() {
+    let source = r##"Chart(data: "d.csv") {
+  Theme(name: "minimal")
+  Derive rows = Ecdf(value)
+  Space(x * y, data: rows) { Path(stroke: "#4c78a8") }
+}"##;
+    assert_stat_is_row_order_independent(
+        source,
+        "value\n3\n1\n2\n2\n4\n",
+        "value\n2\n4\n1\n3\n2\n",
+    );
+}
+
+#[test]
+fn qq_output_is_row_order_independent() {
+    let source = r##"Chart(data: "d.csv") {
+  Theme(name: "minimal")
+  Derive rows = Qq(value, distribution: "normal")
+  Space(theoretical * sample, data: rows) { Point(fill: "#4c78a8") }
+}"##;
+    assert_stat_is_row_order_independent(source, "value\n-1\n0\n1\n2\n", "value\n1\n-1\n2\n0\n");
+}
+
+#[test]
+fn summary_and_summarybin_outputs_are_row_order_independent() {
+    let summary = r##"Chart(data: "d.csv") {
+  Theme(name: "minimal")
+  Derive rows = Summary(value, by: [group], reducer: "mean_se")
+  Space(group * value, data: rows) { Point(fill: group) }
+}"##;
+    assert_stat_is_row_order_independent(
+        summary,
+        "group,value\na,1\na,3\na,5\nb,2\nb,4\nb,6\n",
+        "group,value\nb,6\na,3\nb,2\na,5\nb,4\na,1\n",
+    );
+
+    let summary_bin = r##"Chart(data: "d.csv") {
+  Theme(name: "minimal")
+  Derive rows = SummaryBin(x, value, bins: 2, reducer: "median")
+  Space(bin_center * value, data: rows) { Line(); Point() }
+}"##;
+    assert_stat_is_row_order_independent(
+        summary_bin,
+        "x,value\n1,10\n2,14\n3,20\n4,24\n",
+        "x,value\n4,24\n2,14\n1,10\n3,20\n",
+    );
+}
+
+#[test]
+fn v040_summary_stats_materialize_large_grouped_fixture() {
+    let mut csv = String::from("group,x,value\n");
+    for i in 0..2000 {
+        let group = match i % 4 {
+            0 => "a",
+            1 => "b",
+            2 => "c",
+            _ => "d",
+        };
+        csv.push_str(&format!("{group},{},{}\n", i % 100, (i * 7) % 53));
+    }
+    let source = r##"Chart(data: "d.csv") {
+  Theme(name: "minimal")
+  Derive rows = SummaryBin(x, value, by: [group], bins: 20, reducer: "mean")
+  Space(bin_center * value, data: rows) { Point(fill: group, size: 1) }
+}"##;
+    let svg = render_svg(source, &csv);
+    assert!(svg.contains("algraf-geom-point"));
+}
+
+#[test]
 fn smooth_output_is_row_order_independent() {
     let source = r##"Chart(data: "d.csv") {
   Theme(name: "minimal")

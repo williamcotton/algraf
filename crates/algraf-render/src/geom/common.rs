@@ -1,7 +1,7 @@
 use algraf_data::Table;
 use algraf_semantics::{GeometryIr, PropertyKey, SettingValue};
 
-use crate::aes::ColorSpec;
+use crate::aes::{bin_index_for_value, ColorSpec};
 use crate::scale::{cell_category, cell_f64, cell_micros};
 use crate::sink::{Dash, MarkInteraction, MarkSink, Stroke};
 use crate::space::{AxisScale, ScaledSpace};
@@ -43,6 +43,16 @@ pub(super) fn mark_interaction(geo: &GeometryIr, table: &dyn Table, row: usize) 
 pub(super) fn row_category(spec: &ColorSpec, table: &dyn Table, row: usize) -> Option<String> {
     match spec {
         ColorSpec::Categorical { col, .. } => crate::scale::cell_category(table, col, row),
+        ColorSpec::Binned {
+            col,
+            breaks,
+            labels,
+            ..
+        } => {
+            let value = cell_f64(table, col, row)?;
+            let index = bin_index_for_value(value, breaks)?;
+            labels.get(index).cloned()
+        }
         _ => None,
     }
 }
@@ -75,6 +85,20 @@ pub(super) fn grouped_rows(
     }
     match stroke {
         ColorSpec::Categorical { categories, .. } => categories
+            .iter()
+            .map(|cat| {
+                let group_rows = rows
+                    .iter()
+                    .copied()
+                    .filter(|&r| {
+                        stroke.resolve(table, r).is_some()
+                            && row_category(stroke, table, r).as_deref() == Some(cat)
+                    })
+                    .collect();
+                (cat.clone(), group_rows)
+            })
+            .collect(),
+        ColorSpec::Binned { labels, .. } => labels
             .iter()
             .map(|cat| {
                 let group_rows = rows
@@ -194,6 +218,16 @@ pub(super) fn grouped_rows_by_color(
 ) -> Vec<Vec<usize>> {
     match spec {
         ColorSpec::Categorical { categories, .. } => categories
+            .iter()
+            .map(|cat| {
+                rows.iter()
+                    .copied()
+                    .filter(|&row| row_category(spec, table, row).as_deref() == Some(cat))
+                    .collect::<Vec<_>>()
+            })
+            .filter(|group| !group.is_empty())
+            .collect(),
+        ColorSpec::Binned { labels, .. } => labels
             .iter()
             .map(|cat| {
                 rows.iter()

@@ -372,8 +372,12 @@ pub(super) fn render_ribbon(
     let alpha = number_setting(geo, PropertyKey::Alpha, 0.25);
     let row_list = render_rows(table, rows);
     let groups = match (&fill, &stroke) {
-        (ColorSpec::Categorical { .. }, _) => grouped_rows_by_color(&fill, table, row_list),
-        (_, ColorSpec::Categorical { .. }) => grouped_rows_by_color(&stroke, table, row_list),
+        (ColorSpec::Categorical { .. } | ColorSpec::Binned { .. }, _) => {
+            grouped_rows_by_color(&fill, table, row_list)
+        }
+        (_, ColorSpec::Categorical { .. } | ColorSpec::Binned { .. }) => {
+            grouped_rows_by_color(&stroke, table, row_list)
+        }
         _ => vec![row_list],
     };
 
@@ -433,9 +437,13 @@ pub(super) fn render_area(
 
     let row_list = render_rows(table, rows);
     let groups = match &fill {
-        ColorSpec::Categorical { .. } => grouped_rows_by_color(&fill, table, row_list),
+        ColorSpec::Categorical { .. } | ColorSpec::Binned { .. } => {
+            grouped_rows_by_color(&fill, table, row_list)
+        }
         _ => match &stroke {
-            ColorSpec::Categorical { .. } => grouped_rows_by_color(&stroke, table, row_list),
+            ColorSpec::Categorical { .. } | ColorSpec::Binned { .. } => {
+                grouped_rows_by_color(&stroke, table, row_list)
+            }
             _ => vec![row_list],
         },
     };

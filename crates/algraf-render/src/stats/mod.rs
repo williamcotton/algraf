@@ -24,9 +24,10 @@ pub use primitive::{
     IntervalWidthOptions, StepDirection, StepVerticesOptions, VectorEndpointsOptions,
 };
 pub use smooth::{smooth, smooth_points, SmoothMethod, SmoothOptions};
-pub use summary::count_by;
+pub use summary::{
+    count_by, cut, distinct, ecdf, qq, summary, summary_bin, QqOptions, SummaryReducer,
+};
 pub use zfield::{
     contour_bands, contour_lines, density2d, density2d_bands, density2d_contours, summary2d,
     summaryhex, ContourOptions, Density2DOptions, GridSize, LevelSpec, Summary2DOptions,
-    SummaryReducer,
 };

@@ -1,0 +1,11 @@
+Chart(data: "model_residuals.csv", width: 560, height: 560, title: "Normal QQ check") {
+    Theme(name: "minimal")
+    Derive qq = Qq(residual, distribution: "normal", reference: false)
+
+    Guide(axis: x, label: "Theoretical quantile")
+    Guide(axis: y, label: "Sample quantile")
+
+    Space(theoretical * sample, data: qq) {
+        Point(fill: "#4c78a8", alpha: 0.75, size: 2.8)
+    }
+}

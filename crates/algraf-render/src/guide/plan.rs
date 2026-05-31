@@ -62,15 +62,18 @@ pub(crate) fn max_y_tick_label_width(
     font_size: f64,
     format: Option<&TemporalFormatIr>,
     angle: Option<f64>,
+    rows: Option<usize>,
 ) -> f64 {
     let Some(y) = &space.y else {
         return 0.0;
     };
     let angle = angle.unwrap_or(0.0);
-    y.ticks_with_format(format)
+    let width = y
+        .ticks_with_format(format)
         .iter()
         .map(|(_, label)| rotated_text_size(label, font_size, angle).0)
-        .fold(0.0_f64, f64::max)
+        .fold(0.0_f64, f64::max);
+    width + row_offset_extent(rows, font_size)
 }
 
 /// The tallest x tick label for a scaled space, accounting for rotation.
@@ -79,12 +82,26 @@ pub(crate) fn max_x_tick_label_height(
     font_size: f64,
     format: Option<&TemporalFormatIr>,
     angle: Option<f64>,
+    rows: Option<usize>,
 ) -> f64 {
     let angle = angle.unwrap_or(0.0);
-    space
+    let height = space
         .x
         .ticks_with_format(format)
         .iter()
         .map(|(_, label)| rotated_text_size(label, font_size, angle).1)
-        .fold(0.0_f64, f64::max)
+        .fold(0.0_f64, f64::max);
+    height + row_offset_extent(rows, font_size)
+}
+
+pub(crate) fn tick_label_row_count(rows: Option<usize>) -> usize {
+    rows.unwrap_or(1).clamp(1, 8)
+}
+
+pub(crate) fn tick_label_row_gap(font_size: f64) -> f64 {
+    font_size + 4.0
+}
+
+fn row_offset_extent(rows: Option<usize>, font_size: f64) -> f64 {
+    (tick_label_row_count(rows).saturating_sub(1)) as f64 * tick_label_row_gap(font_size)
 }

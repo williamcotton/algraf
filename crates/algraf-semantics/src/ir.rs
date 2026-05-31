@@ -135,6 +135,10 @@ pub struct GuideIr {
     pub x_tick_label_angle: Option<f64>,
     /// Optional y tick label rotation in degrees (spec §19.4).
     pub y_tick_label_angle: Option<f64>,
+    /// Optional x tick-label rows for deterministic dodging (spec §19.9).
+    pub x_tick_label_rows: Option<usize>,
+    /// Optional y tick-label rows for deterministic dodging (spec §19.9).
+    pub y_tick_label_rows: Option<usize>,
     /// Polar grid shape (spec §16.16, §19): concentric circles (default) or
     /// straight-edged polygons (radar). Ignored for Cartesian spaces.
     pub grid_shape: GridShapeIr,
@@ -163,6 +167,8 @@ impl Default for GuideIr {
             y_time_format: None,
             x_tick_label_angle: None,
             y_tick_label_angle: None,
+            x_tick_label_rows: None,
+            y_tick_label_rows: None,
             grid_shape: GridShapeIr::Circle,
         }
     }
@@ -187,6 +193,8 @@ impl GuideIr {
                 .or_else(|| self.y_time_format.clone()),
             x_tick_label_angle: overrides.x_tick_label_angle.or(self.x_tick_label_angle),
             y_tick_label_angle: overrides.y_tick_label_angle.or(self.y_tick_label_angle),
+            x_tick_label_rows: overrides.x_tick_label_rows.or(self.x_tick_label_rows),
+            y_tick_label_rows: overrides.y_tick_label_rows.or(self.y_tick_label_rows),
             grid_shape: overrides.grid_shape.unwrap_or(self.grid_shape),
         }
     }
@@ -205,6 +213,8 @@ pub struct GuideOverridesIr {
     pub y_time_format: Option<TemporalFormatIr>,
     pub x_tick_label_angle: Option<f64>,
     pub y_tick_label_angle: Option<f64>,
+    pub x_tick_label_rows: Option<usize>,
+    pub y_tick_label_rows: Option<usize>,
     pub grid_shape: Option<GridShapeIr>,
 }
 
@@ -266,12 +276,24 @@ impl TemporalFormatIr {
 pub struct ScaleIr {
     pub target: ScaleTargetIr,
     pub scale_type: Option<ScaleTypeIr>,
+    /// Optional scale mode. `None` preserves the target's default behavior.
+    pub mode: Option<ScaleModeIr>,
     /// Numeric domain bounds. Each element may be `None`, meaning "infer this
     /// bound from the data" (e.g. `domain: [0, null]`, spec §16.11).
     pub domain: Option<[Option<f64>; 2]>,
+    /// Exact break values for axes or legends. Temporal breaks are stored as
+    /// UTC-equivalent microseconds, matching temporal domain bounds.
+    pub breaks: Option<Vec<f64>>,
+    /// Positional labels paired with `breaks`.
+    pub break_labels: Option<Vec<String>>,
+    /// Domain expansion/padding. Continuous axes use `mult` and `add` in data
+    /// units; categorical axes use `mult` as outer band padding.
+    pub expansion: Option<ScaleExpansionIr>,
     /// Numeric output range for a `size`/`strokeWidth` scale (spec §16.8,
     /// §16.11). Each element may be `None` to infer from the data.
     pub range: Option<[Option<f64>; 2]>,
+    /// Ordered colors for a binned color scale.
+    pub color_range: Option<Vec<String>>,
     pub reverse: Option<bool>,
     /// Constrain axis ticks to whole integers (spec §16.10). Applies only to
     /// continuous axis scales.
@@ -350,6 +372,27 @@ impl ScaleTypeIr {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScaleModeIr {
+    Binned,
+    Identity,
+}
+
+impl ScaleModeIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ScaleModeIr::Binned => "binned",
+            ScaleModeIr::Identity => "identity",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScaleExpansionIr {
+    pub mult: f64,
+    pub add: f64,
+}
+
 /// A derived table produced by a `Derive` declaration (spec §13.4).
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeriveIr {
@@ -382,6 +425,12 @@ pub enum StatKind {
     Density2D,
     Density2DContours,
     Density2DBands,
+    Distinct,
+    Ecdf,
+    Qq,
+    Summary,
+    SummaryBin,
+    Cut,
     Count,
     Smooth,
     StepVertices,
@@ -415,6 +464,12 @@ impl StatKind {
             StatKind::Density2D => "Density2D",
             StatKind::Density2DContours => "Density2DContours",
             StatKind::Density2DBands => "Density2DBands",
+            StatKind::Distinct => "Distinct",
+            StatKind::Ecdf => "Ecdf",
+            StatKind::Qq => "Qq",
+            StatKind::Summary => "Summary",
+            StatKind::SummaryBin => "SummaryBin",
+            StatKind::Cut => "Cut",
             StatKind::Count => "Count",
             StatKind::Smooth => "Smooth",
             StatKind::StepVertices => "StepVertices",
@@ -477,6 +532,29 @@ pub enum StatOptionsIr {
         bandwidth: Option<f64>,
         grid: GridBinsIr,
         levels: LevelSpecIr,
+    },
+    Distinct,
+    Ecdf,
+    Qq {
+        distribution: QqDistributionIr,
+        reference: bool,
+    },
+    Summary {
+        by: Vec<ColumnRef>,
+        reducer: SummaryReducerIr,
+    },
+    SummaryBin {
+        by: Vec<ColumnRef>,
+        bins: Option<f64>,
+        bin_width: Option<f64>,
+        boundary: Option<f64>,
+        closed: BinClosedIr,
+        reducer: SummaryReducerIr,
+    },
+    Cut {
+        breaks: Vec<f64>,
+        labels: Option<Vec<String>>,
+        output: String,
     },
     Smooth {
         method: SmoothMethodIr,
@@ -571,6 +649,7 @@ pub enum SummaryReducerIr {
     Max,
     Sum,
     Median,
+    MeanSe,
 }
 
 impl SummaryReducerIr {
@@ -582,6 +661,21 @@ impl SummaryReducerIr {
             SummaryReducerIr::Max => "max",
             SummaryReducerIr::Sum => "sum",
             SummaryReducerIr::Median => "median",
+            SummaryReducerIr::MeanSe => "mean_se",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum QqDistributionIr {
+    #[default]
+    Normal,
+}
+
+impl QqDistributionIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            QqDistributionIr::Normal => "normal",
         }
     }
 }

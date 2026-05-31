@@ -7,6 +7,7 @@ use crate::scale::{cell_f64, numeric_domain};
 
 use super::bin::{bin_index, bin_layout, hex_lattice_index};
 use super::density::percentile;
+use super::summary::SummaryReducer;
 use super::util::{col_def, deterministic_frame};
 use super::{BinClosed, BinOptions};
 
@@ -58,17 +59,6 @@ impl Default for Density2DOptions {
             grid: GridSize::square(64),
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum SummaryReducer {
-    Count,
-    #[default]
-    Mean,
-    Min,
-    Max,
-    Sum,
-    Median,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -795,7 +785,9 @@ fn hex_polygon(x: f64, y: f64, rx: f64, ry: f64) -> Polygon<f64> {
 fn reduce(values: &mut [f64], reducer: SummaryReducer) -> f64 {
     match reducer {
         SummaryReducer::Count => values.len() as f64,
-        SummaryReducer::Mean => values.iter().sum::<f64>() / values.len() as f64,
+        SummaryReducer::Mean | SummaryReducer::MeanSe => {
+            values.iter().sum::<f64>() / values.len() as f64
+        }
         SummaryReducer::Min => values.iter().copied().fold(f64::INFINITY, f64::min),
         SummaryReducer::Max => values.iter().copied().fold(f64::NEG_INFINITY, f64::max),
         SummaryReducer::Sum => values.iter().sum(),

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="460" viewBox="0 0 760 460" role="img" aria-label="Mean outcome with standard error">
+<title>Mean outcome with standard error</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="460" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Mean outcome with standard error</text>
+<rect class="algraf-plot-area" x="60" y="66" width="550" height="344" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="60" y1="389.607" x2="610" y2="389.607" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="295.561" x2="610" y2="295.561" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="201.515" x2="610" y2="201.515" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="107.468" x2="610" y2="107.468" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-segment">
+  <line x1="197.5" y1="334.687" x2="197.5" y2="294.054" stroke="#006BA4" stroke-width="2" opacity="1" />
+  <line x1="197.5" y1="386.276" x2="197.5" y2="336.511" stroke="#FF800E" stroke-width="2" opacity="1" />
+  <line x1="472.5" y1="144.022" x2="472.5" y2="89.724" stroke="#006BA4" stroke-width="2" opacity="1" />
+  <line x1="472.5" y1="202.541" x2="472.5" y2="144.061" stroke="#FF800E" stroke-width="2" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="197.5" cy="314.37" r="4" fill="#006BA4" opacity="1" />
+  <circle cx="197.5" cy="361.394" r="4" fill="#FF800E" opacity="1" />
+  <circle cx="472.5" cy="116.873" r="4" fill="#006BA4" opacity="1" />
+  <circle cx="472.5" cy="173.301" r="4" fill="#FF800E" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="410" x2="610" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="197.5" y1="410" x2="197.5" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="197.5" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Control</text>
+  <line x1="472.5" y1="410" x2="472.5" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="472.5" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Program</text>
+  <text x="335" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Treatment</text>
+  <line x1="60" y1="66" x2="60" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="389.607" x2="60" y2="389.607" stroke="#333333" stroke-width="1" />
+  <text x="52" y="393.607" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
+  <line x1="55" y1="295.561" x2="60" y2="295.561" stroke="#333333" stroke-width="1" />
+  <text x="52" y="299.561" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">55</text>
+  <line x1="55" y1="201.515" x2="60" y2="201.515" stroke="#333333" stroke-width="1" />
+  <text x="52" y="205.515" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
+  <line x1="55" y1="107.468" x2="60" y2="107.468" stroke="#333333" stroke-width="1" />
+  <text x="52" y="111.468" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">65</text>
+  <text x="25.6" y="238" text-anchor="middle" transform="rotate(-90 25.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Outcome</text>
+</g>
+<g class="algraf-legends">
+  <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">cohort</text>
+  <rect x="626" y="78" width="12" height="12" fill="#006BA4" stroke="#006BA4" stroke-width="2" />
+  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">A</text>
+  <rect x="626" y="96" width="12" height="12" fill="#FF800E" stroke="#FF800E" stroke-width="2" />
+  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">B</text>
+</g>
+</svg>

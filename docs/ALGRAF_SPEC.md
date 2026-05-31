@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.38.0
+Status: Draft 0.40.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -3471,6 +3471,19 @@ pub enum StatKind {
     Bin,
     Bin2D,
     HexBin,
+    Summary2D,
+    SummaryHex,
+    ContourLines,
+    ContourBands,
+    Density2D,
+    Density2DContours,
+    Density2DBands,
+    Distinct,
+    Ecdf,
+    Qq,
+    Summary,
+    SummaryBin,
+    Cut,
     Count,
     Smooth,
     StepVertices,
@@ -3494,6 +3507,26 @@ pub enum StatOptionsIr {
     Bin { bins: Option<f64>, bin_width: Option<f64>, boundary: Option<f64>, closed: BinClosedIr },
     Bin2D { bins: Option<f64> },
     HexBin { bins: Option<f64> },
+    Summary2D { bins: GridBinsIr, reducer: SummaryReducerIr },
+    SummaryHex { bins: usize, reducer: SummaryReducerIr },
+    ContourLines { levels: LevelSpecIr },
+    ContourBands { levels: LevelSpecIr },
+    Density2D { bandwidth: Option<f64>, grid: GridBinsIr },
+    Density2DContours { bandwidth: Option<f64>, grid: GridBinsIr, levels: LevelSpecIr },
+    Density2DBands { bandwidth: Option<f64>, grid: GridBinsIr, levels: LevelSpecIr },
+    Distinct,
+    Ecdf,
+    Qq { distribution: QqDistributionIr, reference: bool },
+    Summary { by: Vec<ColumnRef>, reducer: SummaryReducerIr },
+    SummaryBin {
+        by: Vec<ColumnRef>,
+        bins: Option<f64>,
+        bin_width: Option<f64>,
+        boundary: Option<f64>,
+        closed: BinClosedIr,
+        reducer: SummaryReducerIr,
+    },
+    Cut { breaks: Vec<f64>, labels: Option<Vec<String>>, output: String },
     Smooth { method: SmoothMethodIr, span: Option<f64>, se: bool },
     StepVertices { direction: StepDirectionIr },
     VectorEndpoints { length_scale: Option<f64> },
@@ -3515,6 +3548,10 @@ pub enum SmoothMethodIr { Lm, Loess }
 pub enum StepDirectionIr { Hv, Vh }
 
 pub enum IntervalOrientationIr { Vertical, Horizontal }
+
+pub enum SummaryReducerIr { Count, Mean, Min, Max, Sum, Median, MeanSe }
+
+pub enum QqDistributionIr { Normal }
 ```
 
 The explicit `Derive` stat-option parser and high-level geometry lowering MUST produce `StatOptionsIr` through the same defaulting path, so invalid settings keep identical diagnostic codes and spans regardless of which surface produced them. The renderer MUST read `StatOptionsIr` directly rather than looking up string keys.
@@ -5186,11 +5223,125 @@ the same chart, subject to the acyclic dependency rules in §10.6.
 When no upstream dependency exists, derived stats read from the primary data
 table.
 
+Computed stat variables are ordinary named output columns on derived tables.
+Algraf MUST NOT expose an `after_stat(...)` expression language in version
+0.40. A high-level statistical geometry, when supported, MUST document the
+equivalent `Derive` output columns and primitive geometry lowering. LSP hover
+and completion MUST expose the output schema for every validated `Derive`.
+
 ### 15.4 Identity Stat
 
-Identity stat passes input data through unchanged.
+Identity behavior is table binding. Users render the original table by omitting
+`data:` or by binding `Space(..., data: table_name)` to an existing table.
+Version 0.40 does not expose a named `Identity(...)` derived stat because it
+would duplicate ordinary table binding without creating useful columns.
 
 Point, Line, Rect, Area, Ribbon, Tile, Text, HLine, VLine, and Segment usually use identity stat.
+
+### 15.4.1 Distinct Stat
+
+`Distinct(...)` retains the first source row for each distinct tuple of one or
+more input columns and passes through the original schema unchanged.
+
+Missing key values participate in equality: two null key values are the same
+key. Geometry values MUST NOT be used as distinct keys. Output row order follows
+the first retained row in source order. This makes the transform deterministic
+for a given input order; it is intentionally not row-order-independent.
+
+### 15.4.2 ECDF Stat
+
+`Ecdf(value)` computes empirical cumulative distribution vertices from one
+numeric input column. Missing, null, and non-finite values are skipped.
+
+Output columns are:
+
+`x`
+
+`y`
+
+Rows are sorted by `x`. The output is right-continuous and starts at
+`(min(x), 0)`: for each unique input value it emits the previous cumulative
+share and the new cumulative share at that same `x`. Duplicate values therefore
+produce one vertical jump whose height reflects their multiplicity.
+
+### 15.4.3 QQ Stat
+
+`Qq(value, distribution: "normal", reference: true)` computes quantile-quantile
+rows for one numeric input column. Version 0.40 MUST support only
+`distribution: "normal"`; other distribution families are deferred. Missing,
+null, and non-finite values are skipped. Sample values are sorted ascending.
+
+Output columns are:
+
+`theoretical`
+
+`sample`
+
+`line_x`
+
+`line_y`
+
+`line_xend`
+
+`line_yend`
+
+`role`
+
+Point rows contain `theoretical`, `sample`, and `role: "point"`. When
+`reference` is true and at least two finite samples exist, one additional row
+contains a deterministic QQ reference segment in the `line_*` columns and
+`role: "reference"`. The reference line uses the first and third sample
+quartiles and the corresponding normal quartiles.
+
+### 15.4.4 Summary Stats
+
+`Summary(value, by: [group...], reducer: "...")` aggregates one value column,
+optionally grouped by one or more non-geometry grouping columns. Reducers are
+the deterministic enum values `"count"`, `"mean"`, `"min"`, `"max"`, `"sum"`,
+`"median"`, and `"mean_se"`.
+
+Output columns are the grouping key columns, followed by:
+
+`value`
+
+`count`
+
+For `reducer: "mean_se"`, output also includes:
+
+`lower`
+
+`upper`
+
+`se`
+
+`count` counts finite values for numeric reducers and non-null values for the
+`count` reducer. `median` uses the same Hyndman and Fan Type 7 quantile helper
+as boxplot summaries. Group output order MUST be deterministic by grouping-key
+value, not by first appearance.
+
+`SummaryBin(x, value, by: [group...], ...)` bins a numeric `x` column using the
+same `bins`, `binWidth`, `boundary`, and `closed` policy as `Bin`, then applies
+the same reducers to `value` inside each `(bin, group)` cell. Output starts with
+`bin_start`, `bin_end`, and `bin_center`, then grouping key columns, then the
+summary measure columns above. Row order is bin-major, group-minor with
+deterministic grouping-key order.
+
+### 15.4.5 Cut Stat
+
+`Cut(value, breaks: [...], labels: [...], output: "class")` appends a reusable
+categorical class column to the original table. `breaks` MUST be a strictly
+increasing non-empty numeric array. `labels`, when provided, MUST have the same
+length as `breaks`; the final label represents values greater than or equal to
+the final break. The default output column name is `<input>_class`.
+
+Intervals are left-closed and right-open: `[break[i], break[i+1])`, with the
+last interval open-ended. Values below the first break, missing values, and
+non-finite values produce null class cells. Output row order matches source row
+order because the transform appends a column rather than summarizing rows.
+
+Quantile regression is deferred past version 0.40. Boxplot, violin quantile
+lines, `Summary`, and `SummaryBin` cover deterministic distribution-summary
+use cases without adding a model dependency or WASM footprint in this release.
 
 ### 15.5 Count Stat
 
@@ -6024,8 +6175,26 @@ Version 0.6.0 MUST support a numeric output `range: [lo, hi]` on `size` and
 Algraf does not expose a visible no-op `Blank` mark in version 0.36.0. The
 limit-anchor use case MUST be expressed with explicit scale domains, for
 example `Scale(axis: x, domain: [0, 100])` or `Scale(axis: y, domain: [0,
-null])`. Exact scale expansion controls are deferred to the stroke/scale release
-tracked after v0.36.
+null])`.
+
+Version 0.40 MUST support exact `breaks:` arrays for position axes and
+continuous/binned color, `size`, and `strokeWidth` legends. Numeric break arrays
+MUST contain finite strictly increasing values. Temporal axis breaks MAY be
+written as temporal literals such as `date("2026-01-01")` or
+`datetime("2026-01-01T00:00:00Z")`; they are normalized to the same UTC-equivalent
+internal representation as temporal domains. A `labels:` array paired with
+`breaks:` overrides tick or legend text positionally and MUST have the same
+length as `breaks`, otherwise `E1604`. A labels array without breaks MUST emit
+`E1604`.
+
+Version 0.40 MUST support scale expansion through `expand:` or `expansion:`.
+A single number is interpreted as multiplicative expansion with additive
+expansion `0`. A two-number array is `[mult, add]`. Continuous axes expand by
+`span * mult + add` on both sides before explicit domain bounds are applied.
+Temporal axes use the same rule in microsecond units. Categorical axes use
+`mult` as deterministic outer band padding. Explicit `domain:` bounds remain
+data-domain training constraints and are not visual zoom or clipping; visual
+coordinate zoom is deferred to coordinate work after v0.40.
 
 Version 0.2.0 MUST support `reverse: true` for position axes.
 
@@ -6062,6 +6231,26 @@ arrays MUST emit `E1601`; using `gradient` with a categorical mapping MUST emit
 `E1602`.
 
 Invalid scale/domain combinations MUST emit targeted diagnostics.
+
+Version 0.40 MUST support `mode: "binned"` for numeric `fill` and `stroke`
+scales. Binned color scales classify the original numeric column during scale
+training and rendering; authors do not need a prepared categorical helper
+column. Explicit `breaks:` define left-closed/right-open bins, with the final
+bin open-ended. If no breaks are provided, the implementation creates
+deterministic equal-width default bins over the trained domain. `range:` for a
+binned color scale is an ordered color-string array; when both `range:` and
+`breaks:` are present their lengths MUST match, otherwise `E1604`. Legend
+entries are discrete, ordered by bin, and use generated labels like
+`0-10`/`10+` unless overridden by a `labels:` array.
+
+Version 0.40 MUST support `mode: "identity"` for string-like `fill` and
+`stroke` mappings. Identity color scales use the data cell directly as the SVG
+color only after deterministic safety validation. Accepted values are hex
+colors (`#rgb` or `#rrggbb`) or the implementation's enumerated safe SVG color
+names. Arbitrary CSS, URLs, functions, variables, and style strings MUST NOT be
+accepted. Identity color scales produce no legend by default and MUST reject
+other mapping controls such as `palette`, `gradient`, `range`, `breaks`,
+`labels`, and `domain`.
 
 Version 0.2.0 MUST support a `label` argument on `fill`/`stroke` scales that
 overrides the column-derived legend title (see §16.13).
@@ -6813,6 +7002,15 @@ between baselines (the tick spacing scaled by `sin|angle|`) rather than their
 length, so a rotated axis keeps more category labels than a horizontal one at the
 same spacing.
 
+Version 0.40 MUST support `Guide(axis: x, tickLabelRows: n)` and
+`Guide(axis: y, tickLabelRows: n)` for deterministic tick-label dodging.
+`tickLabelRows` accepts integer literals from 1 through 8; other values MUST
+emit `E1204`. The default is 1. For the x axis, labels are assigned to rows by
+tick index modulo `n`, adding deterministic vertical offsets. For the y axis,
+labels are assigned to offset columns by tick index modulo `n`. Guide planning
+MUST reserve the additional margin implied by the configured rows using the
+same deterministic text measurement model as rotated labels.
+
 ### 19.5 Legend Generation
 
 Legends are generated for mapped aesthetics by default.
@@ -6829,7 +7027,9 @@ otherwise the mapped column's display name (see §16.13). Its entries are five
 evenly spaced ticks across the trained domain, each drawn as a swatch sized by
 the scale's output: a `strokeWidth` legend draws a line of the mapped thickness,
 and a `size` legend draws a circle of the mapped radius. A swatch whose mapped
-magnitude is zero draws no mark, only its tick label.
+magnitude is zero draws no mark, only its tick label. If the corresponding
+scale declares `breaks:` and a `labels:` array, those exact legend values and
+labels replace the default five evenly spaced entries.
 
 A `shape` mapping MUST create a discrete shape legend with one swatch per
 category in domain order, each drawn as the marker glyph that category's points
@@ -6839,7 +7039,10 @@ standalone shape legend draws its swatches in the default mark fill; when the
 same column is also mapped to `fill` or `stroke`, the shape legend is merged
 into that color legend instead of duplicated (§19.7).
 
-Alpha mapping creates alpha legend.
+Alpha mappings are accepted where geometry registries allow them, but alpha
+scale targets and alpha legends are deferred past version 0.40. Dash/stroke
+style scale targets and dash legends are also deferred; dash remains an
+enumerated literal setting where supported.
 
 Legend merging MAY combine aesthetics mapped to same column.
 
@@ -8856,11 +9059,11 @@ missing `=>`/stray separator in a map literal)
 
 `E1601 invalid gradient declaration`
 
-`E1602 gradient requires continuous color mapping`
+`E1602 scale mode or gradient requires a compatible color mapping`
 
 `E1603 invalid range declaration`
 
-`E1604 map key / category mismatch (or disagreeing range/labels key sets)`
+`E1604 map key / category mismatch, non-increasing breaks, or disagreeing range/labels lengths`
 
 `E1605 null bound not permitted here` (reserved)
 
@@ -9500,7 +9703,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.38.0 | [`V0_38_PLAN.md`](V0_38_PLAN.md) | ggplot2 comparability: z-field statistics | Implemented |
 | 0.39.0 | [`V0_39_PLAN.md`](V0_39_PLAN.md) | ggplot2 comparability: model and summary stats | Superseded; scope merged into 0.40.0 |
 | 0.39.5 | [`V0_39_5_PLAN.md`](V0_39_5_PLAN.md) | Rust editor-service hover overhaul | Implemented |
-| 0.40.0 | [`V0_40_PLAN.md`](V0_40_PLAN.md) | ggplot2 comparability: derived stats plus scale and guide control | Planned |
+| 0.40.0 | [`V0_40_PLAN.md`](V0_40_PLAN.md) | ggplot2 comparability: derived stats plus scale and guide control | Implemented |
 | 0.41.0 | [`V0_41_PLAN.md`](V0_41_PLAN.md) | ggplot2 comparability: layout and position control | Planned |
 | 0.42.0 | [`V0_42_PLAN.md`](V0_42_PLAN.md) | ggplot2 comparability: presentation parity and closure | Planned |
 

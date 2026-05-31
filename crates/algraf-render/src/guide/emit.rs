@@ -16,8 +16,8 @@ use crate::svg::num;
 use crate::theme::Theme;
 
 use super::plan::{
-    estimate_text_width, max_x_tick_label_height, max_y_tick_label_width, x_axis_title_y,
-    y_axis_title_x,
+    estimate_text_width, max_x_tick_label_height, max_y_tick_label_width, tick_label_row_count,
+    tick_label_row_gap, x_axis_title_y, y_axis_title_x,
 };
 
 pub(crate) struct AxisRenderOptions<'a> {
@@ -27,6 +27,8 @@ pub(crate) struct AxisRenderOptions<'a> {
     pub(crate) y_time_format: Option<&'a TemporalFormatIr>,
     pub(crate) x_tick_label_angle: Option<f64>,
     pub(crate) y_tick_label_angle: Option<f64>,
+    pub(crate) x_tick_label_rows: Option<usize>,
+    pub(crate) y_tick_label_rows: Option<usize>,
 }
 
 /// Map a guide anchor string to a [`TextAnchor`].
@@ -331,7 +333,12 @@ pub(crate) fn render_axes(
     );
     let x_ticks = space.x.ticks_with_format(options.x_time_format);
     let x_angle = options.x_tick_label_angle.unwrap_or(0.0);
-    let x_label_mask = non_overlapping_x_tick_labels(&x_ticks, theme.font_size, x_angle);
+    let x_rows = tick_label_row_count(options.x_tick_label_rows);
+    let x_label_mask = if x_rows > 1 {
+        vec![true; x_ticks.len()]
+    } else {
+        non_overlapping_x_tick_labels(&x_ticks, theme.font_size, x_angle)
+    };
     for (index, (x, label)) in x_ticks.iter().enumerate() {
         grid_line(
             sink,
@@ -355,7 +362,9 @@ pub(crate) fn render_axes(
         tick_text(
             sink,
             *x,
-            plot.bottom() + super::plan::X_TICK_BASELINE,
+            plot.bottom()
+                + super::plan::X_TICK_BASELINE
+                + (index % x_rows) as f64 * tick_label_row_gap(theme.font_size),
             tick_anchor,
             label,
             theme,
@@ -374,6 +383,7 @@ pub(crate) fn render_axes(
             theme.font_size,
             options.x_time_format,
             options.x_tick_label_angle,
+            options.x_tick_label_rows,
         );
         text(
             sink,
@@ -396,14 +406,19 @@ pub(crate) fn render_axes(
             &theme.axis_color,
             1.0,
         );
-        for (yp, label) in y.ticks_with_format(options.y_time_format) {
-            grid_line(sink, plot.x - 5.0, yp, plot.x, yp, &theme.axis_color, 1.0);
+        let y_rows = tick_label_row_count(options.y_tick_label_rows);
+        for (index, (yp, label)) in y
+            .ticks_with_format(options.y_time_format)
+            .iter()
+            .enumerate()
+        {
+            grid_line(sink, plot.x - 5.0, *yp, plot.x, *yp, &theme.axis_color, 1.0);
             tick_text(
                 sink,
-                plot.x - 8.0,
-                yp + 4.0,
+                plot.x - 8.0 - (index % y_rows) as f64 * tick_label_row_gap(theme.font_size),
+                *yp + 4.0,
                 "end",
-                &label,
+                label,
                 theme,
                 options.y_tick_label_angle.unwrap_or(0.0),
             );
@@ -414,6 +429,7 @@ pub(crate) fn render_axes(
             theme.font_size,
             options.y_time_format,
             options.y_tick_label_angle,
+            options.y_tick_label_rows,
         );
         let label_x = y_axis_title_x(plot.x, max_label_width, theme.font_size);
         let y_label = options

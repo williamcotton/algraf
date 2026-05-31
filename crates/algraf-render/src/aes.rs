@@ -1,8 +1,10 @@
 //! Aesthetic resolution: turning geometry mappings and settings into per-row
 //! colors, opacity, and size (spec §16.8).
 
-use algraf_data::{DataType, Table};
-use algraf_semantics::{GeometryIr, GradientIr, PropertyKey, ScaleIr, ScaleTargetIr, SettingValue};
+use algraf_data::{DataType, DataValueRef, Table};
+use algraf_semantics::{
+    GeometryIr, GradientIr, PropertyKey, ScaleIr, ScaleModeIr, ScaleTargetIr, SettingValue,
+};
 
 use crate::scale::{categorical_domain, cell_category, cell_f64, numeric_domain};
 use crate::svg::num;
@@ -30,6 +32,17 @@ pub enum ColorSpec {
         min: f64,
         max: f64,
         stops: GradientIr,
+        breaks: Option<Vec<f64>>,
+        labels: Option<Vec<String>>,
+    },
+    Binned {
+        col: String,
+        breaks: Vec<f64>,
+        labels: Vec<String>,
+        colors: Vec<String>,
+    },
+    Identity {
+        col: String,
     },
 }
 
@@ -60,6 +73,7 @@ impl ColorSpec {
                 min,
                 max,
                 stops,
+                ..
             } => {
                 let v = cell_f64(table, col, row)?;
                 let t = if (max - min).abs() < f64::EPSILON {
@@ -69,6 +83,20 @@ impl ColorSpec {
                 };
                 Some(gradient_at(stops, v, *min, *max, t))
             }
+            ColorSpec::Binned {
+                col,
+                breaks,
+                colors,
+                ..
+            } => {
+                let v = cell_f64(table, col, row)?;
+                let index = bin_index_for_value(v, breaks)?;
+                colors.get(index).cloned()
+            }
+            ColorSpec::Identity { col } => match table.value(col, row)? {
+                DataValueRef::String(value) if is_safe_svg_color(value) => Some(value.to_string()),
+                _ => None,
+            },
         }
     }
 
@@ -106,9 +134,16 @@ impl ColorSpec {
                 shapes: Vec::new(),
             }),
             ColorSpec::Gradient {
-                min, max, stops, ..
+                min,
+                max,
+                stops,
+                breaks,
+                labels,
+                ..
             } => {
-                let ticks = gradient_legend_ticks(*min, *max);
+                let ticks = breaks
+                    .clone()
+                    .unwrap_or_else(|| gradient_legend_ticks(*min, *max));
                 Some(Legend {
                     title: title.to_string(),
                     kind: LegendKind::Continuous,
@@ -117,17 +152,30 @@ impl ColorSpec {
                     shapes: Vec::new(),
                     entries: ticks
                         .into_iter()
-                        .map(|value| {
+                        .enumerate()
+                        .map(|(index, value)| {
                             let t = if (max - min).abs() < f64::EPSILON {
                                 0.5
                             } else {
                                 (value - min) / (max - min)
                             };
-                            (num(value), gradient_at(stops, value, *min, *max, t))
+                            let label = labels
+                                .as_ref()
+                                .and_then(|labels| labels.get(index).cloned())
+                                .unwrap_or_else(|| num(value));
+                            (label, gradient_at(stops, value, *min, *max, t))
                         })
                         .collect(),
                 })
             }
+            ColorSpec::Binned { labels, colors, .. } => Some(Legend {
+                title: title.to_string(),
+                kind: LegendKind::Discrete,
+                entries: labels.iter().cloned().zip(colors.iter().cloned()).collect(),
+                stroke_entries: Vec::new(),
+                sizes: Vec::new(),
+                shapes: Vec::new(),
+            }),
             _ => None,
         }
     }
@@ -193,15 +241,41 @@ pub fn color_spec(
     let aesthetic_name = aesthetic.as_str();
     if let Some(mapping) = geo.mappings.iter().find(|m| m.aesthetic == aesthetic) {
         let col = &mapping.column.name;
+        let scale = aesthetic_scale(scales, aesthetic_name, col);
+        if scale.and_then(|scale| scale.mode) == Some(ScaleModeIr::Identity) {
+            return ColorSpec::Identity { col: col.clone() };
+        }
         return match mapping.column.dtype {
             DataType::Integer | DataType::Float => {
-                let (min, max) = numeric_domain(table, col).unwrap_or((0.0, 1.0));
-                ColorSpec::Gradient {
-                    col: col.clone(),
-                    min,
-                    max,
-                    stops: gradient_for(scales, aesthetic_name, col)
-                        .unwrap_or_else(default_gradient),
+                let (data_min, data_max) = numeric_domain(table, col).unwrap_or((0.0, 1.0));
+                let (min, max) = match scale.and_then(|scale| scale.domain) {
+                    Some([lo, hi]) => (lo.unwrap_or(data_min), hi.unwrap_or(data_max)),
+                    None => (data_min, data_max),
+                };
+                if scale.and_then(|scale| scale.mode) == Some(ScaleModeIr::Binned) {
+                    let colors = binned_colors(scale, min, max);
+                    let breaks = scale
+                        .and_then(|scale| scale.breaks.clone())
+                        .unwrap_or_else(|| default_binned_breaks(min, max, colors.len()));
+                    let labels = scale
+                        .and_then(|scale| scale.break_labels.clone())
+                        .unwrap_or_else(|| default_binned_labels(&breaks));
+                    ColorSpec::Binned {
+                        col: col.clone(),
+                        breaks,
+                        labels,
+                        colors,
+                    }
+                } else {
+                    ColorSpec::Gradient {
+                        col: col.clone(),
+                        min,
+                        max,
+                        stops: gradient_for(scales, aesthetic_name, col)
+                            .unwrap_or_else(default_gradient),
+                        breaks: scale.and_then(|scale| scale.breaks.clone()),
+                        labels: scale.and_then(|scale| scale.break_labels.clone()),
+                    }
                 }
             }
             _ => {
@@ -296,6 +370,98 @@ fn default_gradient() -> GradientIr {
     )
 }
 
+fn binned_colors(scale: Option<&ScaleIr>, min: f64, max: f64) -> Vec<String> {
+    if let Some(colors) = scale.and_then(|scale| scale.color_range.clone()) {
+        return colors;
+    }
+    let count = scale
+        .and_then(|scale| scale.breaks.as_ref().map(Vec::len))
+        .unwrap_or(5)
+        .max(1);
+    (0..count)
+        .map(|index| {
+            let t = if count <= 1 {
+                0.5
+            } else {
+                index as f64 / (count - 1) as f64
+            };
+            gradient_at(&default_gradient(), min + (max - min) * t, min, max, t)
+        })
+        .collect()
+}
+
+fn default_binned_breaks(min: f64, max: f64, count: usize) -> Vec<f64> {
+    let count = count.max(1);
+    let span = if (max - min).abs() < f64::EPSILON {
+        1.0
+    } else {
+        max - min
+    };
+    (0..count)
+        .map(|index| min + span * index as f64 / count as f64)
+        .collect()
+}
+
+fn default_binned_labels(breaks: &[f64]) -> Vec<String> {
+    breaks
+        .iter()
+        .enumerate()
+        .map(|(index, lo)| match breaks.get(index + 1) {
+            Some(hi) => format!("{}-{}", num(*lo), num(*hi)),
+            None => format!("{}+", num(*lo)),
+        })
+        .collect()
+}
+
+pub(crate) fn bin_index_for_value(value: f64, breaks: &[f64]) -> Option<usize> {
+    if breaks.is_empty() || value < breaks[0] {
+        return None;
+    }
+    for index in 0..breaks.len() {
+        let lo = breaks[index];
+        let hi = breaks.get(index + 1).copied();
+        if value >= lo && hi.map_or(true, |hi| value < hi) {
+            return Some(index);
+        }
+    }
+    None
+}
+
+fn is_safe_svg_color(value: &str) -> bool {
+    is_hex_color(value) || is_named_color(value)
+}
+
+fn is_hex_color(value: &str) -> bool {
+    let hex = value.strip_prefix('#').unwrap_or("");
+    matches!(hex.len(), 3 | 6) && hex.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn is_named_color(value: &str) -> bool {
+    matches!(
+        value.to_ascii_lowercase().as_str(),
+        "black"
+            | "white"
+            | "red"
+            | "green"
+            | "blue"
+            | "orange"
+            | "purple"
+            | "pink"
+            | "brown"
+            | "gray"
+            | "grey"
+            | "yellow"
+            | "cyan"
+            | "magenta"
+            | "navy"
+            | "teal"
+            | "olive"
+            | "maroon"
+            | "silver"
+            | "burlywood"
+    )
+}
+
 fn gradient_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<GradientIr> {
     aesthetic_scale(scales, aesthetic, column).and_then(|scale| scale.gradient.clone())
 }
@@ -330,6 +496,8 @@ pub enum NumberSpec {
         col: String,
         domain: (f64, f64),
         range: (f64, f64),
+        breaks: Option<Vec<f64>>,
+        labels: Option<Vec<String>>,
     },
 }
 
@@ -339,7 +507,9 @@ impl NumberSpec {
     pub fn at(&self, table: &dyn Table, row: usize, default: f64) -> f64 {
         match self {
             NumberSpec::Constant(value) => *value,
-            NumberSpec::Scaled { col, domain, range } => match cell_f64(table, col, row) {
+            NumberSpec::Scaled {
+                col, domain, range, ..
+            } => match cell_f64(table, col, row) {
                 Some(value) => scale_linear(value, *domain, *range),
                 None => default,
             },
@@ -351,10 +521,19 @@ impl NumberSpec {
     /// mapped thickness, [`LegendKind::Radius`] for a circle of the mapped
     /// radius). Constant settings produce no legend.
     pub fn legend(&self, title: &str, kind: LegendKind) -> Option<Legend> {
-        let NumberSpec::Scaled { domain, range, .. } = self else {
+        let NumberSpec::Scaled {
+            domain,
+            range,
+            breaks,
+            labels,
+            ..
+        } = self
+        else {
             return None;
         };
-        let ticks = gradient_legend_ticks(domain.0, domain.1);
+        let ticks = breaks
+            .clone()
+            .unwrap_or_else(|| gradient_legend_ticks(domain.0, domain.1));
         if ticks.is_empty() {
             return None;
         }
@@ -367,7 +546,14 @@ impl NumberSpec {
             kind,
             entries: ticks
                 .into_iter()
-                .map(|value| (num(value), String::new()))
+                .enumerate()
+                .map(|(index, value)| {
+                    let label = labels
+                        .as_ref()
+                        .and_then(|labels| labels.get(index).cloned())
+                        .unwrap_or_else(|| num(value));
+                    (label, String::new())
+                })
                 .collect(),
             stroke_entries: Vec::new(),
             sizes,
@@ -411,7 +597,13 @@ pub fn number_spec(
             Some([lo, hi]) => (lo.unwrap_or(default_range.0), hi.unwrap_or(default_range.1)),
             None => default_range,
         };
-        return NumberSpec::Scaled { col, domain, range };
+        return NumberSpec::Scaled {
+            col,
+            domain,
+            range,
+            breaks: scale.and_then(|s| s.breaks.clone()),
+            labels: scale.and_then(|s| s.break_labels.clone()),
+        };
     }
     NumberSpec::Constant(number_setting(geo, aesthetic, constant_default))
 }

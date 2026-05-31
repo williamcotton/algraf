@@ -1420,6 +1420,98 @@ fn test_shape_only_mapping_creates_default_colored_shape_legend() {
 }
 
 #[test]
+fn test_v040_summary_stats_render_from_raw_rows() {
+    let svg = render_svg(
+        r#"Chart(data: "d.csv", width: 420, height: 280) {
+  Derive summary = Summary(value, by: [group], reducer: "mean_se")
+  Space(group * value, data: summary) {
+    Segment(x: group, y: lower, xend: group, yend: upper, stroke: group)
+    Point(fill: group, size: 3)
+  }
+}"#,
+        "group,value\nA,1\nA,3\nA,5\nB,2\nB,4\nB,6\n",
+    );
+    assert_eq!(svg.matches("<circle").count(), 2);
+    assert!(svg.contains("algraf-geom-segment"));
+}
+
+#[test]
+fn test_v040_ecdf_qq_and_summary_bin_render() {
+    let ecdf = render_svg(
+        r##"Chart(data: "d.csv", width: 420, height: 280) {
+  Derive rows = Ecdf(value)
+  Space(x * y, data: rows) { Path(stroke: "#2f6fbb", strokeWidth: 2) }
+}"##,
+        "value\n3\n1\n2\n2\n",
+    );
+    assert!(ecdf.contains("algraf-geom-path"));
+
+    let qq = render_svg(
+        r##"Chart(data: "d.csv", width: 420, height: 280) {
+  Derive rows = Qq(value, distribution: "normal")
+  Space(theoretical * sample, data: rows) { Point(fill: "#4c78a8", size: 2) }
+}"##,
+        "value\n-1\n0\n1\n2\n",
+    );
+    assert_eq!(qq.matches("<circle").count(), 4);
+
+    let bins = render_svg(
+        r#"Chart(data: "d.csv", width: 420, height: 280) {
+  Derive rows = SummaryBin(x, value, bins: 2, reducer: "mean")
+  Space(bin_center * value, data: rows) { Line(); Point(size: 2) }
+}"#,
+        "x,value\n1,10\n2,14\n3,20\n4,24\n",
+    );
+    assert_eq!(bins.matches("<circle").count(), 2);
+}
+
+#[test]
+fn test_v040_binned_scale_matches_explicit_class_table() {
+    let binned = render_svg(
+        r##"Chart(data: "d.csv", width: 420, height: 280) {
+  Scale(fill: value, mode: "binned",
+        breaks: [0, 10, 20],
+        labels: ["low", "mid", "high"],
+        range: ["#eff3ff", "#6baed6", "#08519c"],
+        label: "")
+  Space(x * y) { Point(fill: value, size: 3) }
+}"##,
+        "x,y,value\n1,1,2\n2,2,12\n3,1,24\n",
+    );
+    let explicit = render_svg(
+        r##"Chart(data: "d.csv", width: 420, height: 280) {
+  Scale(fill: class,
+        range: ["low" => "#eff3ff", "mid" => "#6baed6", "high" => "#08519c"],
+        labels: ["low" => "low", "mid" => "mid", "high" => "high"],
+        label: "")
+  Space(x * y) { Point(fill: class, size: 3) }
+}"##,
+        "x,y,value,class\n1,1,2,low\n2,2,12,mid\n3,1,24,high\n",
+    );
+    assert_eq!(binned, explicit);
+}
+
+#[test]
+fn test_v040_identity_color_and_axis_break_labels_render() {
+    let svg = render_svg(
+        r##"Chart(data: "d.csv", width: 420, height: 280) {
+  Scale(axis: x, domain: [0, 100], breaks: [0, 50, 100],
+        labels: ["zero", "half", "full"], expand: 0)
+  Scale(fill: color, mode: "identity")
+  Guide(fill: null)
+  Guide(axis: x, tickLabelRows: 2)
+  Space(x * y) { Point(fill: color, size: 3) }
+}"##,
+        "x,y,color\n0,1,#ff0000\n50,2,blue\n100,1,#00aa66\n",
+    );
+    assert!(svg.contains("fill=\"#ff0000\""));
+    assert!(svg.contains("fill=\"blue\""));
+    assert!(svg.contains(">zero<"));
+    assert!(svg.contains(">half<"));
+    assert!(svg.contains(">full<"));
+}
+
+#[test]
 fn test_chained_derived_smooth_table_renders() {
     let result = render_result(
         "Chart(data: \"d.csv\") { Derive bins = Bin(value, bins: 4) Derive trend = Smooth(bin_center, count) Space(x * y, data: trend) { Line() } }",

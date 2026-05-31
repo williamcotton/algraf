@@ -334,6 +334,102 @@ pub(super) fn compute_derived(
                         None
                     }
                 }
+                StatOptionsIr::Distinct => {
+                    let columns = frame_columns(&d.stat.input);
+                    if columns.is_empty() {
+                        None
+                    } else {
+                        Some(stats::distinct(source, &columns))
+                    }
+                }
+                StatOptionsIr::Ecdf => {
+                    if let FrameIr::Vector(col) = &d.stat.input {
+                        Some(stats::ecdf(source, &col.name))
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::Qq { reference, .. } => {
+                    if let FrameIr::Vector(col) = &d.stat.input {
+                        Some(stats::qq(
+                            source,
+                            &col.name,
+                            stats::QqOptions {
+                                reference: *reference,
+                            },
+                        ))
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::Summary { by, reducer } => {
+                    if let FrameIr::Vector(value) = &d.stat.input {
+                        let by: Vec<&str> = by.iter().map(|column| column.name.as_str()).collect();
+                        Some(stats::summary(
+                            source,
+                            &value.name,
+                            &by,
+                            render_summary_reducer(*reducer),
+                        ))
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::SummaryBin {
+                    by,
+                    bins,
+                    bin_width,
+                    boundary,
+                    closed,
+                    reducer,
+                } => {
+                    if let FrameIr::Cartesian(cols) = &d.stat.input {
+                        if let (Some(FrameIr::Vector(x)), Some(FrameIr::Vector(value))) =
+                            (cols.first(), cols.get(1))
+                        {
+                            let by: Vec<&str> =
+                                by.iter().map(|column| column.name.as_str()).collect();
+                            Some(stats::summary_bin(
+                                source,
+                                &x.name,
+                                &value.name,
+                                &by,
+                                stats::BinOptions {
+                                    bins: bins_or_default(*bins),
+                                    bin_width: bin_width.filter(|n| *n > 0.0),
+                                    boundary: *boundary,
+                                    closed: match closed {
+                                        BinClosedIr::Left => stats::BinClosed::Left,
+                                        BinClosedIr::Right => stats::BinClosed::Right,
+                                    },
+                                    interval: None,
+                                },
+                                render_summary_reducer(*reducer),
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                StatOptionsIr::Cut {
+                    breaks,
+                    labels,
+                    output,
+                } => {
+                    if let FrameIr::Vector(col) = &d.stat.input {
+                        Some(stats::cut(
+                            source,
+                            &col.name,
+                            breaks,
+                            labels.as_deref(),
+                            output,
+                        ))
+                    } else {
+                        None
+                    }
+                }
                 StatOptionsIr::Count => {
                     let mut group_cols: Vec<&str> = Vec::new();
                     match &d.stat.input {
@@ -631,6 +727,21 @@ fn render_summary_reducer(reducer: SummaryReducerIr) -> stats::SummaryReducer {
         SummaryReducerIr::Max => stats::SummaryReducer::Max,
         SummaryReducerIr::Sum => stats::SummaryReducer::Sum,
         SummaryReducerIr::Median => stats::SummaryReducer::Median,
+        SummaryReducerIr::MeanSe => stats::SummaryReducer::MeanSe,
+    }
+}
+
+fn frame_columns(frame: &FrameIr) -> Vec<&str> {
+    match frame {
+        FrameIr::Vector(column) => vec![column.name.as_str()],
+        FrameIr::Cartesian(parts) | FrameIr::Union(parts) => parts
+            .iter()
+            .filter_map(|part| match part {
+                FrameIr::Vector(column) => Some(column.name.as_str()),
+                _ => None,
+            })
+            .collect(),
+        _ => Vec::new(),
     }
 }
 

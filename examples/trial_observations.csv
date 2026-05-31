@@ -1,0 +1,17 @@
+treatment,cohort,outcome
+Control,A,52
+Control,A,54
+Control,A,57
+Control,A,53
+Control,B,49
+Control,B,50
+Control,B,52
+Control,B,55
+Program,A,61
+Program,A,64
+Program,A,65
+Program,A,68
+Program,B,58
+Program,B,60
+Program,B,63
+Program,B,65

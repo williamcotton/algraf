@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="560" viewBox="0 0 560 560" role="img" aria-label="Normal QQ check">
+<title>Normal QQ check</title>
+<rect class="algraf-background" x="0" y="0" width="560" height="560" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Normal QQ check</text>
+<rect class="algraf-plot-area" x="60" y="66" width="470" height="444" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="70.247" y1="66" x2="70.247" y2="510" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="126.435" y1="66" x2="126.435" y2="510" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="182.623" y1="66" x2="182.623" y2="510" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="238.812" y1="66" x2="238.812" y2="510" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="295" y1="66" x2="295" y2="510" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="351.188" y1="66" x2="351.188" y2="510" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="407.377" y1="66" x2="407.377" y2="510" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="463.565" y1="66" x2="463.565" y2="510" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="519.753" y1="66" x2="519.753" y2="510" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="471.568" x2="530" y2="471.568" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="393.454" x2="530" y2="393.454" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="315.34" x2="530" y2="315.34" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="237.226" x2="530" y2="237.226" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="159.112" x2="530" y2="159.112" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="80.998" x2="530" y2="80.998" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="92.414" cy="479.379" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="155.443" cy="424.7" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="191.521" cy="401.265" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="219.203" cy="377.831" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="242.89" cy="346.586" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="264.447" cy="323.151" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="284.926" cy="315.34" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="305.074" cy="299.717" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="325.553" cy="284.094" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="347.11" cy="260.66" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="370.797" cy="229.414" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="398.479" cy="198.169" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="434.557" cy="143.489" r="2.8" fill="#4c78a8" opacity="0.75" />
+  <circle cx="497.586" cy="96.621" r="2.8" fill="#4c78a8" opacity="0.75" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="510" x2="530" y2="510" stroke="#333333" stroke-width="1" />
+  <line x1="70.247" y1="510" x2="70.247" y2="515" stroke="#333333" stroke-width="1" />
+  <text x="70.247" y="528" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">-2</text>
+  <line x1="126.435" y1="510" x2="126.435" y2="515" stroke="#333333" stroke-width="1" />
+  <text x="126.435" y="528" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">-1.5</text>
+  <line x1="182.623" y1="510" x2="182.623" y2="515" stroke="#333333" stroke-width="1" />
+  <text x="182.623" y="528" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">-1</text>
+  <line x1="238.812" y1="510" x2="238.812" y2="515" stroke="#333333" stroke-width="1" />
+  <text x="238.812" y="528" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">-0.5</text>
+  <line x1="295" y1="510" x2="295" y2="515" stroke="#333333" stroke-width="1" />
+  <text x="295" y="528" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="351.188" y1="510" x2="351.188" y2="515" stroke="#333333" stroke-width="1" />
+  <text x="351.188" y="528" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0.5</text>
+  <line x1="407.377" y1="510" x2="407.377" y2="515" stroke="#333333" stroke-width="1" />
+  <text x="407.377" y="528" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="463.565" y1="510" x2="463.565" y2="515" stroke="#333333" stroke-width="1" />
+  <text x="463.565" y="528" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1.5</text>
+  <line x1="519.753" y1="510" x2="519.753" y2="515" stroke="#333333" stroke-width="1" />
+  <text x="519.753" y="528" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <text x="295" y="548" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Theoretical quantile</text>
+  <line x1="60" y1="66" x2="60" y2="510" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="471.568" x2="60" y2="471.568" stroke="#333333" stroke-width="1" />
+  <text x="52" y="475.568" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">-2</text>
+  <line x1="55" y1="393.454" x2="60" y2="393.454" stroke="#333333" stroke-width="1" />
+  <text x="52" y="397.454" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">-1</text>
+  <line x1="55" y1="315.34" x2="60" y2="315.34" stroke="#333333" stroke-width="1" />
+  <text x="52" y="319.34" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="237.226" x2="60" y2="237.226" stroke="#333333" stroke-width="1" />
+  <text x="52" y="241.226" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="55" y1="159.112" x2="60" y2="159.112" stroke="#333333" stroke-width="1" />
+  <text x="52" y="163.112" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="55" y1="80.998" x2="60" y2="80.998" stroke="#333333" stroke-width="1" />
+  <text x="52" y="84.998" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <text x="25.6" y="288" text-anchor="middle" transform="rotate(-90 25.6 288)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Sample quantile</text>
+</g>
+</svg>

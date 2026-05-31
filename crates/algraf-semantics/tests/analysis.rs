@@ -5,8 +5,8 @@ use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
     analyze_source, planning, AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef, FrameIr,
     GeometryKind, GradientIr, GridBinsIr, IntervalOrientationIr, LevelSpecIr, PropertyKey,
-    ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef, StatKind, StatOptionsIr,
-    StepDirectionIr, SummaryReducerIr, TemporalFormatIr,
+    QqDistributionIr, ScaleModeIr, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef,
+    StatKind, StatOptionsIr, StepDirectionIr, SummaryReducerIr, TemporalFormatIr,
 };
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
@@ -2034,6 +2034,106 @@ fn test_guide_axis_label_null_suppresses() {
     );
     let ir = analysis.ir.expect("ir");
     assert_eq!(ir.guides.x_label.as_deref(), Some(""));
+}
+
+#[test]
+fn test_v040_derived_stats_analyze_with_explicit_schemas() {
+    let analysis = analyze_tables(
+        "Chart(data: \"t.csv\") {\n  \
+         Derive unique = Distinct(group, value)\n  \
+         Derive ecdf = Ecdf(value)\n  \
+         Derive qq = Qq(value, distribution: \"normal\", reference: false)\n  \
+         Derive summary = Summary(value, by: [group], reducer: \"mean_se\")\n  \
+         Derive binned = SummaryBin(x, value, by: [group], bins: 4, reducer: \"median\")\n  \
+         Derive classes = Cut(value, breaks: [0, 10, 20], labels: [\"low\", \"mid\", \"high\"], output: \"class\")\n  \
+         Space(x * y) { Point() }\n}",
+        &schema(),
+        &[],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.derived_tables[0].stat.kind, StatKind::Distinct);
+    assert_eq!(ir.derived_tables[1].output_schema[0].name, "x");
+    assert_eq!(ir.derived_tables[1].output_schema[1].name, "y");
+    match &ir.derived_tables[2].stat.options {
+        StatOptionsIr::Qq {
+            distribution,
+            reference,
+        } => {
+            assert_eq!(*distribution, QqDistributionIr::Normal);
+            assert!(!reference);
+        }
+        other => panic!("unexpected qq options: {other:?}"),
+    }
+    match &ir.derived_tables[3].stat.options {
+        StatOptionsIr::Summary { by, reducer } => {
+            assert_eq!(by[0].name, "group");
+            assert_eq!(*reducer, SummaryReducerIr::MeanSe);
+        }
+        other => panic!("unexpected summary options: {other:?}"),
+    }
+    let summary_names: Vec<&str> = ir.derived_tables[3]
+        .output_schema
+        .iter()
+        .map(|col| col.name.as_str())
+        .collect();
+    assert_eq!(
+        summary_names,
+        ["group", "value", "count", "lower", "upper", "se"]
+    );
+    let binned_names: Vec<&str> = ir.derived_tables[4]
+        .output_schema
+        .iter()
+        .map(|col| col.name.as_str())
+        .collect();
+    assert_eq!(
+        binned_names,
+        [
+            "bin_start",
+            "bin_end",
+            "bin_center",
+            "group",
+            "value",
+            "count"
+        ]
+    );
+    assert!(ir.derived_tables[5]
+        .output_schema
+        .iter()
+        .any(|col| col.name == "class" && col.dtype == DataType::String));
+}
+
+#[test]
+fn test_v040_scale_breaks_labels_modes_and_guide_rows() {
+    let analysis = analyze_tables(
+        "Chart(data: \"t.csv\") {\n  \
+         Scale(axis: y, domain: [0, 100], breaks: [0, 50, 100], labels: [\"zero\", \"half\", \"full\"], expand: [0.05, 1])\n  \
+         Scale(fill: value, mode: \"binned\", breaks: [0, 10, 20], range: [\"#eff3ff\", \"#6baed6\", \"#08519c\"])\n  \
+         Scale(stroke: group, mode: \"identity\")\n  \
+         Guide(axis: x, tickLabelRows: 2)\n  \
+         Space(x * y) { Point(fill: value, stroke: group) }\n}",
+        &schema(),
+        &[],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(
+        ir.scales[0].break_labels.as_ref().expect("labels"),
+        &vec!["zero".to_string(), "half".to_string(), "full".to_string()]
+    );
+    assert_eq!(ir.scales[0].expansion.as_ref().map(|e| e.mult), Some(0.05));
+    assert_eq!(ir.scales[1].mode, Some(ScaleModeIr::Binned));
+    assert_eq!(ir.scales[1].color_range.as_ref().map(Vec::len), Some(3));
+    assert_eq!(ir.scales[2].mode, Some(ScaleModeIr::Identity));
+    assert_eq!(ir.guides.x_tick_label_rows, Some(2));
 }
 
 #[test]

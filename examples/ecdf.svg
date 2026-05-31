@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420" role="img" aria-label="Latency empirical CDF">
+<title>Latency empirical CDF</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Latency empirical CDF</text>
+<rect class="algraf-plot-area" x="60.8" y="66" width="629.2" height="304" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="153.503" y1="66" x2="153.503" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="307.598" y1="66" x2="307.598" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="461.693" y1="66" x2="461.693" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="615.788" y1="66" x2="615.788" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="370" x2="690" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="294" x2="690" y2="294" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="218" x2="690" y2="218" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="142" x2="690" y2="142" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="66" x2="690" y2="66" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-path">
+  <path d="M104.193 370 L104.193 349.733 L116.521 349.733 L116.521 329.467 L125.766 329.467 L125.766 309.2 L138.094 309.2 L138.094 288.933 L144.258 288.933 L144.258 268.667 L159.667 268.667 L159.667 248.4 L168.913 248.4 L168.913 228.133 L184.322 228.133 L184.322 207.867 L202.814 207.867 L202.814 187.6 L221.305 187.6 L221.305 167.333 L245.96 167.333 L245.96 147.067 L295.271 147.067 L295.271 126.8 L369.236 126.8 L369.236 106.533 L446.284 106.533 L446.284 86.267 L646.607 86.267 L646.607 66" fill="none" stroke="#2f6fbb" stroke-width="2.5" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60.8" y1="370" x2="690" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="153.503" y1="370" x2="153.503" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="153.503" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
+  <line x1="307.598" y1="370" x2="307.598" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="307.598" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100</text>
+  <line x1="461.693" y1="370" x2="461.693" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="461.693" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">150</text>
+  <line x1="615.788" y1="370" x2="615.788" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="615.788" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">200</text>
+  <text x="375.4" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Latency (ms)</text>
+  <line x1="60.8" y1="66" x2="60.8" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="55.8" y1="370" x2="60.8" y2="370" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="374" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55.8" y1="294" x2="60.8" y2="294" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="298" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25%</text>
+  <line x1="55.8" y1="218" x2="60.8" y2="218" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="222" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50%</text>
+  <line x1="55.8" y1="142" x2="60.8" y2="142" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="146" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">75%</text>
+  <line x1="55.8" y1="66" x2="60.8" y2="66" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="70" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100%</text>
+  <text x="12" y="218" text-anchor="middle" transform="rotate(-90 12 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Share of requests</text>
+</g>
+</svg>

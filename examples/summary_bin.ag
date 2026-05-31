@@ -1,0 +1,13 @@
+Chart(data: "traffic_events.csv", width: 760, height: 430, title: "Average conversion by traffic bin") {
+    Theme(name: "minimal")
+    Derive bins = SummaryBin(traffic, conversion, bins: 8, reducer: "mean")
+
+    Guide(axis: x, label: "Traffic")
+    Guide(axis: y, label: "Mean conversion rate")
+    Scale(axis: y, domain: [0, 0.25], breaks: [0, 0.05, 0.10, 0.15, 0.20, 0.25], labels: ["0", "5%", "10%", "15%", "20%", "25%"])
+
+    Space(bin_center * value, data: bins) {
+        Line(stroke: "#111827", strokeWidth: 2)
+        Point(fill: "#111827", size: 2.6)
+    }
+}

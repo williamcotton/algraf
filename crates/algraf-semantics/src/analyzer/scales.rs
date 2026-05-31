@@ -9,7 +9,7 @@ use algraf_syntax::ast::{AlgebraExpr, CallValue, Decl, LiteralKind, MapValue, Va
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
 use super::args::DupGuard;
-use super::context::{ActiveTable, Analyzer};
+use super::context::{ActiveTable, Analyzer, ValueForm};
 use super::properties::is_color_literal;
 use crate::ir::*;
 use crate::registry;
@@ -20,6 +20,16 @@ enum RangeSpec {
     Numeric([Option<f64>; 2], Span),
     /// A manual category → color map (`["A" => "burlywood"]`).
     ColorMap(Vec<(String, String)>, Span),
+    /// Ordered color stops for a binned color scale.
+    ColorArray(Vec<String>, Span),
+}
+
+fn range_span(range: &RangeSpec) -> Span {
+    match range {
+        RangeSpec::Numeric(_, span)
+        | RangeSpec::ColorMap(_, span)
+        | RangeSpec::ColorArray(_, span) => *span,
+    }
 }
 
 impl Analyzer<'_> {
@@ -28,8 +38,14 @@ impl Analyzer<'_> {
         let mut dup = DupGuard::new(codes::E1002, "Scale argument");
         let mut target: Option<ScaleTargetIr> = None;
         let mut scale_type = None;
+        let mut mode = None;
         let mut domain: Option<[Option<f64>; 2]> = None;
-        let mut domain_span: Option<Span> = None;
+        let mut _domain_span: Option<Span> = None;
+        let mut breaks: Option<Vec<f64>> = None;
+        let mut breaks_span: Option<Span> = None;
+        let mut break_labels: Option<Vec<String>> = None;
+        let mut break_labels_span: Option<Span> = None;
+        let mut expansion = None;
         let mut range: Option<RangeSpec> = None;
         let mut reverse = None;
         let mut integer = None;
@@ -105,9 +121,29 @@ impl Analyzer<'_> {
                     )),
                     None => {}
                 },
+                "mode" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        let value = string_value(&lit.text().unwrap_or_default());
+                        match value.as_str() {
+                            "binned" => mode = Some(ScaleModeIr::Binned),
+                            "identity" => mode = Some(ScaleModeIr::Identity),
+                            _ => self.diag(Diagnostic::error(
+                                codes::E1204,
+                                format!("unknown scale mode `{value}`"),
+                                node_span(lit.syntax()),
+                            )),
+                        }
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`mode` expects a string literal",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
                 "domain" => {
                     if let Some(value) = arg.value() {
-                        domain_span = Some(node_span(value.syntax()));
+                        _domain_span = Some(node_span(value.syntax()));
                         match self.numeric_bounds(&value) {
                             Some(bounds) => domain = Some(bounds),
                             None => self.diag(Diagnostic::error(
@@ -116,6 +152,17 @@ impl Analyzer<'_> {
                                 node_span(value.syntax()),
                             )),
                         }
+                    }
+                }
+                "breaks" => {
+                    if let Some(value) = arg.value() {
+                        breaks_span = Some(node_span(value.syntax()));
+                        breaks = self.break_values(&value);
+                    }
+                }
+                "expand" | "expansion" => {
+                    if let Some(value) = arg.value() {
+                        expansion = self.scale_expansion(&value);
                     }
                 }
                 "range" => {
@@ -131,11 +178,16 @@ impl Analyzer<'_> {
                                 Some(bounds) => {
                                     range = Some(RangeSpec::Numeric(bounds, value_span))
                                 }
-                                None => self.diag(Diagnostic::error(
-                                    codes::E1603,
-                                    "`range` expects two numeric values or a category map",
-                                    value_span,
-                                )),
+                                None => match self.color_array(&value) {
+                                    Some(colors) => {
+                                        range = Some(RangeSpec::ColorArray(colors, value_span))
+                                    }
+                                    None => self.diag(Diagnostic::error(
+                                        codes::E1603,
+                                        "`range` expects two numeric values, a color array, or a category map",
+                                        value_span,
+                                    )),
+                                },
                             },
                         }
                     }
@@ -147,11 +199,17 @@ impl Analyzer<'_> {
                             ValueExpr::Map(map) => {
                                 label_map = self.color_map_entries(map);
                             }
-                            _ => self.diag(Diagnostic::error(
-                                codes::E1606,
-                                "`labels` expects a category map (e.g. [\"A\" => \"Advance\"])",
-                                node_span(value.syntax()),
-                            )),
+                            _ => match ValueForm::of(&value) {
+                                ValueForm::StringArray(Some(values)) => {
+                                    break_labels_span = Some(node_span(value.syntax()));
+                                    break_labels = Some(values);
+                                }
+                                _ => self.diag(Diagnostic::error(
+                                    codes::E1606,
+                                    "`labels` expects a string array or category map",
+                                    node_span(value.syntax()),
+                                )),
+                            },
                         }
                     }
                 }
@@ -226,23 +284,26 @@ impl Analyzer<'_> {
         // the target is known, validating the form against the scale kind.
         let mut range_numeric: Option<[Option<f64>; 2]> = None;
         let mut color_map: Option<Vec<(String, String)>> = None;
+        let mut color_range: Option<Vec<String>> = None;
 
         match &target {
             ScaleTargetIr::Axis(_) => {
-                if palette.is_some() || gradient.is_some() {
+                if palette.is_some() || gradient.is_some() || mode.is_some() {
                     self.diag(Diagnostic::error(
                         codes::E1204,
-                        "`palette` and `gradient` apply only to fill or stroke scales",
+                        "`palette`, `gradient`, and `mode` apply only to aesthetic scales",
                         span,
                     ));
                 }
                 if let Some(map) = labels_span {
-                    self.diag(Diagnostic::error(
-                        codes::E1606,
-                        "`labels` maps apply only to categorical fill or stroke scales",
-                        map,
-                    ));
-                    label_map = None;
+                    if label_map.is_some() {
+                        self.diag(Diagnostic::error(
+                            codes::E1606,
+                            "`labels` maps apply only to categorical fill or stroke scales",
+                            map,
+                        ));
+                        label_map = None;
+                    }
                 }
                 match &range {
                     Some(RangeSpec::Numeric(_, s)) => self.diag(Diagnostic::error(
@@ -253,6 +314,11 @@ impl Analyzer<'_> {
                     Some(RangeSpec::ColorMap(_, s)) => self.diag(Diagnostic::error(
                         codes::E1606,
                         "a category map `range` applies only to categorical scales",
+                        *s,
+                    )),
+                    Some(RangeSpec::ColorArray(_, s)) => self.diag(Diagnostic::error(
+                        codes::E1606,
+                        "a color-array `range` applies only to binned color scales",
                         *s,
                     )),
                     None => {}
@@ -277,11 +343,51 @@ impl Analyzer<'_> {
 
                 if is_color {
                     let continuous = numeric_col;
+                    if mode == Some(ScaleModeIr::Binned) && !continuous {
+                        self.diag(Diagnostic::error(
+                            codes::E1602,
+                            "`mode: \"binned\"` requires a numeric fill or stroke column",
+                            span,
+                        ));
+                    }
+                    if mode == Some(ScaleModeIr::Identity)
+                        && column.as_ref().is_some_and(|c| {
+                            matches!(
+                                c.dtype,
+                                DataType::Integer
+                                    | DataType::Float
+                                    | DataType::Temporal
+                                    | DataType::Geometry
+                            )
+                        })
+                    {
+                        let s = column.as_ref().map(|c| c.span).unwrap_or(span);
+                        self.diag(Diagnostic::error(
+                            codes::E1602,
+                            "`mode: \"identity\"` requires a string-like color column",
+                            s,
+                        ));
+                    }
                     if gradient.is_some() && !continuous {
                         self.diag(Diagnostic::error(
                             codes::E1602,
                             "`gradient` is valid only for continuous fill or stroke mappings",
                             gradient_span.unwrap_or(span),
+                        ));
+                    }
+                    if mode == Some(ScaleModeIr::Identity)
+                        && (gradient.is_some()
+                            || palette.is_some()
+                            || breaks.is_some()
+                            || range.is_some()
+                            || label_map.is_some()
+                            || break_labels.is_some()
+                            || domain.is_some())
+                    {
+                        self.diag(Diagnostic::error(
+                            codes::E1204,
+                            "`mode: \"identity\"` cannot be combined with scale mapping controls",
+                            span,
                         ));
                     }
                     if let (Some(GradientIr::Positioned(stops)), Some([Some(a), Some(b)])) =
@@ -302,17 +408,9 @@ impl Analyzer<'_> {
                             }
                         }
                     }
-                    if let Some(s) = domain_span {
-                        self.diag(Diagnostic::error(
-                            codes::E1204,
-                            "`domain` applies only to axis, `size`, or `strokeWidth` scales",
-                            s,
-                        ));
-                        domain = None;
-                    }
                     match &range {
                         Some(RangeSpec::ColorMap(entries, s)) => {
-                            if continuous {
+                            if continuous || mode == Some(ScaleModeIr::Binned) {
                                 self.diag(Diagnostic::error(
                                     codes::E1606,
                                     "a category map `range` applies only to categorical scales",
@@ -320,6 +418,17 @@ impl Analyzer<'_> {
                                 ));
                             } else {
                                 color_map = Some(entries.clone());
+                            }
+                        }
+                        Some(RangeSpec::ColorArray(colors, s)) => {
+                            if mode == Some(ScaleModeIr::Binned) {
+                                color_range = Some(colors.clone());
+                            } else {
+                                self.diag(Diagnostic::error(
+                                    codes::E1606,
+                                    "a color-array `range` applies only to binned color scales",
+                                    *s,
+                                ));
                             }
                         }
                         Some(RangeSpec::Numeric(_, s)) => self.diag(Diagnostic::error(
@@ -341,6 +450,16 @@ impl Analyzer<'_> {
                             ));
                         }
                     }
+                    if label_map.is_some() && (continuous || mode == Some(ScaleModeIr::Binned)) {
+                        if let Some(s) = labels_span {
+                            self.diag(Diagnostic::error(
+                                codes::E1606,
+                                "`labels` maps apply only to categorical scales",
+                                s,
+                            ));
+                        }
+                        label_map = None;
+                    }
                 } else {
                     // size / strokeWidth: a continuous scale over a numeric column.
                     if !numeric_col {
@@ -358,13 +477,22 @@ impl Analyzer<'_> {
                             span,
                         ));
                     }
-                    if let Some(s) = labels_span {
+                    if mode.is_some() {
                         self.diag(Diagnostic::error(
-                            codes::E1606,
-                            "`labels` maps apply only to categorical scales",
-                            s,
+                            codes::E1204,
+                            "`mode` applies only to fill or stroke scales",
+                            span,
                         ));
-                        label_map = None;
+                    }
+                    if let Some(s) = labels_span {
+                        if label_map.is_some() {
+                            self.diag(Diagnostic::error(
+                                codes::E1606,
+                                "`labels` maps apply only to categorical scales",
+                                s,
+                            ));
+                            label_map = None;
+                        }
                     }
                     match &range {
                         Some(RangeSpec::Numeric(bounds, _)) => range_numeric = Some(*bounds),
@@ -373,17 +501,65 @@ impl Analyzer<'_> {
                             "a category map `range` applies only to categorical scales",
                             *s,
                         )),
+                        Some(RangeSpec::ColorArray(_, s)) => self.diag(Diagnostic::error(
+                            codes::E1606,
+                            "a color-array `range` applies only to binned color scales",
+                            *s,
+                        )),
                         None => {}
                     }
                 }
+            }
+        }
+        if let (Some(labels), Some(breaks), Some(s)) =
+            (&break_labels, &breaks, break_labels_span.or(labels_span))
+        {
+            if labels.len() != breaks.len() {
+                self.diag(Diagnostic::error(
+                    codes::E1604,
+                    "`labels` length must match `breaks` length",
+                    s,
+                ));
+            }
+        }
+        if break_labels.is_some() && breaks.is_none() {
+            self.diag(Diagnostic::error(
+                codes::E1604,
+                "`labels` arrays require `breaks`",
+                break_labels_span.unwrap_or(span),
+            ));
+        }
+        if mode == Some(ScaleModeIr::Binned) {
+            if let (Some(colors), Some(breaks), Some(s)) =
+                (&color_range, &breaks, range.as_ref().map(range_span))
+            {
+                if colors.len() != breaks.len() {
+                    self.diag(Diagnostic::error(
+                        codes::E1604,
+                        "binned scale `range` length must match `breaks` length",
+                        s,
+                    ));
+                }
+            }
+            if breaks.as_ref().is_some_and(|values| values.is_empty()) {
+                self.diag(Diagnostic::error(
+                    codes::E1604,
+                    "`breaks` must not be empty for a binned scale",
+                    breaks_span.unwrap_or(span),
+                ));
             }
         }
 
         Some(ScaleIr {
             target,
             scale_type,
+            mode,
             domain,
+            breaks,
+            break_labels,
+            expansion,
             range: range_numeric,
+            color_range,
             reverse,
             integer,
             palette,
@@ -430,6 +606,83 @@ impl Analyzer<'_> {
             }
         }
         Some(out)
+    }
+
+    fn break_values(&mut self, value: &ValueExpr) -> Option<Vec<f64>> {
+        let ValueExpr::Array(array) = value else {
+            self.diag(Diagnostic::error(
+                codes::E1204,
+                "`breaks` expects an array of numbers or temporal literals",
+                node_span(value.syntax()),
+            ));
+            return None;
+        };
+        let mut out = Vec::new();
+        for elem in array.values() {
+            match &elem {
+                ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::Number) => {
+                    let Some(n) = lit.text().and_then(|t| t.parse::<f64>().ok()) else {
+                        self.diag(Diagnostic::error(
+                            codes::E1204,
+                            "`breaks` values must be finite numbers",
+                            node_span(elem.syntax()),
+                        ));
+                        return None;
+                    };
+                    if !n.is_finite() {
+                        self.diag(Diagnostic::error(
+                            codes::E1204,
+                            "`breaks` values must be finite numbers",
+                            node_span(elem.syntax()),
+                        ));
+                        return None;
+                    }
+                    out.push(n);
+                }
+                ValueExpr::Call(call) => out.push(self.temporal_literal_bound(call)? as f64),
+                _ => {
+                    self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`breaks` values must be numbers or temporal literals",
+                        node_span(elem.syntax()),
+                    ));
+                    return None;
+                }
+            }
+        }
+        if !out.windows(2).all(|pair| pair[0] < pair[1]) {
+            self.diag(Diagnostic::error(
+                codes::E1604,
+                "`breaks` values must be strictly increasing",
+                node_span(value.syntax()),
+            ));
+            return None;
+        }
+        Some(out)
+    }
+
+    fn scale_expansion(&mut self, value: &ValueExpr) -> Option<ScaleExpansionIr> {
+        match ValueForm::of(value) {
+            ValueForm::Number(n) if n.is_finite() && n >= 0.0 => {
+                Some(ScaleExpansionIr { mult: n, add: 0.0 })
+            }
+            ValueForm::Array(Some(values))
+                if values.len() == 2 && values.iter().all(|n| n.is_finite() && *n >= 0.0) =>
+            {
+                Some(ScaleExpansionIr {
+                    mult: values[0],
+                    add: values[1],
+                })
+            }
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1204,
+                    "`expand` expects a non-negative number or [mult, add]",
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+        }
     }
 
     /// Parse a `datetime("…")` / `date("…")` domain bound to microseconds,
@@ -518,6 +771,31 @@ impl Analyzer<'_> {
             out.push((key, val));
         }
         Some(out)
+    }
+
+    fn color_array(&mut self, value: &ValueExpr) -> Option<Vec<String>> {
+        let ValueForm::StringArray(Some(values)) = ValueForm::of(value) else {
+            return None;
+        };
+        if values.is_empty() {
+            self.diag(Diagnostic::error(
+                codes::E1603,
+                "a binned color `range` must contain at least one color",
+                node_span(value.syntax()),
+            ));
+            return None;
+        }
+        for color in &values {
+            if !is_color_literal(color) {
+                self.diag(Diagnostic::error(
+                    codes::E1604,
+                    format!("invalid range color `{color}`"),
+                    node_span(value.syntax()),
+                ));
+                return None;
+            }
+        }
+        Some(values)
     }
 
     fn gradient_value(&mut self, value: &ValueExpr) -> Option<GradientIr> {

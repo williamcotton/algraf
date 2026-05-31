@@ -1,0 +1,14 @@
+Chart(data: "trial_observations.csv", width: 760, height: 460, title: "Mean outcome with standard error") {
+    Theme(name: "minimal")
+    Derive summary = Summary(outcome, by: [treatment, cohort], reducer: "mean_se")
+
+    Scale(fill: cohort, palette: "accent")
+    Scale(stroke: cohort, palette: "accent")
+    Guide(axis: x, label: "Treatment")
+    Guide(axis: y, label: "Outcome")
+
+    Space(treatment * value, data: summary) {
+        ErrorBar(ymin: lower, ymax: upper, capWidth: 0.25, stroke: cohort, strokeWidth: 2)
+        Point(fill: cohort, stroke: "#ffffff", size: 4)
+    }
+}

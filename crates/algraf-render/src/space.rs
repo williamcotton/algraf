@@ -14,8 +14,8 @@ use crate::scale::{
 };
 use algraf_data::{DataType, Table, TemporalPrecision};
 use algraf_semantics::{
-    AxisSelectorIr, ColumnRef, FrameIr, PolarDirectionIr, PolarThetaIr, ScaleIr, ScaleTargetIr,
-    ScaleTypeIr, TemporalFormatIr,
+    AxisSelectorIr, ColumnRef, FrameIr, PolarDirectionIr, PolarThetaIr, ScaleExpansionIr, ScaleIr,
+    ScaleTargetIr, ScaleTypeIr, TemporalFormatIr,
 };
 
 mod polar;
@@ -172,24 +172,38 @@ impl AxisScale {
                 .ticks(6)
                 .into_iter()
                 .filter(|t| *t >= scale.min - f64::EPSILON && *t <= scale.max + f64::EPSILON)
-                .map(|t| (scale.map(t), crate::svg::num(t)))
+                .enumerate()
+                .map(|(index, t)| {
+                    let label = scale
+                        .tick_labels
+                        .get(index)
+                        .cloned()
+                        .unwrap_or_else(|| crate::svg::num(t));
+                    (scale.map(t), label)
+                })
                 .collect(),
             AxisScale::Temporal { scale, .. } => temporal_ticks(scale)
                 .into_iter()
-                .map(|micros| {
-                    (
-                        scale.map(micros),
-                        format_temporal(micros, scale.precision, format),
-                    )
+                .enumerate()
+                .map(|(index, micros)| {
+                    let label = scale
+                        .tick_labels
+                        .get(index)
+                        .cloned()
+                        .unwrap_or_else(|| format_temporal(micros, scale.precision, format));
+                    (scale.map(micros), label)
                 })
                 .collect(),
             AxisScale::TemporalUnion { scale, .. } => temporal_ticks(scale)
                 .into_iter()
-                .map(|micros| {
-                    (
-                        scale.map(micros),
-                        format_temporal(micros, scale.precision, format),
-                    )
+                .enumerate()
+                .map(|(index, micros)| {
+                    let label = scale
+                        .tick_labels
+                        .get(index)
+                        .cloned()
+                        .unwrap_or_else(|| format_temporal(micros, scale.precision, format));
+                    (scale.map(micros), label)
                 })
                 .collect(),
             AxisScale::Band { scale, .. } => scale
@@ -675,6 +689,9 @@ fn build_axis(
                         nested.pad_inner = pad;
                     }
                 }
+                if let Some(expansion) = config.expansion {
+                    nested.outer.pad_outer = expansion.mult;
+                }
                 Some(AxisScale::NestedBand {
                     outer_col: o.name.clone(),
                     inner_col: i.name.clone(),
@@ -718,11 +735,18 @@ fn build_axis(
                 if let Some(hints) = hints {
                     hints.apply_temporal(&mut min, &mut max);
                 }
+                if config.domain.is_none() {
+                    apply_temporal_expansion(config.expansion, &mut min, &mut max);
+                }
+                if let Some(bounds) = config.domain {
+                    apply_temporal_domain_bounds(bounds, &mut min, &mut max);
+                }
                 let mut scale = TemporalScale::new(min, max, range, precision);
                 if let Some(hints) = hints {
                     scale.tick_values = hints.temporal_tick_values();
                     scale.tick_span = hints.temporal_tick_span();
                 }
+                apply_axis_breaks_to_temporal(&mut scale, config);
                 return Some(AxisScale::TemporalUnion { label, scale });
             }
             let mut min = f64::INFINITY;
@@ -740,6 +764,9 @@ fn build_axis(
             if let Some(hints) = hints {
                 hints.apply_numeric(&mut min, &mut max);
                 hints.apply_padding(&mut min, &mut max);
+            }
+            if config.domain.is_none() {
+                apply_numeric_expansion(config.expansion, &mut min, &mut max);
             }
             if let Some(bounds) = config.domain {
                 apply_domain_bounds(bounds, &mut min, &mut max);
@@ -767,6 +794,9 @@ fn build_vector_axis(
                 hints.apply_numeric(&mut min, &mut max);
                 hints.apply_padding(&mut min, &mut max);
             }
+            if config.domain.is_none() {
+                apply_numeric_expansion(config.expansion, &mut min, &mut max);
+            }
             if let Some(bounds) = config.domain {
                 apply_domain_bounds(bounds, &mut min, &mut max);
             }
@@ -781,11 +811,18 @@ fn build_vector_axis(
             if let Some(hints) = hints {
                 hints.apply_temporal(&mut min, &mut max);
             }
+            if config.domain.is_none() {
+                apply_temporal_expansion(config.expansion, &mut min, &mut max);
+            }
+            if let Some(bounds) = config.domain {
+                apply_temporal_domain_bounds(bounds, &mut min, &mut max);
+            }
             let mut scale = TemporalScale::new(min, max, range, precision);
             if let Some(hints) = hints {
                 scale.tick_values = hints.temporal_tick_values();
                 scale.tick_span = hints.temporal_tick_span();
             }
+            apply_axis_breaks_to_temporal(&mut scale, config);
             AxisScale::Temporal {
                 col: col.name.clone(),
                 scale,
@@ -802,6 +839,9 @@ fn build_vector_axis(
                     scale.pad_outer = pad;
                 }
             }
+            if let Some(expansion) = config.expansion {
+                scale.pad_outer = expansion.mult;
+            }
             AxisScale::Band {
                 col: col.name.clone(),
                 scale,
@@ -810,10 +850,13 @@ fn build_vector_axis(
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 struct AxisScaleConfig {
     scale_type: Option<ScaleTypeIr>,
     domain: Option<[Option<f64>; 2]>,
+    breaks: Option<Vec<f64>>,
+    break_labels: Option<Vec<String>>,
+    expansion: Option<ScaleExpansionIr>,
     reverse: bool,
     integer: bool,
 }
@@ -833,8 +876,20 @@ fn apply_domain_bounds(bounds: [Option<f64>; 2], min: &mut f64, max: &mut f64) {
     }
 }
 
+fn apply_temporal_domain_bounds(bounds: [Option<f64>; 2], min: &mut i64, max: &mut i64) {
+    match bounds {
+        [Some(a), Some(b)] => {
+            *min = a.min(b) as i64;
+            *max = a.max(b) as i64;
+        }
+        [Some(a), None] => *min = a as i64,
+        [None, Some(b)] => *max = b as i64,
+        [None, None] => {}
+    }
+}
+
 impl AxisScaleConfig {
-    fn apply_range(self, range: (f64, f64)) -> (f64, f64) {
+    fn apply_range(&self, range: (f64, f64)) -> (f64, f64) {
         if self.reverse {
             (range.1, range.0)
         } else {
@@ -852,6 +907,15 @@ fn axis_config(scales: &[ScaleIr], axis: AxisSelectorIr) -> AxisScaleConfig {
             }
             if scale.domain.is_some() {
                 config.domain = scale.domain;
+            }
+            if scale.breaks.is_some() {
+                config.breaks = scale.breaks.clone();
+            }
+            if scale.break_labels.is_some() {
+                config.break_labels = scale.break_labels.clone();
+            }
+            if scale.expansion.is_some() {
+                config.expansion = scale.expansion;
             }
             if let Some(reverse) = scale.reverse {
                 config.reverse = reverse;
@@ -878,5 +942,47 @@ fn continuous_scale(
         ContinuousScale::new(min, max, range)
     };
     scale.integer = config.integer;
+    if let Some(values) = &config.breaks {
+        scale.tick_values = values.clone();
+    }
+    if let Some(labels) = &config.break_labels {
+        scale.tick_labels = labels.clone();
+    }
     scale
+}
+
+fn apply_axis_breaks_to_temporal(scale: &mut TemporalScale, config: &AxisScaleConfig) {
+    if let Some(values) = &config.breaks {
+        scale.tick_values = values.iter().map(|value| *value as i64).collect();
+        scale.tick_span = Some((scale.min, scale.max));
+    }
+    if let Some(labels) = &config.break_labels {
+        scale.tick_labels = labels.clone();
+    }
+}
+
+fn apply_numeric_expansion(expansion: Option<ScaleExpansionIr>, min: &mut f64, max: &mut f64) {
+    let Some(expansion) = expansion else {
+        return;
+    };
+    let span = (*max - *min).abs();
+    if !span.is_finite() {
+        return;
+    }
+    let pad = span * expansion.mult + expansion.add;
+    *min -= pad;
+    *max += pad;
+}
+
+fn apply_temporal_expansion(expansion: Option<ScaleExpansionIr>, min: &mut i64, max: &mut i64) {
+    let Some(expansion) = expansion else {
+        return;
+    };
+    let span = (*max - *min).abs() as f64;
+    if !span.is_finite() {
+        return;
+    }
+    let pad = (span * expansion.mult + expansion.add).round() as i64;
+    *min -= pad;
+    *max += pad;
 }

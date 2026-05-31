@@ -62,8 +62,15 @@ charts=(
     horizontal_violin_boxplot
     horizontal_faceted_violin_boxplot
     freqpoly
+    ecdf
+    qq
+    summary_intervals
+    summary_bin
     derived_chain
     gradient
+    breaks_labels_expansion
+    binned_scale
+    identity_color
     group_line
     shapes
     penguin_channels
