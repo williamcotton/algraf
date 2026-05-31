@@ -4,6 +4,13 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Revenue by region (SQLite source)</text>
 <rect class="algraf-plot-area" x="60" y="66" width="430" height="304" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="60" y1="349.894" x2="490" y2="349.894" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="309.683" x2="490" y2="309.683" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="269.471" x2="490" y2="269.471" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="229.259" x2="490" y2="229.259" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="189.048" x2="490" y2="189.048" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="148.836" x2="490" y2="148.836" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="108.624" x2="490" y2="108.624" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="60" y1="370" x2="490" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="329.788" x2="490" y2="329.788" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="289.577" x2="490" y2="289.577" stroke="#e6e6e6" stroke-width="1" />

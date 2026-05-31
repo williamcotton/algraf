@@ -4,6 +4,11 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Sample distribution by gender</text>
 <rect class="algraf-plot-area" x="60" y="66" width="430" height="304" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="60" y1="341.852" x2="490" y2="341.852" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="285.556" x2="490" y2="285.556" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="229.259" x2="490" y2="229.259" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="172.963" x2="490" y2="172.963" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="116.667" x2="490" y2="116.667" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="60" y1="370" x2="490" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="313.704" x2="490" y2="313.704" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="257.407" x2="490" y2="257.407" stroke="#e6e6e6" stroke-width="1" />

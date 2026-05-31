@@ -4,6 +4,12 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Programming Language Popularity</text>
 <rect class="algraf-plot-area" x="60" y="66" width="490" height="334" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="60" y1="372.583" x2="550" y2="372.583" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="317.75" x2="550" y2="317.75" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="262.917" x2="550" y2="262.917" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="208.084" x2="550" y2="208.084" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="153.251" x2="550" y2="153.251" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="98.417" x2="550" y2="98.417" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="60" y1="400" x2="550" y2="400" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="345.167" x2="550" y2="345.167" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="290.334" x2="550" y2="290.334" stroke="#e6e6e6" stroke-width="1" />

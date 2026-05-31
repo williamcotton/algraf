@@ -19,11 +19,11 @@ pub use ir::{
     AestheticMapping, AxisSelectorIr, AxisViewDomainIr, BinClosedIr, BinIntervalIr, ChartIr,
     ColumnRef, CoordinateViewIr, CoordsIr, DataSourceIr, DeriveIr, FacetGridIr, FacetLabelModeIr,
     FacetScaleModeIr, FrameIr, GeometryIr, GeometryKind, GradientIr, GradientStopIr, GridBinsIr,
-    GridShapeIr, GuideIr, GuideOverridesIr, InteractionIr, IntervalOrientationIr, LevelSpecIr,
-    PanelSpacingIr, PolarDirectionIr, PolarThetaIr, PropertyKey, QqDistributionIr,
+    GridShapeIr, GuideIr, GuideOverridesIr, InteractionIr, IntervalOrientationIr, LegendPositionIr,
+    LevelSpecIr, PanelSpacingIr, PolarDirectionIr, PolarThetaIr, PropertyKey, QqDistributionIr,
     ScaleExpansionIr, ScaleIr, ScaleModeIr, ScaleTargetIr, ScaleTypeIr, SettingValue,
     SmoothMethodIr, SpaceDataRef, SpaceIr, SpatialPredicateIr, StatCallIr, StatKind, StatOptionsIr,
-    StepDirectionIr, SummaryReducerIr, TableDeclIr, TemporalFormatIr, ThemeIr, ThemeOverrides,
-    PROPERTY_KEYS,
+    StepDirectionIr, SummaryReducerIr, TableDeclIr, TemporalFormatIr, ThemeIr, ThemeLineIr,
+    ThemeOverrides, ThemeRectIr, ThemeTextIr, PROPERTY_KEYS,
 };
 pub use planning::{geometry_column_name, spatial_join_appended_columns};

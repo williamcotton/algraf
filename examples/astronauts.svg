@@ -6,6 +6,18 @@
 <text class="algraf-subtitle" x="60" y="50" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Age of astronauts when they were selected and when they were sent on their mission</text>
 <rect class="algraf-plot-area" x="60" y="82" width="550" height="328" fill="#EBEBEB" />
 <g class="algraf-grid">
+  <line x1="105.833" y1="82" x2="105.833" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="197.5" y1="82" x2="197.5" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="289.167" y1="82" x2="289.167" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="380.833" y1="82" x2="380.833" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="472.5" y1="82" x2="472.5" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="564.167" y1="82" x2="564.167" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="386.232" x2="610" y2="386.232" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="338.696" x2="610" y2="338.696" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="291.159" x2="610" y2="291.159" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="243.623" x2="610" y2="243.623" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="196.087" x2="610" y2="196.087" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="148.551" x2="610" y2="148.551" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="60" y1="82" x2="60" y2="410" stroke="#FFFFFF" stroke-width="1" />
   <line x1="151.667" y1="82" x2="151.667" y2="410" stroke="#FFFFFF" stroke-width="1" />
   <line x1="243.333" y1="82" x2="243.333" y2="410" stroke="#FFFFFF" stroke-width="1" />

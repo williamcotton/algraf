@@ -22,6 +22,8 @@ pub struct ChartIr {
     pub title: Option<String>,
     pub subtitle: Option<String>,
     pub caption: Option<String>,
+    pub alt: Option<String>,
+    pub description: Option<String>,
     pub width: u32,
     pub height: u32,
     /// Per-side minimum plot margins in pixels (spec §17.3). `None` keeps the
@@ -105,6 +107,64 @@ pub struct ThemeOverrides {
     pub line_width: Option<f64>,
     pub grid: Option<bool>,
     pub axes: Option<bool>,
+    pub plot_title: Option<ThemeTextIr>,
+    pub plot_subtitle: Option<ThemeTextIr>,
+    pub plot_caption: Option<ThemeTextIr>,
+    pub axis_title: Option<ThemeTextIr>,
+    pub axis_text: Option<ThemeTextIr>,
+    pub strip_text: Option<ThemeTextIr>,
+    pub legend_title: Option<ThemeTextIr>,
+    pub legend_text: Option<ThemeTextIr>,
+    pub panel_background: Option<ThemeRectIr>,
+    pub grid_major: Option<ThemeLineIr>,
+    pub grid_minor: Option<ThemeLineIr>,
+    pub legend_position: Option<LegendPositionIr>,
+    pub legend_spacing: Option<f64>,
+}
+
+/// A structured `Text(...)` theme-element override. Each field is optional so
+/// source can override one text property without restating the inherited style.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ThemeTextIr {
+    pub font_family: Option<String>,
+    pub size: Option<f64>,
+    pub fill: Option<String>,
+}
+
+/// A structured `Line(...)` theme-element override.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ThemeLineIr {
+    pub stroke: Option<String>,
+    pub stroke_width: Option<f64>,
+}
+
+/// A structured `Rect(...)` theme-element override.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ThemeRectIr {
+    pub fill: Option<String>,
+    pub stroke: Option<String>,
+    pub stroke_width: Option<f64>,
+}
+
+/// Deterministic legend placement requested by the active theme.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LegendPositionIr {
+    #[default]
+    Right,
+    Bottom,
+    Top,
+    Left,
+}
+
+impl LegendPositionIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            LegendPositionIr::Right => "right",
+            LegendPositionIr::Bottom => "bottom",
+            LegendPositionIr::Top => "top",
+            LegendPositionIr::Left => "left",
+        }
+    }
 }
 
 /// Chart-level layout settings that affect viewport allocation (spec §17.4).

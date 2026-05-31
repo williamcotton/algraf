@@ -82,6 +82,7 @@ pub(super) fn build_render_plan<'t>(
         chart_bottom_extra,
         0.0,
         margins,
+        theme.legend_position,
     );
     let guide_bottom_extra = if has_axes {
         x_label_bottom_extra(ir, primary, derived, &provisional, theme)
@@ -113,6 +114,7 @@ pub(super) fn build_render_plan<'t>(
             bottom_extra,
             left_extra,
             margins,
+            theme.legend_position,
             ir.layout.panel_spacing,
         )
     } else {
@@ -128,6 +130,7 @@ pub(super) fn build_render_plan<'t>(
                 bottom_extra,
                 left_extra,
                 margins,
+                theme.legend_position,
                 ir.layout.panel_spacing,
             ),
             None => Layout::compute_with_text(
@@ -139,6 +142,7 @@ pub(super) fn build_render_plan<'t>(
                 bottom_extra,
                 left_extra,
                 margins,
+                theme.legend_position,
             ),
         }
     };
@@ -624,7 +628,7 @@ fn x_label_bottom_extra(
             let guides = ir.guides.with_overrides(&space.guides);
             max_label_height = max_label_height.max(guide::max_x_tick_label_height(
                 &scaled,
-                theme.font_size,
+                theme.axis_text.size,
                 guides.x_time_format.as_ref(),
                 guides.x_tick_label_angle,
                 guides.x_tick_label_rows,
@@ -634,7 +638,7 @@ fn x_label_bottom_extra(
     if max_label_height <= 0.0 {
         return 0.0;
     }
-    (guide::x_axis_bottom_margin(max_label_height, theme.font_size) - MARGIN_BOTTOM).max(0.0)
+    (guide::x_axis_bottom_margin(max_label_height, theme.axis_title.size) - MARGIN_BOTTOM).max(0.0)
 }
 
 /// Extra left margin needed so the widest y tick label and the rotated y-axis
@@ -671,7 +675,7 @@ fn y_label_left_extra(
             let guides = ir.guides.with_overrides(&space.guides);
             max_label_width = max_label_width.max(guide::max_y_tick_label_width(
                 &scaled,
-                theme.font_size,
+                theme.axis_text.size,
                 guides.y_time_format.as_ref(),
                 guides.y_tick_label_angle,
                 guides.y_tick_label_rows,
@@ -681,19 +685,19 @@ fn y_label_left_extra(
     if max_label_width <= 0.0 {
         return 0.0;
     }
-    (guide::y_axis_left_margin(max_label_width, theme.font_size) - MARGIN_LEFT).max(0.0)
+    (guide::y_axis_left_margin(max_label_width, theme.axis_title.size) - MARGIN_LEFT).max(0.0)
 }
 
 fn chart_text_reserve(ir: &ChartIr, theme: &Theme) -> (f64, f64) {
     let mut top = 0.0;
     if ir.title.is_some() {
-        top += theme.title_size + 8.0;
+        top += theme.plot_title.size + 8.0;
     }
     if ir.subtitle.is_some() {
-        top += theme.font_size + 4.0;
+        top += theme.plot_subtitle.size + 4.0;
     }
     let bottom = if ir.caption.is_some() {
-        theme.font_size + 8.0
+        theme.plot_caption.size + 8.0
     } else {
         0.0
     };

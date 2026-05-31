@@ -1,0 +1,29 @@
+Chart(data: "penguins.csv", width: 760, height: 500,
+      title: "Penguin measurements",
+      subtitle: "Body mass and flipper length by species",
+      caption: "Source: sample penguin measurements",
+      alt: "Scatter plot of penguin body mass by flipper length with species colors.",
+      description: "A scatter plot compares flipper length on the x axis with body mass on the y axis. Adelie, Chinstrap, and Gentoo penguins are distinguished by point color and a bottom legend.") {
+    Theme(
+        name: "bw",
+        legendPosition: "bottom",
+        legendSpacing: 14,
+        plotTitle: Text(size: 20, fill: "#1f2937"),
+        plotSubtitle: Text(size: 13, fill: "#4b5563"),
+        plotCaption: Text(size: 11, fill: "#6b7280"),
+        axisTitle: Text(size: 12, fill: "#374151"),
+        axisText: Text(size: 11, fill: "#4b5563"),
+        legendTitle: Text(size: 12, fill: "#111827"),
+        legendText: Text(size: 11, fill: "#374151"),
+        panelBackground: Rect(fill: "#ffffff", stroke: "#111827", strokeWidth: 1),
+        gridMajor: Line(stroke: "#d1d5db", strokeWidth: 0.8),
+        gridMinor: Line(stroke: "#f3f4f6", strokeWidth: 0.5)
+    )
+    Guide(axis: x, label: "Flipper length (mm)")
+    Guide(axis: y, label: "Body mass (g)")
+    Scale(fill: species, label: "Species")
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.72, size: 3)
+    }
+}

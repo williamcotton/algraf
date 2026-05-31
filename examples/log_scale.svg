@@ -4,6 +4,11 @@
 <text class="algraf-title" x="89.6" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Population across settlement sizes</text>
 <rect class="algraf-plot-area" x="89.6" y="66" width="480.4" height="344" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="89.6" y1="375.6" x2="570" y2="375.6" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="89.6" y1="306.8" x2="570" y2="306.8" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="89.6" y1="238" x2="570" y2="238" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="89.6" y1="169.2" x2="570" y2="169.2" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="89.6" y1="100.4" x2="570" y2="100.4" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="89.6" y1="410" x2="570" y2="410" stroke="#e6e6e6" stroke-width="1" />
   <line x1="89.6" y1="341.2" x2="570" y2="341.2" stroke="#e6e6e6" stroke-width="1" />
   <line x1="89.6" y1="272.4" x2="570" y2="272.4" stroke="#e6e6e6" stroke-width="1" />

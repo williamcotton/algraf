@@ -4,6 +4,18 @@
 <text class="algraf-title" x="60.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Estimated density</text>
 <rect class="algraf-plot-area" x="60.8" y="66" width="669.2" height="344" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="117.115" y1="66" x2="117.115" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="196.625" y1="66" x2="196.625" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="276.135" y1="66" x2="276.135" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="355.645" y1="66" x2="355.645" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="435.155" y1="66" x2="435.155" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="514.665" y1="66" x2="514.665" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="594.175" y1="66" x2="594.175" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="673.685" y1="66" x2="673.685" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="370.211" x2="730" y2="370.211" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="290.633" x2="730" y2="290.633" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="211.055" x2="730" y2="211.055" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="131.476" x2="730" y2="131.476" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="77.36" y1="66" x2="77.36" y2="410" stroke="#e6e6e6" stroke-width="1" />
   <line x1="156.87" y1="66" x2="156.87" y2="410" stroke="#e6e6e6" stroke-width="1" />
   <line x1="236.38" y1="66" x2="236.38" y2="410" stroke="#e6e6e6" stroke-width="1" />

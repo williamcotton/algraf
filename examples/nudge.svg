@@ -4,6 +4,17 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Nudged point labels</text>
 <rect class="algraf-plot-area" x="60" y="66" width="510" height="304" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="137.549" y1="66" x2="137.549" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="225.833" y1="66" x2="225.833" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="314.117" y1="66" x2="314.117" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="402.401" y1="66" x2="402.401" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="490.686" y1="66" x2="490.686" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="335.479" x2="570" y2="335.479" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="290.295" x2="570" y2="290.295" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="245.111" x2="570" y2="245.111" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="199.926" x2="570" y2="199.926" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="154.742" x2="570" y2="154.742" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="109.558" x2="570" y2="109.558" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="93.407" y1="66" x2="93.407" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="181.691" y1="66" x2="181.691" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="269.975" y1="66" x2="269.975" y2="370" stroke="#e6e6e6" stroke-width="1" />

@@ -28,6 +28,8 @@ struct ChartArgs {
     title: Option<String>,
     subtitle: Option<String>,
     caption: Option<String>,
+    alt: Option<String>,
+    description: Option<String>,
     margin_top: Option<u32>,
     margin_right: Option<u32>,
     margin_bottom: Option<u32>,
@@ -45,6 +47,8 @@ impl Analyzer<'_> {
             title,
             subtitle,
             caption,
+            alt,
+            description,
             margin_top,
             margin_right,
             margin_bottom,
@@ -126,6 +130,8 @@ impl Analyzer<'_> {
             title,
             subtitle,
             caption,
+            alt,
+            description,
             width,
             height,
             margin_top,
@@ -147,6 +153,8 @@ impl Analyzer<'_> {
         let mut title = None;
         let mut subtitle = None;
         let mut caption = None;
+        let mut alt = None;
+        let mut description = None;
         let mut margin_top = None;
         let mut margin_right = None;
         let mut margin_bottom = None;
@@ -192,6 +200,16 @@ impl Analyzer<'_> {
                     caption =
                         self.expect_string(arg, codes::E1204, "`caption` expects a string literal")
                 }
+                "alt" => {
+                    alt = self.expect_string(arg, codes::E1204, "`alt` expects a string literal")
+                }
+                "description" => {
+                    description = self.expect_string(
+                        arg,
+                        codes::E1204,
+                        "`description` expects a string literal",
+                    )
+                }
                 "marginTop" => margin_top = self.arg_u32(arg),
                 "marginRight" => margin_right = self.arg_u32(arg),
                 "marginBottom" => margin_bottom = self.arg_u32(arg),
@@ -216,6 +234,8 @@ impl Analyzer<'_> {
             title,
             subtitle,
             caption,
+            alt,
+            description,
             margin_top,
             margin_right,
             margin_bottom,

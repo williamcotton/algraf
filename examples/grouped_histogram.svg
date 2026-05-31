@@ -4,6 +4,17 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Exam scores by cohort (stacked)</text>
 <rect class="algraf-plot-area" x="60" y="66" width="510" height="344" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="145" y1="66" x2="145" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="239.444" y1="66" x2="239.444" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="333.889" y1="66" x2="333.889" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="428.333" y1="66" x2="428.333" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="522.778" y1="66" x2="522.778" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="381.561" x2="570" y2="381.561" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="324.683" x2="570" y2="324.683" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="267.804" x2="570" y2="267.804" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="210.926" x2="570" y2="210.926" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="154.048" x2="570" y2="154.048" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="97.169" x2="570" y2="97.169" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="97.778" y1="66" x2="97.778" y2="410" stroke="#e6e6e6" stroke-width="1" />
   <line x1="192.222" y1="66" x2="192.222" y2="410" stroke="#e6e6e6" stroke-width="1" />
   <line x1="286.667" y1="66" x2="286.667" y2="410" stroke="#e6e6e6" stroke-width="1" />

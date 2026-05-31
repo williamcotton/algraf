@@ -126,6 +126,51 @@ fn draw_list_carries_chart_text() {
 }
 
 #[test]
+fn bottom_legend_is_reflected_in_layout_sidecar_and_draw_list() {
+    let source = r##"Chart(data: "p.csv", width: 520, height: 320) {
+  Theme(name: "minimal", legendPosition: "bottom")
+  Space(x * y) {
+    Point(fill: g)
+  }
+}"##;
+    let frame = read_csv_str("x,y,g\n1,2,A\n2,3,B\n3,1,A\n")
+        .expect("csv")
+        .frame;
+    let parsed = parse(source);
+    let analysis = analyze(&parsed.syntax(), frame.schema());
+    let ir = analysis.ir.expect("ir");
+    let theme = Theme::from_ir(ir.theme.as_ref().expect("theme"));
+
+    let result = render(&ir, &frame, &theme, None).expect("render");
+    let legend = result.layout.legend.expect("legend");
+    assert!(legend.y > result.layout.plot.bottom());
+    assert!(
+        legend.y >= result.layout.plot.bottom() + 48.0,
+        "bottom legend should sit below the x-axis title reserve"
+    );
+
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+    assert_eq!(metadata["legend"]["position"], "bottom");
+    assert_eq!(metadata["legend"]["rect"]["y"].as_f64().unwrap(), legend.y);
+
+    let list = render_draw_list(&ir, &frame, &theme, None)
+        .expect("draw list")
+        .draw_list;
+    let legend_text_below_plot = list.ops.iter().any(|op| {
+        matches!(
+            op,
+            DrawOp::Text {
+                role: DrawRole::Legend,
+                y,
+                ..
+            } if *y > result.layout.plot.bottom()
+        )
+    });
+    assert!(legend_text_below_plot);
+}
+
+#[test]
 fn draw_list_has_one_panel_per_facet() {
     let list = draw_list(
         "Chart(data: \"p.csv\") { Space((x * y) / g) { Point() } }",

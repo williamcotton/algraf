@@ -1160,6 +1160,15 @@ fn ir_to_json(ir: &ChartIr) -> Value {
         "title": ir.title.as_deref(),
         "subtitle": ir.subtitle.as_deref(),
         "caption": ir.caption.as_deref(),
+        "alt": ir.alt.as_deref(),
+        "description": ir.description.as_deref(),
+        "metadata": {
+            "title": ir.title.as_deref(),
+            "subtitle": ir.subtitle.as_deref(),
+            "caption": ir.caption.as_deref(),
+            "alt": ir.alt.as_deref(),
+            "description": ir.description.as_deref(),
+        },
         "tables": ir.tables.iter().map(|t| json!({
             "name": t.name,
             "path": t.path,

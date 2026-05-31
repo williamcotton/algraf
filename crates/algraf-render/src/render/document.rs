@@ -460,9 +460,10 @@ pub(super) fn emit_document(
 
     let mut w = SvgWriter::new();
     let aria = ir
-        .title
+        .alt
         .as_ref()
-        .map(|title| format!(" aria-label=\"{}\"", escape_attr(title)))
+        .or(ir.title.as_ref())
+        .map(|label| format!(" aria-label=\"{}\"", escape_attr(label)))
         .unwrap_or_default();
     w.line(&format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" \
@@ -499,14 +500,14 @@ pub(super) fn emit_document(
         } else {
             "algraf-plot-area"
         };
-        emit_rect_fill(
+        emit_panel_background(
             &mut w,
             slot.plot.x,
             slot.plot.y,
             slot.plot.width,
             slot.plot.height,
-            &theme.plot_background,
             class,
+            theme,
         );
     }
 
@@ -628,6 +629,9 @@ pub(super) fn paint_axes_and_legends(
 }
 
 fn chart_desc(ir: &ChartIr) -> Option<String> {
+    if let Some(description) = &ir.description {
+        return Some(description.clone());
+    }
     match (&ir.subtitle, &ir.caption) {
         (Some(subtitle), Some(caption)) => Some(format!("{subtitle}\n{caption}")),
         (Some(subtitle), None) => Some(subtitle.clone()),
@@ -651,21 +655,21 @@ fn render_chart_text(
             "<text class=\"algraf-title\" x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" font-weight=\"600\" fill=\"{}\">{}</text>",
             num(x),
             num(y),
-            escape_attr(&theme.font_family),
-            num(theme.title_size),
-            escape_attr(&theme.text_color),
+            escape_attr(&theme.plot_title.font_family),
+            num(theme.plot_title.size),
+            escape_attr(&theme.plot_title.fill),
             escape_text(title),
         ));
-        y += theme.title_size + 8.0;
+        y += theme.plot_title.size + 8.0;
     }
     if let Some(subtitle) = &ir.subtitle {
         w.line(&format!(
             "<text class=\"algraf-subtitle\" x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
             num(x),
             num(y),
-            escape_attr(&theme.font_family),
-            num(theme.font_size),
-            escape_attr(&theme.text_color),
+            escape_attr(&theme.plot_subtitle.font_family),
+            num(theme.plot_subtitle.size),
+            escape_attr(&theme.plot_subtitle.fill),
             escape_text(subtitle),
         ));
     }
@@ -674,9 +678,9 @@ fn render_chart_text(
             "<text class=\"algraf-caption\" x=\"{}\" y=\"{}\" text-anchor=\"end\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
             num(width - 16.0),
             num(height - 12.0),
-            escape_attr(&theme.font_family),
-            num(theme.font_size),
-            escape_attr(&theme.text_color),
+            escape_attr(&theme.plot_caption.font_family),
+            num(theme.plot_caption.size),
+            escape_attr(&theme.plot_caption.fill),
             escape_text(caption),
         ));
     }
@@ -702,4 +706,32 @@ fn emit_rect_fill(
             SvgAttr::new("fill", color),
         ],
     );
+}
+
+fn emit_panel_background(
+    w: &mut SvgWriter,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    class: &str,
+    theme: &Theme,
+) {
+    let mut attrs = format!(
+        "class=\"{}\" x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\"",
+        escape_attr(class),
+        num(x),
+        num(y),
+        num(width),
+        num(height),
+        escape_attr(&theme.panel_background.fill),
+    );
+    if let Some(stroke) = &theme.panel_background.stroke {
+        attrs.push_str(&format!(
+            " stroke=\"{}\" stroke-width=\"{}\"",
+            escape_attr(stroke),
+            num(theme.panel_background.stroke_width),
+        ));
+    }
+    w.line(&format!("<rect {attrs} />"));
 }

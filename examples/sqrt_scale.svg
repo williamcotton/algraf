@@ -4,6 +4,16 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Area on a square-root axis</text>
 <rect class="algraf-plot-area" x="60" y="66" width="550" height="304" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="145.345" y1="66" x2="145.345" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="240.172" y1="66" x2="240.172" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="335" y1="66" x2="335" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="429.828" y1="66" x2="429.828" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="524.655" y1="66" x2="524.655" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="302.024" x2="610" y2="302.024" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="205.89" x2="610" y2="205.89" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="156.128" x2="610" y2="156.128" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="116.308" x2="610" y2="116.308" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="82.047" x2="610" y2="82.047" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="97.931" y1="66" x2="97.931" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="192.759" y1="66" x2="192.759" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="287.586" y1="66" x2="287.586" y2="370" stroke="#e6e6e6" stroke-width="1" />

@@ -175,6 +175,30 @@ fn test_chart_title_subtitle_and_caption_render() {
 }
 
 #[test]
+fn explicit_alt_and_description_drive_svg_and_metadata() {
+    let result = render_result(
+        r#"Chart(data: "p.csv", title: "Visible title", subtitle: "Subtitle fallback", alt: "Accessible summary", description: "Long accessible description") {
+  Space(x * y) { Point() }
+}"#,
+        "x,y\n1,2\n",
+    );
+
+    assert!(result.svg.contains("aria-label=\"Accessible summary\""));
+    assert!(result
+        .svg
+        .contains("<desc>Long accessible description</desc>"));
+    assert!(!result.svg.contains("<desc>Subtitle fallback</desc>"));
+
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+    assert_eq!(metadata["chart"]["alt"], "Accessible summary");
+    assert_eq!(
+        metadata["chart"]["description"],
+        "Long accessible description"
+    );
+}
+
+#[test]
 fn test_chart_margin_right_reserves_space() {
     let csv = "x,y\n1,2\n2,3\n";
     let default = render_result(
@@ -1569,6 +1593,52 @@ fn test_custom_theme_overrides_apply_to_svg() {
         svg.contains("stroke=\"#dddddd\" stroke-width=\"2\""),
         "custom grid stroke and width applied"
     );
+}
+
+#[test]
+fn neutral_theme_presets_have_stable_core_values() {
+    let gray = Theme::gray();
+    assert_eq!(gray.name, "gray");
+    assert_eq!(gray.plot_background, "#ebebeb");
+    assert_eq!(gray.grid_major.stroke, "#ffffff");
+    assert_eq!(gray.legend_text.fill, "#1f1f1f");
+
+    let bw = Theme::bw();
+    assert_eq!(bw.name, "bw");
+    assert_eq!(bw.panel_background.stroke.as_deref(), Some("#111111"));
+    assert_eq!(bw.grid_minor.stroke, "#eeeeee");
+    assert_eq!(bw.axis_text.fill, "#111111");
+
+    let linedraw = Theme::linedraw();
+    assert_eq!(linedraw.name, "linedraw");
+    assert_eq!(linedraw.axis_color, "#000000");
+    assert_eq!(linedraw.line_width, 0.8);
+    assert_eq!(linedraw.plot_title.fill, "#000000");
+}
+
+#[test]
+fn structured_theme_overrides_reach_chart_axes_and_legends() {
+    let source = r##"Chart(data: "p.csv", title: "Styled") {
+  Theme(
+    name: "bw",
+    plotTitle: Text(size: 22, fill: "#123456"),
+    axisText: Text(size: 10, fill: "#654321"),
+    legendText: Text(size: 11, fill: "#005500"),
+    panelBackground: Rect(fill: "#fafafa", stroke: "#111111", strokeWidth: 1)
+  )
+  Space(x * y) { Point(fill: g) }
+}"##;
+    let frame = read_csv_str("x,y,g\n1,2,A\n2,3,B\n").expect("csv").frame;
+    let parsed = parse(source);
+    let analysis = analyze(&parsed.syntax(), frame.schema());
+    let ir = analysis.ir.expect("ir");
+    let theme = Theme::from_ir(ir.theme.as_ref().expect("theme"));
+    let svg = render(&ir, &frame, &theme, None).expect("render").svg;
+
+    assert!(svg.contains("font-size=\"22\" font-weight=\"600\" fill=\"#123456\""));
+    assert!(svg.contains("font-size=\"10\" fill=\"#654321\""));
+    assert!(svg.contains("font-size=\"11\" fill=\"#005500\""));
+    assert!(svg.contains("fill=\"#fafafa\" stroke=\"#111111\" stroke-width=\"1\""));
 }
 
 // --- v0.6.0: Path, per-segment width, manual color maps, axis suppression ---

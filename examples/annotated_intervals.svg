@@ -4,6 +4,21 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Time Series with Shaded Peak Intervals</text>
 <rect class="algraf-plot-area" x="60" y="66" width="670" height="344" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="107.857" y1="66" x2="107.857" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="203.571" y1="66" x2="203.571" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="299.286" y1="66" x2="299.286" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="395" y1="66" x2="395" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="490.714" y1="66" x2="490.714" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="586.429" y1="66" x2="586.429" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="682.143" y1="66" x2="682.143" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="388.765" x2="730" y2="388.765" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="346.296" x2="730" y2="346.296" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="303.827" x2="730" y2="303.827" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="261.358" x2="730" y2="261.358" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="218.889" x2="730" y2="218.889" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="176.42" x2="730" y2="176.42" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="133.951" x2="730" y2="133.951" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="91.481" x2="730" y2="91.481" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="60" y1="66" x2="60" y2="410" stroke="#e6e6e6" stroke-width="1" />
   <line x1="155.714" y1="66" x2="155.714" y2="410" stroke="#e6e6e6" stroke-width="1" />
   <line x1="251.429" y1="66" x2="251.429" y2="410" stroke="#e6e6e6" stroke-width="1" />

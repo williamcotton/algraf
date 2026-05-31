@@ -4,6 +4,20 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Tapered flow ribbon</text>
 <rect class="algraf-plot-area" x="60" y="66" width="510" height="304" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="126.576" y1="66" x2="126.576" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="189.384" y1="66" x2="189.384" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="252.192" y1="66" x2="252.192" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="315" y1="66" x2="315" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="377.808" y1="66" x2="377.808" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="440.616" y1="66" x2="440.616" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="503.424" y1="66" x2="503.424" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="329.765" x2="570" y2="329.765" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="291.225" x2="570" y2="291.225" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="252.686" x2="570" y2="252.686" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="214.146" x2="570" y2="214.146" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="175.606" x2="570" y2="175.606" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="137.067" x2="570" y2="137.067" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="98.527" x2="570" y2="98.527" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="95.172" y1="66" x2="95.172" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="157.98" y1="66" x2="157.98" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="220.788" y1="66" x2="220.788" y2="370" stroke="#e6e6e6" stroke-width="1" />

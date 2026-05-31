@@ -4,6 +4,11 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">League standings by week</text>
 <rect class="algraf-plot-area" x="60" y="66" width="510" height="324" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="168.448" y1="66" x2="168.448" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="315" y1="66" x2="315" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="461.552" y1="66" x2="461.552" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="158.172" x2="570" y2="158.172" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="297.828" x2="570" y2="297.828" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="95.172" y1="66" x2="95.172" y2="390" stroke="#e6e6e6" stroke-width="1" />
   <line x1="241.724" y1="66" x2="241.724" y2="390" stroke="#e6e6e6" stroke-width="1" />
   <line x1="388.276" y1="66" x2="388.276" y2="390" stroke="#e6e6e6" stroke-width="1" />

@@ -4,6 +4,20 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">CO2 Emissions vs. GDP per Capita (2024)</text>
 <rect class="algraf-plot-area" x="60" y="66" width="590" height="384" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="124.14" y1="66" x2="124.14" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="205.001" y1="66" x2="205.001" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="285.863" y1="66" x2="285.863" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="366.725" y1="66" x2="366.725" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="447.587" y1="66" x2="447.587" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="528.449" y1="66" x2="528.449" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="609.31" y1="66" x2="609.31" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="394.308" x2="650" y2="394.308" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="345.627" x2="650" y2="345.627" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="296.945" x2="650" y2="296.945" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="248.264" x2="650" y2="248.264" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="199.582" x2="650" y2="199.582" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="150.901" x2="650" y2="150.901" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="102.219" x2="650" y2="102.219" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="83.709" y1="66" x2="83.709" y2="450" stroke="#e6e6e6" stroke-width="1" />
   <line x1="164.57" y1="66" x2="164.57" y2="450" stroke="#e6e6e6" stroke-width="1" />
   <line x1="245.432" y1="66" x2="245.432" y2="450" stroke="#e6e6e6" stroke-width="1" />
@@ -101,16 +115,16 @@
   <text x="684" y="160" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oceania</text>
   <rect x="666" y="168" width="12" height="12" fill="#EDC948" />
   <text x="684" y="178" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Africa</text>
-  <text x="666" y="212" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Population (M)</text>
-  <circle cx="691" cy="227" r="4" fill="#222222" />
-  <text x="724" y="231" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
-  <circle cx="691" cy="248.25" r="9.25" fill="#222222" />
-  <text x="724" y="252.25" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">369.25</text>
-  <circle cx="691" cy="278" r="14.5" fill="#222222" />
-  <text x="724" y="282" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">713.5</text>
-  <circle cx="691" cy="318.25" r="19.75" fill="#222222" />
-  <text x="724" y="322.25" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1057.75</text>
-  <circle cx="691" cy="369" r="25" fill="#222222" />
-  <text x="724" y="373" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1402</text>
+  <text x="666" y="216" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Population (M)</text>
+  <circle cx="691" cy="231" r="4" fill="#222222" />
+  <text x="724" y="235" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <circle cx="691" cy="252.25" r="9.25" fill="#222222" />
+  <text x="724" y="256.25" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">369.25</text>
+  <circle cx="691" cy="282" r="14.5" fill="#222222" />
+  <text x="724" y="286" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">713.5</text>
+  <circle cx="691" cy="322.25" r="19.75" fill="#222222" />
+  <text x="724" y="326.25" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1057.75</text>
+  <circle cx="691" cy="373" r="25" fill="#222222" />
+  <text x="724" y="377" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1402</text>
 </g>
 </svg>

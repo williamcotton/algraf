@@ -2,6 +2,17 @@
 <rect class="algraf-background" x="0" y="0" width="760" height="460" fill="#ffffff" />
 <rect class="algraf-plot-area" x="60" y="40" width="670" height="370" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="115.833" y1="40" x2="115.833" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="227.5" y1="40" x2="227.5" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="339.167" y1="40" x2="339.167" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="450.833" y1="40" x2="450.833" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="562.5" y1="40" x2="562.5" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="674.167" y1="40" x2="674.167" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="373.554" x2="730" y2="373.554" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="300.662" x2="730" y2="300.662" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="227.77" x2="730" y2="227.77" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="154.878" x2="730" y2="154.878" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="81.986" x2="730" y2="81.986" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="60" y1="40" x2="60" y2="410" stroke="#e6e6e6" stroke-width="1" />
   <line x1="171.667" y1="40" x2="171.667" y2="410" stroke="#e6e6e6" stroke-width="1" />
   <line x1="283.333" y1="40" x2="283.333" y2="410" stroke="#e6e6e6" stroke-width="1" />

@@ -8,7 +8,7 @@
 use std::fmt::Write as _;
 
 use algraf_data::Table;
-use algraf_semantics::{GeometryIr, GeometryKind, TemporalFormatIr};
+use algraf_semantics::{GeometryIr, GeometryKind, LegendPositionIr, TemporalFormatIr};
 
 use crate::layout::Rect;
 use crate::scale::{cell_category, BandScale, ContinuousTransform, NestedBandScale};
@@ -26,6 +26,8 @@ pub struct InteractionMetadata {
     pub version: u32,
     pub plot_rect: Rect,
     pub axes: InteractionAxes,
+    pub chart: InteractionChart,
+    pub legend: Option<InteractionLegend>,
     pub marks: Vec<InteractionMark>,
     pub groups: Vec<InteractionGroup>,
     pub plots: Vec<InteractionPlot>,
@@ -36,6 +38,24 @@ pub struct InteractionMetadata {
 pub struct InteractionAxes {
     pub x: Option<InteractionAxis>,
     pub y: Option<InteractionAxis>,
+}
+
+/// Chart-level presentation metadata that hosts can use for accessible labels
+/// or non-SVG render targets.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InteractionChart {
+    pub title: Option<String>,
+    pub subtitle: Option<String>,
+    pub caption: Option<String>,
+    pub alt: Option<String>,
+    pub description: Option<String>,
+}
+
+/// Legend placement metadata for host renderers.
+#[derive(Debug, Clone, PartialEq)]
+pub struct InteractionLegend {
+    pub position: LegendPositionIr,
+    pub rect: Rect,
 }
 
 /// One plot area, used for faceted charts and as the source of the top-level
@@ -115,6 +135,10 @@ impl InteractionMetadata {
         write_rect_json(&mut out, self.plot_rect);
         out.push_str(",\"axes\":");
         write_axes_json(&mut out, &self.axes);
+        out.push_str(",\"chart\":");
+        write_chart_json(&mut out, &self.chart);
+        out.push_str(",\"legend\":");
+        write_legend_json(&mut out, self.legend.as_ref());
         out.push_str(",\"marks\":[");
         for (index, mark) in self.marks.iter().enumerate() {
             if index > 0 {
@@ -190,9 +214,32 @@ pub(super) fn build_interaction_metadata(scene: &RenderScene<'_>) -> Interaction
         version: 1,
         plot_rect: first_plot,
         axes,
+        chart: InteractionChart {
+            title: scene.ir.title.clone(),
+            subtitle: scene.ir.subtitle.clone(),
+            caption: scene.ir.caption.clone(),
+            alt: scene.ir.alt.clone(),
+            description: chart_description(scene.ir),
+        },
+        legend: scene.layout.legend.map(|rect| InteractionLegend {
+            position: scene.theme.legend_position,
+            rect,
+        }),
         marks,
         groups,
         plots,
+    }
+}
+
+fn chart_description(ir: &algraf_semantics::ChartIr) -> Option<String> {
+    if let Some(description) = &ir.description {
+        return Some(description.clone());
+    }
+    match (&ir.subtitle, &ir.caption) {
+        (Some(subtitle), Some(caption)) => Some(format!("{subtitle}\n{caption}")),
+        (Some(subtitle), None) => Some(subtitle.clone()),
+        (None, Some(caption)) => Some(caption.clone()),
+        (None, None) => None,
     }
 }
 
@@ -430,6 +477,41 @@ fn write_axes_json(out: &mut String, axes: &InteractionAxes) {
         out.push_str("\"y\":");
         write_axis_json(out, axis);
     }
+    out.push('}');
+}
+
+fn write_chart_json(out: &mut String, chart: &InteractionChart) {
+    out.push('{');
+    write_optional_string(out, "title", chart.title.as_deref(), true);
+    write_optional_string(out, "subtitle", chart.subtitle.as_deref(), false);
+    write_optional_string(out, "caption", chart.caption.as_deref(), false);
+    write_optional_string(out, "alt", chart.alt.as_deref(), false);
+    write_optional_string(out, "description", chart.description.as_deref(), false);
+    out.push('}');
+}
+
+fn write_optional_string(out: &mut String, key: &str, value: Option<&str>, first: bool) {
+    if !first {
+        out.push(',');
+    }
+    let _ = write!(out, "{}:", json_string(key));
+    match value {
+        Some(value) => out.push_str(&json_string(value)),
+        None => out.push_str("null"),
+    }
+}
+
+fn write_legend_json(out: &mut String, legend: Option<&InteractionLegend>) {
+    let Some(legend) = legend else {
+        out.push_str("null");
+        return;
+    };
+    let _ = write!(
+        out,
+        "{{\"position\":{},\"rect\":",
+        json_string(legend.position.as_str())
+    );
+    write_rect_json(out, legend.rect);
     out.push('}');
 }
 

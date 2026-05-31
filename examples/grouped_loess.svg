@@ -4,6 +4,14 @@
 <text class="algraf-title" x="60.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Per-species loess fits</text>
 <rect class="algraf-plot-area" x="60.8" y="66" width="549.2" height="384" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="146.021" y1="66" x2="146.021" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="264.383" y1="66" x2="264.383" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="382.745" y1="66" x2="382.745" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="501.107" y1="66" x2="501.107" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="376.227" x2="610" y2="376.227" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="297.409" x2="610" y2="297.409" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="218.591" x2="610" y2="218.591" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="139.773" x2="610" y2="139.773" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="86.84" y1="66" x2="86.84" y2="450" stroke="#e6e6e6" stroke-width="1" />
   <line x1="205.202" y1="66" x2="205.202" y2="450" stroke="#e6e6e6" stroke-width="1" />
   <line x1="323.564" y1="66" x2="323.564" y2="450" stroke="#e6e6e6" stroke-width="1" />

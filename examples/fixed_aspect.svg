@@ -4,6 +4,16 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Fixed aspect calibration square</text>
 <rect class="algraf-plot-area" x="253" y="66" width="244" height="244" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="277.4" y1="66" x2="277.4" y2="310" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="326.2" y1="66" x2="326.2" y2="310" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="375" y1="66" x2="375" y2="310" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="423.8" y1="66" x2="423.8" y2="310" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="472.6" y1="66" x2="472.6" y2="310" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="253" y1="285.6" x2="497" y2="285.6" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="253" y1="236.8" x2="497" y2="236.8" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="253" y1="188" x2="497" y2="188" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="253" y1="139.2" x2="497" y2="139.2" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="253" y1="90.4" x2="497" y2="90.4" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="253" y1="66" x2="253" y2="310" stroke="#e6e6e6" stroke-width="1" />
   <line x1="301.8" y1="66" x2="301.8" y2="310" stroke="#e6e6e6" stroke-width="1" />
   <line x1="350.6" y1="66" x2="350.6" y2="310" stroke="#e6e6e6" stroke-width="1" />

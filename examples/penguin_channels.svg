@@ -18,6 +18,16 @@
   <text x="215.1" y="264" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Dream</text>
 </g>
 <g class="algraf-grid">
+  <line x1="108.686" y1="90" x2="108.686" y2="186" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="161.893" y1="90" x2="161.893" y2="186" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="215.1" y1="90" x2="215.1" y2="186" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="268.307" y1="90" x2="268.307" y2="186" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="321.514" y1="90" x2="321.514" y2="186" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="168.02" x2="369.4" y2="168.02" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="151.793" x2="369.4" y2="151.793" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="135.566" x2="369.4" y2="135.566" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="119.339" x2="369.4" y2="119.339" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="103.112" x2="369.4" y2="103.112" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="82.083" y1="90" x2="82.083" y2="186" stroke="#e6e6e6" stroke-width="1" />
   <line x1="135.29" y1="90" x2="135.29" y2="186" stroke="#e6e6e6" stroke-width="1" />
   <line x1="188.497" y1="90" x2="188.497" y2="186" stroke="#e6e6e6" stroke-width="1" />
@@ -32,6 +42,16 @@
   <line x1="60.8" y1="94.998" x2="369.4" y2="94.998" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-grid">
+  <line x1="489.286" y1="90" x2="489.286" y2="186" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="542.493" y1="90" x2="542.493" y2="186" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="595.7" y1="90" x2="595.7" y2="186" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="648.907" y1="90" x2="648.907" y2="186" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="702.114" y1="90" x2="702.114" y2="186" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="441.4" y1="168.02" x2="750" y2="168.02" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="441.4" y1="151.793" x2="750" y2="151.793" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="441.4" y1="135.566" x2="750" y2="135.566" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="441.4" y1="119.339" x2="750" y2="119.339" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="441.4" y1="103.112" x2="750" y2="103.112" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="462.683" y1="90" x2="462.683" y2="186" stroke="#e6e6e6" stroke-width="1" />
   <line x1="515.89" y1="90" x2="515.89" y2="186" stroke="#e6e6e6" stroke-width="1" />
   <line x1="569.097" y1="90" x2="569.097" y2="186" stroke="#e6e6e6" stroke-width="1" />
@@ -46,6 +66,16 @@
   <line x1="441.4" y1="94.998" x2="750" y2="94.998" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-grid">
+  <line x1="108.686" y1="274" x2="108.686" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="161.893" y1="274" x2="161.893" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="215.1" y1="274" x2="215.1" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="268.307" y1="274" x2="268.307" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="321.514" y1="274" x2="321.514" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="352.02" x2="369.4" y2="352.02" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="335.793" x2="369.4" y2="335.793" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="319.566" x2="369.4" y2="319.566" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="303.339" x2="369.4" y2="303.339" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="287.112" x2="369.4" y2="287.112" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="82.083" y1="274" x2="82.083" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="135.29" y1="274" x2="135.29" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="188.497" y1="274" x2="188.497" y2="370" stroke="#e6e6e6" stroke-width="1" />
@@ -191,21 +221,21 @@
   <text x="784" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Gentoo</text>
   <rect x="766" y="114" width="12" height="12" fill="#E15759" />
   <text x="784" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Chinstrap</text>
-  <text x="766" y="158" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Bill length (mm)</text>
-  <circle cx="777" cy="173" r="3" fill="#222222" />
-  <text x="796" y="177" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">35.9</text>
-  <circle cx="777" cy="191" r="5" fill="#222222" />
-  <text x="796" y="195" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">39.75</text>
-  <circle cx="777" cy="210" r="7" fill="#222222" />
-  <text x="796" y="214" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">43.6</text>
-  <circle cx="777" cy="232" r="9" fill="#222222" />
-  <text x="796" y="236" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">47.45</text>
-  <circle cx="777" cy="258" r="11" fill="#222222" />
-  <text x="796" y="262" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">51.3</text>
-  <text x="766" y="288" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">sex</text>
-  <circle cx="772" cy="302" r="6" fill="#4E79A7" />
-  <text x="784" y="306" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">male</text>
-  <rect x="766" y="314" width="12" height="12" fill="#4E79A7" />
-  <text x="784" y="324" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">female</text>
+  <text x="766" y="162" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Bill length (mm)</text>
+  <circle cx="777" cy="177" r="3" fill="#222222" />
+  <text x="796" y="181" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">35.9</text>
+  <circle cx="777" cy="195" r="5" fill="#222222" />
+  <text x="796" y="199" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">39.75</text>
+  <circle cx="777" cy="214" r="7" fill="#222222" />
+  <text x="796" y="218" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">43.6</text>
+  <circle cx="777" cy="236" r="9" fill="#222222" />
+  <text x="796" y="240" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">47.45</text>
+  <circle cx="777" cy="262" r="11" fill="#222222" />
+  <text x="796" y="266" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">51.3</text>
+  <text x="766" y="296" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">sex</text>
+  <circle cx="772" cy="310" r="6" fill="#4E79A7" />
+  <text x="784" y="314" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">male</text>
+  <rect x="766" y="322" width="12" height="12" fill="#4E79A7" />
+  <text x="784" y="332" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">female</text>
 </g>
 </svg>

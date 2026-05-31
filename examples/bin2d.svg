@@ -4,6 +4,19 @@
 <text class="algraf-title" x="60.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">2D rectangular bins</text>
 <rect class="algraf-plot-area" x="60.8" y="66" width="509.2" height="384" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="111.72" y1="66" x2="111.72" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="184.463" y1="66" x2="184.463" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="257.206" y1="66" x2="257.206" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="329.949" y1="66" x2="329.949" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="402.691" y1="66" x2="402.691" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="475.434" y1="66" x2="475.434" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="409.326" x2="570" y2="409.326" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="362.022" x2="570" y2="362.022" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="314.718" x2="570" y2="314.718" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="267.414" x2="570" y2="267.414" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="220.109" x2="570" y2="220.109" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="172.805" x2="570" y2="172.805" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="125.501" x2="570" y2="125.501" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="75.349" y1="66" x2="75.349" y2="450" stroke="#e6e6e6" stroke-width="1" />
   <line x1="148.091" y1="66" x2="148.091" y2="450" stroke="#e6e6e6" stroke-width="1" />
   <line x1="220.834" y1="66" x2="220.834" y2="450" stroke="#e6e6e6" stroke-width="1" />

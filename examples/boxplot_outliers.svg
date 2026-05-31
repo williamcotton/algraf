@@ -4,6 +4,11 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Sensor readings with outliers</text>
 <rect class="algraf-plot-area" x="60" y="66" width="490" height="344" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="60" y1="330.323" x2="550" y2="330.323" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="274.37" x2="550" y2="274.37" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="218.416" x2="550" y2="218.416" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="162.463" x2="550" y2="162.463" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="106.51" x2="550" y2="106.51" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="60" y1="358.299" x2="550" y2="358.299" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="302.346" x2="550" y2="302.346" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="246.393" x2="550" y2="246.393" stroke="#e6e6e6" stroke-width="1" />

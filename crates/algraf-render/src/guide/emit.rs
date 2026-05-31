@@ -4,7 +4,7 @@
 //! Emission goes through the backend-neutral [`MarkSink`] seam (spec §24.6), so
 //! the SVG and draw-list backends agree on guide coordinates and colors.
 
-use algraf_semantics::{GridShapeIr, GuideIr, TemporalFormatIr};
+use algraf_semantics::{GridShapeIr, GuideIr, LegendPositionIr, TemporalFormatIr};
 
 use crate::aes::{Legend, LegendKind};
 use crate::layout::Rect;
@@ -13,7 +13,7 @@ use crate::render::TextAnchor;
 use crate::sink::{Fill, MarkSink, Paint, Stroke, TextRun};
 use crate::space::ScaledSpace;
 use crate::svg::num;
-use crate::theme::Theme;
+use crate::theme::{TextStyle, Theme};
 
 use super::plan::{
     estimate_text_width, max_x_tick_label_height, max_y_tick_label_width, tick_label_row_count,
@@ -47,8 +47,39 @@ pub(crate) fn render_grid(sink: &mut dyn MarkSink, space: &ScaledSpace, plot: Re
         return;
     }
     sink.open_layer("algraf-grid");
-    let color = &theme.grid_major_color;
-    let width = theme.grid_major_width;
+    let minor = &theme.grid_minor;
+    if minor.stroke_width > 0.0 {
+        if !space.x.is_band() {
+            for x in minor_tick_positions(&space.x.ticks()) {
+                grid_line(
+                    sink,
+                    x,
+                    plot.y,
+                    x,
+                    plot.bottom(),
+                    &minor.stroke,
+                    minor.stroke_width,
+                );
+            }
+        }
+        if let Some(y) = &space.y {
+            if !y.is_band() {
+                for yp in minor_tick_positions(&y.ticks()) {
+                    grid_line(
+                        sink,
+                        plot.x,
+                        yp,
+                        plot.right(),
+                        yp,
+                        &minor.stroke,
+                        minor.stroke_width,
+                    );
+                }
+            }
+        }
+    }
+    let color = &theme.grid_major.stroke;
+    let width = theme.grid_major.stroke_width;
     if !space.x.is_band() {
         for (x, _) in space.x.ticks() {
             grid_line(sink, x, plot.y, x, plot.bottom(), color, width);
@@ -79,8 +110,8 @@ pub(crate) fn render_polar_grid(
     if !guides.grid || !theme.grid {
         return;
     }
-    let color = &theme.grid_major_color;
-    let width = theme.grid_major_width;
+    let color = &theme.grid_major.stroke;
+    let width = theme.grid_major.stroke_width;
     let theta_ticks = space.polar_theta_ticks();
     // Spokes only make sense for a categorical angle (coxcomb/radar); a pie's
     // continuous angle has no meaningful spokes.
@@ -139,7 +170,14 @@ pub(crate) fn render_polar_labels(
         sink.open_layer("algraf-polar-theta-labels");
         for (angle, label) in &theta_ticks {
             let (lx, ly) = polar.point(*angle, polar.r_outer + crate::space::POLAR_LABEL_GAP);
-            polar_label(sink, lx, ly, perimeter_anchor(*angle), label, theme);
+            styled_text(
+                sink,
+                lx,
+                ly,
+                perimeter_anchor(*angle),
+                label,
+                &theme.axis_text,
+            );
         }
         sink.close_layer();
     }
@@ -150,7 +188,7 @@ pub(crate) fn render_polar_labels(
         sink.open_layer("algraf-polar-radius-labels");
         for (r, label) in radius_ticks {
             let (lx, ly) = polar.point(polar.theta_start, r);
-            polar_label(sink, lx + 3.0, ly - 2.0, "start", &label, theme);
+            styled_text(sink, lx + 3.0, ly - 2.0, "start", &label, &theme.axis_text);
         }
         sink.close_layer();
     }
@@ -218,29 +256,19 @@ fn perimeter_anchor(angle: f64) -> &'static str {
     }
 }
 
-fn polar_label(
-    sink: &mut dyn MarkSink,
-    x: f64,
-    y: f64,
-    label_anchor: &str,
-    content: &str,
-    theme: &Theme,
-) {
-    sink.text(&TextRun {
-        x,
-        y,
-        anchor: anchor(label_anchor),
-        rotate: None,
-        font_family: &theme.font_family,
-        font_size: theme.font_size,
-        fill: &theme.text_color,
-        opacity: None,
-        content,
-    });
-}
-
 fn grid_line(sink: &mut dyn MarkSink, x1: f64, y1: f64, x2: f64, y2: f64, color: &str, width: f64) {
     sink.line(x1, y1, x2, y2, color, width, false, None, None);
+}
+
+fn minor_tick_positions(ticks: &[(f64, String)]) -> Vec<f64> {
+    ticks
+        .windows(2)
+        .filter_map(|pair| {
+            let a = pair.first()?.0;
+            let b = pair.get(1)?.0;
+            ((a - b).abs() > f64::EPSILON).then_some((a + b) / 2.0)
+        })
+        .collect()
 }
 
 fn non_overlapping_x_tick_labels(ticks: &[(f64, String)], font_size: f64, angle: f64) -> Vec<bool> {
@@ -340,7 +368,7 @@ pub(crate) fn render_axes(
     let x_label_mask = if x_rows > 1 {
         vec![true; x_ticks.len()]
     } else {
-        non_overlapping_x_tick_labels(&x_ticks, theme.font_size, x_angle)
+        non_overlapping_x_tick_labels(&x_ticks, theme.axis_text.size, x_angle)
     };
     for (index, (x, label)) in x_ticks.iter().enumerate() {
         grid_line(
@@ -367,10 +395,10 @@ pub(crate) fn render_axes(
             *x,
             plot.bottom()
                 + super::plan::X_TICK_BASELINE
-                + (index % x_rows) as f64 * tick_label_row_gap(theme.font_size),
+                + (index % x_rows) as f64 * tick_label_row_gap(theme.axis_text.size),
             tick_anchor,
             label,
-            theme,
+            &theme.axis_text,
             x_angle,
         );
     }
@@ -383,18 +411,18 @@ pub(crate) fn render_axes(
     if options.x_label_override != Some("") {
         let max_label_height = max_x_tick_label_height(
             space,
-            theme.font_size,
+            theme.axis_text.size,
             options.x_time_format,
             options.x_tick_label_angle,
             options.x_tick_label_rows,
         );
-        text(
+        styled_text(
             sink,
             plot.x + plot.width / 2.0,
-            x_axis_title_y(plot.bottom(), max_label_height, theme.font_size),
+            x_axis_title_y(plot.bottom(), max_label_height, theme.axis_title.size),
             "middle",
             &x_label,
-            theme,
+            &theme.axis_title,
         );
     }
 
@@ -418,23 +446,23 @@ pub(crate) fn render_axes(
             grid_line(sink, plot.x - 5.0, *yp, plot.x, *yp, &theme.axis_color, 1.0);
             tick_text(
                 sink,
-                plot.x - 8.0 - (index % y_rows) as f64 * tick_label_row_gap(theme.font_size),
+                plot.x - 8.0 - (index % y_rows) as f64 * tick_label_row_gap(theme.axis_text.size),
                 *yp + 4.0,
                 "end",
                 label,
-                theme,
+                &theme.axis_text,
                 options.y_tick_label_angle.unwrap_or(0.0),
             );
         }
         let cy = plot.y + plot.height / 2.0;
         let max_label_width = max_y_tick_label_width(
             space,
-            theme.font_size,
+            theme.axis_text.size,
             options.y_time_format,
             options.y_tick_label_angle,
             options.y_tick_label_rows,
         );
-        let label_x = y_axis_title_x(plot.x, max_label_width, theme.font_size);
+        let label_x = y_axis_title_x(plot.x, max_label_width, theme.axis_title.size);
         let y_label = options
             .y_label_override
             .map(str::to_string)
@@ -446,9 +474,9 @@ pub(crate) fn render_axes(
                 y: cy,
                 anchor: TextAnchor::Middle,
                 rotate: Some((-90.0, label_x, cy)),
-                font_family: &theme.font_family,
-                font_size: theme.font_size,
-                fill: &theme.text_color,
+                font_family: &theme.axis_title.font_family,
+                font_size: theme.axis_title.size,
+                fill: &theme.axis_title.fill,
                 opacity: None,
                 content: &y_label,
             });
@@ -469,28 +497,46 @@ pub(crate) fn render_facet_label(sink: &mut dyn MarkSink, label: &str, area: Rec
         area.y,
         area.width,
         area.height,
-        &Paint::fill(theme.plot_background.clone(), None),
+        &Paint {
+            fill: Fill::Color(theme.panel_background.fill.clone()),
+            stroke: theme
+                .panel_background
+                .stroke
+                .as_ref()
+                .map_or(Stroke::Omit, |color| Stroke::Solid {
+                    color: color.clone(),
+                    width: theme.panel_background.stroke_width,
+                }),
+            opacity: None,
+        },
     );
-    text(
+    styled_text(
         sink,
         area.x + area.width / 2.0,
         area.y + area.height - 4.0,
         "middle",
         label,
-        theme,
+        &theme.strip_text,
     );
     sink.close_layer();
 }
 
-fn text(sink: &mut dyn MarkSink, x: f64, y: f64, text_anchor: &str, content: &str, theme: &Theme) {
+fn styled_text(
+    sink: &mut dyn MarkSink,
+    x: f64,
+    y: f64,
+    text_anchor: &str,
+    content: &str,
+    style: &TextStyle,
+) {
     sink.text(&TextRun {
         x,
         y,
         anchor: anchor(text_anchor),
         rotate: None,
-        font_family: &theme.font_family,
-        font_size: theme.font_size,
-        fill: &theme.text_color,
+        font_family: &style.font_family,
+        font_size: style.size,
+        fill: &style.fill,
         opacity: None,
         content,
     });
@@ -502,7 +548,7 @@ fn tick_text(
     y: f64,
     text_anchor: &str,
     content: &str,
-    theme: &Theme,
+    style: &TextStyle,
     angle: f64,
 ) {
     sink.text(&TextRun {
@@ -510,9 +556,9 @@ fn tick_text(
         y,
         anchor: anchor(text_anchor),
         rotate: (angle != 0.0).then_some((angle, x, y)),
-        font_family: &theme.font_family,
-        font_size: theme.font_size,
-        fill: &theme.text_color,
+        font_family: &style.font_family,
+        font_size: style.size,
+        fill: &style.fill,
         opacity: None,
         content,
     });
@@ -529,15 +575,23 @@ pub(crate) fn render_legends(
         return;
     }
     sink.open_layer("algraf-legends");
+    if matches!(
+        theme.legend_position,
+        LegendPositionIr::Top | LegendPositionIr::Bottom
+    ) {
+        render_legends_horizontal(sink, legends, area, theme);
+        sink.close_layer();
+        return;
+    }
     let mut y = area.y + 4.0;
     for legend in legends {
         if !legend.title.is_empty() {
-            text(sink, area.x, y, "start", &legend.title, theme);
+            styled_text(sink, area.x, y, "start", &legend.title, &theme.legend_title);
         }
         match legend.kind {
             LegendKind::Discrete => {
                 if !legend.title.is_empty() {
-                    y += 18.0;
+                    y += theme.legend_title.size + 6.0;
                 }
                 for (index, (label, color)) in legend.entries.iter().enumerate() {
                     // A merged fill+stroke legend draws each swatch with the
@@ -564,8 +618,8 @@ pub(crate) fn render_legends(
                         }
                         None => sink.rect(area.x, y - 10.0, 12.0, 12.0, &paint),
                     }
-                    text(sink, area.x + 18.0, y, "start", label, theme);
-                    y += 18.0;
+                    styled_text(sink, area.x + 18.0, y, "start", label, &theme.legend_text);
+                    y += theme.legend_text.size + 6.0;
                 }
             }
             LegendKind::Continuous => {
@@ -581,9 +635,109 @@ pub(crate) fn render_legends(
             }
         }
         // Separate one legend's content from the next legend's title.
-        y += 16.0;
+        y += theme.legend_spacing;
     }
     sink.close_layer();
+}
+
+fn render_legends_horizontal(
+    sink: &mut dyn MarkSink,
+    legends: &[Legend],
+    area: Rect,
+    theme: &Theme,
+) {
+    let row_height = theme.legend_text.size.max(theme.legend_title.size) + 10.0;
+    let mut rows: Vec<(Vec<usize>, f64)> = Vec::new();
+    let mut row = Vec::new();
+    let mut row_width = 0.0;
+
+    for (index, legend) in legends.iter().enumerate() {
+        let width = horizontal_legend_width(legend, theme).min(area.width);
+        let next_width = if row.is_empty() {
+            width
+        } else {
+            row_width + theme.legend_spacing + width
+        };
+        if !row.is_empty() && next_width > area.width {
+            rows.push((row, row_width));
+            row = vec![index];
+            row_width = width;
+        } else {
+            if !row.is_empty() {
+                row_width += theme.legend_spacing;
+            }
+            row.push(index);
+            row_width += width;
+        }
+    }
+    if !row.is_empty() {
+        rows.push((row, row_width));
+    }
+
+    let mut y = area.y + theme.legend_text.size.max(theme.legend_title.size) + 2.0;
+    for (row, row_width) in rows {
+        let mut x = area.x + ((area.width - row_width).max(0.0) / 2.0);
+        for index in row {
+            let legend = &legends[index];
+            let width = horizontal_legend_width(legend, theme).min(area.width);
+            render_legend_compact(sink, legend, x, y, theme);
+            x += width + theme.legend_spacing;
+        }
+        y += row_height + theme.legend_spacing;
+    }
+}
+
+fn horizontal_legend_width(legend: &Legend, theme: &Theme) -> f64 {
+    let title = if legend.title.is_empty() {
+        0.0
+    } else {
+        estimate_text_width(&legend.title, theme.legend_title.size) + 14.0
+    };
+    let entries = legend
+        .entries
+        .iter()
+        .map(|(label, _)| 18.0 + estimate_text_width(label, theme.legend_text.size) + 12.0)
+        .sum::<f64>();
+    (title + entries).max(80.0)
+}
+
+fn render_legend_compact(sink: &mut dyn MarkSink, legend: &Legend, x: f64, y: f64, theme: &Theme) {
+    let mut cursor = x;
+    if !legend.title.is_empty() {
+        styled_text(sink, cursor, y, "start", &legend.title, &theme.legend_title);
+        cursor += estimate_text_width(&legend.title, theme.legend_title.size) + 14.0;
+    }
+    match legend.kind {
+        LegendKind::Discrete => {
+            for (index, (label, color)) in legend.entries.iter().enumerate() {
+                let stroke = match legend.stroke_entries.get(index) {
+                    Some(s) => Stroke::Solid {
+                        color: s.clone(),
+                        width: 2.0,
+                    },
+                    None => Stroke::Omit,
+                };
+                let paint = Paint {
+                    fill: Fill::Color(color.clone()),
+                    stroke,
+                    opacity: None,
+                };
+                match legend.shapes.get(index) {
+                    Some(shape) => emit_marker(sink, *shape, cursor + 6.0, y - 4.0, 6.0, &paint),
+                    None => sink.rect(cursor, y - 10.0, 12.0, 12.0, &paint),
+                }
+                cursor += 18.0;
+                styled_text(sink, cursor, y, "start", label, &theme.legend_text);
+                cursor += estimate_text_width(label, theme.legend_text.size) + 12.0;
+            }
+        }
+        LegendKind::Continuous => {
+            let _ = render_continuous_legend(sink, legend, cursor, y, theme);
+        }
+        LegendKind::Width | LegendKind::Radius => {
+            let _ = render_size_legend(sink, legend, cursor, y - 12.0, theme);
+        }
+    }
 }
 
 /// Draw a size legend whose swatch is a line of the mapped thickness
@@ -603,7 +757,7 @@ fn render_size_legend(
     const LINE_LEN: f64 = 28.0;
     const ROW_GAP: f64 = 6.0;
     const LABEL_PAD: f64 = 8.0;
-    let color = &theme.text_color;
+    let color = &theme.legend_text.fill;
     let max_mag = legend.sizes.iter().copied().fold(0.0_f64, f64::max);
     // The x where labels start, reserved past the largest swatch so every label
     // clears it. A round-capped line overhangs its endpoints by half its
@@ -647,7 +801,14 @@ fn render_size_legend(
             }
             _ => {}
         }
-        text(sink, label_x, center + 4.0, "start", label, theme);
+        styled_text(
+            sink,
+            label_x,
+            center + 4.0,
+            "start",
+            label,
+            &theme.legend_text,
+        );
         y += row_height;
     }
     y
@@ -667,7 +828,7 @@ fn render_continuous_legend(
     for (index, (label, color)) in legend.entries.iter().rev().enumerate() {
         let y0 = y + index as f64 * step;
         sink.rect(x, y0 - 10.0, 12.0, step, &Paint::fill(color.clone(), None));
-        text(sink, x + 18.0, y0, "start", label, theme);
+        styled_text(sink, x + 18.0, y0, "start", label, &theme.legend_text);
     }
     y + legend.entries.len() as f64 * step
 }

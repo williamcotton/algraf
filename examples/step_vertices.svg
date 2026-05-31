@@ -4,6 +4,16 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Inventory step vertices</text>
 <rect class="algraf-plot-area" x="60" y="66" width="670" height="304" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="147.463" y1="66" x2="147.463" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="229.975" y1="66" x2="229.975" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="312.488" y1="66" x2="312.488" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="395" y1="66" x2="395" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="477.512" y1="66" x2="477.512" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="560.025" y1="66" x2="560.025" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="642.537" y1="66" x2="642.537" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="276.966" x2="730" y2="276.966" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="211.448" x2="730" y2="211.448" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="145.931" x2="730" y2="145.931" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="106.207" y1="66" x2="106.207" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="188.719" y1="66" x2="188.719" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="271.232" y1="66" x2="271.232" y2="370" stroke="#e6e6e6" stroke-width="1" />

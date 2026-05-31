@@ -4,6 +4,12 @@
 <text class="algraf-title" x="60.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Events by category (NDJSON source)</text>
 <rect class="algraf-plot-area" x="60.8" y="66" width="429.2" height="304" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="60.8" y1="346.146" x2="490" y2="346.146" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="298.437" x2="490" y2="298.437" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="250.728" x2="490" y2="250.728" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="203.019" x2="490" y2="203.019" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="155.311" x2="490" y2="155.311" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="107.602" x2="490" y2="107.602" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="60.8" y1="370" x2="490" y2="370" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60.8" y1="322.291" x2="490" y2="322.291" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60.8" y1="274.583" x2="490" y2="274.583" stroke="#e6e6e6" stroke-width="1" />

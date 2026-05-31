@@ -1,6 +1,6 @@
 # Algraf v0.42.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_41_PLAN.md`](V0_41_PLAN.md)
@@ -53,12 +53,12 @@ Gaps assigned to this release:
 
 | ggplot2 concept | Classification | Feature target |
 | --------------- | -------------- | ------------------------ |
-| theme_gray / bw / linedraw | Theme preset gap | Use existing `minimal`, `classic`, `dark`, `void`, and `light` themes today. |
-| legend.position | Layout/theme control gap | No primitive substitute; suppress or simplify legends when placement is the issue. |
-| theme element controls | Partial existing theme control | Use current structured overrides; broaden only where examples prove need. |
-| labs | Mostly existing metadata/control | Use chart `title`, `subtitle`, `caption`, `Guide(label:)`, and `Scale(label:)`; alt text remains a metadata gap. |
+| theme_gray / bw / linedraw | Theme preset gap | Implemented as `Theme(name:)` with `"gray"`, `"bw"`, or `"linedraw"`. |
+| legend.position | Layout/theme control gap | Implemented as `Theme(legendPosition:)` with `"right"`, `"bottom"`, `"top"`, or `"left"`. |
+| theme element controls | Partial existing theme control | Implemented structured `Text(...)`, `Line(...)`, and `Rect(...)` overrides for title, axis, strip, legend, panel, and grid elements. |
+| labs | Mostly existing metadata/control | Implemented chart `title`, `subtitle`, `caption`, `alt`, `description`, `Guide(label:)`, and `Scale(label:)` metadata. |
 | annotate | Existing primitive recipe | Use ordinary literal-valued geometries (`VLine`, `HLine`, `Segment`, `Text`, `Rect`). |
-| ggsave | CLI/export documentation | Use CLI output flags; source remains output-path free. |
+| ggsave | CLI/export documentation | Documented CLI output flags for SVG, PNG/raster, draw-list, and interaction sidecars; source remains output-path free. |
 
 ## Existing Presentation Recipes
 
@@ -164,8 +164,8 @@ surface.
 
 ## Feature Target Sketches
 
-These non-runnable sketches distinguish real presentation controls from sugar
-that should lower to ordinary geometry.
+These sketches distinguish real presentation controls from sugar that should
+lower to ordinary geometry.
 
 ### Legend placement as real layout control
 
@@ -206,7 +206,7 @@ outputs.
 
 ### 1. Add missing theme presets
 
-Status: Planned.
+Status: Implemented.
 
 - Add documented base themes corresponding to common neutral presets not yet
   covered, such as gray, bw, and linedraw if they are valuable in Algraf.
@@ -216,7 +216,7 @@ Status: Planned.
 
 ### 2. Broaden theme element overrides
 
-Status: Planned.
+Status: Implemented.
 
 - Extend `Theme(...)` overrides to cover plot title, subtitle, caption, axis
   title, axis text, strip text, legend text/title, panel background, plot
@@ -227,7 +227,7 @@ Status: Planned.
 
 ### 3. Add legend placement and layout controls
 
-Status: Planned.
+Status: Implemented.
 
 - Support at least right and bottom legend positions if layout work permits;
   top/left are desirable but may be deferred if they complicate margins.
@@ -236,7 +236,7 @@ Status: Planned.
 
 ### 4. Complete chart labels and accessibility metadata
 
-Status: Planned.
+Status: Implemented.
 
 - Audit chart title, subtitle, caption, alt text, SVG title/desc, and runtime
   sidecar metadata.
@@ -246,7 +246,7 @@ Status: Planned.
 
 ### 5. Document annotation and export parity
 
-Status: Planned.
+Status: Implemented.
 
 - Add documentation showing that Algraf annotation is ordinary geometry with
   literal or mapped properties, not a special `annotate(...)` function.
@@ -258,7 +258,7 @@ Status: Planned.
 
 ### 6. Final ggplot2-comparability audit
 
-Status: Planned.
+Status: Implemented.
 
 - Add a non-normative coverage matrix that maps ggplot2 cheat-sheet concepts to
   Algraf equivalents, implemented features, and explicitly deferred features.
@@ -269,17 +269,37 @@ Status: Planned.
 
 ### Theme migration examples
 
-Status: Planned.
+Status: Implemented.
 
 - Add examples that show the same chart under several themes and legend
   placements, if this does not bloat the README tutorial.
 
 ### Guide theming consistency
 
-Status: Planned.
+Status: Implemented.
 
 - Audit axes, polar guides, legends, and facet strips for consistent theme-field
   usage.
+
+## Final ggplot2-Comparability Matrix
+
+This matrix is descriptive. The normative behavior remains in
+[`ALGRAF_SPEC.md`](ALGRAF_SPEC.md).
+
+| ggplot2 concept | Algraf v0.42 status | Algraf equivalent |
+| --- | --- | --- |
+| `ggplot(data, aes(...))` | Implemented | `Chart(data: ...)` plus `Space(x * y)` and mapped geometry properties |
+| Core geoms | Implemented for roadmap scope | `Point`, `Line`, `Bar`, `Rect`, `Text`, `Segment`, `Area`, `Ribbon`, `Path`, summaries, intervals, maps, and polar marks |
+| Stats | Implemented for roadmap scope | `Histogram`, `Density`, `Smooth(method: "lm")`, `Smooth(method: "loess")`, binned summaries, contours, ECDF, QQ, and derived tables |
+| Facets | Implemented | Space algebra faceting plus `Layout(facetColumns:)`, `facetRows`, and fixed/free scale controls |
+| Scales | Implemented for roadmap scope | `Scale(...)` with domains, breaks, labels, palettes, gradients, transforms, manual ranges, and identity color support |
+| Guides | Implemented | `Guide(...)` labels, suppression, grid controls, merged legends, and theme-driven legend styling |
+| Themes | Implemented | `minimal`, `classic`, `dark`, `void`, `light`, `gray`, `bw`, `linedraw`, plus structured theme overrides |
+| `legend.position` | Implemented | `Theme(legendPosition:)` with `"right"`, `"bottom"`, `"top"`, or `"left"` |
+| `labs(...)` | Implemented | `Chart(title:, subtitle:, caption:, alt:, description:)`, `Guide(label:)`, and `Scale(label:)` |
+| `annotate(...)` | Deferred as sugar | Literal-valued `HLine`, `VLine`, `Segment`, `Rect`, and `Text` marks |
+| `ggsave(...)` | Documented outside the DSL | `algraf render --output`, `--format raster`, `--format draw-list`, `--format svg+json`, and `--metadata` |
+| Extensions/custom ggproto | Explicitly out of scope | Algraf keeps a closed DSL and deterministic renderer surface |
 
 ## Explicitly Deferred Past v0.42.0
 

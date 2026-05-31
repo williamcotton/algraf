@@ -1,6 +1,6 @@
 //! Viewport layout with fixed margins (spec §17).
 
-use algraf_semantics::PanelSpacingIr;
+use algraf_semantics::{LegendPositionIr, PanelSpacingIr};
 
 /// A rectangle in SVG coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -57,6 +57,8 @@ pub(crate) const MARGIN_LEFT: f64 = 60.0;
 /// value overrides it outright — down to 0 — rather than acting as a floor.
 const NO_AXES_MARGIN: f64 = 10.0;
 const LEGEND_WIDTH: f64 = 120.0;
+const LEGEND_HEIGHT: f64 = 72.0;
+const LEGEND_GAP: f64 = 16.0;
 const FACET_GAP_X: f64 = 24.0;
 const FACET_AXIS_GAP_X: f64 = 72.0;
 const FACET_GAP_Y: f64 = 28.0;
@@ -76,6 +78,7 @@ impl Layout {
             0.0,
             0.0,
             Margins::default(),
+            LegendPositionIr::Right,
         )
     }
 
@@ -92,6 +95,7 @@ impl Layout {
         bottom_extra: f64,
         left_extra: f64,
         margins: Margins,
+        legend_position: LegendPositionIr,
     ) -> Layout {
         let (base_top, base_right, base_bottom, base_left) = if has_axes {
             (MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT)
@@ -138,20 +142,41 @@ impl Layout {
                 margins.left.map_or(computed_left, |m| m.max(left_extra)),
             )
         };
-        let legend_reserve = if has_legend { LEGEND_WIDTH } else { 0.0 };
+        let (legend_left, legend_right, legend_top, legend_bottom) =
+            legend_reserve(has_legend, legend_position);
 
         let plot = Rect {
-            x: left,
-            y: top,
-            width: (width - left - right - legend_reserve).max(1.0),
-            height: (height - top - bottom).max(1.0),
+            x: left + legend_left,
+            y: top + legend_top,
+            width: (width - left - right - legend_left - legend_right).max(1.0),
+            height: (height - top - bottom - legend_top - legend_bottom).max(1.0),
         };
 
-        let legend = has_legend.then(|| Rect {
-            x: plot.right() + 16.0,
-            y: plot.y,
-            width: LEGEND_WIDTH - 16.0,
-            height: plot.height,
+        let legend = has_legend.then(|| match legend_position {
+            LegendPositionIr::Right => Rect {
+                x: plot.right() + LEGEND_GAP,
+                y: plot.y,
+                width: LEGEND_WIDTH - LEGEND_GAP,
+                height: plot.height,
+            },
+            LegendPositionIr::Left => Rect {
+                x: left,
+                y: plot.y,
+                width: LEGEND_WIDTH - LEGEND_GAP,
+                height: plot.height,
+            },
+            LegendPositionIr::Bottom => Rect {
+                x: plot.x,
+                y: plot.bottom() + bottom,
+                width: plot.width,
+                height: LEGEND_HEIGHT - LEGEND_GAP,
+            },
+            LegendPositionIr::Top => Rect {
+                x: plot.x,
+                y: top,
+                width: plot.width,
+                height: LEGEND_HEIGHT - LEGEND_GAP,
+            },
         });
 
         Layout {
@@ -187,6 +212,7 @@ impl Layout {
             0.0,
             0.0,
             Margins::default(),
+            LegendPositionIr::Right,
             None,
         )
     }
@@ -204,6 +230,7 @@ impl Layout {
         bottom_extra: f64,
         left_extra: f64,
         margins: Margins,
+        legend_position: LegendPositionIr,
         panel_spacing: Option<PanelSpacingIr>,
     ) -> Layout {
         let mut layout = Layout::compute_with_text(
@@ -215,6 +242,7 @@ impl Layout {
             bottom_extra,
             left_extra,
             margins,
+            legend_position,
         );
         let panel_count = panel_count.max(1);
         let columns = columns
@@ -240,6 +268,7 @@ impl Layout {
         bottom_extra: f64,
         left_extra: f64,
         margins: Margins,
+        legend_position: LegendPositionIr,
         panel_spacing: Option<PanelSpacingIr>,
     ) -> Layout {
         let mut layout = Layout::compute_with_text(
@@ -251,6 +280,7 @@ impl Layout {
             bottom_extra,
             left_extra,
             margins,
+            legend_position,
         );
         let rows = rows.max(1);
         let columns = columns.max(1);
@@ -331,4 +361,16 @@ fn default_facet_columns(panel_count: usize, plot: Rect) -> usize {
     ((panel_count as f64 * aspect).sqrt().floor() as usize)
         .max(square_columns.max(1))
         .min(panel_count.max(1))
+}
+
+fn legend_reserve(has_legend: bool, position: LegendPositionIr) -> (f64, f64, f64, f64) {
+    if !has_legend {
+        return (0.0, 0.0, 0.0, 0.0);
+    }
+    match position {
+        LegendPositionIr::Right => (0.0, LEGEND_WIDTH, 0.0, 0.0),
+        LegendPositionIr::Left => (LEGEND_WIDTH, 0.0, 0.0, 0.0),
+        LegendPositionIr::Top => (0.0, 0.0, LEGEND_HEIGHT, 0.0),
+        LegendPositionIr::Bottom => (0.0, 0.0, 0.0, LEGEND_HEIGHT),
+    }
 }

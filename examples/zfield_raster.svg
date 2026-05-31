@@ -4,6 +4,20 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Regular raster field</text>
 <rect class="algraf-plot-area" x="60" y="66" width="510" height="364" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="132.857" y1="66" x2="132.857" y2="430" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="205.714" y1="66" x2="205.714" y2="430" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="278.571" y1="66" x2="278.571" y2="430" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="351.429" y1="66" x2="351.429" y2="430" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="424.286" y1="66" x2="424.286" y2="430" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="497.143" y1="66" x2="497.143" y2="430" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="404.897" x2="570" y2="404.897" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="360.069" x2="570" y2="360.069" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="315.241" x2="570" y2="315.241" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="270.414" x2="570" y2="270.414" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="225.586" x2="570" y2="225.586" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="180.759" x2="570" y2="180.759" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="135.931" x2="570" y2="135.931" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="91.103" x2="570" y2="91.103" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="96.429" y1="66" x2="96.429" y2="430" stroke="#e6e6e6" stroke-width="1" />
   <line x1="169.286" y1="66" x2="169.286" y2="430" stroke="#e6e6e6" stroke-width="1" />
   <line x1="242.143" y1="66" x2="242.143" y2="430" stroke="#e6e6e6" stroke-width="1" />

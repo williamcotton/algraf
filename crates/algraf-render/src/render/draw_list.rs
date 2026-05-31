@@ -452,11 +452,11 @@ impl RenderBackend for DrawListBackend {
                 x: text_x,
                 y: text_y,
                 anchor: TextAnchor::Start,
-                fill: theme.text_color.clone(),
+                fill: theme.plot_title.fill.clone(),
                 opacity: None,
                 content: title.clone(),
             });
-            text_y += theme.title_size + 8.0;
+            text_y += theme.plot_title.size + 8.0;
         }
         if let Some(subtitle) = &ir.subtitle {
             ops.push(DrawOp::Text {
@@ -464,7 +464,7 @@ impl RenderBackend for DrawListBackend {
                 x: text_x,
                 y: text_y,
                 anchor: TextAnchor::Start,
-                fill: theme.text_color.clone(),
+                fill: theme.plot_subtitle.fill.clone(),
                 opacity: None,
                 content: subtitle.clone(),
             });
@@ -479,7 +479,17 @@ impl RenderBackend for DrawListBackend {
                 y: slot.plot.y,
                 width: slot.plot.width,
                 height: slot.plot.height,
-                paint: Paint::fill(theme.plot_background.clone(), None),
+                paint: Paint {
+                    fill: crate::sink::Fill::Color(theme.panel_background.fill.clone()),
+                    stroke: theme.panel_background.stroke.as_ref().map_or(
+                        crate::sink::Stroke::Omit,
+                        |color| crate::sink::Stroke::Solid {
+                            color: color.clone(),
+                            width: theme.panel_background.stroke_width,
+                        },
+                    ),
+                    opacity: None,
+                },
                 interaction: None,
             });
         }
@@ -496,7 +506,7 @@ impl RenderBackend for DrawListBackend {
                     y: strip.y,
                     width: strip.width,
                     height: strip.height,
-                    paint: Paint::fill(panel.theme.plot_background.clone(), None),
+                    paint: Paint::fill(panel.theme.panel_background.fill.clone(), None),
                     interaction: None,
                 });
                 ops.push(DrawOp::Text {
@@ -504,7 +514,7 @@ impl RenderBackend for DrawListBackend {
                     x: strip.x + strip.width / 2.0,
                     y: strip.y + strip.height - 4.0,
                     anchor: TextAnchor::Middle,
-                    fill: panel.theme.text_color.clone(),
+                    fill: panel.theme.strip_text.fill.clone(),
                     opacity: None,
                     content: slot.label.unwrap_or_default().to_string(),
                 });
@@ -526,7 +536,7 @@ impl RenderBackend for DrawListBackend {
                 x: width - 16.0,
                 y: height - 12.0,
                 anchor: TextAnchor::End,
-                fill: theme.text_color.clone(),
+                fill: theme.plot_caption.fill.clone(),
                 opacity: None,
                 content: caption.clone(),
             });

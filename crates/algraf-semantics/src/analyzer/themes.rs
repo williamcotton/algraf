@@ -7,7 +7,7 @@ use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
 use super::args::DupGuard;
 use super::context::{Analyzer, ValueForm};
-use crate::ir::{ThemeIr, ThemeOverrides};
+use crate::ir::{LegendPositionIr, ThemeIr, ThemeLineIr, ThemeOverrides, ThemeRectIr, ThemeTextIr};
 use crate::registry;
 use crate::util::closest;
 
@@ -65,24 +65,60 @@ impl Analyzer<'_> {
         match key {
             // Grouped, geometry-style overrides (spec §20.8).
             "axisText" => {
-                if let Some(props) = self.theme_subcall(key, &value, "Text") {
-                    if let Some(v) = self.theme_number(&props, "size") {
+                if let Some(text) = self.theme_text(key, &value) {
+                    if let Some(v) = text.size {
                         overrides.font_size = Some(v);
                     }
-                    if let Some(v) = self.theme_color(&props, "fill") {
-                        overrides.text_color = Some(v);
+                    if let Some(v) = &text.fill {
+                        overrides.text_color = Some(v.clone());
                     }
+                    overrides.axis_text = Some(text);
+                }
+            }
+            "axisTitle" => {
+                overrides.axis_title = self.theme_text(key, &value);
+            }
+            "plotTitle" => {
+                overrides.plot_title = self.theme_text(key, &value);
+            }
+            "plotSubtitle" => {
+                overrides.plot_subtitle = self.theme_text(key, &value);
+            }
+            "plotCaption" => {
+                overrides.plot_caption = self.theme_text(key, &value);
+            }
+            "stripText" => {
+                overrides.strip_text = self.theme_text(key, &value);
+            }
+            "legendTitle" => {
+                overrides.legend_title = self.theme_text(key, &value);
+            }
+            "legendText" => {
+                overrides.legend_text = self.theme_text(key, &value);
+            }
+            "panelBackground" => {
+                if let Some(rect) = self.theme_rect(key, &value) {
+                    if let Some(fill) = &rect.fill {
+                        overrides.plot_background = Some(fill.clone());
+                    }
+                    overrides.panel_background = Some(rect);
                 }
             }
             "gridMajor" => {
-                if let Some(props) = self.theme_subcall(key, &value, "Line") {
-                    if let Some(v) = self.theme_color(&props, "stroke") {
-                        overrides.grid_major_color = Some(v);
+                if let Some(line) = self.theme_line(key, &value) {
+                    if let Some(v) = &line.stroke {
+                        overrides.grid_major_color = Some(v.clone());
                     }
-                    if let Some(v) = self.theme_number(&props, "strokeWidth") {
+                    if let Some(v) = line.stroke_width {
                         overrides.grid_major_width = Some(v);
                     }
+                    overrides.grid_major = Some(line);
                 }
+            }
+            "gridMinor" => overrides.grid_minor = self.theme_line(key, &value),
+            "legendPosition" => overrides.legend_position = self.theme_legend_position(key, &value),
+            "legendSpacing" => {
+                overrides.legend_spacing = self.theme_scalar(key, &value, "a number", as_number)
             }
             // Direct scalar overrides.
             "fontFamily" => {
@@ -103,9 +139,20 @@ impl Analyzer<'_> {
             "background" => {
                 overrides.background = self.theme_scalar(key, &value, "a color string", as_str)
             }
-            "plotBackground" => {
-                overrides.plot_background = self.theme_scalar(key, &value, "a color string", as_str)
-            }
+            "plotBackground" => match &value {
+                ValueExpr::Call(_) => {
+                    if let Some(rect) = self.theme_rect(key, &value) {
+                        if let Some(fill) = &rect.fill {
+                            overrides.plot_background = Some(fill.clone());
+                        }
+                        overrides.panel_background = Some(rect);
+                    }
+                }
+                _ => {
+                    overrides.plot_background =
+                        self.theme_scalar(key, &value, "a color string", as_str)
+                }
+            },
             "axisColor" => {
                 overrides.axis_color = self.theme_scalar(key, &value, "a color string", as_str)
             }
@@ -150,14 +197,102 @@ impl Analyzer<'_> {
         }
     }
 
-    fn theme_number(&mut self, args: &[Arg], name: &str) -> Option<f64> {
-        let arg = args.iter().find(|a| a.key().as_deref() == Some(name))?;
-        self.theme_scalar(name, &arg.value()?, "a number", as_number)
+    fn theme_text(&mut self, key: &str, value: &ValueExpr) -> Option<ThemeTextIr> {
+        let props = self.theme_subcall(key, value, "Text")?;
+        let mut out = ThemeTextIr::default();
+        for prop in props {
+            let Some(name) = prop.key() else { continue };
+            let Some(value) = prop.value() else { continue };
+            match name.as_str() {
+                "fontFamily" => {
+                    out.font_family = self.theme_scalar(&name, &value, "a string", as_str);
+                }
+                "size" => {
+                    out.size = self.theme_scalar(&name, &value, "a number", as_number);
+                }
+                "fill" => {
+                    out.fill = self.theme_scalar(&name, &value, "a color string", as_str);
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1705,
+                    format!("`{key}` Text property `{name}` is not supported"),
+                    node_span(prop.syntax()),
+                )),
+            }
+        }
+        Some(out)
     }
 
-    fn theme_color(&mut self, args: &[Arg], name: &str) -> Option<String> {
-        let arg = args.iter().find(|a| a.key().as_deref() == Some(name))?;
-        self.theme_scalar(name, &arg.value()?, "a color string", as_str)
+    fn theme_line(&mut self, key: &str, value: &ValueExpr) -> Option<ThemeLineIr> {
+        let props = self.theme_subcall(key, value, "Line")?;
+        let mut out = ThemeLineIr::default();
+        for prop in props {
+            let Some(name) = prop.key() else { continue };
+            let Some(value) = prop.value() else { continue };
+            match name.as_str() {
+                "stroke" => {
+                    out.stroke = self.theme_scalar(&name, &value, "a color string", as_str);
+                }
+                "strokeWidth" => {
+                    out.stroke_width = self.theme_scalar(&name, &value, "a number", as_number);
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1705,
+                    format!("`{key}` Line property `{name}` is not supported"),
+                    node_span(prop.syntax()),
+                )),
+            }
+        }
+        Some(out)
+    }
+
+    fn theme_rect(&mut self, key: &str, value: &ValueExpr) -> Option<ThemeRectIr> {
+        let props = self.theme_subcall(key, value, "Rect")?;
+        let mut out = ThemeRectIr::default();
+        for prop in props {
+            let Some(name) = prop.key() else { continue };
+            let Some(value) = prop.value() else { continue };
+            match name.as_str() {
+                "fill" => {
+                    out.fill = self.theme_scalar(&name, &value, "a color string", as_str);
+                }
+                "stroke" => {
+                    out.stroke = self.theme_scalar(&name, &value, "a color string", as_str);
+                }
+                "strokeWidth" => {
+                    out.stroke_width = self.theme_scalar(&name, &value, "a number", as_number);
+                }
+                _ => self.diag(Diagnostic::error(
+                    codes::E1705,
+                    format!("`{key}` Rect property `{name}` is not supported"),
+                    node_span(prop.syntax()),
+                )),
+            }
+        }
+        Some(out)
+    }
+
+    fn theme_legend_position(&mut self, key: &str, value: &ValueExpr) -> Option<LegendPositionIr> {
+        let raw = self.theme_scalar(
+            key,
+            value,
+            "one of \"right\", \"bottom\", \"top\", or \"left\"",
+            as_str,
+        )?;
+        match raw.as_str() {
+            "right" => Some(LegendPositionIr::Right),
+            "bottom" => Some(LegendPositionIr::Bottom),
+            "top" => Some(LegendPositionIr::Top),
+            "left" => Some(LegendPositionIr::Left),
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1705,
+                    format!("`{key}` expects one of \"right\", \"bottom\", \"top\", or \"left\""),
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+        }
     }
 
     /// Resolve one scalar theme override value (after `let` substitution),

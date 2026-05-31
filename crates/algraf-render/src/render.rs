@@ -44,8 +44,9 @@ use raster::RasterBackend;
 
 pub use draw_list::{DrawList, DrawOp, DrawRole, TextAnchor};
 pub use metadata::{
-    InteractionAxes, InteractionAxis, InteractionDomain, InteractionGroup, InteractionGroupValue,
-    InteractionMark, InteractionMetadata, InteractionPlot, TooltipRow,
+    InteractionAxes, InteractionAxis, InteractionChart, InteractionDomain, InteractionGroup,
+    InteractionGroupValue, InteractionLegend, InteractionMark, InteractionMetadata,
+    InteractionPlot, TooltipRow,
 };
 pub use raster::RasterImage;
 

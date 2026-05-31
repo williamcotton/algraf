@@ -4,6 +4,19 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Normal QQ check</text>
 <rect class="algraf-plot-area" x="60" y="66" width="470" height="444" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="98.341" y1="66" x2="98.341" y2="510" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="154.529" y1="66" x2="154.529" y2="510" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="210.718" y1="66" x2="210.718" y2="510" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="266.906" y1="66" x2="266.906" y2="510" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="323.094" y1="66" x2="323.094" y2="510" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="379.282" y1="66" x2="379.282" y2="510" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="435.471" y1="66" x2="435.471" y2="510" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="491.659" y1="66" x2="491.659" y2="510" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="432.511" x2="530" y2="432.511" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="354.397" x2="530" y2="354.397" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="276.283" x2="530" y2="276.283" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="198.169" x2="530" y2="198.169" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="120.055" x2="530" y2="120.055" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="70.247" y1="66" x2="70.247" y2="510" stroke="#e6e6e6" stroke-width="1" />
   <line x1="126.435" y1="66" x2="126.435" y2="510" stroke="#e6e6e6" stroke-width="1" />
   <line x1="182.623" y1="66" x2="182.623" y2="510" stroke="#e6e6e6" stroke-width="1" />

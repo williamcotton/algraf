@@ -4,6 +4,14 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Height Distribution by Group (Violin + Boxplot)</text>
 <rect class="algraf-plot-area" x="60" y="66" width="510" height="344" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="60" y1="387.169" x2="570" y2="387.169" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="345.247" x2="570" y2="345.247" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="303.324" x2="570" y2="303.324" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="261.402" x2="570" y2="261.402" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="219.48" x2="570" y2="219.48" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="177.557" x2="570" y2="177.557" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="135.635" x2="570" y2="135.635" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="93.713" x2="570" y2="93.713" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="60" y1="408.13" x2="570" y2="408.13" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="366.208" x2="570" y2="366.208" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="324.285" x2="570" y2="324.285" stroke="#e6e6e6" stroke-width="1" />

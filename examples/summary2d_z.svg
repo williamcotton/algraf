@@ -4,6 +4,15 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Mean signal by rectangular bin</text>
 <rect class="algraf-plot-area" x="60" y="66" width="550" height="384" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="173.492" y1="66" x2="173.492" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="260.794" y1="66" x2="260.794" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="348.095" y1="66" x2="348.095" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="435.397" y1="66" x2="435.397" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="522.698" y1="66" x2="522.698" y2="450" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="406.966" x2="610" y2="406.966" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="324.207" x2="610" y2="324.207" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="241.448" x2="610" y2="241.448" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="158.69" x2="610" y2="158.69" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="129.841" y1="66" x2="129.841" y2="450" stroke="#e6e6e6" stroke-width="1" />
   <line x1="217.143" y1="66" x2="217.143" y2="450" stroke="#e6e6e6" stroke-width="1" />
   <line x1="304.444" y1="66" x2="304.444" y2="450" stroke="#e6e6e6" stroke-width="1" />

@@ -60,6 +60,7 @@ charts=(
     temporal_parse_custom
     temporal_histogram
     space_theme
+    presentation_theme
     density
     multiple_density
     violin

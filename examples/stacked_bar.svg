@@ -2,6 +2,12 @@
 <rect class="algraf-background" x="0" y="0" width="760" height="460" fill="#ffffff" />
 <rect class="algraf-plot-area" x="60" y="40" width="550" height="370" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="60" y1="381.919" x2="610" y2="381.919" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="325.756" x2="610" y2="325.756" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="269.593" x2="610" y2="269.593" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="213.43" x2="610" y2="213.43" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="157.268" x2="610" y2="157.268" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="101.105" x2="610" y2="101.105" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="60" y1="410" x2="610" y2="410" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="353.837" x2="610" y2="353.837" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="297.675" x2="610" y2="297.675" stroke="#e6e6e6" stroke-width="1" />

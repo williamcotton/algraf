@@ -1911,7 +1911,7 @@ fn test_quoted_identifier_is_not_a_variable() {
 #[test]
 fn test_theme_overrides_are_recorded() {
     let analysis = analyze_source(
-        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\", axisText: Text(size: 12, fill: \"#333333\"), gridMajor: Line(stroke: \"#dddddd\", strokeWidth: 1), plotBackground: \"#fafafa\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\", axisText: Text(size: 12, fill: \"#333333\"), axisTitle: Text(size: 13), legendTitle: Text(fill: \"#111111\"), gridMajor: Line(stroke: \"#dddddd\", strokeWidth: 1), gridMinor: Line(stroke: \"#eeeeee\", strokeWidth: 0.5), panelBackground: Rect(fill: \"#fafafa\"), legendPosition: \"bottom\", legendSpacing: 24)\n  Space(flipper_length * body_mass) { Point() }\n}",
         &schema(),
     );
     assert!(
@@ -1923,9 +1923,46 @@ fn test_theme_overrides_are_recorded() {
     assert_eq!(theme.base.as_deref(), Some("minimal"));
     assert_eq!(theme.overrides.font_size, Some(12.0));
     assert_eq!(theme.overrides.text_color.as_deref(), Some("#333333"));
+    assert_eq!(
+        theme
+            .overrides
+            .axis_text
+            .as_ref()
+            .and_then(|text| text.fill.as_deref()),
+        Some("#333333")
+    );
+    assert_eq!(
+        theme
+            .overrides
+            .axis_title
+            .as_ref()
+            .and_then(|text| text.size),
+        Some(13.0)
+    );
+    assert_eq!(
+        theme
+            .overrides
+            .legend_title
+            .as_ref()
+            .and_then(|text| text.fill.as_deref()),
+        Some("#111111")
+    );
     assert_eq!(theme.overrides.grid_major_color.as_deref(), Some("#dddddd"));
     assert_eq!(theme.overrides.grid_major_width, Some(1.0));
     assert_eq!(theme.overrides.plot_background.as_deref(), Some("#fafafa"));
+    assert_eq!(
+        theme
+            .overrides
+            .grid_minor
+            .as_ref()
+            .and_then(|line| line.stroke_width),
+        Some(0.5)
+    );
+    assert_eq!(
+        theme.overrides.legend_position.map(|pos| pos.as_str()),
+        Some("bottom")
+    );
+    assert_eq!(theme.overrides.legend_spacing, Some(24.0));
 }
 
 #[test]
@@ -1950,6 +1987,30 @@ fn test_theme_grouped_override_wrong_shape_is_reported() {
         "Chart(data: \"p.csv\") {\n  Theme(gridMajor: 5)\n  Space(value) { Point() }\n}",
         "E1705",
     ));
+}
+
+#[test]
+fn test_theme_invalid_legend_position_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(legendPosition: \"inside\")\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+#[test]
+fn test_chart_accessibility_metadata_is_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\", title: \"Visible\", alt: \"Short alt\", description: \"Long description\") {\n  Space(value) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.alt.as_deref(), Some("Short alt"));
+    assert_eq!(ir.description.as_deref(), Some("Long description"));
 }
 
 #[test]

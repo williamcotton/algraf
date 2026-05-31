@@ -23,6 +23,17 @@
   <text x="478.5" y="310" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222"><tspan x="478.5" dy="0">row_band: South</tspan><tspan x="478.5" dy="1.2em">col_band: Q2</tspan></text>
 </g>
 <g class="algraf-grid">
+  <line x1="99.991" y1="90" x2="99.991" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="145.518" y1="90" x2="145.518" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="191.045" y1="90" x2="191.045" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="236.572" y1="90" x2="236.572" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="282.099" y1="90" x2="282.099" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="222.967" x2="323" y2="222.967" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="200.672" x2="323" y2="200.672" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="178.377" x2="323" y2="178.377" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="156.082" x2="323" y2="156.082" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="133.787" x2="323" y2="133.787" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="111.492" x2="323" y2="111.492" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="77.227" y1="90" x2="77.227" y2="240" stroke="#e6e6e6" stroke-width="1" />
   <line x1="122.754" y1="90" x2="122.754" y2="240" stroke="#e6e6e6" stroke-width="1" />
   <line x1="168.281" y1="90" x2="168.281" y2="240" stroke="#e6e6e6" stroke-width="1" />
@@ -38,6 +49,17 @@
   <line x1="60" y1="100.345" x2="323" y2="100.345" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-grid">
+  <line x1="386.991" y1="90" x2="386.991" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="432.518" y1="90" x2="432.518" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="478.045" y1="90" x2="478.045" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="523.572" y1="90" x2="523.572" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="569.099" y1="90" x2="569.099" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="222.967" x2="610" y2="222.967" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="200.672" x2="610" y2="200.672" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="178.377" x2="610" y2="178.377" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="156.082" x2="610" y2="156.082" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="133.787" x2="610" y2="133.787" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="111.492" x2="610" y2="111.492" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="364.227" y1="90" x2="364.227" y2="240" stroke="#e6e6e6" stroke-width="1" />
   <line x1="409.754" y1="90" x2="409.754" y2="240" stroke="#e6e6e6" stroke-width="1" />
   <line x1="455.281" y1="90" x2="455.281" y2="240" stroke="#e6e6e6" stroke-width="1" />
@@ -53,6 +75,17 @@
   <line x1="347" y1="100.345" x2="610" y2="100.345" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-grid">
+  <line x1="99.991" y1="320" x2="99.991" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="145.518" y1="320" x2="145.518" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="191.045" y1="320" x2="191.045" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="236.572" y1="320" x2="236.572" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="282.099" y1="320" x2="282.099" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="452.967" x2="323" y2="452.967" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="430.672" x2="323" y2="430.672" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="408.377" x2="323" y2="408.377" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="386.082" x2="323" y2="386.082" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="363.787" x2="323" y2="363.787" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="341.492" x2="323" y2="341.492" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="77.227" y1="320" x2="77.227" y2="470" stroke="#e6e6e6" stroke-width="1" />
   <line x1="122.754" y1="320" x2="122.754" y2="470" stroke="#e6e6e6" stroke-width="1" />
   <line x1="168.281" y1="320" x2="168.281" y2="470" stroke="#e6e6e6" stroke-width="1" />
@@ -68,6 +101,17 @@
   <line x1="60" y1="330.345" x2="323" y2="330.345" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-grid">
+  <line x1="386.991" y1="320" x2="386.991" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="432.518" y1="320" x2="432.518" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="478.045" y1="320" x2="478.045" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="523.572" y1="320" x2="523.572" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="569.099" y1="320" x2="569.099" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="452.967" x2="610" y2="452.967" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="430.672" x2="610" y2="430.672" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="408.377" x2="610" y2="408.377" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="386.082" x2="610" y2="386.082" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="363.787" x2="610" y2="363.787" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="347" y1="341.492" x2="610" y2="341.492" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="364.227" y1="320" x2="364.227" y2="470" stroke="#e6e6e6" stroke-width="1" />
   <line x1="409.754" y1="320" x2="409.754" y2="470" stroke="#e6e6e6" stroke-width="1" />
   <line x1="455.281" y1="320" x2="455.281" y2="470" stroke="#e6e6e6" stroke-width="1" />

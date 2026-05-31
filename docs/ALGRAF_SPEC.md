@@ -526,6 +526,9 @@ The initial implementation MUST ship with `minimal`.
 
 The initial implementation SHOULD ship with `classic`, `light`, `dark`, and `void`.
 
+Version 0.42.0 MUST also ship neutral presentation presets `gray`, `bw`, and
+`linedraw`.
+
 ## 5. Syntax Overview
 
 Algraf syntax resembles a SwiftUI or Kotlin DSL block structure.
@@ -1073,6 +1076,11 @@ ChartItem      ::= SpaceBlock
 `Chart` MAY include `width` and `height` arguments.
 
 `Chart` MAY include `title`, `subtitle`, and `caption` arguments.
+
+`Chart` MAY include `alt` and `description` string arguments. `alt` is a short
+accessible label for the chart. `description` is a longer accessible
+description and, when present, MUST be preferred over the older subtitle/caption
+fallback for SVG `<desc>` and render metadata.
 
 `Chart` MAY include `marginTop`, `marginRight`, `marginBottom`, and `marginLeft`
 arguments. Each is a non-negative integer giving a per-side plot margin in
@@ -6598,7 +6606,9 @@ bottom 50
 
 left 60
 
-If legend present on right, right margin increases.
+If a legend is present, the side named by the resolved theme's
+`legendPosition` increases to reserve the measured legend rectangle. Valid
+positions are `"right"` (default), `"bottom"`, `"top"`, and `"left"`.
 
 If title present, top margin increases.
 
@@ -6943,7 +6953,10 @@ The renderer MUST NOT inject raw user strings into SVG.
 
 ### 18.10 Accessibility
 
-SVG SHOULD include title and description when chart title/subtitle exist.
+SVG MUST include `<title>` when `Chart(title:)` exists. The SVG root MUST carry
+an `aria-label` using `Chart(alt:)` when present, otherwise the chart title when
+present. SVG MUST include `<desc>` when `Chart(description:)` exists; otherwise
+it SHOULD fall back to chart subtitle/caption text when either exists.
 
 Example:
 
@@ -6952,7 +6965,9 @@ Example:
 <desc>Histogram of astronaut age at selection and mission.</desc>
 ```
 
-The renderer SHOULD preserve meaningful text labels.
+The renderer SHOULD preserve meaningful text labels. The interaction sidecar and
+draw-list metadata MUST expose the same chart-level `title`, `subtitle`,
+`caption`, `alt`, and resolved `description` values.
 
 Purely decorative groups MAY use `aria-hidden="true"`.
 
@@ -7257,6 +7272,43 @@ pub struct Theme {
     pub line_width: f64,
     pub grid: bool,
     pub axes: bool,
+    pub plot_title: TextStyle,
+    pub plot_subtitle: TextStyle,
+    pub plot_caption: TextStyle,
+    pub axis_title: TextStyle,
+    pub axis_text: TextStyle,
+    pub strip_text: TextStyle,
+    pub legend_title: TextStyle,
+    pub legend_text: TextStyle,
+    pub panel_background: RectStyle,
+    pub grid_major: LineStyle,
+    pub grid_minor: LineStyle,
+    pub legend_position: LegendPosition,
+    pub legend_spacing: f64,
+}
+
+pub struct TextStyle {
+    pub font_family: String,
+    pub size: f64,
+    pub fill: String,
+}
+
+pub struct LineStyle {
+    pub stroke: String,
+    pub stroke_width: f64,
+}
+
+pub struct RectStyle {
+    pub fill: String,
+    pub stroke: Option<String>,
+    pub stroke_width: f64,
+}
+
+pub enum LegendPosition {
+    Right,
+    Bottom,
+    Top,
+    Left,
 }
 ```
 
@@ -7328,6 +7380,16 @@ request a neutral light theme by an explicit name. Later versions MAY give
 `light` distinct values; until then renderers MUST treat it as equivalent to
 `minimal`.
 
+Version 0.42.0 also ships these neutral presentation presets:
+
+- `gray`: white chart background, light gray panel background, white major grid,
+  very light minor grid, dark axis/text defaults.
+- `bw`: white chart and panel background, dark panel border and axis defaults,
+  light gray major/minor grid lines.
+- `linedraw`: white chart and panel background, black axis/text defaults, thin
+  black panel border, thin gray major/minor grid lines, and a thinner default
+  line width.
+
 ### 20.7 Theme Syntax
 
 Theme declaration syntax:
@@ -7371,12 +7433,15 @@ Theme(
 )
 ```
 
-Two grouped, geometry-style overrides reuse existing property value forms:
+Grouped, geometry-style overrides reuse existing property value forms:
 
-- `axisText: Text(size?, fill?)` — `size` sets `font_size`; `fill` sets
-  `text_color`.
-- `gridMajor: Line(stroke?, strokeWidth?)` — `stroke` sets `grid_major_color`;
-  `strokeWidth` sets `grid_major_width`.
+- text styles: `plotTitle`, `plotSubtitle`, `plotCaption`, `axisTitle`,
+  `axisText`, `stripText`, `legendTitle`, and `legendText` accept
+  `Text(fontFamily?, size?, fill?)`.
+- line styles: `gridMajor` and `gridMinor` accept
+  `Line(stroke?, strokeWidth?)`.
+- rectangle styles: `panelBackground` accepts
+  `Rect(fill?, stroke?, strokeWidth?)`.
 
 The remaining overrides are direct scalar values mapping to the theme fields
 (spec §20.1):
@@ -7386,6 +7451,13 @@ The remaining overrides are direct scalar values mapping to the theme fields
 - numbers: `fontSize`, `titleSize`, `pointSize`, `lineWidth`
 - string: `fontFamily`
 - booleans: `grid`, `axes`
+- legend controls: `legendPosition` string (`"right"`, `"bottom"`, `"top"`,
+  or `"left"`) and numeric `legendSpacing`
+
+Legacy scalar fields remain compatibility shorthands. For example,
+`plotBackground: "#fafafa"` sets the panel fill, while the structured
+`panelBackground: Rect(fill: "#fafafa", stroke: "#333333", strokeWidth: 1)`
+also controls the panel border.
 
 Override values reuse the standard property value forms and MAY reference `let`
 variables (spec §9.6).
@@ -8643,9 +8715,13 @@ The renderer ships three backends over this seam:
 - The **interaction sidecar** is deterministic JSON emitted on request
   (`--metadata` or `--format svg+json`, §22.3). It is not a backend that draws
   pixels; it serializes host-runtime data from the same planned scene. The
-  sidecar MUST carry `version: 1`, `plot_rect`, `axes`, `marks`, `groups`, and
-  `plots` fields in stable key order. `plot_rect` is the first plot area's SVG
-  pixel rectangle. `plots[]` carries every plot area's `id`, `plot_rect`, and
+  sidecar MUST carry `version: 1`, `plot_rect`, `axes`, `chart`, `legend`,
+  `marks`, `groups`, and `plots` fields in stable key order. `plot_rect` is the
+  first plot area's SVG pixel rectangle. `chart` carries `title`, `subtitle`,
+  `caption`, `alt`, and resolved `description` values, using `null` for absent
+  values. `legend` is `null` when no legend is present; otherwise it carries the
+  resolved `position` (`"right"`, `"bottom"`, `"top"`, or `"left"`) and SVG
+  pixel `rect`. `plots[]` carries every plot area's `id`, `plot_rect`, and
   `axes` so faceted charts are addressable without re-running layout. A plot MAY
   include `clip_rect` when coordinate zoom clips data marks (§16.17). `axes.x`
   and `axes.y`, when present, describe host-invertible scales with `scale`,
@@ -9829,7 +9905,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.39.5 | [`V0_39_5_PLAN.md`](V0_39_5_PLAN.md) | Rust editor-service hover overhaul | Implemented |
 | 0.40.0 | [`V0_40_PLAN.md`](V0_40_PLAN.md) | ggplot2 comparability: derived stats plus scale and guide control | Implemented |
 | 0.41.0 | [`V0_41_PLAN.md`](V0_41_PLAN.md) | ggplot2 comparability: layout and position control | Implemented |
-| 0.42.0 | [`V0_42_PLAN.md`](V0_42_PLAN.md) | ggplot2 comparability: presentation parity and closure | Planned |
+| 0.42.0 | [`V0_42_PLAN.md`](V0_42_PLAN.md) | ggplot2 comparability: presentation parity and closure | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

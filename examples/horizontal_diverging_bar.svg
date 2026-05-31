@@ -4,6 +4,11 @@
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Monthly profit / loss</text>
 <rect class="algraf-plot-area" x="60" y="66" width="550" height="404" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="159.393" y1="66" x2="159.393" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="247.197" y1="66" x2="247.197" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="335" y1="66" x2="335" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="422.803" y1="66" x2="422.803" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="510.607" y1="66" x2="510.607" y2="470" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="115.492" y1="66" x2="115.492" y2="470" stroke="#e6e6e6" stroke-width="1" />
   <line x1="203.295" y1="66" x2="203.295" y2="470" stroke="#e6e6e6" stroke-width="1" />
   <line x1="291.098" y1="66" x2="291.098" y2="470" stroke="#e6e6e6" stroke-width="1" />

@@ -14,6 +14,8 @@ pub const CHART_ARGS: &[&str] = &[
     "title",
     "subtitle",
     "caption",
+    "alt",
+    "description",
     "marginTop",
     "marginRight",
     "marginBottom",
@@ -21,12 +23,25 @@ pub const CHART_ARGS: &[&str] = &[
 ];
 
 /// Recognized named base themes (spec §20.1).
-pub const THEME_NAMES: &[&str] = &["minimal", "classic", "light", "dark", "void"];
+pub const THEME_NAMES: &[&str] = &[
+    "minimal", "classic", "light", "dark", "void", "gray", "bw", "linedraw",
+];
 
 /// Recognized `Theme(...)` override keys (spec §20.8).
 pub const THEME_OVERRIDE_KEYS: &[&str] = &[
     "axisText",
+    "axisTitle",
+    "plotTitle",
+    "plotSubtitle",
+    "plotCaption",
+    "stripText",
+    "legendTitle",
+    "legendText",
+    "panelBackground",
     "gridMajor",
+    "gridMinor",
+    "legendPosition",
+    "legendSpacing",
     "fontFamily",
     "fontSize",
     "titleSize",
@@ -105,6 +120,18 @@ const CHART_DOC_ARGS: &[ArgDoc] = &[
         value: "string",
         default: None,
         doc: "Caption below the plot.",
+    },
+    ArgDoc {
+        name: "alt",
+        value: "string",
+        default: None,
+        doc: "Accessible short text label for the chart.",
+    },
+    ArgDoc {
+        name: "description",
+        value: "string",
+        default: None,
+        doc: "Accessible long description for the chart.",
     },
     ArgDoc {
         name: "marginTop",
@@ -204,9 +231,87 @@ const SPACE_DOC_ARGS: &[ArgDoc] = &[
 const THEME_DOC_ARGS: &[ArgDoc] = &[
     ArgDoc {
         name: "name",
-        value: "\"minimal\" | \"classic\" | \"light\" | \"dark\" | \"void\"",
+        value: "\"minimal\" | \"classic\" | \"light\" | \"dark\" | \"void\" | \"gray\" | \"bw\" | \"linedraw\"",
         default: Some("inherited"),
         doc: "Named base theme.",
+    },
+    ArgDoc {
+        name: "plotTitle",
+        value: "Text(size?, fill?, fontFamily?)",
+        default: None,
+        doc: "Main chart title text style.",
+    },
+    ArgDoc {
+        name: "plotSubtitle",
+        value: "Text(size?, fill?, fontFamily?)",
+        default: None,
+        doc: "Chart subtitle text style.",
+    },
+    ArgDoc {
+        name: "plotCaption",
+        value: "Text(size?, fill?, fontFamily?)",
+        default: None,
+        doc: "Chart caption text style.",
+    },
+    ArgDoc {
+        name: "axisTitle",
+        value: "Text(size?, fill?, fontFamily?)",
+        default: None,
+        doc: "Axis title text style.",
+    },
+    ArgDoc {
+        name: "axisText",
+        value: "Text(size?, fill?, fontFamily?)",
+        default: None,
+        doc: "Axis tick-label text style.",
+    },
+    ArgDoc {
+        name: "stripText",
+        value: "Text(size?, fill?, fontFamily?)",
+        default: None,
+        doc: "Facet strip label text style.",
+    },
+    ArgDoc {
+        name: "legendTitle",
+        value: "Text(size?, fill?, fontFamily?)",
+        default: None,
+        doc: "Legend title text style.",
+    },
+    ArgDoc {
+        name: "legendText",
+        value: "Text(size?, fill?, fontFamily?)",
+        default: None,
+        doc: "Legend entry text style.",
+    },
+    ArgDoc {
+        name: "panelBackground",
+        value: "Rect(fill?, stroke?, strokeWidth?)",
+        default: None,
+        doc: "Plot panel background style.",
+    },
+    ArgDoc {
+        name: "gridMajor",
+        value: "Line(stroke?, strokeWidth?)",
+        default: None,
+        doc: "Major grid-line style.",
+    },
+    ArgDoc {
+        name: "gridMinor",
+        value: "Line(stroke?, strokeWidth?)",
+        default: None,
+        doc: "Minor grid-line style.",
+    },
+    ArgDoc {
+        name: "legendPosition",
+        value: "\"right\" | \"bottom\" | \"top\" | \"left\"",
+        default: Some("\"right\""),
+        doc: "Legend placement outside the plot panel.",
+    },
+    ArgDoc {
+        name: "legendSpacing",
+        value: "number",
+        default: None,
+        doc: "Spacing between legend blocks in pixels.",
     },
     ArgDoc {
         name: "fontFamily",

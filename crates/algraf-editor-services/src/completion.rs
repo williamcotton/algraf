@@ -427,6 +427,43 @@ fn declaration_value_items(
             .iter()
             .map(|value| value_item(&format!("\"{value}\""), "Theme name"))
             .collect(),
+        ("Theme", "plotTitle")
+        | ("Theme", "plotSubtitle")
+        | ("Theme", "plotCaption")
+        | ("Theme", "axisTitle")
+        | ("Theme", "axisText")
+        | ("Theme", "stripText")
+        | ("Theme", "legendTitle")
+        | ("Theme", "legendText") => vec![value_item(
+            "Text(size: 12, fill: \"#222222\")",
+            "Structured text theme override",
+        )],
+        ("Theme", "gridMajor") | ("Theme", "gridMinor") => vec![value_item(
+            "Line(stroke: \"#e6e6e6\", strokeWidth: 1)",
+            "Structured line theme override",
+        )],
+        ("Theme", "panelBackground") => vec![value_item(
+            "Rect(fill: \"#ffffff\")",
+            "Structured rectangle theme override",
+        )],
+        ("Theme", "legendPosition") => ["right", "bottom", "top", "left"]
+            .iter()
+            .map(|value| value_item(&format!("\"{value}\""), "Legend position"))
+            .collect(),
+        ("Theme", "grid") | ("Theme", "axes") => vec![
+            value_item("true", "Boolean literal"),
+            value_item("false", "Boolean literal"),
+        ],
+        ("Theme", "fontSize" | "titleSize" | "pointSize" | "lineWidth" | "legendSpacing") => {
+            vec![value_item("12", "Number literal")]
+        }
+        ("Theme", "background" | "plotBackground" | "axisColor" | "gridColor" | "textColor") => {
+            vec![color("\"#ffffff\"", "Color string")]
+        }
+        ("Theme", "fontFamily") => vec![value_item(
+            "\"system-ui, sans-serif\"",
+            "Font family string",
+        )],
         ("Guide", "axis") | ("Scale", "axis") => {
             vec![value_item("x", "X axis"), value_item("y", "Y axis")]
         }
@@ -532,25 +569,6 @@ fn declaration_value_items(
         }
         ("IntervalSegments", "capWidth") => vec![value_item("0.4", "Cap width")],
         ("IntervalRects" | "IntervalMiddles", "width") => vec![value_item("0.8", "Width")],
-        ("Theme", "axisText") => vec![value_item(
-            "Text(size: 12, fill: \"#333333\")",
-            "Axis text style",
-        )],
-        ("Theme", "gridMajor") => vec![value_item(
-            "Line(stroke: \"#dddddd\", strokeWidth: 1)",
-            "Major grid line style",
-        )],
-        ("Theme", "background" | "plotBackground" | "axisColor" | "gridColor" | "textColor") => {
-            vec![color("\"#333333\"", "Theme color")]
-        }
-        ("Theme", "fontSize" | "titleSize" | "pointSize" | "lineWidth") => {
-            vec![value_item("12", "Number literal")]
-        }
-        ("Theme", "fontFamily") => vec![value_item("\"system-ui, sans-serif\"", "Font family")],
-        ("Theme", "grid" | "axes") => vec![
-            value_item("true", "Boolean literal"),
-            value_item("false", "Boolean literal"),
-        ],
         _ => Vec::new(),
     }
 }

@@ -71,6 +71,7 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | `reference.ag` | `penguins.csv` | `reference.svg`, `reference.png` | `HLine`, `VLine`, `Rug`, title, and legend suppression |
 | `coordinate_zoom.ag` | `layout_controls.csv` | `coordinate_zoom.svg`, `coordinate_zoom.png` | Visual coordinate zoom that clips marks without filtering stats |
 | `fixed_aspect.ag` | `aspect_segments.csv` | `fixed_aspect.svg`, `fixed_aspect.png` | Fixed x/y unit ratio inside a wide chart |
+| `presentation_theme.ag` | `penguins.csv` | `presentation_theme.svg`, `presentation_theme.png` | v0.42 presentation theme controls, bottom legend placement, and explicit accessibility metadata |
 | `jitter.ag` | `demographics.csv` | `jitter.svg`, `jitter.png` | Deterministic point jitter over categorical bands |
 | `nudge.ag` | `layout_controls.csv` | `nudge.svg`, `nudge.png` | Pixel and data-space nudge for direct labels |
 | `satisfaction_slope.ag` | `satisfaction.csv` | `satisfaction_slope.svg`, `satisfaction_slope.png` | Slopegraph with line grouping and text labels |

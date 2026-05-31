@@ -1714,9 +1714,11 @@ Chart(data: "regional_sales.csv", width: 800, height: 480, title: "Regional Sale
 
 ## Reference marks: title, `HLine`, `VLine`, `Rug`
 
-`HLine` and `VLine` accept literal data values and optional labels.
-`Guide(legend: false)` suppresses the auto-generated legend when you
-don't need it. `Chart(title: ...)` puts a title at the top.
+`HLine` and `VLine` accept literal data values and optional labels. Annotation
+is ordinary geometry in Algraf: use literal-valued `HLine`, `VLine`, `Segment`,
+`Rect`, or `Text` marks instead of a separate annotation function.
+`Guide(legend: false)` suppresses the auto-generated legend when you don't need
+it. `Chart(title: ...)` puts a title at the top.
 
 ```algraf
 Chart(data: "penguins.csv", width: 760, height: 500, title: "Penguin measurements") {
@@ -2250,11 +2252,12 @@ Chart(data: "penguins.csv") {
 
 ## Custom themes
 
-`Theme` accepts override properties layered on top of a named base. Two grouped,
-geometry-style overrides — `axisText: Text(...)` and `gridMajor: Line(...)` —
-sit alongside direct scalar keys such as `plotBackground`, `axisColor`,
-`textColor`, `fontSize`, `lineWidth`, `grid`, and `axes`. Override values reuse
-the usual value forms and may reference `let` variables for shared colors.
+`Theme` accepts override properties layered on top of a named base. Grouped,
+geometry-style overrides such as `axisText: Text(...)`, `legendTitle: Text(...)`,
+`panelBackground: Rect(...)`, and `gridMajor: Line(...)` sit alongside direct
+scalar keys such as `plotBackground`, `axisColor`, `textColor`, `fontSize`,
+`lineWidth`, `grid`, and `axes`. Override values reuse the usual value forms and
+may reference `let` variables for shared colors.
 
 ```algraf
 Chart(data: "penguins.csv") {
@@ -2275,6 +2278,47 @@ Chart(data: "penguins.csv") {
 ```
 
 ![custom_theme](examples/custom_theme.svg)
+
+## Presentation theme, bottom legend, and accessibility text
+
+The neutral `gray`, `bw`, and `linedraw` themes are presets. Structured theme
+elements refine title, axis, legend, panel, and grid styling, while
+`legendPosition` moves the legend into the measured layout. `alt` and
+`description` are chart-level metadata used by SVG and interaction sidecars.
+
+```algraf
+Chart(data: "penguins.csv", width: 760, height: 500,
+      title: "Penguin measurements",
+      subtitle: "Body mass and flipper length by species",
+      caption: "Source: sample penguin measurements",
+      alt: "Scatter plot of penguin body mass by flipper length with species colors.",
+      description: "A scatter plot compares flipper length on the x axis with body mass on the y axis. Adelie, Chinstrap, and Gentoo penguins are distinguished by point color and a bottom legend.") {
+    Theme(
+        name: "bw",
+        legendPosition: "bottom",
+        legendSpacing: 14,
+        plotTitle: Text(size: 20, fill: "#1f2937"),
+        plotSubtitle: Text(size: 13, fill: "#4b5563"),
+        plotCaption: Text(size: 11, fill: "#6b7280"),
+        axisTitle: Text(size: 12, fill: "#374151"),
+        axisText: Text(size: 11, fill: "#4b5563"),
+        legendTitle: Text(size: 12, fill: "#111827"),
+        legendText: Text(size: 11, fill: "#374151"),
+        panelBackground: Rect(fill: "#ffffff", stroke: "#111827", strokeWidth: 1),
+        gridMajor: Line(stroke: "#d1d5db", strokeWidth: 0.8),
+        gridMinor: Line(stroke: "#f3f4f6", strokeWidth: 0.5)
+    )
+    Guide(axis: x, label: "Flipper length (mm)")
+    Guide(axis: y, label: "Body mass (g)")
+    Scale(fill: species, label: "Species")
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.72, size: 3)
+    }
+}
+```
+
+![presentation_theme](examples/presentation_theme.svg)
 
 ---
 
@@ -3194,9 +3238,10 @@ would build on this.
 ## Embedding in a host runtime
 
 Interactive hosts should render static SVG and consume the JSON sidecar rather
-than scraping axis ticks or re-running layout. The sidecar includes `plot_rect`,
-invertible `axes`, pickable `marks[]` with `x_px`/`y_px`, tooltip rows, and
-highlight groups.
+than scraping axis ticks or re-running layout. The sidecar includes chart
+metadata (`title`, `subtitle`, `caption`, `alt`, `description`), legend position
+and rectangle metadata, `plot_rect`, invertible `axes`, pickable `marks[]` with
+`x_px`/`y_px`, tooltip rows, and highlight groups.
 
 ```bash
 cargo run -p algraf-cli -- render examples/highlight.ag \

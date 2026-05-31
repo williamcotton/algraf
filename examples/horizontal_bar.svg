@@ -4,6 +4,14 @@
 <text class="algraf-title" x="75.2" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Sales by rep</text>
 <rect class="algraf-plot-area" x="75.2" y="66" width="614.8" height="324" fill="#ffffff" />
 <g class="algraf-grid">
+  <line x1="109.911" y1="66" x2="109.911" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="179.333" y1="66" x2="179.333" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="248.755" y1="66" x2="248.755" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="318.177" y1="66" x2="318.177" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="387.598" y1="66" x2="387.598" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="457.02" y1="66" x2="457.02" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="526.442" y1="66" x2="526.442" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="595.864" y1="66" x2="595.864" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="75.2" y1="66" x2="75.2" y2="390" stroke="#e6e6e6" stroke-width="1" />
   <line x1="144.622" y1="66" x2="144.622" y2="390" stroke="#e6e6e6" stroke-width="1" />
   <line x1="214.044" y1="66" x2="214.044" y2="390" stroke="#e6e6e6" stroke-width="1" />
