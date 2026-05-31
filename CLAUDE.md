@@ -50,6 +50,14 @@ Three artifacts govern behavior, and they must stay in sync:
   `"loess"` while loess is deferred).
 - **When a plan item lands, update its `Status:` line**; when a release ships,
   start the next `V0_<minor>_PLAN.md`.
+- **When a plan is completed, update every release version before you stop.**
+  This is not optional housekeeping. Bump the workspace version in `Cargo.toml`,
+  refresh `Cargo.lock`, update `docs/ALGRAF_SPEC.md`'s draft status and
+  milestone table, and align package manifests/lockfiles that track the release
+  (`editors/vscode/package.json`, `editors/vscode/package-lock.json`, and any
+  demo/package manifests that carry an Algraf release version). Do not mark a
+  plan `Implemented` while leaving the repository stamped with the previous
+  release.
 
 If you find the spec, a plan, and the code disagreeing, treat it as drift to
 fix — reconcile all three rather than picking one.
