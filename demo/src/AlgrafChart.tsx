@@ -80,6 +80,13 @@ export function AlgrafChart({ svg, sidecar, onHoverMark }: AlgrafChartProps): Re
   const svgHostRef = React.useRef<HTMLDivElement | null>(null);
   const metadata = React.useMemo(() => parseInteractionMetadata(sidecar), [sidecar]);
   const size = React.useMemo(() => readSvgSize(svg, metadata), [metadata, svg]);
+  const chartStyle = React.useMemo(
+    () =>
+      ({
+        "--algraf-chart-width": `${size.width}px`,
+      }) as React.CSSProperties,
+    [size.width],
+  );
   const [hover, setHover] = React.useState<HoverState | null>(null);
   const activeGroup = hover?.mark ? firstGroupValue(hover.mark.groups) : null;
   const tooltip = hover?.mark && hover.mark.tooltip.length > 0 ? hover.mark : null;
@@ -146,7 +153,7 @@ export function AlgrafChart({ svg, sidecar, onHoverMark }: AlgrafChartProps): Re
   );
 
   return (
-    <div className="algraf-chart">
+    <div className="algraf-chart" style={chartStyle}>
       <div className="algraf-chart-svg" ref={svgHostRef} dangerouslySetInnerHTML={{ __html: svg }} />
       {metadata ? (
         <svg

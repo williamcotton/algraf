@@ -263,7 +263,8 @@ button {
 
 .algraf-chart {
   position: relative;
-  width: 100%;
+  width: min(100%, var(--algraf-chart-width, 100%));
+  margin-inline: auto;
   overflow: hidden;
   border: 1px solid #d9e0e4;
   border-radius: 6px;
