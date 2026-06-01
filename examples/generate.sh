@@ -9,6 +9,7 @@ charts=(
     scatter
     line
     sparkline
+    image_marks
     inset_sparklines
     grouped_bar
     stacked_bar

@@ -16,7 +16,7 @@ use resvg::usvg::{Options as SvgOptions, Tree};
 use serde_json::Value;
 use tiny_skia::{Pixmap, Transform};
 
-use crate::{render_with_tables, Layout, RenderError, Theme};
+use crate::{load_image_assets_with_io, render_with_tables_and_assets, Layout, RenderError, Theme};
 
 const DEFAULT_PNG_SCALE: f32 = 2.0;
 const CSS_DPI: f32 = 96.0;
@@ -300,12 +300,33 @@ pub fn render_embedded_with_io(
         .into_iter()
         .map(|table| (table.name, table.frame))
         .collect();
-    let result = render_with_tables(
+    let image_assets = load_image_assets_with_io(
+        &ir,
+        &primary.frame,
+        &named_frames,
+        &source_input,
+        options.base_dir.as_deref(),
+        io,
+    );
+    report.extend(
+        ReportPhase::Render,
+        image_assets.diagnostics.iter().cloned(),
+    );
+    let diagnostics = report.diagnostics();
+    if has_blocking(&diagnostics, options.strict) {
+        return Err(EmbeddedRenderError::Diagnostics {
+            diagnostics,
+            data_warnings: report.data_warnings().to_vec(),
+        });
+    }
+
+    let result = render_with_tables_and_assets(
         &ir,
         &primary.frame,
         &named_frames,
         &theme,
         options.theme.as_deref(),
+        &image_assets.assets,
     )
     .map_err(map_render_error)?;
     report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());

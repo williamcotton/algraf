@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
 use algraf_core::Severity;
-use algraf_driver::{data_dependencies, prepare_chart, PrepareOptions, SourceInput};
-use algraf_render::{render_interactive_with_tables, render_with_tables, Theme};
+use algraf_driver::{data_dependencies, prepare_chart, OsDriverIo, PrepareOptions, SourceInput};
+use algraf_render::{
+    load_image_assets_with_io, render_interactive_with_tables_and_assets_and_limits,
+    render_with_tables_and_assets, RenderLimits, Theme,
+};
 use algraf_syntax::ast::Root;
 use algraf_syntax::{parse, SourceExpr};
 use serde::{Deserialize, Serialize};
@@ -225,13 +228,37 @@ fn render_preview(
         .into_iter()
         .map(|table| (table.name, table.frame))
         .collect();
+    let image_assets =
+        load_image_assets_with_io(&ir, &frame, &named_frames, &source_input, None, &OsDriverIo);
+    if let Some(diagnostic) = image_assets
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.severity == Severity::Error)
+    {
+        return Err(diagnostic.message.clone());
+    }
 
     // The preview is script-safe by default; the interactive surface uses only
     // the vetted, non-user runtime (spec §21.18, §29.3).
     let result = if interactive {
-        render_interactive_with_tables(&ir, &frame, &named_frames, &theme, None)
+        render_interactive_with_tables_and_assets_and_limits(
+            &ir,
+            &frame,
+            &named_frames,
+            &theme,
+            None,
+            &image_assets.assets,
+            RenderLimits::default(),
+        )
     } else {
-        render_with_tables(&ir, &frame, &named_frames, &theme, None)
+        render_with_tables_and_assets(
+            &ir,
+            &frame,
+            &named_frames,
+            &theme,
+            None,
+            &image_assets.assets,
+        )
     }
     .map_err(|e| e.to_string())?;
     Ok((result.svg, result.metadata.to_json()))

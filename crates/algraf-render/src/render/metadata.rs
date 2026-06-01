@@ -304,7 +304,7 @@ fn collect_geometry_marks(
         else {
             continue;
         };
-        if geo.kind == GeometryKind::Point {
+        if matches!(geo.kind, GeometryKind::Point | GeometryKind::Image) {
             (x_px, y_px) =
                 crate::geom::adjusted_mark_position(geo, scaled, table, row, x_px, y_px, true);
         }
@@ -393,7 +393,11 @@ fn render_rows(table: &dyn Table, rows: Option<&[usize]>) -> Vec<usize> {
 fn supports_mark_metadata(kind: GeometryKind) -> bool {
     matches!(
         kind,
-        GeometryKind::Point | GeometryKind::Bar | GeometryKind::Rect | GeometryKind::Tile
+        GeometryKind::Point
+            | GeometryKind::Image
+            | GeometryKind::Bar
+            | GeometryKind::Rect
+            | GeometryKind::Tile
     )
 }
 

@@ -1,11 +1,15 @@
 //! End-to-end render tests: source + CSV to SVG (spec §18, §24, §27.1).
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use algraf_data::{read_csv_str, DataFrame, Table};
+use algraf_driver::SourceInput;
 use algraf_render::{
-    render, render_embedded, render_with_tables, render_with_tables_and_limits,
-    EmbeddedOutputFormat, EmbeddedRenderOptions, RenderLimits, RenderResult, Theme,
+    load_image_assets_with_io, render, render_embedded, render_with_tables,
+    render_with_tables_and_assets, render_with_tables_and_limits, EmbeddedOutputFormat,
+    EmbeddedRenderOptions, ImageAsset, ImageAssets, InMemoryDriverIo, RenderLimits, RenderResult,
+    Theme,
 };
 use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
@@ -46,6 +50,39 @@ fn render_result_with_tables(
     );
     let ir = analysis.ir.expect("ir");
     render_with_tables(&ir, &frame, &named, &Theme::minimal(), None).expect("render")
+}
+
+fn image_assets() -> ImageAssets {
+    let mut assets = ImageAssets::new();
+    assets.insert(ImageAsset {
+        source: "a.png".to_string(),
+        href: "data:image/png;base64,AAAA".to_string(),
+        intrinsic_width: 2.0,
+        intrinsic_height: 1.0,
+    });
+    assets.insert(ImageAsset {
+        source: "b.png".to_string(),
+        href: "data:image/png;base64,BBBB".to_string(),
+        intrinsic_width: 1.0,
+        intrinsic_height: 2.0,
+    });
+    assets
+}
+
+fn render_result_with_assets(source: &str, csv: &str, assets: &ImageAssets) -> RenderResult {
+    let frame = read_csv_str(csv).expect("csv").frame;
+    let parsed = parse(source);
+    let analysis = analyze(&parsed.syntax(), frame.schema());
+    let ir = analysis.ir.expect("ir");
+    render_with_tables_and_assets(
+        &ir,
+        &frame,
+        &HashMap::new(),
+        &Theme::minimal(),
+        None,
+        assets,
+    )
+    .expect("render")
 }
 
 #[test]
@@ -1674,6 +1711,71 @@ fn test_point_shape_setting_and_mapping_render_distinct_marks() {
     assert!(svg.contains("<circle"));
     assert!(svg.contains("<rect"));
     assert!(svg.contains("<path"));
+}
+
+#[test]
+fn test_image_mark_renders_embedded_assets_and_legend() {
+    let result = render_result_with_assets(
+        "Chart(data: \"p.csv\") { Space(x * y) { Image(src: logo, size: 20) } }",
+        "x,y,logo\n1,2,a.png\n2,3,b.png\n",
+        &image_assets(),
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-image"));
+    assert!(result.svg.contains("href=\"data:image/png;base64,AAAA\""));
+    assert!(result.svg.contains("href=\"data:image/png;base64,BBBB\""));
+    assert!(result.svg.contains("width=\"20\" height=\"10\""));
+    assert!(result.svg.contains("width=\"10\" height=\"20\""));
+
+    let legend = legend_layer(&result.svg);
+    assert!(legend.contains(">logo<"));
+    assert!(legend.contains(">a.png<"));
+    assert!(legend.contains(">b.png<"));
+    assert!(legend.contains("<image"));
+}
+
+#[test]
+fn test_constant_image_source_has_no_legend() {
+    let result = render_result_with_assets(
+        "Chart(data: \"p.csv\") { Space(x * y) { Image(src: \"a.png\", size: 12) } }",
+        "x,y\n1,2\n2,3\n",
+        &image_assets(),
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(
+        result
+            .svg
+            .matches("href=\"data:image/png;base64,AAAA\"")
+            .count(),
+        2
+    );
+    assert!(!result.svg.contains("algraf-legends"));
+}
+
+#[test]
+fn image_asset_loader_embeds_local_pngs() {
+    const PNG_HEADER_2X1: &[u8] = b"\x89PNG\r\n\x1a\n12345678\x00\x00\x00\x02\x00\x00\x00\x01";
+
+    let source = "Chart(data: \"p.csv\") { Space(x * y) { Image(src: logo) } }";
+    let frame = read_csv_str("x,y,logo\n1,2,logo.png\n").expect("csv").frame;
+    let parsed = parse(source);
+    let analysis = analyze(&parsed.syntax(), frame.schema());
+    let ir = analysis.ir.expect("ir");
+    let io = InMemoryDriverIo::default().with_file("logo.png", PNG_HEADER_2X1.to_vec());
+    let result = load_image_assets_with_io(
+        &ir,
+        &frame,
+        &HashMap::new(),
+        &SourceInput::Path(PathBuf::from("chart.ag")),
+        None,
+        &io,
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let asset = result.assets.get("logo.png").expect("asset");
+    assert_eq!(asset.intrinsic_width, 2.0);
+    assert_eq!(asset.intrinsic_height, 1.0);
+    assert!(asset.href.starts_with("data:image/png;base64,"));
 }
 
 /// The substring of `svg` covering only the `algraf-legends` layer.

@@ -589,7 +589,7 @@ pub(crate) fn render_legends(
             styled_text(sink, area.x, y, "start", &legend.title, &theme.legend_title);
         }
         match legend.kind {
-            LegendKind::Discrete => {
+            LegendKind::Discrete | LegendKind::Image => {
                 if !legend.title.is_empty() {
                     y += theme.legend_title.size + 6.0;
                 }
@@ -612,11 +612,29 @@ pub(crate) fn render_legends(
                     // that marker glyph so the legend matches the points; the
                     // glyph fills the same 12px box a plain square would occupy
                     // (spec §19.5).
-                    match legend.shapes.get(index) {
-                        Some(shape) => {
-                            emit_marker(sink, *shape, area.x + 6.0, y - 4.0, 6.0, &paint)
+                    if legend.kind == LegendKind::Image {
+                        if let Some(image) = legend.images.get(index) {
+                            let (width, height) = legend_image_size(
+                                image.intrinsic_width,
+                                image.intrinsic_height,
+                                LEGEND_IMAGE_SWATCH,
+                            );
+                            sink.image(
+                                &image.href,
+                                area.x + (LEGEND_IMAGE_SWATCH - width) / 2.0,
+                                y - 10.0 + (LEGEND_IMAGE_SWATCH - height) / 2.0,
+                                width,
+                                height,
+                                None,
+                            );
                         }
-                        None => sink.rect(area.x, y - 10.0, 12.0, 12.0, &paint),
+                    } else {
+                        match legend.shapes.get(index) {
+                            Some(shape) => {
+                                emit_marker(sink, *shape, area.x + 6.0, y - 4.0, 6.0, &paint)
+                            }
+                            None => sink.rect(area.x, y - 10.0, 12.0, 12.0, &paint),
+                        }
                     }
                     styled_text(sink, area.x + 18.0, y, "start", label, &theme.legend_text);
                     y += theme.legend_text.size + 6.0;
@@ -708,7 +726,7 @@ fn render_legend_compact(sink: &mut dyn MarkSink, legend: &Legend, x: f64, y: f6
         cursor += estimate_text_width(&legend.title, theme.legend_title.size) + 14.0;
     }
     match legend.kind {
-        LegendKind::Discrete => {
+        LegendKind::Discrete | LegendKind::Image => {
             for (index, (label, color)) in legend.entries.iter().enumerate() {
                 let stroke = match legend.stroke_entries.get(index) {
                     Some(s) => Stroke::Solid {
@@ -722,9 +740,29 @@ fn render_legend_compact(sink: &mut dyn MarkSink, legend: &Legend, x: f64, y: f6
                     stroke,
                     opacity: None,
                 };
-                match legend.shapes.get(index) {
-                    Some(shape) => emit_marker(sink, *shape, cursor + 6.0, y - 4.0, 6.0, &paint),
-                    None => sink.rect(cursor, y - 10.0, 12.0, 12.0, &paint),
+                if legend.kind == LegendKind::Image {
+                    if let Some(image) = legend.images.get(index) {
+                        let (width, height) = legend_image_size(
+                            image.intrinsic_width,
+                            image.intrinsic_height,
+                            LEGEND_IMAGE_SWATCH,
+                        );
+                        sink.image(
+                            &image.href,
+                            cursor + (LEGEND_IMAGE_SWATCH - width) / 2.0,
+                            y - 10.0 + (LEGEND_IMAGE_SWATCH - height) / 2.0,
+                            width,
+                            height,
+                            None,
+                        );
+                    }
+                } else {
+                    match legend.shapes.get(index) {
+                        Some(shape) => {
+                            emit_marker(sink, *shape, cursor + 6.0, y - 4.0, 6.0, &paint)
+                        }
+                        None => sink.rect(cursor, y - 10.0, 12.0, 12.0, &paint),
+                    }
                 }
                 cursor += 18.0;
                 styled_text(sink, cursor, y, "start", label, &theme.legend_text);
@@ -737,6 +775,16 @@ fn render_legend_compact(sink: &mut dyn MarkSink, legend: &Legend, x: f64, y: f6
         LegendKind::Width | LegendKind::Radius => {
             let _ = render_size_legend(sink, legend, cursor, y - 12.0, theme);
         }
+    }
+}
+
+const LEGEND_IMAGE_SWATCH: f64 = 12.0;
+
+fn legend_image_size(intrinsic_width: f64, intrinsic_height: f64, max_side: f64) -> (f64, f64) {
+    if intrinsic_width >= intrinsic_height {
+        (max_side, max_side * intrinsic_height / intrinsic_width)
+    } else {
+        (max_side * intrinsic_width / intrinsic_height, max_side)
     }
 }
 

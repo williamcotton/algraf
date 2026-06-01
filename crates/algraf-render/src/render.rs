@@ -17,6 +17,7 @@
 //!
 //! See [`backend`] for the seam itself.
 
+mod assets;
 mod backend;
 mod common;
 mod derived;
@@ -46,6 +47,7 @@ use backend::{RenderBackend, RenderScene, SvgBackend};
 use draw_list::DrawListBackend;
 use raster::RasterBackend;
 
+pub use assets::{load_image_assets_with_io, ImageAsset, ImageAssetLoadResult, ImageAssets};
 pub use draw_list::{DrawList, DrawOp, DrawRole, TextAnchor};
 pub use metadata::{
     InteractionAxes, InteractionAxis, InteractionChart, InteractionDomain, InteractionGroup,
@@ -122,12 +124,14 @@ pub fn render_with_tables(
     theme: &Theme,
     cli_theme_override: Option<&str>,
 ) -> Result<RenderResult, RenderError> {
+    let assets = ImageAssets::default();
     render_svg_with_tables(
         ir,
         primary,
         named_tables,
         theme,
         cli_theme_override,
+        &assets,
         false,
         RenderLimits::default(),
     )
@@ -141,12 +145,53 @@ pub fn render_with_tables_and_limits(
     cli_theme_override: Option<&str>,
     limits: RenderLimits,
 ) -> Result<RenderResult, RenderError> {
+    let assets = ImageAssets::default();
+    render_with_tables_and_assets_and_limits(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        &assets,
+        limits,
+    )
+}
+
+pub fn render_with_tables_and_assets(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    assets: &ImageAssets,
+) -> Result<RenderResult, RenderError> {
+    render_with_tables_and_assets_and_limits(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        assets,
+        RenderLimits::default(),
+    )
+}
+
+pub fn render_with_tables_and_assets_and_limits(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    assets: &ImageAssets,
+    limits: RenderLimits,
+) -> Result<RenderResult, RenderError> {
     render_svg_with_tables(
         ir,
         primary,
         named_tables,
         theme,
         cli_theme_override,
+        assets,
         false,
         limits,
     )
@@ -164,12 +209,15 @@ pub fn render_interactive(
     theme: &Theme,
     cli_theme_override: Option<&str>,
 ) -> Result<RenderResult, RenderError> {
+    let named_tables = HashMap::new();
+    let assets = ImageAssets::default();
     render_svg_with_tables(
         ir,
         primary,
-        &HashMap::new(),
+        &named_tables,
         theme,
         cli_theme_override,
+        &assets,
         true,
         RenderLimits::default(),
     )
@@ -183,12 +231,14 @@ pub fn render_interactive_with_tables(
     theme: &Theme,
     cli_theme_override: Option<&str>,
 ) -> Result<RenderResult, RenderError> {
+    let assets = ImageAssets::default();
     render_svg_with_tables(
         ir,
         primary,
         named_tables,
         theme,
         cli_theme_override,
+        &assets,
         true,
         RenderLimits::default(),
     )
@@ -202,23 +252,47 @@ pub fn render_interactive_with_tables_and_limits(
     cli_theme_override: Option<&str>,
     limits: RenderLimits,
 ) -> Result<RenderResult, RenderError> {
+    let assets = ImageAssets::default();
+    render_interactive_with_tables_and_assets_and_limits(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        &assets,
+        limits,
+    )
+}
+
+pub fn render_interactive_with_tables_and_assets_and_limits(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    assets: &ImageAssets,
+    limits: RenderLimits,
+) -> Result<RenderResult, RenderError> {
     render_svg_with_tables(
         ir,
         primary,
         named_tables,
         theme,
         cli_theme_override,
+        assets,
         true,
         limits,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_svg_with_tables(
     ir: &ChartIr,
     primary: &dyn Table,
     named_tables: &HashMap<String, DataFrame>,
     theme: &Theme,
     cli_theme_override: Option<&str>,
+    assets: &ImageAssets,
     interactive: bool,
     limits: RenderLimits,
 ) -> Result<RenderResult, RenderError> {
@@ -228,6 +302,7 @@ fn render_svg_with_tables(
         named_tables,
         theme,
         cli_theme_override,
+        assets,
         limits,
         SvgBackend { interactive },
     )?;
@@ -279,12 +354,34 @@ pub fn render_draw_list_with_tables_and_limits(
     cli_theme_override: Option<&str>,
     limits: RenderLimits,
 ) -> Result<DrawListResult, RenderError> {
+    let assets = ImageAssets::default();
+    render_draw_list_with_tables_and_assets_and_limits(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        &assets,
+        limits,
+    )
+}
+
+pub fn render_draw_list_with_tables_and_assets_and_limits(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    assets: &ImageAssets,
+    limits: RenderLimits,
+) -> Result<DrawListResult, RenderError> {
     let (draw_list, diagnostics, layout, metadata) = render_with_backend(
         ir,
         primary,
         named_tables,
         theme,
         cli_theme_override,
+        assets,
         limits,
         DrawListBackend,
     )?;
@@ -345,12 +442,37 @@ pub fn render_raster_with_tables_and_limits(
     limits: RenderLimits,
     scale: f32,
 ) -> Result<RasterResult, RenderError> {
+    let assets = ImageAssets::default();
+    render_raster_with_tables_and_assets_and_limits(
+        ir,
+        primary,
+        named_tables,
+        theme,
+        cli_theme_override,
+        &assets,
+        limits,
+        scale,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn render_raster_with_tables_and_assets_and_limits(
+    ir: &ChartIr,
+    primary: &dyn Table,
+    named_tables: &HashMap<String, DataFrame>,
+    theme: &Theme,
+    cli_theme_override: Option<&str>,
+    assets: &ImageAssets,
+    limits: RenderLimits,
+    scale: f32,
+) -> Result<RasterResult, RenderError> {
     let (image, diagnostics, layout, metadata) = render_with_backend(
         ir,
         primary,
         named_tables,
         theme,
         cli_theme_override,
+        assets,
         limits,
         RasterBackend { scale },
     )?;
@@ -365,12 +487,14 @@ pub fn render_raster_with_tables_and_limits(
 /// Drive the shared planning pipeline and hand the resulting scene to `backend`
 /// for emission (spec §24.6). Planning is identical across backends; only the
 /// emission step differs.
+#[allow(clippy::too_many_arguments)]
 fn render_with_backend<B: RenderBackend>(
     ir: &ChartIr,
     primary: &dyn Table,
     named_tables: &HashMap<String, DataFrame>,
     theme: &Theme,
     cli_theme_override: Option<&str>,
+    assets: &ImageAssets,
     limits: RenderLimits,
     backend: B,
 ) -> Result<(B::Output, Vec<Diagnostic>, Layout, InteractionMetadata), RenderError> {
@@ -383,6 +507,7 @@ fn render_with_backend<B: RenderBackend>(
         &derived,
         theme,
         cli_theme_override,
+        assets,
         &limits,
         &mut diagnostics,
     );
@@ -392,6 +517,7 @@ fn render_with_backend<B: RenderBackend>(
         legends: &plan.legends,
         panels: &plan.panels,
         theme,
+        assets,
         limits: &limits,
     };
     let metadata = metadata::build_interaction_metadata(&scene);

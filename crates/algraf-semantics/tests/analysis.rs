@@ -37,6 +37,7 @@ fn schema() -> Vec<ColumnDef> {
         col("lower", DataType::Float),
         col("upper", DataType::Float),
         col("group", DataType::String),
+        col("logo", DataType::String),
         col("geom", DataType::Geometry),
     ]
 }
@@ -808,6 +809,50 @@ fn test_missing_required_property() {
     assert!(has(
         "Chart(data: \"t.csv\") {\n  Space(time * value) {\n    HLine(stroke: \"red\")\n  }\n}",
         "E1205"
+    ));
+    // Image requires `src`.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Image(size: 18)\n  }\n}",
+        "E1205"
+    ));
+}
+
+#[test]
+fn test_image_geometry_accepts_local_sources_and_interactions() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {
+  Space(x * y) {
+    Image(src: logo, size: 24, alpha: 0.8, jitter: [0.1, 0.1], nudge: [1, 2], nudgeData: [0.1, 0.2], tooltip: [species])
+  }
+}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let geo = &ir.spaces[0].geometries[0];
+    assert_eq!(geo.kind, GeometryKind::Image);
+    assert!(geo
+        .mappings
+        .iter()
+        .any(|mapping| mapping.aesthetic == PropertyKey::Src));
+    assert_eq!(geo.interaction.tooltip.len(), 1);
+
+    clean("Chart(data: \"p.csv\") { Space(x * y) { Image(src: \"logos/team.png\") } }");
+}
+
+#[test]
+fn test_image_src_rejects_numeric_columns_and_urls() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(x * y) { Image(src: x) } }",
+        "E1204"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(x * y) { Image(src: \"https://example.com/logo.png\") } }",
+        "E1204"
     ));
 }
 

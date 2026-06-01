@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::io;
 use std::path::Path;
 
+use algraf_core::Severity;
 use algraf_driver::InMemorySchemaCache;
 use algraf_driver::{
     document_charts, driver_error_diagnostic, extract_chart_data_source, parse_source,
@@ -26,7 +27,7 @@ use algraf_editor_services::document::VirtualFile;
 use algraf_editor_services::service::{
     handle_feature_request, EditorFeatureRequest, EditorFeatureResponse,
 };
-use algraf_render::{render_with_tables, Theme};
+use algraf_render::{load_image_assets_with_io, render_with_tables_and_assets, Theme};
 use serde::{Deserialize, Serialize};
 
 /// Structured outcome of a render: the SVG (when one was produced) plus every
@@ -156,7 +157,27 @@ pub fn render_to_svg(source: &str, files: HashMap<String, Vec<u8>>) -> RenderOut
         None => Theme::default(),
     };
 
-    match render_with_tables(&ir, &loaded.frame, &named_frames, &theme, None) {
+    let image_assets =
+        load_image_assets_with_io(&ir, &loaded.frame, &named_frames, &input, None, &io);
+    let has_asset_error = image_assets
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == Severity::Error);
+    outcome
+        .diagnostics
+        .extend(image_assets.diagnostics.iter().cloned());
+    if has_asset_error {
+        return outcome;
+    }
+
+    match render_with_tables_and_assets(
+        &ir,
+        &loaded.frame,
+        &named_frames,
+        &theme,
+        None,
+        &image_assets.assets,
+    ) {
         Ok(result) => {
             outcome
                 .diagnostics

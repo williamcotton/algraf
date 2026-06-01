@@ -206,6 +206,7 @@ pub(crate) trait MarkSink {
     fn path(&mut self, d: &str, paint: &Paint);
     fn path_with_dash(&mut self, d: &str, paint: &Paint, dash: Option<Dash>);
     fn polygon(&mut self, points: &str, paint: &Paint);
+    fn image(&mut self, href: &str, x: f64, y: f64, width: f64, height: f64, opacity: Option<f64>);
     #[allow(clippy::too_many_arguments)]
     fn line(
         &mut self,
@@ -418,6 +419,22 @@ impl MarkSink for SvgSink<'_> {
         let mut s = format!("<polygon points=\"{points}\"");
         paint.write_svg(&mut s);
         self.finish_shape(s, "polygon");
+    }
+
+    fn image(&mut self, href: &str, x: f64, y: f64, width: f64, height: f64, opacity: Option<f64>) {
+        self.count += 1;
+        let mut s = format!(
+            "<image href=\"{}\" x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\"",
+            escape_attr(href),
+            num(x),
+            num(y),
+            num(width.max(0.0)),
+            num(height.max(0.0)),
+        );
+        if let Some(opacity) = opacity {
+            s.push_str(&format!(" opacity=\"{}\"", num(opacity)));
+        }
+        self.finish_shape(s, "image");
     }
 
     fn line(
@@ -704,6 +721,20 @@ impl MarkSink for DrawListSink {
             role: self.role,
             points: points.to_string(),
             paint: paint.clone(),
+            interaction,
+        });
+    }
+
+    fn image(&mut self, href: &str, x: f64, y: f64, width: f64, height: f64, opacity: Option<f64>) {
+        let interaction = self.current_mark();
+        self.ops.push(DrawOp::Image {
+            role: self.role,
+            href: href.to_string(),
+            x,
+            y,
+            width: width.max(0.0),
+            height: height.max(0.0),
+            opacity,
             interaction,
         });
     }

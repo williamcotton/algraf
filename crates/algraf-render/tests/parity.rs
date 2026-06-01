@@ -80,6 +80,7 @@ fn svg_primitive_counts(svg: &str) -> BTreeMap<&'static str, usize> {
         ("<circle", "circle"),
         ("<path", "path"),
         ("<polygon", "polygon"),
+        ("<image", "image"),
         ("<line", "line"),
         ("<text", "text"),
     ] {
@@ -103,6 +104,7 @@ fn draw_op_counts(list: &DrawList) -> BTreeMap<&'static str, usize> {
             DrawOp::Circle { .. } => "circle",
             DrawOp::Path { .. } => "path",
             DrawOp::Polygon { .. } => "polygon",
+            DrawOp::Image { .. } => "image",
             DrawOp::Line { .. } => "line",
             DrawOp::Text { .. } => "text",
         };
@@ -265,6 +267,7 @@ fn op_role(op: &DrawOp) -> DrawRole {
         | DrawOp::Circle { role, .. }
         | DrawOp::Path { role, .. }
         | DrawOp::Polygon { role, .. }
+        | DrawOp::Image { role, .. }
         | DrawOp::Line { role, .. }
         | DrawOp::Text { role, .. } => *role,
     }

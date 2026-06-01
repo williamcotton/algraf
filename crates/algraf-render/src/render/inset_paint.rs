@@ -71,6 +71,7 @@ fn paint_layers(
                     plot,
                     theme,
                     scales,
+                    assets: scene.assets,
                     limits: scene.limits,
                 },
                 diagnostics,

@@ -1,0 +1,13 @@
+Chart(data: "image_marks.csv", width: 760, height: 460,
+      title: "Example charts as image marks") {
+    Theme(name: "minimal")
+    Scale(axis: x, domain: [0.5, 3.5])
+    Scale(axis: y, domain: [2.3, 3.25])
+    Guide(axis: x, label: "Example")
+    Guide(axis: y, label: "Score")
+
+    Space(index * score) {
+        Image(src: snapshot, size: 96, tooltip: [name, snapshot])
+        Text(label: name, dy: -58, anchor: "middle", size: 9)
+    }
+}

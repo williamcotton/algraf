@@ -7,8 +7,9 @@ use std::collections::HashMap;
 
 use algraf_data::{read_csv_str, DataFrame, Table};
 use algraf_render::{
-    render, render_draw_list, render_draw_list_with_tables, Dash, DrawList, DrawOp, DrawRole, Fill,
-    Theme,
+    render, render_draw_list, render_draw_list_with_tables,
+    render_draw_list_with_tables_and_assets_and_limits, Dash, DrawList, DrawOp, DrawRole, Fill,
+    ImageAsset, ImageAssets, RenderLimits, Theme,
 };
 use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
@@ -38,6 +39,41 @@ fn draw_list_with_tables(source: &str, primary_csv: &str, tables: &[(&str, &str)
     render_draw_list_with_tables(&ir, &frame, &named, &Theme::minimal(), None)
         .expect("draw list")
         .draw_list
+}
+
+fn image_assets() -> ImageAssets {
+    let mut assets = ImageAssets::new();
+    assets.insert(ImageAsset {
+        source: "a.png".to_string(),
+        href: "data:image/png;base64,AAAA".to_string(),
+        intrinsic_width: 2.0,
+        intrinsic_height: 1.0,
+    });
+    assets.insert(ImageAsset {
+        source: "b.png".to_string(),
+        href: "data:image/png;base64,BBBB".to_string(),
+        intrinsic_width: 1.0,
+        intrinsic_height: 2.0,
+    });
+    assets
+}
+
+fn draw_list_with_assets(source: &str, csv: &str, assets: &ImageAssets) -> DrawList {
+    let frame = read_csv_str(csv).expect("csv").frame;
+    let parsed = parse(source);
+    let analysis = analyze(&parsed.syntax(), frame.schema());
+    let ir = analysis.ir.expect("ir");
+    render_draw_list_with_tables_and_assets_and_limits(
+        &ir,
+        &frame,
+        &HashMap::new(),
+        &Theme::minimal(),
+        None,
+        assets,
+        RenderLimits::default(),
+    )
+    .expect("draw list")
+    .draw_list
 }
 
 fn rects(list: &DrawList, role: DrawRole) -> Vec<(f64, f64, f64, f64, String)> {
@@ -145,6 +181,39 @@ fn draw_list_carries_chart_text() {
     assert_eq!(texts(&list, DrawRole::Title), vec!["Main".to_string()]);
     assert_eq!(texts(&list, DrawRole::Subtitle), vec!["Sub".to_string()]);
     assert_eq!(texts(&list, DrawRole::Caption), vec!["Source".to_string()]);
+}
+
+#[test]
+fn draw_list_records_image_marks_and_legend_swatches() {
+    let list = draw_list_with_assets(
+        "Chart(data: \"p.csv\") { Space(x * y) { Image(src: logo, size: 20) } }",
+        "x,y,logo\n1,2,a.png\n2,3,b.png\n",
+        &image_assets(),
+    );
+    let mark_images = list
+        .ops
+        .iter()
+        .filter_map(|op| match op {
+            DrawOp::Image {
+                role: DrawRole::Mark,
+                href,
+                width,
+                height,
+                ..
+            } => Some((href.as_str(), *width, *height)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(mark_images.len(), 2);
+    assert!(mark_images.contains(&("data:image/png;base64,AAAA", 20.0, 10.0)));
+    assert!(mark_images.contains(&("data:image/png;base64,BBBB", 10.0, 20.0)));
+    assert!(list.ops.iter().any(|op| matches!(
+        op,
+        DrawOp::Image {
+            role: DrawRole::Legend,
+            ..
+        }
+    )));
 }
 
 #[test]

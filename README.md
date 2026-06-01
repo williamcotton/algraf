@@ -23,8 +23,8 @@ cargo run -p algraf-cli -- render examples/scatter.ag --output /tmp/scatter.svg
 | ----------- | ------ | ----- |
 | `svg` (default) | Deterministic SVG. A `.png` `--output` rasterizes the SVG through a system-font wrapper. | The canonical, pixel-faithful path. |
 | `svg+json` | Deterministic SVG plus a `.meta.json` interaction sidecar. | For host runtimes that want tooltips, crosshairs, and highlights without scraping SVG. |
-| `draw-list` | A serializable JSON draw list of scene primitives (`clipStart`/`clipEnd`/`rect`/`circle`/`path`/`polygon`/`line`/`text`). | A complete scene description — one op per mark plus all guides — for Canvas/WebGL/raster clients. |
-| `raster` | A PNG drawn directly from the draw-list scene model with a CPU rasterizer (no SVG, no system fonts). | Honors `--png-scale`/`--png-dpi`. Renders shapes; **text glyphs are not drawn** (use the `svg`→PNG path for text). Deterministic per platform. |
+| `draw-list` | A serializable JSON draw list of scene primitives (`clipStart`/`clipEnd`/`rect`/`circle`/`path`/`polygon`/`image`/`line`/`text`). | A complete scene description — one op per mark plus all guides — for Canvas/WebGL/raster clients. |
+| `raster` | A PNG drawn directly from the draw-list scene model with a CPU rasterizer (no SVG, no system fonts). | Honors `--png-scale`/`--png-dpi`. Renders shapes; **text glyphs and image ops are not drawn** (use the `svg`→PNG path for text/images). Deterministic per platform. |
 
 ```bash
 cargo run -p algraf-cli -- render examples/scatter.ag --format svg       --output /tmp/scatter.svg
@@ -131,6 +131,31 @@ Chart(data: "sparkline.csv", width: 200, height: 50,
 
 
 ![sparkline](examples/sparkline.svg)
+
+## Image marks
+
+`Image` is point-like: it resolves the active space position for each row and
+draws the local image named by `src` centered on that point. A mapped `src`
+column produces an image legend, while each file is embedded into the SVG as a
+local `data:image/...` href.
+
+```algraf
+Chart(data: "image_marks.csv", width: 760, height: 460,
+      title: "Example charts as image marks") {
+    Theme(name: "minimal")
+    Scale(axis: x, domain: [0.5, 3.5])
+    Scale(axis: y, domain: [2.3, 3.25])
+    Guide(axis: x, label: "Example")
+    Guide(axis: y, label: "Score")
+
+    Space(index * score) {
+        Image(src: snapshot, size: 96, tooltip: [name, snapshot])
+        Text(label: name, dy: -58, anchor: "middle", size: 9)
+    }
+}
+```
+
+![image_marks](examples/image_marks.svg)
 
 ## Scatterplot with inset sparklines
 

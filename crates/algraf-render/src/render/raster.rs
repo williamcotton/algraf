@@ -215,6 +215,11 @@ fn draw_op(
                 unrepresentable(diagnostics, "polygon points");
             }
         }
+        DrawOp::Image { .. } => {
+            // The render-model raster backend intentionally avoids image
+            // decoders; the canonical SVG->PNG path renders embedded images.
+            unrepresentable(diagnostics, "image primitive");
+        }
         DrawOp::Path { d, paint, dash, .. } => match path_from_d(d) {
             Some(path) => fill_and_stroke(pixmap, transform, &path, paint, *dash, mask),
             None => unrepresentable(diagnostics, "path data"),

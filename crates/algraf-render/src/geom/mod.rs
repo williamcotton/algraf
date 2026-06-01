@@ -6,6 +6,7 @@ mod common;
 mod distribution;
 mod geo;
 mod graticule;
+mod image;
 mod line;
 mod point;
 mod polar;
@@ -22,7 +23,7 @@ use algraf_data::Table;
 use algraf_semantics::{GeometryIr, GeometryKind, ScaleIr};
 
 use crate::layout::Rect;
-use crate::render::RenderLimits;
+use crate::render::{ImageAssets, RenderLimits};
 use crate::sink::MarkSink;
 use crate::space::ScaledSpace;
 use crate::theme::Theme;
@@ -35,6 +36,7 @@ pub(crate) struct GeometryRenderContext<'a> {
     pub(crate) plot: Rect,
     pub(crate) theme: &'a Theme,
     pub(crate) scales: &'a [ScaleIr],
+    pub(crate) assets: &'a ImageAssets,
     pub(crate) limits: &'a RenderLimits,
 }
 
@@ -70,6 +72,7 @@ pub(crate) fn render(
         GeometryKind::Rug => annotation::render_rug(sink, geo, ctx),
         GeometryKind::Area => line::render_area(sink, geo, ctx),
         GeometryKind::Text => text::render(sink, geo, ctx),
+        GeometryKind::Image => image::render(sink, geo, ctx, diagnostics),
         GeometryKind::Segment => annotation::render_segment(sink, geo, ctx, diagnostics),
         GeometryKind::Geo => geo::render(sink, geo, ctx),
         GeometryKind::Graticule => graticule::render(sink, geo, ctx),
@@ -119,6 +122,7 @@ fn estimated_row_mark_count(kind: GeometryKind, ctx: &GeometryRenderContext<'_>)
             | GeometryKind::Rect
             | GeometryKind::HexBin
             | GeometryKind::Tile
+            | GeometryKind::Image
             | GeometryKind::Text
             | GeometryKind::Rug
             | GeometryKind::Segment

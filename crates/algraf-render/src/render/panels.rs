@@ -22,7 +22,7 @@ use super::legend::collect_legends;
 use super::panel_space::{build_cartesian_scaled, compute_layout};
 use super::row_table::RowSubsetTable;
 use super::spatial::{build_spatial_plan, is_spatial_space};
-use super::RenderLimits;
+use super::{ImageAssets, RenderLimits};
 
 pub(super) struct Panel<'t> {
     pub(super) table: &'t dyn Table,
@@ -60,12 +60,14 @@ pub(super) struct PanelSlot<'a> {
     pub(super) panel: Option<&'a Panel<'a>>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn build_render_plan<'t>(
     ir: &'t ChartIr,
     primary: &'t dyn Table,
     derived: &'t HashMap<String, DataFrame>,
     theme: &Theme,
     cli_theme_override: Option<&str>,
+    assets: &ImageAssets,
     limits: &RenderLimits,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> RenderPlan<'t> {
@@ -418,7 +420,7 @@ pub(super) fn build_render_plan<'t>(
 
     let mut scratch_diagnostics = Vec::new();
     let mut panels = build_panels_for_layout(&layout_without_legends, &mut scratch_diagnostics);
-    let mut legends = collect_legends(&panels, theme);
+    let mut legends = collect_legends(&panels, theme, assets);
     let layout = if legends.is_empty() {
         diagnostics.append(&mut scratch_diagnostics);
         layout_without_legends
@@ -438,7 +440,7 @@ pub(super) fn build_render_plan<'t>(
             theme,
         );
         panels = build_panels_for_layout(&layout, diagnostics);
-        legends = collect_legends(&panels, theme);
+        legends = collect_legends(&panels, theme, assets);
         layout
     };
 

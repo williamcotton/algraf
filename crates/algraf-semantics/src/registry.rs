@@ -768,6 +768,7 @@ pub fn geometry_example(name: &str) -> &'static str {
         "Rug" => "Rug(sides: \"b\")",
         "Area" => "Area(fill: \"#8fb3ff\")",
         "Text" => "Text(label: name, anchor: \"middle\")",
+        "Image" => "Image(src: logo, size: 22)",
         "Segment" => "Segment(x: x0, y: y0, xend: x1, yend: y1)",
         "Geo" => "Geo(fill: region)",
         "Graticule" => "Graticule(step: 10)",
@@ -1048,6 +1049,7 @@ const STROKE: &[Accept] = &[Accept::Column, Accept::Color];
 const ALPHA: &[Accept] = &[Accept::Number, Accept::Column];
 const SIZE: &[Accept] = &[Accept::Number, Accept::Column];
 const SHAPE: &[Accept] = &[Accept::Column, Accept::Str];
+const SRC: &[Accept] = &[Accept::Column, Accept::Str];
 const STROKE_WIDTH: &[Accept] = &[Accept::Number];
 const DASH: &[Accept] = &[Accept::Enum(&["solid", "dotted", "dashed"])];
 const INTERVAL_ORIENTATION: &[Accept] = &[Accept::Enum(&["vertical", "horizontal"])];
@@ -1323,6 +1325,15 @@ const TEXT: &[PropSpec] = &[
     opt(PropertyKey::TimeFormat, &[Accept::Str]),
 ];
 
+const IMAGE: &[PropSpec] = &[
+    req(PropertyKey::Src, SRC),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Size, SIZE),
+    opt(PropertyKey::Jitter, POSITION_ADJUST),
+    opt(PropertyKey::Nudge, POSITION_ADJUST),
+    opt(PropertyKey::NudgeData, POSITION_ADJUST),
+];
+
 const GEO: &[PropSpec] = &[
     opt(PropertyKey::Fill, FILL),
     opt(PropertyKey::Stroke, STROKE),
@@ -1373,6 +1384,7 @@ const GEOMETRIES: &[GeometryDef] = &[
     geo(GeometryKind::Rug, RUG),
     geo(GeometryKind::Area, AREA),
     geo(GeometryKind::Text, TEXT),
+    geo(GeometryKind::Image, IMAGE),
     geo(GeometryKind::Segment, SEGMENT),
     geo(GeometryKind::Geo, GEO),
     geo(GeometryKind::Graticule, GRATICULE),
@@ -1389,11 +1401,15 @@ pub const INTERACTION_PROPS: &[&str] = &["tooltip", "highlight"];
 ///
 /// Interaction metadata attaches to one filled mark per datum, so a per-mark
 /// accessible `<title>` and highlight group attach cleanly. The supported set is
-/// the per-datum filled marks: `Point`, `Bar`, `Rect`, and `Tile`.
+/// the per-datum filled marks: `Point`, `Image`, `Bar`, `Rect`, and `Tile`.
 pub fn supports_interaction(kind: GeometryKind) -> bool {
     matches!(
         kind,
-        GeometryKind::Point | GeometryKind::Bar | GeometryKind::Rect | GeometryKind::Tile
+        GeometryKind::Point
+            | GeometryKind::Image
+            | GeometryKind::Bar
+            | GeometryKind::Rect
+            | GeometryKind::Tile
     )
 }
 
@@ -1444,6 +1460,7 @@ pub fn geometry_doc(name: &str) -> &'static str {
         "Rug" => "Draws marginal tick marks for observations.",
         "Area" => "Draws a filled area from a baseline to y values.",
         "Text" => "Draws text labels in the inherited space.",
+        "Image" => "Draws one local image per row in the inherited space.",
         "Segment" => "Draws explicit line segments between endpoints.",
         "Geo" => "Draws geometry values in a spatial space.",
         "Graticule" => "Draws projected longitude/latitude grid lines in a spatial space.",
@@ -1462,6 +1479,7 @@ pub fn property_doc(name: &str) -> &'static str {
         "alpha" => "Opacity setting or data column mapping.",
         "size" => "Point or text size setting or data column mapping.",
         "shape" => "Point shape setting or data column mapping.",
+        "src" => "Local image source path or string column mapping.",
         "group" => "Series grouping column, independent from color aesthetics.",
         "layout" => "Bar collision layout: `\"identity\"`, `\"stack\"`, or `\"fill\"`.",
         "radius" => "Categorical column mapping selecting concentric rings for a polar radial bar chart (theta: \"y\").",

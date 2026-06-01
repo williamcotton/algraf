@@ -132,6 +132,7 @@ impl ColorSpec {
                 stroke_entries: Vec::new(),
                 sizes: Vec::new(),
                 shapes: Vec::new(),
+                images: Vec::new(),
             }),
             ColorSpec::Gradient {
                 min,
@@ -150,6 +151,7 @@ impl ColorSpec {
                     stroke_entries: Vec::new(),
                     sizes: Vec::new(),
                     shapes: Vec::new(),
+                    images: Vec::new(),
                     entries: ticks
                         .into_iter()
                         .enumerate()
@@ -175,6 +177,7 @@ impl ColorSpec {
                 stroke_entries: Vec::new(),
                 sizes: Vec::new(),
                 shapes: Vec::new(),
+                images: Vec::new(),
             }),
             _ => None,
         }
@@ -209,6 +212,9 @@ fn gradient_legend_ticks(min: f64, max: f64) -> Vec<f64> {
 /// shape for each swatch of a discrete legend whose column is also mapped to
 /// `shape`; the swatch is drawn as that glyph rather than a square so the legend
 /// matches the points (spec §19.5).
+///
+/// `images`, when non-empty, is aligned with `entries` and holds the embedded
+/// raster/SVG asset for each swatch of an image legend.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Legend {
     pub title: String,
@@ -217,12 +223,22 @@ pub struct Legend {
     pub stroke_entries: Vec<String>,
     pub sizes: Vec<f64>,
     pub shapes: Vec<crate::marker::MarkerShape>,
+    pub images: Vec<LegendImage>,
+}
+
+/// Embedded image data used by an image legend entry.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LegendImage {
+    pub href: String,
+    pub intrinsic_width: f64,
+    pub intrinsic_height: f64,
 }
 
 /// How a legend's entries should be rendered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LegendKind {
     Discrete,
+    Image,
     Continuous,
     /// A `strokeWidth` size legend: each swatch is a line of the mapped thickness.
     Width,
@@ -558,6 +574,7 @@ impl NumberSpec {
             stroke_entries: Vec::new(),
             sizes,
             shapes: Vec::new(),
+            images: Vec::new(),
         })
     }
 }

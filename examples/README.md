@@ -36,6 +36,7 @@ cargo run -p algraf-cli -- render examples/grouped_bar.ag --debug-layout --emit-
 | --- | --- | --- | --- |
 | `scatter.ag` | `penguins.csv` | `scatter.svg`, `scatter.png` | Cartesian scatter plot, categorical fill legend |
 | `line.ag` | `series.csv` | `line.svg`, `line.png` | Temporal x axis, multiple line series by stroke |
+| `image_marks.ag` | `image_marks.csv` | `image_marks.svg`, `image_marks.png` | Point-like image marks with mapped local image sources |
 | `grouped_bar.ag` | `financials.csv` | `grouped_bar.svg`, `grouped_bar.png` | Nested x bands for grouped/dodged bars |
 | `stacked_bar.ag` | `financials.csv` | `stacked_bar.svg`, `stacked_bar.png` | Stacked bar layout |
 | `fill_bar.ag` | `financials.csv` | `fill_bar.svg`, `fill_bar.png` | Normalized fill/proportion bar layout |

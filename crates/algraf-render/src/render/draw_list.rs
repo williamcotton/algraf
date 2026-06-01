@@ -149,6 +149,17 @@ pub enum DrawOp {
         paint: Paint,
         interaction: Option<crate::sink::MarkInteraction>,
     },
+    /// An embedded image.
+    Image {
+        role: DrawRole,
+        href: String,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        opacity: Option<f64>,
+        interaction: Option<crate::sink::MarkInteraction>,
+    },
     /// A single line segment.
     Line {
         role: DrawRole,
@@ -184,6 +195,7 @@ impl DrawOp {
             | DrawOp::Circle { role, .. }
             | DrawOp::Path { role, .. }
             | DrawOp::Polygon { role, .. }
+            | DrawOp::Image { role, .. }
             | DrawOp::Line { role, .. }
             | DrawOp::Text { role, .. } => *role,
         }
@@ -337,6 +349,32 @@ impl DrawOp {
                     json_string(points),
                 );
                 paint.write_json(out);
+                write_interaction_json(out, interaction);
+                out.push('}');
+            }
+            DrawOp::Image {
+                href,
+                x,
+                y,
+                width,
+                height,
+                opacity,
+                interaction,
+                ..
+            } => {
+                let _ = write!(
+                    out,
+                    "{{\"op\":\"image\",\"role\":\"{}\",\"href\":{},\"x\":{},\"y\":{},\"width\":{},\"height\":{}",
+                    role,
+                    json_string(href),
+                    num(*x),
+                    num(*y),
+                    num(*width),
+                    num(*height),
+                );
+                if let Some(opacity) = opacity {
+                    let _ = write!(out, ",\"opacity\":{}", num(*opacity));
+                }
                 write_interaction_json(out, interaction);
                 out.push('}');
             }

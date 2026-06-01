@@ -14,12 +14,13 @@ use algraf_data::{DataType, Format};
 use algraf_driver::{
     document_charts, driver_error_diagnostic, expand_variables, extract_data_source, load_schema,
     parse_variable_assignments, prepare_chart, prepare_chart_partial, DriverError, LoadContext,
-    PreparationReport, PrepareOptions, ReportPhase, SourceInput,
+    OsDriverIo, PreparationReport, PrepareOptions, ReportPhase, SourceInput,
 };
 use algraf_render::{
-    render_draw_list_with_tables_and_limits, render_interactive_with_tables_and_limits,
-    render_raster_with_tables_and_limits, render_with_tables_and_limits, svg_num, Layout, Rect,
-    RenderLimits, Theme,
+    load_image_assets_with_io, render_draw_list_with_tables_and_assets_and_limits,
+    render_interactive_with_tables_and_assets_and_limits,
+    render_raster_with_tables_and_assets_and_limits, render_with_tables_and_assets_and_limits,
+    svg_num, ImageAssets, Layout, Rect, RenderLimits, Theme,
 };
 use algraf_semantics::{
     analyze, AestheticMapping, ChartIr, ColumnRef, DataSourceIr, DeriveIr, FrameIr, GeometryIr,
@@ -490,6 +491,7 @@ struct RenderInputs {
     ir: ChartIr,
     frame: algraf_data::DataFrame,
     named_frames: HashMap<String, algraf_data::DataFrame>,
+    assets: ImageAssets,
     theme: Theme,
     cli_theme_override: Option<String>,
     report: PreparationReport,
@@ -508,6 +510,7 @@ fn render_chart_svg(
         ir,
         frame,
         named_frames,
+        assets,
         theme,
         cli_theme_override,
         mut report,
@@ -515,21 +518,23 @@ fn render_chart_svg(
 
     let limits = render_limits(args);
     let mut result = if args.interactive {
-        render_interactive_with_tables_and_limits(
+        render_interactive_with_tables_and_assets_and_limits(
             &ir,
             &frame,
             &named_frames,
             &theme,
             cli_theme_override.as_deref(),
+            &assets,
             limits,
         )
     } else {
-        render_with_tables_and_limits(
+        render_with_tables_and_assets_and_limits(
             &ir,
             &frame,
             &named_frames,
             &theme,
             cli_theme_override.as_deref(),
+            &assets,
             limits,
         )
     }
@@ -580,17 +585,19 @@ fn render_chart_draw_list(
         ir,
         frame,
         named_frames,
+        assets,
         theme,
         cli_theme_override,
         mut report,
     } = prepare_render_inputs(chart, args, input, source, label, multi)?;
 
-    let result = render_draw_list_with_tables_and_limits(
+    let result = render_draw_list_with_tables_and_assets_and_limits(
         &ir,
         &frame,
         &named_frames,
         &theme,
         cli_theme_override.as_deref(),
+        &assets,
         render_limits(args),
     )
     .map_err(|e| CliError::Internal(e.to_string()))?;
@@ -628,17 +635,19 @@ fn render_chart_raster(
         ir,
         frame,
         named_frames,
+        assets,
         theme,
         cli_theme_override,
         mut report,
     } = prepare_render_inputs(chart, args, input, source, label, multi)?;
 
-    let result = render_raster_with_tables_and_limits(
+    let result = render_raster_with_tables_and_assets_and_limits(
         &ir,
         &frame,
         &named_frames,
         &theme,
         cli_theme_override.as_deref(),
+        &assets,
         render_limits(args),
         png_options.scale(),
     )
@@ -764,10 +773,27 @@ fn prepare_render_inputs(
     };
     let cli_theme_override = args.theme.clone();
 
+    let image_assets = load_image_assets_with_io(
+        &ir,
+        &frame,
+        &named_frames,
+        input,
+        args.base_dir.as_deref(),
+        &OsDriverIo,
+    );
+    if !image_assets.diagnostics.is_empty() {
+        let mut asset_report = PreparationReport::new();
+        asset_report.extend(ReportPhase::Render, image_assets.diagnostics);
+        let asset_diags = asset_report.diagnostics();
+        eprint!("{}", diagnostics::render_human(source, label, &asset_diags));
+        return Err(CliError::Diagnostics);
+    }
+
     Ok(RenderInputs {
         ir,
         frame,
         named_frames,
+        assets: image_assets.assets,
         theme,
         cli_theme_override,
         report,

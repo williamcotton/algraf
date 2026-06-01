@@ -25,7 +25,7 @@ use algraf_semantics::ChartIr;
 
 use crate::aes::Legend;
 use crate::layout::Layout;
-use crate::render::RenderLimits;
+use crate::render::{ImageAssets, RenderLimits};
 use crate::theme::Theme;
 
 use super::document;
@@ -41,6 +41,7 @@ pub(super) struct RenderScene<'a> {
     pub(super) legends: &'a [Legend],
     pub(super) panels: &'a [Panel<'a>],
     pub(super) theme: &'a Theme,
+    pub(super) assets: &'a ImageAssets,
     pub(super) limits: &'a RenderLimits,
 }
 

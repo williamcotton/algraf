@@ -123,6 +123,7 @@ impl Analyzer<'_> {
 
         self.bar_dodge_hint(def, frame, coords, &mappings, &settings, span);
         self.check_polar_radius(def, coords, &mappings, span);
+        self.check_image_src(def, &mappings, &settings);
         self.check_text_time_format(def, &mappings, &mut settings);
 
         Some(GeometryIr {
@@ -491,6 +492,50 @@ impl Analyzer<'_> {
         }
     }
 
+    /// Validate the `Image(src: ...)` source surface (spec §14.x). Literal
+    /// values must be local file paths; mapped values must come from a stringy
+    /// column so render-time asset loading never treats numeric data as paths.
+    fn check_image_src(
+        &mut self,
+        def: &GeometryDef,
+        mappings: &[AestheticMapping],
+        settings: &[GeometrySetting],
+    ) {
+        if def.kind != GeometryKind::Image {
+            return;
+        }
+        if let Some(mapping) = mappings.iter().find(|m| m.aesthetic == PropertyKey::Src) {
+            if !matches!(
+                mapping.column.dtype,
+                DataType::String | DataType::Mixed | DataType::Unknown
+            ) {
+                self.diag(Diagnostic::error(
+                    codes::E1204,
+                    format!(
+                        "`src` expects a string column, but `{}` is {:?}",
+                        mapping.column.name, mapping.column.dtype
+                    ),
+                    mapping.span,
+                ));
+            }
+        }
+        if let Some(setting) = settings.iter().find(|s| s.name == PropertyKey::Src) {
+            let SettingValue::String(value) = &setting.value else {
+                return;
+            };
+            if is_url_like(value) {
+                self.diag(
+                    Diagnostic::error(
+                        codes::E1204,
+                        "`src` expects a local image path; URL-valued image sources are not supported",
+                        setting.span,
+                    )
+                    .with_help("use a chart-relative local path such as \"logos/team.png\""),
+                );
+            }
+        }
+    }
+
     /// Lower a `datetime("…")` / `date("…")` temporal literal to a numeric
     /// setting holding the UTC-equivalent instant in microseconds (spec §7.8,
     /// §10.3). Emits `E1017` for the wrong argument shape or unparseable contents.
@@ -651,6 +696,21 @@ fn is_css_color_name(name: &str) -> bool {
 
 pub(super) fn is_color_literal(value: &str) -> bool {
     is_hex_color(value) || is_css_color_name(value)
+}
+
+pub(crate) fn is_url_like(value: &str) -> bool {
+    let Some(colon) = value.find(':') else {
+        return false;
+    };
+    if colon == 1 && value.as_bytes()[0].is_ascii_alphabetic() {
+        return false;
+    }
+    let scheme = &value[..colon];
+    !scheme.is_empty()
+        && scheme.as_bytes()[0].is_ascii_alphabetic()
+        && scheme
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'.' | b'-'))
 }
 
 fn is_hex_color(value: &str) -> bool {

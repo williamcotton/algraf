@@ -4,9 +4,10 @@ use algraf_semantics::{
     ScaleTargetIr, SettingValue,
 };
 
-use crate::aes::{color_spec, number_spec, ColorSpec, Legend, LegendKind};
+use crate::aes::{color_spec, number_spec, ColorSpec, Legend, LegendImage, LegendKind};
 use crate::geom::{DEFAULT_FILL, DEFAULT_SIZE_RANGE, DEFAULT_STROKE_WIDTH_RANGE};
 use crate::marker::marker_for_index;
+use crate::render::ImageAssets;
 use crate::scale::categorical_domain;
 use crate::stats;
 use crate::theme::Theme;
@@ -16,12 +17,16 @@ use super::panels::{Panel, PlannedLayer};
 use super::row_table::RowSubsetTable;
 
 /// Collect deduplicated fill/stroke/size legends across all spaces (spec §19.5).
-pub(super) fn collect_legends(panels: &[Panel<'_>], theme: &Theme) -> Vec<Legend> {
+pub(super) fn collect_legends(
+    panels: &[Panel<'_>],
+    theme: &Theme,
+    assets: &ImageAssets,
+) -> Vec<Legend> {
     // Candidate legends paired with the aesthetic that produced them, so a
     // fill legend and a stroke legend over the same column can be merged below.
     let mut candidates: Vec<(PropertyKey, Legend)> = Vec::new();
     for panel in panels {
-        collect_panel_legend_candidates(&mut candidates, panel, theme);
+        collect_panel_legend_candidates(&mut candidates, panel, theme, assets);
     }
     merge_legends(candidates)
 }
@@ -30,6 +35,7 @@ fn collect_panel_legend_candidates(
     candidates: &mut Vec<(PropertyKey, Legend)>,
     panel: &Panel<'_>,
     theme: &Theme,
+    assets: &ImageAssets,
 ) {
     if !panel.guides.legend {
         return;
@@ -52,9 +58,10 @@ fn collect_panel_legend_candidates(
                 &panel.scales,
                 &panel.guides,
                 theme,
+                assets,
             ),
             PlannedLayer::Inset(inset) => {
-                collect_inset_legend_candidates(candidates, inset, theme);
+                collect_inset_legend_candidates(candidates, inset, theme, assets);
             }
         }
     }
@@ -64,13 +71,14 @@ fn collect_inset_legend_candidates(
     candidates: &mut Vec<(PropertyKey, Legend)>,
     inset: &PlannedInset<'_>,
     theme: &Theme,
+    assets: &ImageAssets,
 ) {
     if inset.scale_policy != InsetScalePolicyIr::Shared {
         return;
     }
     for instance in &inset.instances {
         for child_panel in &instance.child_panels {
-            collect_panel_legend_candidates(candidates, child_panel, theme);
+            collect_panel_legend_candidates(candidates, child_panel, theme, assets);
         }
     }
 }
@@ -84,6 +92,7 @@ fn collect_geometry_legend_candidates(
     scales: &[ScaleIr],
     guides: &algraf_semantics::GuideIr,
     theme: &Theme,
+    assets: &ImageAssets,
 ) {
     for aesthetic in [PropertyKey::Fill, PropertyKey::Stroke] {
         if aesthetic == PropertyKey::Fill && !guides.fill_legend {
@@ -146,6 +155,9 @@ fn collect_geometry_legend_candidates(
     if let Some(legend) = shape_legend(geo, table, scales) {
         push_candidate(candidates, PropertyKey::Shape, legend);
     }
+    if let Some(legend) = image_legend(geo, table, scales, assets) {
+        push_candidate(candidates, PropertyKey::Src, legend);
+    }
 }
 
 fn push_candidate(
@@ -188,6 +200,55 @@ fn shape_legend(geo: &GeometryIr, table: &dyn Table, scales: &[ScaleIr]) -> Opti
         stroke_entries: Vec::new(),
         sizes: Vec::new(),
         shapes,
+        images: Vec::new(),
+    })
+}
+
+/// Build an image legend for mapped `src` values. Constant image sources do not
+/// produce a legend, matching point-like constant aesthetics.
+fn image_legend(
+    geo: &GeometryIr,
+    table: &dyn Table,
+    scales: &[ScaleIr],
+    assets: &ImageAssets,
+) -> Option<Legend> {
+    if geo.kind != GeometryKind::Image {
+        return None;
+    }
+    let mapping = geo
+        .mappings
+        .iter()
+        .find(|m| m.aesthetic == PropertyKey::Src)?;
+    let categories = categorical_domain(table, &mapping.column.name);
+    if categories.is_empty() {
+        return None;
+    }
+    let mut entries = Vec::new();
+    let mut images = Vec::new();
+    for category in categories {
+        let Some(asset) = assets.get(&category) else {
+            continue;
+        };
+        entries.push((category.clone(), String::new()));
+        images.push(LegendImage {
+            href: asset.href.clone(),
+            intrinsic_width: asset.intrinsic_width,
+            intrinsic_height: asset.intrinsic_height,
+        });
+    }
+    if entries.is_empty() {
+        return None;
+    }
+    let title = scale_label(scales, "src")
+        .unwrap_or_else(|| crate::svg::display_label(&mapping.column.name));
+    Some(Legend {
+        title,
+        kind: LegendKind::Image,
+        entries,
+        stroke_entries: Vec::new(),
+        sizes: Vec::new(),
+        shapes: Vec::new(),
+        images,
     })
 }
 
@@ -261,7 +322,20 @@ fn scale_label(scales: &[ScaleIr], aesthetic: &str) -> Option<String> {
 fn merge_legends(candidates: Vec<(PropertyKey, Legend)>) -> Vec<Legend> {
     let mut out: Vec<Legend> = Vec::new();
     for (aesthetic, legend) in candidates {
-        let Some(existing) = out.iter_mut().find(|l| l.title == legend.title) else {
+        if legend.kind == LegendKind::Image {
+            if !out
+                .iter()
+                .any(|l| l.kind == LegendKind::Image && l.title == legend.title)
+            {
+                out.push(legend);
+            }
+            continue;
+        }
+
+        let Some(existing) = out
+            .iter_mut()
+            .find(|l| l.kind != LegendKind::Image && l.title == legend.title)
+        else {
             out.push(legend);
             continue;
         };
