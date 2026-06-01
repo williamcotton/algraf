@@ -16,7 +16,10 @@ use resvg::usvg::{Options as SvgOptions, Tree};
 use serde_json::Value;
 use tiny_skia::{Pixmap, Transform};
 
-use crate::{load_image_assets_with_io, render_with_tables_and_assets, Layout, RenderError, Theme};
+use crate::{
+    load_image_assets_with_io, render_interactive_with_tables_and_assets_and_limits,
+    render_with_tables_and_assets, Layout, RenderError, RenderLimits, Theme,
+};
 
 const DEFAULT_PNG_SCALE: f32 = 2.0;
 const CSS_DPI: f32 = 96.0;
@@ -46,6 +49,10 @@ pub struct EmbeddedRenderOptions {
     pub height: Option<u32>,
     pub theme: Option<String>,
     pub output_format: EmbeddedOutputFormat,
+    /// Embed Algraf's fixed interactive SVG runtime when rendering SVG output.
+    ///
+    /// This is ignored for PNG output; PNG continues to rasterize static SVG.
+    pub interactive: bool,
     pub strict: bool,
     pub base_dir: Option<PathBuf>,
     pub png_scale: f32,
@@ -61,6 +68,7 @@ impl Default for EmbeddedRenderOptions {
             height: None,
             theme: None,
             output_format: EmbeddedOutputFormat::Svg,
+            interactive: false,
             strict: false,
             base_dir: None,
             png_scale: DEFAULT_PNG_SCALE,
@@ -320,14 +328,26 @@ pub fn render_embedded_with_io(
         });
     }
 
-    let result = render_with_tables_and_assets(
-        &ir,
-        &primary.frame,
-        &named_frames,
-        &theme,
-        options.theme.as_deref(),
-        &image_assets.assets,
-    )
+    let result = if options.interactive && options.output_format == EmbeddedOutputFormat::Svg {
+        render_interactive_with_tables_and_assets_and_limits(
+            &ir,
+            &primary.frame,
+            &named_frames,
+            &theme,
+            options.theme.as_deref(),
+            &image_assets.assets,
+            RenderLimits::default(),
+        )
+    } else {
+        render_with_tables_and_assets(
+            &ir,
+            &primary.frame,
+            &named_frames,
+            &theme,
+            options.theme.as_deref(),
+            &image_assets.assets,
+        )
+    }
     .map_err(map_render_error)?;
     report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());
     let diagnostics = report.diagnostics();

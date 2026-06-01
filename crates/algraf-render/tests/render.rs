@@ -370,6 +370,48 @@ fn embedded_facade_renders_json_input_with_variables() {
 }
 
 #[test]
+fn embedded_facade_interactive_svg_embeds_runtime() {
+    let source = r#"Chart(data: input, width: 320, height: 220) {
+  Space(x * y) {
+    Point(tooltip: [g, y], highlight: g)
+  }
+}"#;
+    let input = br#"[{"x":1,"y":2,"g":"A"},{"x":3,"y":4,"g":"B"}]"#;
+    let static_result = render_embedded(
+        source,
+        input,
+        EmbeddedRenderOptions {
+            data_format: algraf_data::Format::Json,
+            ..EmbeddedRenderOptions::default()
+        },
+    )
+    .unwrap();
+    let interactive_result = render_embedded(
+        source,
+        input,
+        EmbeddedRenderOptions {
+            data_format: algraf_data::Format::Json,
+            interactive: true,
+            ..EmbeddedRenderOptions::default()
+        },
+    )
+    .unwrap();
+
+    let static_svg = static_result.svg().unwrap();
+    let interactive_svg = interactive_result.svg().unwrap();
+
+    assert!(!static_svg.contains("<script"), "{static_svg}");
+    assert!(static_svg.contains("<title>g: A\ny: 2</title>"));
+    assert!(interactive_svg.contains("<script"), "{interactive_svg}");
+    assert!(interactive_svg.contains("algraf-crosshair"), "{interactive_svg}");
+    assert!(interactive_svg.contains("<title>g: A\ny: 2</title>"));
+
+    let body_end = interactive_svg.find("<script").unwrap();
+    let static_body_end = static_svg.find("</svg>").unwrap();
+    assert_eq!(&interactive_svg[..body_end], &static_svg[..static_body_end]);
+}
+
+#[test]
 fn embedded_facade_returns_png_bytes() {
     let result = render_embedded(
         "Chart(data: input) { Space(x * y) { Point() } }",
@@ -384,6 +426,21 @@ fn embedded_facade_returns_png_bytes() {
 
     assert_eq!(result.content_type, "image/png");
     assert!(result.bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+
+    let interactive_result = render_embedded(
+        "Chart(data: input) { Space(x * y) { Point() } }",
+        b"x,y\n1,2\n",
+        EmbeddedRenderOptions {
+            output_format: EmbeddedOutputFormat::Png,
+            interactive: true,
+            png_scale: 1.0,
+            ..EmbeddedRenderOptions::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(interactive_result.content_type, "image/png");
+    assert_eq!(interactive_result.bytes, result.bytes);
 }
 
 #[test]

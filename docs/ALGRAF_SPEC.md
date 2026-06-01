@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.48.0
+Status: 0.49.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.48.0 specification.
+This working copy is the 0.49.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -8915,9 +8915,9 @@ frame helpers live outside the axis-training core
 
 an embedded rendering facade that accepts inline source, caller-provided bytes
 or `serde_json::Value`, explicit data format, optional variables, render options,
-and injected driver I/O; the facade MUST use the same driver preparation and
-`render_with_tables` execution path as CLI render and MUST NOT depend on
-`algraf-cli`
+an opt-in interactive SVG flag, and injected driver I/O; the facade MUST use the
+same driver preparation and render execution paths as CLI render and MUST NOT
+depend on `algraf-cli`
 
 The render crate is internally split along the planning/emission boundary of
 §24.6: planning modules resolve a render scene (derived tables, scales, layout,
@@ -10275,6 +10275,12 @@ Inline source uses a stable diagnostic label and resolves relative paths against
 the configured base directory, or the current working directory when no base
 directory is provided.
 
+Embedded rendering exposes an `interactive` render option for SVG output. When
+enabled, it MUST select the same fixed, audited runtime as CLI
+`--interactive` (§22.3) and MUST NOT accept script text, script URLs, callbacks,
+or runtime extensions from chart source or host configuration. The default MUST
+remain script-free. The option MUST NOT change PNG output.
+
 ### 29.3 SVG Injection
 
 All text labels are escaped.
@@ -10290,9 +10296,10 @@ attributes (§18.10).
 
 **Static SVG is script-free by default.** A `<script>` element MAY appear in the
 output only when interactive output is explicitly requested (CLI `--interactive`,
-spec §22.3; or the interactive LSP preview, §21.18). When it does, the embedded
-script is a single, fixed, audited runtime shipped by Algraf and identical across
-all charts: it reads the inert per-mark metadata (`<title>` tooltips and
+spec §22.3; the interactive LSP preview, §21.18; or an embedded host's
+interactive SVG render option, §29.2.1). When it does, the embedded script is a
+single, fixed, audited runtime shipped by Algraf and identical across all charts:
+it reads the inert per-mark metadata (`<title>` tooltips and
 `data-algraf-highlight` groups), plus the emitted plot rectangles and Cartesian
 axis tick labels, and implements tooltip-on-hover, highlight-on-hover, and
 crosshair value readouts. Chart source can never supply, extend, or parameterize
@@ -10367,6 +10374,11 @@ recognized but reserved; they do not enable runtime access in version 0.21.0.
 Interactive SVG ships in version 0.30.0 as opt-in *output* (CLI `--interactive`,
 spec §22.3/§29.3), not behind a source feature gate: it adds no gated syntax, so
 no `Algraf(features: [...])` declaration is required.
+
+Version 0.49.0 exposes the same opt-in interactive SVG output through the
+embedded rendering facade. This is still output selection, not source syntax;
+embedded callers enable it through render options, and no feature gate is
+required.
 
 Interaction sidecars ship in version 0.32.0 as opt-in output (`--metadata` or
 `--format svg+json`, spec §22.3/§24.6), not behind a source feature gate. They
@@ -10448,6 +10460,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.46.1 | [`V0_46_1_PLAN.md`](V0_46_1_PLAN.md) | Table-source spelling consistency | Implemented |
 | 0.47.0 | [`V0_47_PLAN.md`](V0_47_PLAN.md) | Explicit derived-table input sources | Implemented |
 | 0.48.0 | [`V0_48_PLAN.md`](V0_48_PLAN.md) | Editor hover parity for named tables and constructor-backed sources | Implemented |
+| 0.49.0 | [`V0_49_PLAN.md`](V0_49_PLAN.md) | Embedded host parity for interactive SVG output | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
