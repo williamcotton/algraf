@@ -85,6 +85,13 @@ fn test_document_table_and_bare_chart_formatting() {
 }
 
 #[test]
+fn test_derive_from_formatting() {
+    let source = "Chart(data:\"p.csv\"){Derive bins=Bin(value) Derive trend from bins=Smooth(bin_center,count)}";
+    let expected = "Chart(data: \"p.csv\") {\n    Derive bins = Bin(value)\n    Derive trend from bins = Smooth(bin_center, count)\n}\n";
+    assert_eq!(format(source), expected);
+}
+
+#[test]
 fn test_inset_formatting() {
     let source = "Chart(data:\"p.csv\"){Table mix=\"mix.csv\" Space(x*y){Inset(data:mix,match:[id=>parent.id],size:32){Space(value,coords:\"polar\",theta:\"y\"){Bar(fill:category,layout:\"fill\")}}}}";
     let formatted = format(source);

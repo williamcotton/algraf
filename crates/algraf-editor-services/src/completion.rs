@@ -16,6 +16,7 @@ pub enum CompletionContext {
         active_key: Option<String>,
     },
     ChartBody,
+    DeriveSource,
     SpaceArgs {
         active_key: Option<String>,
         last_kind: LastTokenKind,
@@ -102,6 +103,9 @@ pub fn completion_context(text: &str, offset: usize) -> CompletionContext {
 
     let active_key = active_arg_key(&tokens);
     let last_kind = last_token_kind(&tokens);
+    if in_derive_source_position(&tokens) {
+        return CompletionContext::DeriveSource;
+    }
     match call_name_stack.last().and_then(|name| name.as_deref()) {
         Some("Chart") => CompletionContext::ChartArgs { active_key },
         Some("Space") => CompletionContext::SpaceArgs {
@@ -219,6 +223,7 @@ pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Ve
             .iter()
             .map(|name| keyword(name, "Chart body item"))
             .collect(),
+        CompletionContext::DeriveSource => derived_table_items(state),
         CompletionContext::SpaceArgs {
             active_key,
             last_kind,
@@ -305,6 +310,27 @@ pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Ve
         }
         CompletionContext::Unknown => Vec::new(),
     }
+}
+
+fn in_derive_source_position(tokens: &[algraf_syntax::TokenWithSpan]) -> bool {
+    use algraf_syntax::TokenKind;
+    let Some(derive_index) = tokens
+        .iter()
+        .rposition(|token| matches!(&token.kind, TokenKind::Ident(name) if name == "Derive"))
+    else {
+        return false;
+    };
+    let segment = &tokens[derive_index..];
+    if segment
+        .iter()
+        .any(|token| matches!(token.kind, TokenKind::Equal))
+    {
+        return false;
+    }
+    matches!(
+        segment.get(2).map(|token| &token.kind),
+        Some(TokenKind::Ident(name)) if name == "from"
+    )
 }
 
 fn derived_table_items(state: &DocumentState) -> Vec<CompletionItem> {
@@ -885,6 +911,15 @@ mod tests {
         assert_eq!(
             completion_context(source, source.len()),
             CompletionContext::ChartBody
+        );
+    }
+
+    #[test]
+    fn derive_from_context_is_source_table_completion() {
+        let source = "Chart(data: \"p.csv\") {\n  Derive trend from ";
+        assert_eq!(
+            completion_context(source, source.len()),
+            CompletionContext::DeriveSource
         );
     }
 

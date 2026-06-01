@@ -1,7 +1,7 @@
 Chart(data: "samples.csv", width: 760, height: 500, title: "Binned 2D Regression Chain") {
     Theme(name: "minimal")
     Derive binned = Bin2D(x, y, bins: 10)
-    Derive trend = Smooth(x_center, y_center, method: "lm")
+    Derive trend from binned = Smooth(x_center, y_center, method: "lm")
 
     Space(x_center * y_center, data: binned) {
         Rect(xmin: x_start, xmax: x_end, ymin: y_start, ymax: y_end, fill: count, alpha: 0.6)

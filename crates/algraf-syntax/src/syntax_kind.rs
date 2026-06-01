@@ -53,6 +53,7 @@ pub enum SyntaxKind {
     SPACE_KW,
     INSET_KW,
     DERIVE_KW,
+    FROM_KW,
     SCALE_KW,
     GUIDE_KW,
     THEME_KW,

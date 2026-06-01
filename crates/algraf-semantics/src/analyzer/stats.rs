@@ -11,13 +11,12 @@ use algraf_syntax::node_span;
 use super::args::DupGuard;
 use super::context::{ActiveTable, Analyzer, ValueForm};
 use crate::ir::*;
-use crate::planning::{stat_output_names_for_source, stat_output_schema};
+use crate::planning::stat_output_schema;
 
 impl Analyzer<'_> {
     // --- Derive (spec §13.4) ---
 
     pub(super) fn resolve_chart_derives(&mut self, chart: &ChartBlock) -> Vec<DeriveIr> {
-        let primary_table = ActiveTable::from_schema(self.primary);
         let mut decls = Vec::new();
         let mut seen_names: HashMap<String, Span> = HashMap::new();
 
@@ -42,22 +41,21 @@ impl Analyzer<'_> {
             decls.push((name, derive));
         }
 
-        let mut producer_by_column: HashMap<String, usize> = HashMap::new();
-        for (index, (_, derive)) in decls.iter().enumerate() {
-            for output in derive_output_names(derive) {
-                producer_by_column.entry(output).or_insert(index);
-            }
-        }
-
+        let name_to_index: HashMap<String, usize> = decls
+            .iter()
+            .enumerate()
+            .map(|(index, (name, _))| (name.clone(), index))
+            .collect();
         let mut deps: Vec<HashSet<usize>> = vec![HashSet::new(); decls.len()];
         for (index, (_, derive)) in decls.iter().enumerate() {
-            for input in derive_input_names(derive) {
-                if primary_table.get(&input).is_some() {
-                    continue;
-                }
-                if let Some(&producer) = producer_by_column.get(&input) {
-                    deps[index].insert(producer);
-                }
+            let Some(source) = derive.source_name() else {
+                continue;
+            };
+            if self.table_names.contains(&source) {
+                continue;
+            }
+            if let Some(&producer) = name_to_index.get(&source) {
+                deps[index].insert(producer);
             }
         }
 
@@ -88,34 +86,55 @@ impl Analyzer<'_> {
 
             for index in ready {
                 pending.remove(&index);
-                let mut upstream: Vec<usize> = deps[index].iter().copied().collect();
-                upstream.sort_unstable();
-                let data = if upstream.is_empty() {
-                    SpaceDataRef::Primary
-                } else if upstream.len() == 1 {
-                    SpaceDataRef::Derived(decls[upstream[0]].0.clone())
-                } else {
-                    self.diag(Diagnostic::error(
-                        codes::E1404,
-                        "derived stat inputs must come from one upstream table",
-                        node_span(decls[index].1.syntax()),
-                    ));
-                    SpaceDataRef::Derived(decls[upstream[0]].0.clone())
+                let Some((data, table)) =
+                    self.derive_input_table(&decls[index].1, &name_to_index, &schemas)
+                else {
+                    resolved.insert(index);
+                    continue;
                 };
-                let upstream_schemas: Vec<&[ColumnDefIr]> = upstream
-                    .iter()
-                    .filter_map(|dep| schemas.get(dep).map(Vec::as_slice))
-                    .collect();
-                let table = ActiveTable::merged(self.primary, &upstream_schemas);
                 if let Some(ir) = self.derive(&decls[index].1, &table, data) {
                     schemas.insert(index, ir.output_schema.clone());
-                    resolved.insert(index);
                     out.push(ir);
                 }
+                resolved.insert(index);
             }
         }
 
         out
+    }
+
+    fn derive_input_table(
+        &mut self,
+        derive: &DeriveDecl,
+        name_to_index: &HashMap<String, usize>,
+        schemas: &HashMap<usize, Vec<ColumnDefIr>>,
+    ) -> Option<(SpaceDataRef, ActiveTable)> {
+        let Some(source) = derive.source_name() else {
+            return Some((
+                SpaceDataRef::Primary,
+                ActiveTable::from_schema(self.primary),
+            ));
+        };
+
+        if self.table_names.contains(&source) {
+            let table = self.table_active(&source);
+            return Some((SpaceDataRef::Table(source), table));
+        }
+
+        if let Some(index) = name_to_index.get(&source) {
+            let schema = schemas.get(index)?;
+            return Some((SpaceDataRef::Derived(source), ActiveTable::from_ir(schema)));
+        }
+
+        let span = derive
+            .source_name_span()
+            .unwrap_or_else(|| node_span(derive.syntax()));
+        self.diag(Diagnostic::error(
+            codes::E1103,
+            format!("unknown table `{source}`"),
+            span,
+        ));
+        None
     }
 
     fn derive(
@@ -2190,79 +2209,4 @@ fn parse_summary_reducer(value: &str) -> Option<SummaryReducerIr> {
         "mean_se" | "se" => Some(SummaryReducerIr::MeanSe),
         _ => None,
     }
-}
-
-pub(super) fn derive_output_names(derive: &DeriveDecl) -> Vec<String> {
-    let Some(stat) = derive.stat() else {
-        return Vec::new();
-    };
-    let stat_name = stat.name().unwrap_or_default();
-    if stat_name == "StepVertices" {
-        let mut names: Vec<String> = stat
-            .inputs()
-            .into_iter()
-            .filter_map(|input| match input {
-                AlgebraExpr::Name(name) => name.name(),
-                _ => None,
-            })
-            .take(2)
-            .collect();
-        names.push("step_group".into());
-        return names;
-    }
-    stat_output_names_for_source(&stat_name)
-}
-
-fn derive_input_names(derive: &DeriveDecl) -> Vec<String> {
-    let Some(stat) = derive.stat() else {
-        return Vec::new();
-    };
-    let mut names: Vec<String> = stat
-        .inputs()
-        .into_iter()
-        .filter_map(|input| match input {
-            AlgebraExpr::Name(name) => name.name(),
-            _ => None,
-        })
-        .collect();
-    if matches!(
-        stat.name().as_deref(),
-        Some("ContourLines" | "ContourBands" | "Summary2D" | "SummaryHex")
-    ) {
-        for arg in stat.args() {
-            if arg.key().as_deref() != Some("z") {
-                continue;
-            }
-            if let Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) = arg.value() {
-                if let Some(name) = name.name() {
-                    names.push(name);
-                }
-            }
-        }
-    }
-    if matches!(stat.name().as_deref(), Some("Summary" | "SummaryBin")) {
-        for arg in stat.args() {
-            if arg.key().as_deref() != Some("by") {
-                continue;
-            }
-            match arg.value() {
-                Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
-                    if let Some(name) = name.name() {
-                        names.push(name);
-                    }
-                }
-                Some(ValueExpr::Array(array)) => {
-                    for value in array.values() {
-                        if let ValueExpr::Algebra(AlgebraExpr::Name(name)) = value {
-                            if let Some(name) = name.name() {
-                                names.push(name);
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-    names
 }

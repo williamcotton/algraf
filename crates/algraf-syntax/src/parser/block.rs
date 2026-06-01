@@ -325,6 +325,14 @@ impl Parser {
             codes::E0010,
             "expected derived table name",
         );
+        if self.at_kw("from") {
+            self.bump_as(SyntaxKind::FROM_KW);
+            self.expect(
+                SyntaxKind::IDENT,
+                codes::E0010,
+                "expected input table name after `from`",
+            );
+        }
         self.expect(
             SyntaxKind::EQ,
             codes::E0016,

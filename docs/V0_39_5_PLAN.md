@@ -20,7 +20,7 @@ For example:
 ```text
 Chart(data: "samples.csv") {
     Derive binned = Bin2D(x, y, bins: 10)
-    Derive trend = Smooth(x_center, y_center, method: "lm")
+    Derive trend from binned = Smooth(x_center, y_center, method: "lm")
 
     Space(x_center * y_center, data: binned) {
         Rect(xmin: x_min, xmax: x_max, ymin: y_min, ymax: y_max)

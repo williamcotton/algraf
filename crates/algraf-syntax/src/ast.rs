@@ -49,6 +49,14 @@ fn first_token(node: &SyntaxNode, kind: SyntaxKind) -> Option<SyntaxToken> {
         .find(|t| t.kind() == kind)
 }
 
+fn token_span(token: SyntaxToken) -> Span {
+    let range = token.text_range();
+    Span::new(
+        u32::from(range.start()) as usize,
+        u32::from(range.end()) as usize,
+    )
+}
+
 // --- Root and chart -------------------------------------------------------
 
 ast_node!(
@@ -246,9 +254,40 @@ impl DeriveDecl {
         first_token(&self.syntax, SyntaxKind::IDENT).map(|t| t.text().to_string())
     }
 
+    /// The span of the derived table name token, excluding trivia.
+    pub fn name_span(&self) -> Option<Span> {
+        first_token(&self.syntax, SyntaxKind::IDENT).map(token_span)
+    }
+
+    /// The optional input table named by `Derive out from input = ...`.
+    pub fn source_name(&self) -> Option<String> {
+        self.source_name_token().map(|t| t.text().to_string())
+    }
+
+    /// The span of the optional `from` input table name.
+    pub fn source_name_span(&self) -> Option<Span> {
+        self.source_name_token().map(token_span)
+    }
+
     /// The statistical transform on the right of `=`.
     pub fn stat(&self) -> Option<StatCall> {
         self.syntax.children().find_map(StatCall::cast)
+    }
+
+    fn source_name_token(&self) -> Option<SyntaxToken> {
+        let mut saw_from = false;
+        for element in self.syntax.children_with_tokens() {
+            let Some(token) = element.into_token() else {
+                continue;
+            };
+            if saw_from && token.kind() == SyntaxKind::IDENT {
+                return Some(token);
+            }
+            if token.kind() == SyntaxKind::FROM_KW {
+                saw_from = true;
+            }
+        }
+        None
     }
 }
 

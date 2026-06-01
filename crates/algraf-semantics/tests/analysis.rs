@@ -391,7 +391,7 @@ fn test_cross_bar_sugar_lowers_to_rect_and_middle_segments() {
 #[test]
 fn test_chained_derived_table_resolution() {
     let analysis = analyze_source(
-        "Chart(data: \"d.csv\") {\n  Derive bins = Bin(value, bins: 4)\n  Derive trend = Smooth(bin_center, count, method: \"lm\")\n  Space(x * y, data: trend) { Line() }\n}",
+        "Chart(data: \"d.csv\") {\n  Derive bins = Bin(value, bins: 4)\n  Derive trend from bins = Smooth(bin_center, count, method: \"lm\")\n  Space(x * y, data: trend) { Line() }\n}",
         &schema(),
     );
     assert!(
@@ -410,9 +410,18 @@ fn test_chained_derived_table_resolution() {
 }
 
 #[test]
+fn test_derived_tables_do_not_inject_columns_without_from() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Derive bins = Bin(value, bins: 4)\n  Derive trend = Smooth(bin_center, count, method: \"lm\")\n  Space(x * y, data: trend) { Line() }\n}",
+        &schema(),
+    );
+    assert!(analysis.diagnostics.iter().any(|d| d.code == "E1101"));
+}
+
+#[test]
 fn test_derived_cycle_is_diagnostic() {
     assert!(has(
-        "Chart(data: \"d.csv\") {\n  Derive a = Bin(bin_center)\n  Derive b = Bin(count)\n  Space(value * amount) { Point() }\n}",
+        "Chart(data: \"d.csv\") {\n  Derive a from b = Bin(count)\n  Derive b from a = Bin(bin_center)\n  Space(value * amount) { Point() }\n}",
         "E1501"
     ));
 }
@@ -2226,6 +2235,27 @@ fn test_chart_without_args_uses_table_main() {
     let ir = analysis.ir.expect("ir");
     assert_eq!(ir.data_source, DataSourceIr::Table("main".into()));
     assert_eq!(ir.spaces[0].data, SpaceDataRef::Table("main".into()));
+}
+
+#[test]
+fn test_derive_from_named_table_uses_that_schema() {
+    let primary = vec![col("x", DataType::Float)];
+    let cities = vec![col("geom", DataType::Geometry)];
+    let analysis = analyze_tables(
+        "Chart(data: \"primary.csv\") {\n  Table cities = \"cities.csv\"\n  Derive centers from cities = Centroid(geom)\n  Space(geom, data: centers) { Geo() }\n}",
+        &primary,
+        &[("cities", cities)],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(
+        ir.derived_tables[0].data,
+        SpaceDataRef::Table("cities".into())
+    );
 }
 
 #[test]

@@ -1041,13 +1041,13 @@ Chart(data: "traffic_events.csv", width: 760, height: 430, title: "Average conve
 
 ## Chained derived tables
 
-A `Derive` can reference columns produced by an earlier derived table. Here
+A `Derive` can explicitly read from another derived table with `from`. Here
 `Smooth` fits a line over binned counts.
 
 ```algraf
 Chart(data: "distribution.csv", width: 760, height: 460, title: "Binned trend") {
     Derive bins = Bin(value, bins: 12)
-    Derive trend = Smooth(bin_center, count, method: "lm")
+    Derive trend from bins = Smooth(bin_center, count, method: "lm")
 
     Space(bin_center * count, data: bins) {
         Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count, fill: "#c7dcef")
@@ -1069,7 +1069,7 @@ A multi-stage statistical chaining chart that runs 2D density binning (`Bin2D`),
 Chart(data: "samples.csv", width: 760, height: 500, title: "Binned 2D Regression Chain") {
     Theme(name: "minimal")
     Derive binned = Bin2D(x, y, bins: 10)
-    Derive trend = Smooth(x_center, y_center, method: "lm")
+    Derive trend from binned = Smooth(x_center, y_center, method: "lm")
 
     Space(x_center * y_center, data: binned) {
         Rect(xmin: x_start, xmax: x_end, ymin: y_start, ymax: y_end, fill: count, alpha: 0.6)

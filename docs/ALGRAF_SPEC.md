@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.46.1
+Status: 0.47.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.46.1 specification.
+This working copy is the 0.47.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -832,6 +832,9 @@ top level and at the start of a chart-body item; like the other block keywords
 it is lexed as an identifier and retagged by the parser. A column literally
 named `Table` MUST be referenced with backticks.
 
+`from` is a contextual keyword only in `Derive name from table = ...` (spec
+§7.4). Outside that position, `from` is an ordinary plain identifier.
+
 `input` and `stdin` are contextual keywords only in `Chart(data: input)` and
 `Chart(data: stdin)`.
 
@@ -1278,7 +1281,8 @@ Chart(data: "timeseries.csv") {
 ### 7.4 Derive Declaration
 
 ```ebnf
-DeriveDecl     ::= "Derive" Ident "=" StatCall
+DeriveDecl     ::= "Derive" Ident DeriveSource? "=" StatCall
+DeriveSource   ::= "from" Ident
 StatCall       ::= Ident "(" StatInput? StatArgs? ")"
 StatInput      ::= Algebra
 StatArgs       ::= "," Arg ("," Arg)* ","?
@@ -1290,6 +1294,10 @@ The derived table name MUST be unique among derived tables.
 
 The derived table name MUST NOT conflict with reserved keywords.
 
+Since version 0.47.0, a `Derive` MAY include `from name` before `=`. The `name`
+MUST resolve to a chart-scoped named table or derived table. If omitted, the
+stat reads the chart's primary table.
+
 The stat call name is PascalCase.
 
 Version 0.1 MUST support `Bin`.
@@ -1298,6 +1306,7 @@ Example:
 
 ```ag
 Derive bins = Bin(value, bins: 25)
+Derive trend from bins = Smooth(bin_center, count, method: "lm")
 ```
 
 #### 7.4.1 Table Declaration
@@ -1991,7 +2000,9 @@ In `Chart(data: main)`, `main` is a visible `Table` reference.
 
 In `Space(x * y)`, `x` and `y` are column references.
 
-In `Derive bins = Bin(value, bins: 25)`, `bins` is a derived table name and `value` is a column reference in the active input table.
+In `Derive bins = Bin(value, bins: 25)`, `bins` is a derived table name and `value` is a column reference in the chart's primary table.
+
+In `Derive trend from bins = Smooth(bin_center, count)`, `trend` is a derived table name, `bins` is a derived-table source reference, and `bin_center` and `count` are column references in `bins`.
 
 In `Space(bin_start * count, data: bins)`, `bins` is a derived table reference, while `bin_start` and `count` are column references in that derived table.
 
@@ -2516,13 +2527,14 @@ Derived tables MUST have schemas.
 
 Derived table schemas MUST be available to semantic analysis after the stat declaration is validated.
 
-Derived table schemas MUST be available to LSP completions inside `Space(..., data: derived_name)` blocks.
+Derived table schemas MUST be available to LSP completions inside
+`Space(..., data: derived_name)` blocks and after `Derive name from `.
 
 Derived table schemas MUST be available to LSP hover on the `Derive` table name
-and on `data: derived_name` references. The hover MUST identify the producer
-stat and list the output columns and types when semantic analysis has a valid
-schema. If analysis is incomplete or invalid, hover MUST NOT invent an output
-schema.
+and on `Derive name from derived_name` or `data: derived_name` references. The
+hover MUST identify the producer stat and list the output columns and types
+when semantic analysis has a valid schema. If analysis is incomplete or invalid,
+hover MUST NOT invent an output schema.
 
 Derived tables MAY be lazily computed by the renderer.
 
@@ -2542,26 +2554,33 @@ Derived table names MUST NOT shadow the primary data source.
 
 Derived table columns are referenced like ordinary columns inside spaces bound to that derived table.
 
-In version 0.3.0, a derived declaration MAY reference columns produced by
-another derived declaration in the same chart.
+Since version 0.47.0, a derived declaration MAY read from a named table or
+another derived table in the same chart by spelling `from name` before `=`.
+
+If `from name` is omitted, the derived declaration MUST read from the chart's
+primary table.
+
+The stat input expressions inside a `Derive` MUST resolve only against the
+declared input table. Derived-table columns MUST NOT be injected into chart
+scope or into another `Derive` merely because their names match.
 
 The analyzer MUST build a dependency graph between derived declarations from
-their column inputs and output schemas.
+explicit `from` references.
 
 The graph resolution order MUST be deterministic.
 
 If a cycle exists between derived declarations, the analyzer MUST emit `E1501`
 and MUST NOT loop.
 
-If a derived declaration references no source column and no upstream derived
-output column, the analyzer MUST emit the ordinary unknown-column diagnostic
-`E1101`.
+If a derived declaration references a column absent from its active input table,
+the analyzer MUST emit the ordinary unknown-column diagnostic `E1101`.
 
 Example:
 
 ```ag
 Chart(data: "distribution.csv") {
     Derive bins = Bin(value, bins: 25)
+    Derive trend from bins = Smooth(bin_center, count, method: "lm")
 
     Space(bin_start * count, data: bins) {
         Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count)
@@ -3047,6 +3066,7 @@ pub enum InsetItem {
 ```rust
 pub struct DeriveDecl {
     pub name: Spanned<String>,
+    pub source: Option<Spanned<String>>,
     pub stat: Spanned<StatCall>,
 }
 ```
@@ -3425,6 +3445,8 @@ expect `Derive`
 
 expect derived table name identifier
 
+if `from` is present, expect input table name identifier
+
 expect `=`
 
 parse stat call
@@ -3765,6 +3787,7 @@ references, size settings, and type compatibility before rendering.
 ```rust
 pub struct DeriveIr {
     pub name: String,
+    pub data: SpaceDataRef,
     pub stat: StatCallIr,
     pub output_schema: Vec<ColumnDef>,
     pub span: Span,
@@ -3874,13 +3897,20 @@ Version 0.1 MUST support `StatKind::Bin` for explicit `Derive` declarations.
 
 Other stat kinds MAY be exposed through high-level geometries before they are exposed through `Derive`.
 
-Derived table IR MUST be ordered by source order.
+Derived table IR MUST be ordered so every explicit derived dependency appears
+before the derived table that reads from it. When no dependency ordering is
+needed, source order MUST be preserved.
 
 Derived table IR MUST be validated before spaces that reference derived data are validated.
 
 Derived table names MUST be available to later `Derive` declarations and `Space` blocks.
 
-Forward references to derived tables MAY be rejected in version 0.1.
+`Derive name from source = ...` MUST set `DeriveIr.data` to `Table(source)` for
+a named table source or `Derived(source)` for a derived source. A `Derive`
+without `from` MUST set `DeriveIr.data` to `Primary`.
+
+Forward references through `from` MAY be accepted if the analyzer still emits a
+deterministic acyclic order.
 
 ### 13.5 Frame IR
 
@@ -4182,8 +4212,9 @@ Recommended phases:
 2. Extract chart data source.
 3. Resolve data source path.
 4. Load or infer schema.
-5. Build initial symbol table.
-6. Resolve and validate `Derive` declarations.
+5. Build initial symbol table, including visible `Table` declarations.
+6. Resolve and validate `Derive` declarations and their explicit `from`
+   dependencies.
 7. Add derived table schemas to the symbol table.
 8. Resolve space data bindings.
 9. Resolve algebra identifiers against each space's active table.
@@ -5643,13 +5674,19 @@ Syntax:
 
 ```ag
 Derive bins = Bin(value, bins: 25)
+Derive trend from bins = Smooth(bin_center, count)
 ```
 
 The left-hand identifier is the derived table name.
 
+The optional `from` identifier is the active input table for the stat call. It
+MUST name a visible `Table` or derived table. When omitted, the stat reads the
+chart's primary table.
+
 The right-hand side is a stat call.
 
-The first positional expression is the stat input.
+The first positional expression is the stat input, resolved against the active
+input table.
 
 Named arguments configure the stat.
 
@@ -5661,11 +5698,11 @@ Derived stat declarations MUST produce an output schema.
 
 The output schema MUST be available before spaces using `data: bins` are analyzed.
 
-In version 0.3.0, derived stat declarations MAY depend on derived tables in
-the same chart, subject to the acyclic dependency rules in §10.6.
+Since version 0.47.0, derived stat declarations MAY depend on derived tables in
+the same chart only through explicit `from` references, subject to the acyclic
+dependency rules in §10.6.
 
-When no upstream dependency exists, derived stats read from the primary data
-table.
+When no `from` source exists, derived stats read from the primary data table.
 
 Computed stat variables are ordinary named output columns on derived tables.
 Algraf MUST NOT expose an `after_stat(...)` expression language in version
@@ -8113,7 +8150,8 @@ types MUST be labeled provisional in the hover text or associated analysis
 state.
 
 Derived-table hover shows the table name, producer stat, and output schema for
-`Derive` names and `data: derived_name` references. Column hover inside
+`Derive` names, `Derive name from derived_name` references, and
+`data: derived_name` references. Column hover inside
 `Space(..., data: derived_name)` MUST resolve against that derived table's
 schema, not the primary source schema.
 
@@ -10389,6 +10427,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.45.0 | [`V0_45_PLAN.md`](V0_45_PLAN.md) | Inset planning/emission separation | Implemented |
 | 0.46.0 | [`V0_46_PLAN.md`](V0_46_PLAN.md) | Physical orientation migration and local image marks | Implemented |
 | 0.46.1 | [`V0_46_1_PLAN.md`](V0_46_1_PLAN.md) | Table-source spelling consistency | Implemented |
+| 0.47.0 | [`V0_47_PLAN.md`](V0_47_PLAN.md) | Explicit derived-table input sources | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
@@ -10626,7 +10665,8 @@ InsetItem      ::= SpaceBlock
                  | ThemeDecl
                  | ErrorItem
 
-DeriveDecl     ::= "Derive" Ident "=" StatCall
+DeriveDecl     ::= "Derive" Ident DeriveSource? "=" StatCall
+DeriveSource   ::= "from" Ident
 StatCall       ::= Ident "(" StatInput? StatArgs? ")"
 StatInput      ::= Algebra
 StatArgs       ::= "," Arg ("," Arg)* ","?
@@ -10979,12 +11019,17 @@ impl Parser {
     fn parse_derive_decl(&mut self) -> Option<Spanned<DeriveDecl>> {
         let start = self.expect_ident_named("Derive")?;
         let name = self.expect_identifier("expected derived table name");
+        let source = if self.eat_ident_named("from") {
+            Some(self.expect_identifier("expected input table name after `from`"))
+        } else {
+            None
+        };
         self.expect_recover(TokenKind::Equal, "expected '=' after derived table name");
         let stat = self.parse_stat_call();
         let end = stat.span.clone();
 
         Some(Spanned {
-            node: DeriveDecl { name, stat },
+            node: DeriveDecl { name, source, stat },
             span: span_from(start, end),
         })
     }
@@ -11043,6 +11088,10 @@ suggest `Derive`, `Space`, `Scale`, `Guide`, `Theme`, `Layout`.
 After `Derive `:
 
 suggest a derived table name snippet.
+
+After `Derive name from `:
+
+suggest chart-scoped named and derived table names.
 
 After `Derive name = `:
 

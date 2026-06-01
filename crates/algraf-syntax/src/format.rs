@@ -279,8 +279,12 @@ impl Printer {
         let node = derive.syntax();
         self.emit_standalone(first_code(node));
         let name = derive.name().unwrap_or_default();
+        let source = derive
+            .source_name()
+            .map(|name| format!(" from {name}"))
+            .unwrap_or_default();
         let stat = derive.stat().map(|s| render_stat(&s)).unwrap_or_default();
-        self.line(&format!("Derive {name} = {stat}"));
+        self.line(&format!("Derive {name}{source} = {stat}"));
         self.append_trailing(last_code(node));
     }
 
@@ -450,15 +454,13 @@ fn render_algebra(expr: &AlgebraExpr) -> String {
 
 fn render_stat(stat: &StatCall) -> String {
     let name = stat.name().unwrap_or_default();
-    let args = stat.args();
-    let mut inner = String::new();
-    if let Some(input) = stat.input() {
-        inner.push_str(&render_algebra(&input));
-        if !args.is_empty() {
-            inner.push_str(", ");
-        }
-    }
-    inner.push_str(&inline_args(&args));
+    let mut pieces: Vec<String> = stat
+        .inputs()
+        .into_iter()
+        .map(|input| render_algebra(&input))
+        .collect();
+    pieces.extend(stat.args().into_iter().map(|arg| render_arg(&arg)));
+    let inner = pieces.join(", ");
     format!("{name}({inner})")
 }
 

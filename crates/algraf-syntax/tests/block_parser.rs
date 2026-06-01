@@ -221,6 +221,7 @@ fn test_derive_declaration() {
         panic!("expected derive");
     };
     assert_eq!(derive.name().as_deref(), Some("bins"));
+    assert_eq!(derive.source_name(), None);
     let stat = derive.stat().unwrap();
     assert_eq!(stat.name().as_deref(), Some("Bin"));
     assert!(stat.input().is_some()); // `value`
@@ -235,6 +236,23 @@ fn test_derive_declaration() {
         .into_iter()
         .find(|a| a.key().as_deref() == Some("data"));
     assert!(data_arg.is_some());
+}
+
+#[test]
+fn test_derive_from_declaration() {
+    let source = r#"Chart(data: "d.csv") {
+    Derive bins = Bin(value, bins: 25)
+    Derive trend from bins = Smooth(bin_center, count)
+}"#;
+    no_errors(source);
+    let chart = root(source).chart().unwrap();
+    let ChartItem::Derive(derive) = &chart.items()[1] else {
+        panic!("expected derive");
+    };
+    assert_eq!(derive.name().as_deref(), Some("trend"));
+    assert_eq!(derive.source_name().as_deref(), Some("bins"));
+    assert!(derive.source_name_span().is_some());
+    assert_eq!(derive.stat().unwrap().name().as_deref(), Some("Smooth"));
 }
 
 #[test]

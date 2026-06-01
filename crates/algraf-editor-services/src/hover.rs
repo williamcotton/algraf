@@ -252,7 +252,7 @@ fn derived_hover_target_at(text: &str, offset: usize) -> Option<DerivedHoverTarg
             let Some(decl) = DeriveDecl::cast(node.clone()) else {
                 continue;
             };
-            let (Some(name), Some(span)) = (decl.name(), derive_name_span(&node)) else {
+            let (Some(name), Some(span)) = (decl.name(), decl.name_span()) else {
                 continue;
             };
             if span.contains(offset) {
@@ -261,6 +261,16 @@ fn derived_hover_target_at(text: &str, offset: usize) -> Option<DerivedHoverTarg
                     name,
                     context: DerivedHoverContext::Declaration,
                 });
+            }
+            if let (Some(source), Some(source_span)) = (decl.source_name(), decl.source_name_span())
+            {
+                if source_span.contains(offset) && producers.contains_key(&source) {
+                    return Some(DerivedHoverTarget {
+                        producer: producers.get(&source).and_then(Clone::clone),
+                        name: source,
+                        context: DerivedHoverContext::Reference,
+                    });
+                }
             }
         }
 
@@ -282,19 +292,6 @@ fn derived_hover_target_at(text: &str, offset: usize) -> Option<DerivedHoverTarg
         }
     }
     None
-}
-
-fn derive_name_span(node: &SyntaxNode) -> Option<Span> {
-    node.children_with_tokens()
-        .filter_map(|element| element.into_token())
-        .find(|token| token.kind() == SyntaxKind::IDENT)
-        .map(|token| {
-            let range = token.text_range();
-            Span::new(
-                u32::from(range.start()) as usize,
-                u32::from(range.end()) as usize,
-            )
-        })
 }
 
 fn is_data_arg_value(node: &SyntaxNode) -> bool {
@@ -1036,7 +1033,7 @@ mod tests {
 
     #[test]
     fn hovers_derived_table_reference_and_columns() {
-        let text = "Chart(data: \"p.csv\") {\n  Derive binned = Bin2D(x, y, bins: 10)\n  Derive trend = Smooth(x_center, y_center, method: \"lm\")\n  Space(x * y, data: trend) { Line() }\n  Space(x_center * y_center, data: binned) { Point() }\n}";
+        let text = "Chart(data: \"p.csv\") {\n  Derive binned = Bin2D(x, y, bins: 10)\n  Derive trend from binned = Smooth(x_center, y_center, method: \"lm\")\n  Space(x * y, data: trend) { Line() }\n  Space(x_center * y_center, data: binned) { Point() }\n}";
         let state = analyzed_state(
             text,
             vec![

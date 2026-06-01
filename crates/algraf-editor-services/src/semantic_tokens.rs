@@ -89,6 +89,9 @@ fn semantic_token_type(tokens: &[algraf_syntax::TokenWithSpan], idx: usize) -> O
         TokenKind::Ident(name) if name == "let" && next_significant_is_ident(tokens, idx) => {
             Some(token_type_index(SemanticTokenType::KEYWORD))
         }
+        TokenKind::Ident(name) if name == "from" && is_derive_from_keyword(tokens, idx) => {
+            Some(token_type_index(SemanticTokenType::KEYWORD))
+        }
         TokenKind::Ident(_) if next_significant_is_colon_all(tokens, idx) => {
             Some(token_type_index(SemanticTokenType::PROPERTY))
         }
@@ -109,6 +112,24 @@ fn semantic_token_type(tokens: &[algraf_syntax::TokenWithSpan], idx: usize) -> O
         TokenKind::Comment(_) => Some(token_type_index(SemanticTokenType::COMMENT)),
         _ => None,
     }
+}
+
+fn is_derive_from_keyword(tokens: &[algraf_syntax::TokenWithSpan], idx: usize) -> bool {
+    use algraf_syntax::TokenKind;
+    let mut previous = tokens[..idx]
+        .iter()
+        .rev()
+        .filter(|token| !token.kind.is_trivia());
+    let Some(table_name) = previous.next() else {
+        return false;
+    };
+    if !matches!(table_name.kind, TokenKind::Ident(_)) {
+        return false;
+    }
+    matches!(
+        previous.next().map(|token| &token.kind),
+        Some(TokenKind::Ident(name)) if name == "Derive"
+    )
 }
 
 fn token_type_index(token_type: SemanticTokenType) -> u32 {

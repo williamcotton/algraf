@@ -113,17 +113,17 @@ Acceptance criteria:
 Status: Implemented. Derived declarations are dependency-resolved and may feed
 later derived stats.
 
-Allow a `Derive` declaration to reference a column produced by an earlier
-`Derive` in the same scope.
+Allow a `Derive` declaration to read from an earlier `Derive` in the same scope
+using the explicit `from` source introduced in v0.47.0.
 
 Minimum target:
 
 ```ag
 Chart(data: "series.csv") {
     Derive binned = Bin(value, bins: 30)
-    Derive trend = Smooth(bin_center, count, method: "lm")
+    Derive trend from binned = Smooth(bin_center, count, method: "lm")
 
-    Space(bin_center * count) {
+    Space(bin_center * count, data: binned) {
         Line()
     }
 }

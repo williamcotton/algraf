@@ -35,19 +35,6 @@ impl ActiveTable {
         }
     }
 
-    pub(super) fn merged(primary: &[ColumnDef], derived: &[&[ColumnDefIr]]) -> Self {
-        let mut columns: Vec<(String, DataType)> =
-            primary.iter().map(|c| (c.name.clone(), c.dtype)).collect();
-        for schema in derived {
-            for column in *schema {
-                if !columns.iter().any(|(name, _)| name == &column.name) {
-                    columns.push((column.name.clone(), column.dtype));
-                }
-            }
-        }
-        ActiveTable { columns }
-    }
-
     pub(super) fn get(&self, name: &str) -> Option<DataType> {
         self.columns
             .iter()

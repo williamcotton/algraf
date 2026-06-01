@@ -1946,7 +1946,7 @@ fn test_v040_identity_color_and_axis_break_labels_render() {
 #[test]
 fn test_chained_derived_smooth_table_renders() {
     let result = render_result(
-        "Chart(data: \"d.csv\") { Derive bins = Bin(value, bins: 4) Derive trend = Smooth(bin_center, count) Space(x * y, data: trend) { Line() } }",
+        "Chart(data: \"d.csv\") { Derive bins = Bin(value, bins: 4) Derive trend from bins = Smooth(bin_center, count) Space(x * y, data: trend) { Line() } }",
         "value\n1\n2\n3\n4\n5\n6\n7\n8\n",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);

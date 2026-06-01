@@ -1,6 +1,6 @@
 // --- Navigation: definition, references, highlight, rename (spec §21.8) -----
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use algraf_core::Span;
@@ -67,7 +67,7 @@ pub fn build_name_index(root: &SyntaxNode) -> NameIndex {
         match node.kind() {
             SyntaxKind::DERIVE_DECL => {
                 if let Some(decl) = DeriveDecl::cast(node.clone()) {
-                    if let (Some(name), Some(span)) = (decl.name(), derive_name_span(&node)) {
+                    if let (Some(name), Some(span)) = (decl.name(), decl.name_span()) {
                         index.derives.push(DeriveSite {
                             name,
                             name_span: span,
@@ -87,6 +87,26 @@ pub fn build_name_index(root: &SyntaxNode) -> NameIndex {
                 }
             }
             _ => {}
+        }
+    }
+
+    let derived_names: HashSet<String> = index
+        .derives
+        .iter()
+        .map(|derive| derive.name.clone())
+        .collect();
+    for node in root.descendants() {
+        if node.kind() != SyntaxKind::DERIVE_DECL {
+            continue;
+        }
+        let Some(decl) = DeriveDecl::cast(node.clone()) else {
+            continue;
+        };
+        let (Some(name), Some(span)) = (decl.source_name(), decl.source_name_span()) else {
+            continue;
+        };
+        if derived_names.contains(&name) {
+            index.table_refs.push(NameRef { name, span });
         }
     }
 
@@ -173,21 +193,6 @@ fn resolve_binding_scope(
         return Some(None);
     }
     None
-}
-
-/// The span of the table-name identifier inside a `DERIVE_DECL` node. The
-/// `Derive` keyword is its own token kind, so the first `IDENT` is the name.
-fn derive_name_span(node: &SyntaxNode) -> Option<Span> {
-    node.children_with_tokens()
-        .filter_map(|element| element.into_token())
-        .find(|token| token.kind() == SyntaxKind::IDENT)
-        .map(|token| {
-            let range = token.text_range();
-            Span::new(
-                u32::from(range.start()) as usize,
-                u32::from(range.end()) as usize,
-            )
-        })
 }
 
 /// Whether an `ALGEBRA_NAME` node sits in the value position of a `data:`
@@ -585,5 +590,18 @@ mod tests {
         // Declaration plus the one `fill: c` use are both rewritten.
         assert_eq!(edits.len(), 2);
         assert!(edits.iter().all(|e| e.new_text == "color"));
+    }
+
+    #[test]
+    fn derived_from_reference_participates_in_rename() {
+        let text =
+            "Chart(data: \"p.csv\") {\n  Derive bins = Bin(value)\n  Derive trend from bins = Smooth(bin_center, count)\n}";
+        let state = state(text);
+        let offset = text.find("from bins").unwrap() + "from ".len();
+        assert!(renameable_at(&state, offset).is_some());
+        let edit = rename_edits(&state, &uri(), offset, "binned").expect("rename");
+        let edits = &edit.changes.unwrap()[&uri()];
+        assert_eq!(edits.len(), 2);
+        assert!(edits.iter().all(|e| e.new_text == "binned"));
     }
 }
