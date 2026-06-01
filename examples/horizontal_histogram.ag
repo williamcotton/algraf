@@ -1,0 +1,14 @@
+Chart(data: "distribution.csv", width: 760, height: 460, title: "Horizontal histogram") {
+    Guide(axis: x, label: "Count")
+    Guide(axis: y, label: "Value")
+    Space(value) {
+        Histogram(
+            bins: 16,
+            orientation: "horizontal",
+            fill: "steelblue",
+            stroke: "#ffffff",
+            strokeWidth: 1,
+            alpha: 0.86,
+        )
+    }
+}

@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: Draft 0.46.0
+Status: 0.46.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the active Draft 0.46.0 specification.
+This working copy is the 0.46.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -343,10 +343,16 @@ scatter/line, annular heatmap, radar) arise from applying this transform to the
 ordinary geometries, not from dedicated geometries. Cartesian output MUST be
 byte-for-byte unchanged when `coords` is absent.
 
-Cartesian spaces MAY use the frame operator `transpose(F)` (§8.7.1) to swap the
-two axes of a two-dimensional frame before scale training and rendering.
-`transpose` MUST NOT be combined with `coords: "polar"`; implementations MUST
-emit `E1911` and keep the space Cartesian for recovery.
+Cartesian frame order is physical. In `Space(a * b)`, `a` trains the physical
+x axis and `b` trains the physical y axis. Scale declarations, guide
+declarations, render metadata, draw-list axes, and interaction sidecars MUST
+interpret `axis: x` and `axis: y` as those physical screen axes.
+
+Version 0.46.0 removes frame-operator calls from source algebra. A source such
+as `transpose(a * b)` MUST NOT be lowered or rendered through a compatibility
+path. It MUST emit `E1912`; when the operand is a valid two-dimensional
+Cartesian frame, diagnostics SHOULD include the physical-order replacement
+(`b * a`) as help text.
 
 Nested spaces are legal only as children of an `Inset` block (§7.3). A `Space`
 nested directly in another `Space` outside `Inset` is reserved for later
@@ -1569,9 +1575,9 @@ Cartesian(Vector("x"), Vector("y"))
 
 `Cross` is usually used to define x and y position.
 
-Left operand conventionally maps to horizontal position.
+Left operand maps to physical horizontal position.
 
-Right operand conventionally maps to vertical position.
+Right operand maps to physical vertical position.
 
 For more than two operands, the result is a higher-dimensional Cartesian space.
 
@@ -1739,29 +1745,31 @@ All operators are left-associative.
 
 The analyzer SHOULD flatten associative operators into normalized IR where useful.
 
-### 8.7.1 Frame Operator Calls
+### 8.7.1 Removed Frame Operator Calls
 
-Frame algebra supports prefix operator calls. Version 0.33 defines exactly one
-operator:
+Version 0.46.0 removes prefix frame-operator calls from source algebra. The
+parser MAY retain a recovered call-shaped CST node so diagnostics and editor
+code actions can target legacy source, but the analyzer MUST NOT treat any
+call-shaped frame expression as a valid frame.
+
+The removed v0.33 spelling:
 
 ```ag
 transpose(a * b)
 ```
 
-`transpose(F)` MUST parse as a frame expression only when a plain identifier is
-immediately followed by `(`. A bare `transpose` remains a column reference, and
-`` `transpose` `` MUST always be a quoted column reference.
+MUST emit `E1912` and MUST NOT lower to `b * a`. An unknown call such as
+`flip(a * b)`, an empty call such as `transpose()`, and a malformed call in
+frame position MUST also emit `E1912`.
 
-The analyzer MUST resolve `transpose(a * b)` by swapping the two Cartesian axes
-and lowering the result as though the user had written `b * a`. The operator is
-not carried in IR, and there is no separate renderer-wide transpose flag.
-`Scale(axis: ...)` and `Guide(axis: ...)` therefore target the physical axes
-after this rewrite.
+A bare `transpose` remains an ordinary column reference, and
+`` `transpose` `` MUST always be a quoted column reference. Only the
+call-shaped form is removed.
 
-`transpose` MUST accept a two-dimensional Cartesian frame. Applying it to a
-one-dimensional frame, a non-2D blend/union, or a spatial/geometry frame MUST
-emit `E1913`. An empty `transpose()` or an unknown frame-operator call such as
-`flip(a * b)` MUST emit `E1912`.
+When the removed call wraps a valid two-dimensional Cartesian frame, diagnostics
+SHOULD explain that frame order is physical and include the equivalent
+replacement frame. LSP code actions MAY offer the same mechanical rewrite; for
+example, `transpose((a * b)) / group` may be rewritten to `(b * a) / group`.
 
 ### 8.8 Algebra Type System
 
@@ -4501,7 +4509,7 @@ categorical x by continuous y
 
 nested categorical x by continuous y
 
-continuous x by categorical y (usually authored as `transpose(category * value)`)
+continuous x by categorical y
 
 continuous x by nested categorical y
 
@@ -4603,15 +4611,21 @@ boundary
 
 closed
 
+orientation
+
 fill
 
 alpha
 
 Histogram computes counts by bin.
 
-Histogram produces an internal Cartesian frame of bin position by count.
+Histogram produces an internal Cartesian frame of bin position by count by
+default. Since version 0.46.0, `orientation: "vertical" | "horizontal"` selects
+which physical axis is synthesized: vertical maps bins to physical x and count
+to physical y; horizontal maps count to physical x and bins to physical y.
+`orientation` defaults to `"vertical"`.
 
-Histogram SHOULD expose computed y label as `count`.
+Histogram SHOULD expose the generated count axis label as `count`.
 
 Version 0.23.0 MUST support grouping a Histogram by a categorical column in two
 forms:
@@ -4632,6 +4646,15 @@ Both forms bin per group over shared edges, color by the group column with a
 categorical `fill` legend, and are deterministic (stacking and dodge slots
 ordered by group first-appearance). A grouped Histogram requires a numeric input
 column; a temporal input with grouping MUST emit `E1404`.
+
+Grouped, dodged, blended, and annotated Histograms MUST honor the same
+generated-axis orientation. In horizontal orientation, `count`/stack/density
+bounds use x properties and bin boundaries use y properties; guide labels, scale
+training, render metadata, draw-list axes, and interaction sidecars MUST match
+that physical assignment.
+
+`Histogram` with `orientation` in a two-dimensional Cartesian frame MUST remain
+invalid (`E1302`); `orientation` is not a synonym for swapping physical axes.
 
 Version 0.24.0 MUST support overlaid Histograms by blending numeric columns with
 the blend operator:
@@ -4693,7 +4716,7 @@ Scale and guide diagnostics for the generated `count` axis MUST map to the `Hist
 
 Diagnostics for user-provided histogram settings such as `bins`, `binWidth`, `boundary`, or `closed` MUST map to the corresponding setting span.
 
-The generated y-axis label defaults to `count`.
+The generated count-axis label defaults to `count`.
 
 The generated `count` column is a synthetic stat output column.
 
@@ -4760,7 +4783,12 @@ Version 0.3.0 MUST advertise `FreqPoly` in the registry.
 
 `FreqPoly` MUST use the same `Bin` stat and bin settings as `Histogram`.
 
-`FreqPoly` MUST render a `Line` over `bin_center * count`.
+Since version 0.46.0, `FreqPoly` accepts `orientation: "vertical" |
+"horizontal"` with the same default and generated-axis semantics as
+`Histogram`. Vertical orientation renders a `Line` over `bin_center * count`.
+Horizontal orientation renders a `Line` over `count * bin_center`. `FreqPoly`
+with `orientation` in a two-dimensional Cartesian frame MUST remain invalid
+(`E1302`); `orientation` is not a synonym for swapping physical axes.
 
 ### 14.9 Density
 
@@ -4888,7 +4916,7 @@ categorical x by continuous y
 
 nested categorical x by continuous y
 
-continuous x by categorical y (usually authored as `transpose(category * value)`)
+continuous x by categorical y
 
 continuous x by nested categorical y
 
@@ -4938,7 +4966,7 @@ Supported spaces:
 
 categorical x by continuous y
 
-continuous x by categorical y (usually authored as `transpose(category * value)`)
+continuous x by categorical y
 
 Violin computes density per group.
 
@@ -9662,11 +9690,11 @@ missing `=>`/stray separator in a map literal)
 
 `E1910 invalid polar direction or radius mapping`
 
-`E1911 transpose cannot be combined with a non-Cartesian coordinate system`
+`E1911 reserved`
 
-`E1912 malformed or unknown frame operator`
+`E1912 removed or unsupported frame operator`
 
-`E1913 transpose requires a two-dimensional Cartesian frame`
+`E1913 reserved`
 
 `E2001 render mark budget exceeded`
 
@@ -10304,7 +10332,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.43.0 | [`V0_43_PLAN.md`](V0_43_PLAN.md) | Big-data readiness and backend-friendly data execution | Implemented |
 | 0.44.0 | [`V0_44_PLAN.md`](V0_44_PLAN.md) | Compositional glyph charts and recursive render scenes | Implemented |
 | 0.45.0 | [`V0_45_PLAN.md`](V0_45_PLAN.md) | Inset planning/emission separation | Implemented |
-| 0.46.0 | [`V0_46_PLAN.md`](V0_46_PLAN.md) | Physical orientation migration and local image marks | In progress (image marks implemented) |
+| 0.46.0 | [`V0_46_PLAN.md`](V0_46_PLAN.md) | Physical orientation migration and local image marks | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

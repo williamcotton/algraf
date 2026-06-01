@@ -25,6 +25,19 @@ impl Analyzer<'_> {
         scales: Vec<ScaleIr>,
         annotations: Vec<GeometryIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
+        if orientation_is_redundant_2d(histogram, frame) {
+            self.diag(
+                Diagnostic::error(
+                    codes::E1302,
+                    "`Histogram` orientation applies only to generated-axis one-dimensional spaces",
+                    histogram.span,
+                )
+                .with_help("write the physical two-axis frame order directly"),
+            );
+            return None;
+        }
+        let orientation = generated_axis_orientation(histogram);
+
         // Overlay: `Space((a + b)) { Histogram(...) }` blends multiple numeric
         // columns onto one shared bin axis and draws full-width, alpha-blended
         // bars colored by a synthetic `series` column (spec §14.7).
@@ -52,6 +65,7 @@ impl Analyzer<'_> {
             return Some(self.blended_histogram(
                 histogram,
                 columns,
+                orientation,
                 theme,
                 guides,
                 scales,
@@ -79,6 +93,7 @@ impl Analyzer<'_> {
                 value,
                 group.clone(),
                 true,
+                orientation,
                 theme,
                 guides,
                 scales,
@@ -119,6 +134,7 @@ impl Analyzer<'_> {
                 input,
                 group,
                 false,
+                orientation,
                 theme,
                 guides,
                 scales,
@@ -140,34 +156,25 @@ impl Analyzer<'_> {
 
         let boundary_dtype = bin_boundary_dtype(input.dtype);
         let bin_start = synthetic_column("bin_start", boundary_dtype, histogram.span);
-        let bin_end = synthetic_column("bin_end", boundary_dtype, histogram.span);
         let count = synthetic_column("count", DataType::Integer, histogram.span);
+        let (mappings, settings) = histogram_rect_parts(
+            "bin_start",
+            "bin_end",
+            "count",
+            boundary_dtype,
+            orientation,
+            histogram,
+        );
         let rect = GeometryIr {
             kind: GeometryKind::Rect,
-            mappings: vec![
-                AestheticMapping {
-                    aesthetic: PropertyKey::Xmin,
-                    column: bin_start.clone(),
-                    span: histogram.span,
-                },
-                AestheticMapping {
-                    aesthetic: PropertyKey::Xmax,
-                    column: bin_end,
-                    span: histogram.span,
-                },
-                AestheticMapping {
-                    aesthetic: PropertyKey::Ymax,
-                    column: count.clone(),
-                    span: histogram.span,
-                },
-            ],
-            settings: histogram_rect_settings(histogram),
+            mappings,
+            settings,
             interaction: InteractionIr::default(),
             span: histogram.span,
         };
         let space = derived_space(
             name,
-            FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
+            generated_axis_frame(bin_start, count, orientation),
             with_annotations(rect, annotations),
             theme,
             guides,
@@ -612,6 +619,7 @@ impl Analyzer<'_> {
         &mut self,
         histogram: &GeometryIr,
         values: Vec<ColumnRef>,
+        orientation: IntervalOrientationIr,
         theme: Option<ThemeIr>,
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
@@ -632,32 +640,30 @@ impl Analyzer<'_> {
         let bin_start = synthetic_column("bin_start", DataType::Float, span);
         let count = synthetic_column("count", DataType::Integer, span);
         let series = synthetic_column("series", DataType::String, span);
-        let mapping = |aesthetic: PropertyKey, name: &str, dtype: DataType| AestheticMapping {
-            aesthetic,
-            column: synthetic_column(name, dtype, span),
+        let (mut mappings, mut settings) = histogram_rect_parts(
+            "bin_start",
+            "bin_end",
+            "count",
+            DataType::Float,
+            orientation,
+            histogram,
+        );
+        mappings.push(AestheticMapping {
+            aesthetic: PropertyKey::Fill,
+            column: series,
             span,
-        };
-        let mut settings = vec![fixed_setting(PropertyKey::Ymin, 0.0, span)];
+        });
         settings.extend(passthrough_settings(histogram, GROUPED_RECT_SETTINGS));
         let rect = GeometryIr {
             kind: GeometryKind::Rect,
-            mappings: vec![
-                mapping(PropertyKey::Xmin, "bin_start", DataType::Float),
-                mapping(PropertyKey::Xmax, "bin_end", DataType::Float),
-                mapping(PropertyKey::Ymax, "count", DataType::Integer),
-                AestheticMapping {
-                    aesthetic: PropertyKey::Fill,
-                    column: series,
-                    span,
-                },
-            ],
+            mappings,
             settings,
             interaction: InteractionIr::default(),
             span,
         };
         let space = derived_space(
             name,
-            FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
+            generated_axis_frame(bin_start, count, orientation),
             with_annotations(rect, annotations),
             theme,
             guides,
@@ -682,6 +688,7 @@ impl Analyzer<'_> {
         value: ColumnRef,
         group: ColumnRef,
         dodge: bool,
+        orientation: IntervalOrientationIr,
         theme: Option<ThemeIr>,
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
@@ -707,43 +714,19 @@ impl Analyzer<'_> {
             dtype: DataType::String,
             span,
         };
-        let mapping = |aesthetic: PropertyKey, name: &str, dtype: DataType| AestheticMapping {
-            aesthetic,
-            column: synthetic_column(name, dtype, span),
-            span,
-        };
-
         // Dodge maps x to the sub-slot and y from a zero baseline to the group
         // count; stack maps x to the full bin and y to the cumulative bounds.
         let (mappings, mut settings) = if dodge {
-            (
-                vec![
-                    mapping(PropertyKey::Xmin, "dodge_start", DataType::Float),
-                    mapping(PropertyKey::Xmax, "dodge_end", DataType::Float),
-                    mapping(PropertyKey::Ymax, "count", DataType::Integer),
-                    AestheticMapping {
-                        aesthetic: PropertyKey::Fill,
-                        column: group_col,
-                        span,
-                    },
-                ],
-                vec![fixed_setting(PropertyKey::Ymin, 0.0, span)],
+            grouped_histogram_mappings(
+                "dodge_start",
+                "dodge_end",
+                orientation,
+                true,
+                group_col,
+                span,
             )
         } else {
-            (
-                vec![
-                    mapping(PropertyKey::Xmin, "bin_start", DataType::Float),
-                    mapping(PropertyKey::Xmax, "bin_end", DataType::Float),
-                    mapping(PropertyKey::Ymin, "stack_lower", DataType::Float),
-                    mapping(PropertyKey::Ymax, "stack_upper", DataType::Float),
-                    AestheticMapping {
-                        aesthetic: PropertyKey::Fill,
-                        column: group_col,
-                        span,
-                    },
-                ],
-                Vec::new(),
-            )
+            grouped_histogram_mappings("bin_start", "bin_end", orientation, false, group_col, span)
         };
         // Pass through stroke/strokeWidth/alpha; `fill` is a mapping here.
         settings.extend(passthrough_settings(histogram, GROUPED_RECT_SETTINGS));
@@ -756,7 +739,7 @@ impl Analyzer<'_> {
         };
         let space = derived_space(
             name,
-            FrameIr::Cartesian(vec![FrameIr::Vector(bin_start), FrameIr::Vector(count)]),
+            generated_axis_frame(bin_start, count, orientation),
             with_annotations(rect, annotations),
             theme,
             guides,
@@ -774,6 +757,18 @@ impl Analyzer<'_> {
         guides: GuideOverridesIr,
         scales: Vec<ScaleIr>,
     ) -> Option<(DeriveIr, SpaceIr)> {
+        if orientation_is_redundant_2d(freq_poly, frame) {
+            self.diag(
+                Diagnostic::error(
+                    codes::E1302,
+                    "`FreqPoly` orientation applies only to generated-axis one-dimensional spaces",
+                    freq_poly.span,
+                )
+                .with_help("write the physical two-axis frame order directly"),
+            );
+            return None;
+        }
+        let orientation = generated_axis_orientation(freq_poly);
         let input = self
             .require_numeric_vector(frame, freq_poly.span, "FreqPoly", true)?
             .clone();
@@ -802,7 +797,7 @@ impl Analyzer<'_> {
         };
         let space = derived_space(
             name,
-            FrameIr::Cartesian(vec![FrameIr::Vector(bin_center), FrameIr::Vector(count)]),
+            generated_axis_frame(bin_center, count, orientation),
             vec![line],
             theme,
             guides,
@@ -1573,10 +1568,126 @@ fn fixed_setting(name: PropertyKey, value: f64, span: Span) -> GeometrySetting {
     }
 }
 
-fn histogram_rect_settings(histogram: &GeometryIr) -> Vec<GeometrySetting> {
-    let mut settings = vec![fixed_setting(PropertyKey::Ymin, 0.0, histogram.span)];
+fn generated_axis_orientation(geometry: &GeometryIr) -> IntervalOrientationIr {
+    geometry
+        .settings
+        .iter()
+        .find_map(|setting| match &setting.value {
+            SettingValue::String(value) if setting.name == PropertyKey::Orientation => {
+                match value.as_str() {
+                    "horizontal" => Some(IntervalOrientationIr::Horizontal),
+                    "vertical" => Some(IntervalOrientationIr::Vertical),
+                    _ => None,
+                }
+            }
+            _ => None,
+        })
+        .unwrap_or(IntervalOrientationIr::Vertical)
+}
+
+fn orientation_is_redundant_2d(geometry: &GeometryIr, frame: &FrameIr) -> bool {
+    geometry
+        .settings
+        .iter()
+        .any(|setting| setting.name == PropertyKey::Orientation)
+        && matches!(frame, FrameIr::Cartesian(axes) if axes.len() == 2)
+}
+
+fn generated_axis_frame(
+    bin_axis: ColumnRef,
+    generated_axis: ColumnRef,
+    orientation: IntervalOrientationIr,
+) -> FrameIr {
+    match orientation {
+        IntervalOrientationIr::Vertical => FrameIr::Cartesian(vec![
+            FrameIr::Vector(bin_axis),
+            FrameIr::Vector(generated_axis),
+        ]),
+        IntervalOrientationIr::Horizontal => FrameIr::Cartesian(vec![
+            FrameIr::Vector(generated_axis),
+            FrameIr::Vector(bin_axis),
+        ]),
+    }
+}
+
+fn histogram_rect_parts(
+    bin_start: &str,
+    bin_end: &str,
+    count: &str,
+    bin_dtype: DataType,
+    orientation: IntervalOrientationIr,
+    histogram: &GeometryIr,
+) -> (Vec<AestheticMapping>, Vec<GeometrySetting>) {
+    let span = histogram.span;
+    let (mappings, baseline_key) = match orientation {
+        IntervalOrientationIr::Vertical => (
+            vec![
+                mapping(PropertyKey::Xmin, bin_start, bin_dtype, span),
+                mapping(PropertyKey::Xmax, bin_end, bin_dtype, span),
+                mapping(PropertyKey::Ymax, count, DataType::Integer, span),
+            ],
+            PropertyKey::Ymin,
+        ),
+        IntervalOrientationIr::Horizontal => (
+            vec![
+                mapping(PropertyKey::Xmax, count, DataType::Integer, span),
+                mapping(PropertyKey::Ymin, bin_start, bin_dtype, span),
+                mapping(PropertyKey::Ymax, bin_end, bin_dtype, span),
+            ],
+            PropertyKey::Xmin,
+        ),
+    };
+    let mut settings = vec![fixed_setting(baseline_key, 0.0, span)];
     settings.extend(passthrough_settings(histogram, FILL_SETTINGS));
-    settings
+    (mappings, settings)
+}
+
+fn grouped_histogram_mappings(
+    bin_start: &str,
+    bin_end: &str,
+    orientation: IntervalOrientationIr,
+    dodge: bool,
+    group_col: ColumnRef,
+    span: Span,
+) -> (Vec<AestheticMapping>, Vec<GeometrySetting>) {
+    let mut mappings = match (orientation, dodge) {
+        (IntervalOrientationIr::Vertical, true) => vec![
+            mapping(PropertyKey::Xmin, bin_start, DataType::Float, span),
+            mapping(PropertyKey::Xmax, bin_end, DataType::Float, span),
+            mapping(PropertyKey::Ymax, "count", DataType::Integer, span),
+        ],
+        (IntervalOrientationIr::Horizontal, true) => vec![
+            mapping(PropertyKey::Xmax, "count", DataType::Integer, span),
+            mapping(PropertyKey::Ymin, bin_start, DataType::Float, span),
+            mapping(PropertyKey::Ymax, bin_end, DataType::Float, span),
+        ],
+        (IntervalOrientationIr::Vertical, false) => vec![
+            mapping(PropertyKey::Xmin, bin_start, DataType::Float, span),
+            mapping(PropertyKey::Xmax, bin_end, DataType::Float, span),
+            mapping(PropertyKey::Ymin, "stack_lower", DataType::Float, span),
+            mapping(PropertyKey::Ymax, "stack_upper", DataType::Float, span),
+        ],
+        (IntervalOrientationIr::Horizontal, false) => vec![
+            mapping(PropertyKey::Xmin, "stack_lower", DataType::Float, span),
+            mapping(PropertyKey::Xmax, "stack_upper", DataType::Float, span),
+            mapping(PropertyKey::Ymin, bin_start, DataType::Float, span),
+            mapping(PropertyKey::Ymax, bin_end, DataType::Float, span),
+        ],
+    };
+    mappings.push(AestheticMapping {
+        aesthetic: PropertyKey::Fill,
+        column: group_col,
+        span,
+    });
+    let settings = if dodge {
+        match orientation {
+            IntervalOrientationIr::Vertical => vec![fixed_setting(PropertyKey::Ymin, 0.0, span)],
+            IntervalOrientationIr::Horizontal => vec![fixed_setting(PropertyKey::Xmin, 0.0, span)],
+        }
+    } else {
+        Vec::new()
+    };
+    (mappings, settings)
 }
 
 fn line_settings_from(geometry: &GeometryIr) -> Vec<GeometrySetting> {

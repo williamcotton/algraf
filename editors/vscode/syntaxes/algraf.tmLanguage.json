@@ -183,10 +183,6 @@
     "operators": {
       "patterns": [
         {
-          "name": "keyword.operator.frame.algraf",
-          "match": "\\btranspose\\b(?=\\s*\\()"
-        },
-        {
           "name": "keyword.operator.algebra.algraf",
           "match": "[*/+]"
         },

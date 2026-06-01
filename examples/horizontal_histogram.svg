@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="460" viewBox="0 0 760 460" role="img" aria-label="Horizontal histogram">
+<title>Horizontal histogram</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="460" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Horizontal histogram</text>
+<rect class="algraf-plot-area" x="60" y="66" width="670" height="344" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="105.27" y1="66" x2="105.27" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="195.811" y1="66" x2="195.811" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="286.351" y1="66" x2="286.351" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="376.892" y1="66" x2="376.892" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="467.432" y1="66" x2="467.432" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="557.973" y1="66" x2="557.973" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="648.514" y1="66" x2="648.514" y2="410" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="372.796" x2="730" y2="372.796" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="318.878" x2="730" y2="318.878" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="264.959" x2="730" y2="264.959" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="211.041" x2="730" y2="211.041" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="157.122" x2="730" y2="157.122" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="103.204" x2="730" y2="103.204" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="66" x2="60" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150.541" y1="66" x2="150.541" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="241.081" y1="66" x2="241.081" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="331.622" y1="66" x2="331.622" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="422.162" y1="66" x2="422.162" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="512.703" y1="66" x2="512.703" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="603.243" y1="66" x2="603.243" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="693.784" y1="66" x2="693.784" y2="410" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="399.755" x2="730" y2="399.755" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="345.837" x2="730" y2="345.837" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="291.918" x2="730" y2="291.918" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="238" x2="730" y2="238" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="184.082" x2="730" y2="184.082" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="130.163" x2="730" y2="130.163" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="76.245" x2="730" y2="76.245" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-rect">
+  <rect x="60" y="367.741" width="72.432" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="349.207" width="18.108" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="330.672" width="144.865" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="312.138" width="235.405" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="293.603" width="199.189" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="275.069" width="271.622" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="256.534" width="470.811" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="238" width="488.919" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="219.466" width="615.676" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="200.931" width="670" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="182.397" width="434.595" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="163.862" width="344.054" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="145.328" width="307.838" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="126.793" width="36.216" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+  <rect x="60" y="89.724" width="36.216" height="18.534" fill="steelblue" stroke="#ffffff" stroke-width="1" opacity="0.86" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="410" x2="730" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="60" y1="410" x2="60" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="60" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="150.541" y1="410" x2="150.541" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="150.541" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <line x1="241.081" y1="410" x2="241.081" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="241.081" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="331.622" y1="410" x2="331.622" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="331.622" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15</text>
+  <line x1="422.162" y1="410" x2="422.162" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="422.162" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="512.703" y1="410" x2="512.703" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="512.703" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <line x1="603.243" y1="410" x2="603.243" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="603.243" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <line x1="693.784" y1="410" x2="693.784" y2="415" stroke="#333333" stroke-width="1" />
+  <text x="693.784" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">35</text>
+  <text x="395" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Count</text>
+  <line x1="60" y1="66" x2="60" y2="410" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="399.755" x2="60" y2="399.755" stroke="#333333" stroke-width="1" />
+  <text x="52" y="403.755" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="345.837" x2="60" y2="345.837" stroke="#333333" stroke-width="1" />
+  <text x="52" y="349.837" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="55" y1="291.918" x2="60" y2="291.918" stroke="#333333" stroke-width="1" />
+  <text x="52" y="295.918" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="55" y1="238" x2="60" y2="238" stroke="#333333" stroke-width="1" />
+  <text x="52" y="242" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <line x1="55" y1="184.082" x2="60" y2="184.082" stroke="#333333" stroke-width="1" />
+  <text x="52" y="188.082" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
+  <line x1="55" y1="130.163" x2="60" y2="130.163" stroke="#333333" stroke-width="1" />
+  <text x="52" y="134.163" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="55" y1="76.245" x2="60" y2="76.245" stroke="#333333" stroke-width="1" />
+  <text x="52" y="80.245" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">12</text>
+  <text x="25.6" y="238" text-anchor="middle" transform="rotate(-90 25.6 238)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Value</text>
+</g>
+</svg>

@@ -692,9 +692,9 @@ fn test_fill_bar_normalizes_segments_to_one() {
 }
 
 #[test]
-fn test_horizontal_bar_via_transpose() {
+fn test_horizontal_bar_uses_physical_frame_order() {
     let result = render_result(
-        "Chart(data: \"f.csv\") { Space(transpose(quarter * amount)) { Bar() } }",
+        "Chart(data: \"f.csv\") { Space(amount * quarter) { Bar() } }",
         "quarter,amount\nQ1,10\nQ2,20\nQ3,15\n",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -708,7 +708,7 @@ fn test_reversed_x_axis_keeps_tick_labels() {
     let result = render_result(
         "Chart(data: \"f.csv\") {
             Scale(axis: x, reverse: true)
-            Space(transpose(rep * amount)) { Bar() }
+            Space(amount * rep) { Bar() }
         }",
         "rep,amount\nAlice,82\nBowman,64\nChen,57\nDiaz,41\nEvans,28\n",
     );
@@ -721,7 +721,7 @@ fn test_reversed_x_axis_keeps_tick_labels() {
 #[test]
 fn test_horizontal_stacked_bar_domain_uses_totals() {
     let result = render_result(
-        "Chart(data: \"f.csv\") { Space(transpose(quarter * amount)) { Bar(fill: type, layout: \"stack\") } }",
+        "Chart(data: \"f.csv\") { Space(amount * quarter) { Bar(fill: type, layout: \"stack\") } }",
         "quarter,type,amount\nQ1,a,10\nQ1,b,20\nQ2,a,5\nQ2,b,5\n",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -1010,9 +1010,9 @@ fn test_boxplot_renders_summary_marks() {
 }
 
 #[test]
-fn test_horizontal_boxplot_via_transpose() {
+fn test_horizontal_boxplot_uses_physical_frame_order() {
     let result = render_result(
-        "Chart(data: \"b.csv\") { Space(transpose(group * value)) { Boxplot(fill: group) } }",
+        "Chart(data: \"b.csv\") { Space(value * group) { Boxplot(fill: group) } }",
         "group,value\na,1\na,2\na,3\na,4\nb,3\nb,4\nb,5\nb,6\n",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -1123,6 +1123,18 @@ fn test_direct_histogram_renders_like_primitive_rects() {
     assert!(result.svg.contains("algraf-geom-rect"));
     assert_eq!(result.svg.matches("<rect x=").count(), 4);
     assert!(result.svg.contains("fill=\"steelblue\""));
+}
+
+#[test]
+fn test_horizontal_histogram_orientation_renders_count_on_x() {
+    let result = render_result(
+        "Chart(data: \"d.csv\") { Space(value) { Histogram(bins: 4, orientation: \"horizontal\", fill: \"steelblue\") } }",
+        "value\n1\n2\n3\n4\n5\n6\n7\n8\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-rect"));
+    assert_eq!(result.svg.matches("<rect x=").count(), 4);
+    assert!(result.svg.contains(">count</text>"));
 }
 
 #[test]
@@ -1644,9 +1656,9 @@ fn test_violin_renders_mirrored_density_and_quantiles() {
 }
 
 #[test]
-fn test_horizontal_violin_via_transpose() {
+fn test_horizontal_violin_uses_physical_frame_order() {
     let result = render_result(
-        "Chart(data: \"v.csv\") { Space(transpose(group * value)) { Violin(fill: group, quantiles: [0.25, 0.5, 0.75]) } }",
+        "Chart(data: \"v.csv\") { Space(value * group) { Violin(fill: group, quantiles: [0.25, 0.5, 0.75]) } }",
         "group,value\na,1\na,2\na,2\na,3\na,4\nb,2\nb,3\nb,4\nb,4\nb,5\n",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -1664,6 +1676,18 @@ fn test_freqpoly_renders_bin_count_line() {
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     assert!(result.svg.contains("algraf-geom-line"));
     assert_eq!(result.svg.matches("<path").count(), 1);
+}
+
+#[test]
+fn test_horizontal_freqpoly_orientation_renders_count_on_x() {
+    let result = render_result(
+        "Chart(data: \"d.csv\") { Space(v) { FreqPoly(bins: 4, orientation: \"horizontal\", stroke: \"steelblue\") } }",
+        "v\n1\n2\n3\n4\n5\n6\n7\n8\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-line"));
+    assert_eq!(result.svg.matches("<path").count(), 1);
+    assert!(result.svg.contains(">count</text>"));
 }
 
 #[test]

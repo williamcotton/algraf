@@ -78,7 +78,7 @@ pub enum SyntaxKind {
     ALGEBRA_BINARY,
     /// A parenthesized algebra expression.
     ALGEBRA_PAREN,
-    /// A frame-operator call such as `transpose(a * b)`.
+    /// A recovered frame-call shape retained for removed operator diagnostics.
     ALGEBRA_CALL,
     /// The root chart block.
     CHART_BLOCK,

@@ -24,6 +24,7 @@ charts=(
     heatmap
     histogram
     histogram_direct
+    horizontal_histogram
     grouped_histogram
     dodged_histogram
     astronauts

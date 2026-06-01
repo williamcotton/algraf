@@ -537,17 +537,17 @@ Chart(data: "financials.csv", width: 760, height: 460) {
 
 ![fill_bar](examples/fill_bar.svg)
 
-## Horizontal bars with `transpose`
+## Horizontal bars with physical frame order
 
-Wrapping a two-axis frame in `transpose(...)` swaps the x and y frame axes after
-analysis, so the category bands move to the y axis and values extend
-horizontally.
+The left side of `*` is the physical x axis and the right side is the physical
+y axis. Put the value column on x and the category column on y for horizontal
+bars.
 
 ```algraf
 Chart(data: "sales_by_rep.csv", width: 720, height: 440, title: "Sales by rep") {
     Guide(axis: x, label: "Sales")
     Guide(axis: y, label: "Rep")
-    Space(transpose(rep * amount)) {
+    Space(amount * rep) {
         Bar(fill: "#4E79A7", alpha: 0.86)
     }
 }
@@ -555,16 +555,20 @@ Chart(data: "sales_by_rep.csv", width: 720, height: 440, title: "Sales by rep") 
 
 ![horizontal_bar](examples/horizontal_bar.svg)
 
+Migration note: older Algraf source may contain `transpose(category * value)`;
+write `value * category` instead. The language server offers a quick fix for
+simple legacy frames.
+
 ## Horizontal grouped bars
 
-`transpose` composes with `/` nesting, so dodged/grouped bars can be laid out
-horizontally without changing the grouping expression.
+Nest categorical groups on the physical y axis for horizontal dodged/grouped
+bars.
 
 ```algraf
 Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly amount by type") {
     Guide(axis: x, label: "Amount")
     Guide(axis: y, label: "Quarter")
-    Space(transpose((quarter / type) * amount)) {
+    Space(amount * (quarter / type)) {
         Bar(fill: type, alpha: 0.88)
     }
 }
@@ -574,13 +578,13 @@ Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly amount 
 
 ## Horizontal stacked bars
 
-Stacking also accumulates along the transposed value axis.
+Stacking accumulates along the physical value axis, which is x here.
 
 ```algraf
 Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly amount by type") {
     Guide(axis: x, label: "Amount")
     Guide(axis: y, label: "Quarter")
-    Space(transpose(quarter * amount)) {
+    Space(amount * quarter) {
         Bar(fill: type, layout: "stack", alpha: 0.88)
     }
 }
@@ -590,14 +594,14 @@ Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly amount 
 
 ## Horizontal proportional fill bars
 
-`layout: "fill"` also normalizes along the transposed value axis, producing
-100% bars that read left to right.
+`layout: "fill"` normalizes along the physical value axis, producing 100% bars
+that read left to right.
 
 ```algraf
 Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly composition by type") {
     Guide(axis: x, label: "Share")
     Guide(axis: y, label: "Quarter")
-    Space(transpose(quarter * amount)) {
+    Space(amount * quarter) {
         Bar(fill: type, layout: "fill", alpha: 0.88)
     }
 }
@@ -607,8 +611,8 @@ Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly composi
 
 ## Reversed and upside-down bar axes
 
-`transpose` swaps axes; `Scale(reverse: true)` reverses an axis direction. This
-vertical example puts zero at the top by reversing y.
+`Scale(reverse: true)` reverses a physical axis direction. This vertical example
+puts zero at the top by reversing y.
 
 ```algraf
 Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly amount with reversed y axis") {
@@ -623,15 +627,15 @@ Chart(data: "financials.csv", width: 760, height: 460, title: "Quarterly amount 
 
 ![upside_down_bar](examples/upside_down_bar.svg)
 
-The same reversal can be applied to a transposed horizontal chart, sending bars
-leftward from the right-side zero baseline.
+The same reversal can be applied to a horizontal chart, sending bars leftward
+from the right-side zero baseline.
 
 ```algraf
 Chart(data: "sales_by_rep.csv", width: 720, height: 440, title: "Sales by rep, reversed axis") {
     Guide(axis: x, label: "Sales")
     Guide(axis: y, label: "Rep")
     Scale(axis: x, reverse: true)
-    Space(transpose(rep * amount)) {
+    Space(amount * rep) {
         Bar(fill: "#4E79A7", alpha: 0.86)
     }
 }
@@ -683,8 +687,8 @@ Chart(data: "monthly_profit.csv", width: 720, height: 420, title: "Monthly Profi
 
 ## Horizontal diverging bars
 
-In a transposed diverging bar chart, the zero reference is a vertical line
-because the value axis is x.
+In a horizontal diverging bar chart, the zero reference is a vertical line
+because the physical value axis is x.
 
 ```algraf
 Chart(data: "monthly_profit.csv", width: 760, height: 520, title: "Monthly profit / loss") {
@@ -692,7 +696,7 @@ Chart(data: "monthly_profit.csv", width: 760, height: 520, title: "Monthly profi
     Scale(fill: status, range: ["Profit" => "#2ca02c", "Loss" => "#d62728"])
     Guide(axis: x, label: "Profit / Loss ($)")
     Guide(axis: y, label: "Month")
-    Space(transpose(month * profit)) {
+    Space(profit * month) {
         Bar(fill: status, layout: "stack", alpha: 0.85)
         VLine(x: 0, stroke: "#333333", strokeWidth: 1.2)
     }
@@ -724,8 +728,8 @@ Chart(data: "programming_languages.csv", width: 700, height: 450, title: "Progra
 
 ## Horizontal layered bar and point chart
 
-Layered geoms share the transposed frame, so the background bars and foreground
-points both resolve against the horizontal value scale.
+Layered geoms share the same physical frame, so the background bars and
+foreground points both resolve against the horizontal value scale.
 
 ```algraf
 Chart(data: "programming_languages.csv", width: 760, height: 500, title: "Programming language popularity") {
@@ -734,7 +738,7 @@ Chart(data: "programming_languages.csv", width: 760, height: 500, title: "Progra
     Scale(stroke: paradigm, palette: "accent")
     Guide(axis: x, label: "Share (%)")
     Guide(axis: y, label: "Programming Language")
-    Space(transpose(language * popularity)) {
+    Space(popularity * language) {
         Bar(fill: "#f3f3f3", stroke: "#dddddd", strokeWidth: 1.5)
         Point(fill: paradigm, size: 9)
     }
@@ -791,6 +795,31 @@ Chart(data: "distribution.csv", width: 760, height: 460) {
 ```
 
 ![histogram_direct](examples/histogram_direct.svg)
+
+## Horizontal histograms
+
+Generated-axis geoms use `orientation` only when they synthesize the missing
+positional axis. Here the histogram keeps `Space(value)` as the input axis and
+puts the generated count axis on physical x.
+
+```algraf
+Chart(data: "distribution.csv", width: 760, height: 460, title: "Horizontal histogram") {
+    Guide(axis: x, label: "Count")
+    Guide(axis: y, label: "Value")
+    Space(value) {
+        Histogram(
+            bins: 16,
+            orientation: "horizontal",
+            fill: "steelblue",
+            stroke: "#ffffff",
+            strokeWidth: 1,
+            alpha: 0.86,
+        )
+    }
+}
+```
+
+![horizontal_histogram](examples/horizontal_histogram.svg)
 
 ## Grouped histograms
 
@@ -1340,13 +1369,14 @@ Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribu
 
 ## Horizontal boxplots
 
-The same frame-level transpose works for grouped distribution summaries.
+Grouped distribution summaries use the same physical frame rule: value on x,
+group on y.
 
 ```algraf
 Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribution by group") {
     Guide(axis: x, label: "Height")
     Guide(axis: y, label: "Group")
-    Space(transpose(gender * height)) {
+    Space(height * gender) {
         Boxplot(fill: gender, alpha: 0.78)
     }
 }
@@ -1363,7 +1393,7 @@ y-axis category band.
 Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribution by group") {
     Guide(axis: x, label: "Height")
     Guide(axis: y, label: "Group")
-    Space(transpose(gender * height)) {
+    Space(height * gender) {
         Violin(fill: gender, quantiles: [0.25, 0.5, 0.75], alpha: 0.62)
     }
 }
@@ -1413,15 +1443,15 @@ Chart(data: "demographics.csv", width: 720, height: 420,
 
 ## Horizontal layered violin and boxplot distributions
 
-The same overlay can be transposed, putting the density values on x and each
-group on y.
+The same overlay can be written horizontally by putting the density/value axis
+on x and each group on y.
 
 ```algraf
 Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribution by group") {
     Theme(name: "minimal")
     Guide(axis: x, label: "Height (cm)")
     Guide(axis: y, label: "Gender Group")
-    Space(transpose(gender * height)) {
+    Space(height * gender) {
         Violin(fill: gender, alpha: 0.45)
         Boxplot(width: 15, fill: "#ffffff", stroke: "#2b2b2b", strokeWidth: 1.5)
     }
@@ -1453,8 +1483,8 @@ Chart(data: "regional_sales.csv", width: 840, height: 500, title: "Sales Distrib
 
 ## Horizontal faceted violin and boxplot distributions
 
-`transpose` can be applied before faceting, so each panel receives the swapped
-2-D frame.
+Faceted horizontal summaries keep the faceting outside the physical two-axis
+frame.
 
 ```algraf
 Chart(data: "regional_sales.csv", width: 860, height: 520, title: "Sales distribution by product and region") {
@@ -1462,7 +1492,7 @@ Chart(data: "regional_sales.csv", width: 860, height: 520, title: "Sales distrib
     Scale(fill: product, palette: "accent")
     Scale(stroke: product, palette: "accent")
     Guide(axis: x, label: "Sales Amount")
-    Space(transpose(product * sales) / region) {
+    Space((sales * product) / region) {
         Violin(fill: product, alpha: 0.5, quantiles: [0.25, 0.5, 0.75])
         Boxplot(width: 0.12, fill: "#ffffff", stroke: "#000000", strokeWidth: 1.2, alpha: 0.9)
     }

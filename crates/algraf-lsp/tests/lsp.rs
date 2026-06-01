@@ -1031,6 +1031,57 @@ async fn code_action_desugars_histogram() {
 }
 
 #[tokio::test]
+async fn code_action_rewrites_removed_transpose() {
+    let dir = temp_project("code-action-transpose");
+    let source_path = dir.join("chart.ag");
+    std::fs::write(dir.join("data.csv"), "quarter,amount\nQ1,10\nQ2,20\n").unwrap();
+    let source =
+        "Chart(data: \"data.csv\") {\n    Space(transpose((quarter * amount)) / quarter) {\n        Bar()\n    }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, mut socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+    let notification = next_client_notification(&mut socket).await;
+    let params: PublishDiagnosticsParams =
+        serde_json::from_value(notification.params().unwrap().clone()).unwrap();
+    let diagnostic = params
+        .diagnostics
+        .into_iter()
+        .find(|diag| {
+            diag.code.as_ref().is_some_and(|code| {
+                matches!(code, tower_lsp::lsp_types::NumberOrString::String(value) if value == "E1912")
+            })
+        })
+        .expect("expected E1912 diagnostic");
+
+    let action_params = CodeActionParams {
+        text_document: TextDocumentIdentifier { uri },
+        range: diagnostic.range,
+        context: CodeActionContext {
+            diagnostics: vec![diagnostic],
+            only: None,
+            trigger_kind: None,
+        },
+        work_done_progress_params: Default::default(),
+        partial_result_params: Default::default(),
+    };
+    let response = call(
+        &mut service,
+        Request::build("textDocument/codeAction")
+            .params(serde_json::to_value(action_params).unwrap())
+            .id(41)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<CodeActionResponse> = response_result(response);
+    let serialized = serde_json::to_string(&result.expect("actions")).unwrap();
+    assert!(serialized.contains("Rewrite transpose"), "{serialized}");
+    assert!(serialized.contains("(amount * quarter)"), "{serialized}");
+}
+
+#[tokio::test]
 async fn rename_updates_derived_table_declaration_and_use() {
     let (mut service, _socket) = initialized_service().await;
     let (uri, source) = open_binned(&mut service, "rename-derive").await;

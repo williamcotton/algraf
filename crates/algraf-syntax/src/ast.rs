@@ -690,7 +690,7 @@ impl AlgebraName {
 }
 
 ast_node!(
-    /// A frame-operator call such as `transpose(a * b)`.
+    /// A recovered frame-call shape retained for removed operator diagnostics.
     AlgebraCall = ALGEBRA_CALL
 );
 

@@ -108,12 +108,6 @@ fn hover_for_ident(
     if let Some(doc) = registry::declaration_doc(name) {
         return Some(declaration_hover(doc));
     }
-    if name == "transpose" && next_significant_is_lparen(tokens, idx) {
-        return Some(
-            "**Frame operator `transpose`**\n\nSwaps the two axes of a two-dimensional Cartesian frame."
-                .to_string(),
-        );
-    }
     if let Some(meta) = source_constructor_meta(name) {
         if meta.name != "Sqlite" || (state.text.contains("0.21") && state.text.contains("\"sql\""))
         {
@@ -957,14 +951,6 @@ mod tests {
         let offset = text.find('*').unwrap();
         let md = markdown(hover_at(&state(text), offset).expect("hover"));
         assert!(md.contains("Cross operator"));
-    }
-
-    #[test]
-    fn hovers_transpose_frame_operator() {
-        let text = "Chart(data: \"p.csv\") {\n  Space(transpose(x * y)) {\n    Point()\n  }\n}";
-        let offset = text.find("transpose").unwrap() + 1;
-        let md = markdown(hover_at(&state(text), offset).expect("hover"));
-        assert!(md.contains("Frame operator `transpose`"));
     }
 
     #[test]

@@ -1052,7 +1052,7 @@ const SHAPE: &[Accept] = &[Accept::Column, Accept::Str];
 const SRC: &[Accept] = &[Accept::Column, Accept::Str];
 const STROKE_WIDTH: &[Accept] = &[Accept::Number];
 const DASH: &[Accept] = &[Accept::Enum(&["solid", "dotted", "dashed"])];
-const INTERVAL_ORIENTATION: &[Accept] = &[Accept::Enum(&["vertical", "horizontal"])];
+const GENERATED_AXIS_ORIENTATION: &[Accept] = &[Accept::Enum(&["vertical", "horizontal"])];
 /// `strokeWidth` for `Line`/`Path`, which support a data-driven (per-segment)
 /// width in addition to a constant line width (spec §13.8).
 const LINE_STROKE_WIDTH: &[Accept] = &[Accept::Number, Accept::Column];
@@ -1124,6 +1124,7 @@ const HISTOGRAM: &[PropSpec] = &[
     opt(PropertyKey::Boundary, &[Accept::Number]),
     opt(PropertyKey::Closed, &[Accept::Enum(&["left", "right"])]),
     opt(PropertyKey::Interval, BIN_INTERVAL),
+    opt(PropertyKey::Orientation, GENERATED_AXIS_ORIENTATION),
     // A `fill` column groups the histogram (stacked); a color fills a single
     // series (spec §15.6).
     opt(PropertyKey::Fill, FILL),
@@ -1139,6 +1140,7 @@ const FREQ_POLY: &[PropSpec] = &[
     opt(PropertyKey::Boundary, &[Accept::Number]),
     opt(PropertyKey::Closed, &[Accept::Enum(&["left", "right"])]),
     opt(PropertyKey::Interval, BIN_INTERVAL),
+    opt(PropertyKey::Orientation, GENERATED_AXIS_ORIENTATION),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
@@ -1187,7 +1189,7 @@ const ERROR_BAR: &[PropSpec] = &[
     opt(PropertyKey::Xmax, &[Accept::Column]),
     opt(PropertyKey::Ymin, &[Accept::Column]),
     opt(PropertyKey::Ymax, &[Accept::Column]),
-    opt(PropertyKey::Orientation, INTERVAL_ORIENTATION),
+    opt(PropertyKey::Orientation, GENERATED_AXIS_ORIENTATION),
     opt(PropertyKey::CapWidth, &[Accept::Number]),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
@@ -1200,7 +1202,7 @@ const LINE_RANGE: &[PropSpec] = &[
     opt(PropertyKey::Xmax, &[Accept::Column]),
     opt(PropertyKey::Ymin, &[Accept::Column]),
     opt(PropertyKey::Ymax, &[Accept::Column]),
-    opt(PropertyKey::Orientation, INTERVAL_ORIENTATION),
+    opt(PropertyKey::Orientation, GENERATED_AXIS_ORIENTATION),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Dash, DASH),
@@ -1212,7 +1214,7 @@ const POINT_RANGE: &[PropSpec] = &[
     opt(PropertyKey::Xmax, &[Accept::Column]),
     opt(PropertyKey::Ymin, &[Accept::Column]),
     opt(PropertyKey::Ymax, &[Accept::Column]),
-    opt(PropertyKey::Orientation, INTERVAL_ORIENTATION),
+    opt(PropertyKey::Orientation, GENERATED_AXIS_ORIENTATION),
     opt(PropertyKey::Fill, FILL),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
@@ -1227,7 +1229,7 @@ const CROSS_BAR: &[PropSpec] = &[
     opt(PropertyKey::Xmax, &[Accept::Column]),
     opt(PropertyKey::Ymin, &[Accept::Column]),
     opt(PropertyKey::Ymax, &[Accept::Column]),
-    opt(PropertyKey::Orientation, INTERVAL_ORIENTATION),
+    opt(PropertyKey::Orientation, GENERATED_AXIS_ORIENTATION),
     opt(PropertyKey::Width, &[Accept::Number]),
     opt(PropertyKey::Fill, FILL),
     opt(PropertyKey::Stroke, STROKE),
@@ -1493,7 +1495,7 @@ pub fn property_doc(name: &str) -> &'static str {
         "n" => "Number of kernel density grid points.",
         "quantiles" => "Violin quantile line positions.",
         "outliers" => "Render Boxplot points beyond the 1.5·IQR whiskers (boolean, default true).",
-        "orientation" => "Interval direction: `\"vertical\"` or `\"horizontal\"`.",
+        "orientation" => "Generated-axis or interval direction: `\"vertical\"` or `\"horizontal\"`.",
         "capWidth" => "ErrorBar cap width in position-axis data units.",
         "gradient" => "Continuous color gradient stops.",
         "style" => "Reusable `Style(...)` fragment applied at this argument position.",

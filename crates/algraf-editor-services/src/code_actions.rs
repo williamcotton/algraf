@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use algraf_core::{codes, DiagnosticCode, Span};
-use algraf_syntax::ast::{ChartItem, GeometryCall, Root, SpaceItem};
+use algraf_syntax::ast::{AlgebraExpr, AlgebraOp, ChartItem, GeometryCall, Root, SpaceItem};
 use algraf_syntax::{node_span, parse, tokenize, SyntaxKind};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
@@ -103,6 +103,11 @@ pub fn code_actions_for(state: &DocumentState, params: CodeActionParams) -> Code
                     }
                 }
             }
+            codes::E1912 => {
+                if let Some(action) = transpose_rewrite_action(&uri, &state.text, &diagnostic) {
+                    actions.push(action);
+                }
+            }
             _ => {}
         }
     }
@@ -110,6 +115,69 @@ pub fn code_actions_for(state: &DocumentState, params: CodeActionParams) -> Code
         actions.push(action);
     }
     actions
+}
+
+fn transpose_rewrite_action(
+    uri: &Url,
+    source: &str,
+    diagnostic: &Diagnostic,
+) -> Option<CodeActionOrCommand> {
+    let (diag_start, diag_end) = range_to_offsets(source, diagnostic.range)?;
+    let root = Root::cast(parse(source).syntax())?;
+    let call = root.syntax().descendants().find_map(|node| {
+        let call = algraf_syntax::ast::AlgebraCall::cast(node)?;
+        if call.name().as_deref() != Some("transpose") {
+            return None;
+        }
+        let span = call.name_span()?;
+        (span.start <= diag_start && span.end >= diag_end).then_some(call)
+    })?;
+    let replacement = call
+        .inner()
+        .and_then(|inner| transpose_replacement_text(&inner))?;
+    let range = span_to_range(source, node_span(call.syntax()));
+    let parenthesized = format!("({replacement})");
+    Some(edit_action(
+        "Rewrite transpose to physical frame order",
+        uri,
+        range,
+        parenthesized,
+        diagnostic.clone(),
+    ))
+}
+
+fn transpose_replacement_text(expr: &AlgebraExpr) -> Option<String> {
+    match expr {
+        AlgebraExpr::Paren(paren) => {
+            let inner = paren.inner()?;
+            transpose_replacement_text(&inner)
+        }
+        AlgebraExpr::Binary(binary) if binary.op() == Some(AlgebraOp::Cross) => {
+            let lhs = binary.lhs()?;
+            let rhs = binary.rhs()?;
+            Some(format!(
+                "{} * {}",
+                algebra_operand_text(&rhs),
+                algebra_operand_text(&lhs)
+            ))
+        }
+        AlgebraExpr::Binary(binary) if binary.op() == Some(AlgebraOp::Nest) => {
+            let outer = binary.lhs()?;
+            let inner = binary.rhs()?;
+            let swapped = transpose_replacement_text(&outer)?;
+            Some(format!("({swapped}) / {}", algebra_operand_text(&inner)))
+        }
+        _ => None,
+    }
+}
+
+fn algebra_operand_text(expr: &AlgebraExpr) -> String {
+    let text = expr.syntax().text().to_string().trim().to_string();
+    if matches!(expr, AlgebraExpr::Binary(_)) {
+        format!("({text})")
+    } else {
+        text
+    }
 }
 
 /// Offer a `refactor.rewrite` that desugars a single-`Histogram` space into the
@@ -166,6 +234,8 @@ fn histogram_refactor_action(source: &str, uri: &Url, range: Range) -> Option<Co
 
         let bin_args = collect_arg_text(&histogram, &["bins", "binWidth", "boundary", "closed"]);
         let rect_args = collect_arg_text(&histogram, &["fill", "stroke", "strokeWidth", "alpha"]);
+        let horizontal =
+            string_arg_text(&histogram, "orientation").as_deref() == Some("horizontal");
         let derive_name = unique_derive_name(&chart, &input);
 
         let bin_call = if bin_args.is_empty() {
@@ -178,12 +248,23 @@ fn histogram_refactor_action(source: &str, uri: &Url, range: Range) -> Option<Co
         } else {
             format!(", {}", rect_args.join(", "))
         };
+        let (space_frame, rect_bounds) = if horizontal {
+            (
+                "count * bin_start",
+                "xmin: 0, xmax: count, ymin: bin_start, ymax: bin_end",
+            )
+        } else {
+            (
+                "bin_start * count",
+                "xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count",
+            )
+        };
 
         let indent = line_indent(source, space_span.start);
         let replacement = format!(
             "Derive {derive_name} = {bin_call}\n\
-             {indent}Space(bin_start * count, data: {derive_name}) {{\n\
-             {indent}    Rect(xmin: bin_start, xmax: bin_end, ymax: count{rect_props})\n\
+             {indent}Space({space_frame}, data: {derive_name}) {{\n\
+             {indent}    Rect({rect_bounds}{rect_props})\n\
              {indent}}}"
         );
 
@@ -224,6 +305,23 @@ fn collect_arg_text(call: &GeometryCall, keys: &[&str]) -> Vec<String> {
         }
     }
     out
+}
+
+fn string_arg_text(call: &GeometryCall, key: &str) -> Option<String> {
+    for arg in call.args() {
+        if arg.key().as_deref() != Some(key) {
+            continue;
+        }
+        let Some(algraf_syntax::ast::ValueExpr::Literal(lit)) = arg.value() else {
+            continue;
+        };
+        if lit.kind() == Some(algraf_syntax::ast::LiteralKind::String) {
+            return lit
+                .text()
+                .map(|text| algraf_syntax::unescape_string_literal(&text));
+        }
+    }
+    None
 }
 
 /// Pick a derived-table name that does not collide with an existing `Derive`.
@@ -377,5 +475,28 @@ mod tests {
     fn non_histogram_space_offers_no_refactor() {
         let source = "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Point()\n  }\n}";
         assert!(histogram_refactor_action(source, &uri(), whole(source)).is_none());
+    }
+
+    #[test]
+    fn transpose_removal_action_rewrites_physical_order() {
+        let source =
+            "Chart(data: \"p.csv\") {\n  Space(transpose((quarter * amount)) / region) {\n    Bar()\n  }\n}";
+        let start = source.find("transpose").unwrap();
+        let diagnostic = Diagnostic {
+            range: span_to_range(source, Span::new(start, start + "transpose".len())),
+            code: Some(NumberOrString::String(codes::E1912.as_str().to_string())),
+            message: "removed transpose".to_string(),
+            ..Diagnostic::default()
+        };
+        let action = transpose_rewrite_action(&uri(), source, &diagnostic)
+            .expect("transpose rewrite offered");
+        match action {
+            CodeActionOrCommand::CodeAction(action) => {
+                let serialized = serde_json::to_string(&action).unwrap();
+                assert!(serialized.contains("(amount * quarter)"), "{serialized}");
+                assert!(serialized.contains("Rewrite transpose"), "{serialized}");
+            }
+            _ => panic!("expected a code action"),
+        }
     }
 }

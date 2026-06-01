@@ -3,7 +3,7 @@ Chart(data: "monthly_profit.csv", width: 760, height: 520, title: "Monthly profi
     Scale(fill: status, range: ["Profit" => "#2ca02c", "Loss" => "#d62728"])
     Guide(axis: x, label: "Profit / Loss ($)")
     Guide(axis: y, label: "Month")
-    Space(transpose(month * profit)) {
+    Space(profit * month) {
         Bar(fill: status, layout: "stack", alpha: 0.85)
         VLine(x: 0, stroke: "#333333", strokeWidth: 1.2)
     }

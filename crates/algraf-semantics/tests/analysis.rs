@@ -39,6 +39,7 @@ fn schema() -> Vec<ColumnDef> {
         col("group", DataType::String),
         col("logo", DataType::String),
         col("geom", DataType::Geometry),
+        col("transpose", DataType::Float),
     ]
 }
 
@@ -892,6 +893,35 @@ fn test_direct_histogram_desugars_to_bin_and_rect() {
 }
 
 #[test]
+fn test_horizontal_histogram_orientation_swaps_generated_axes() {
+    let analysis = analyze_source(
+        "Chart(data: \"d.csv\") {\n  Space(value) {\n    Histogram(bins: 4, orientation: \"horizontal\")\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let FrameIr::Cartesian(axes) = &ir.spaces[0].frame else {
+        panic!("expected Cartesian frame");
+    };
+    assert!(matches!(&axes[0], FrameIr::Vector(col) if col.name == "count"));
+    assert!(matches!(&axes[1], FrameIr::Vector(col) if col.name == "bin_start"));
+    let rect = &ir.spaces[0].geometries[0];
+    assert!(rect
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == PropertyKey::Xmax && m.column.name == "count"));
+    assert!(rect
+        .mappings
+        .iter()
+        .any(|m| m.aesthetic == PropertyKey::Ymin && m.column.name == "bin_start"));
+    assert!(rect.settings.iter().any(|s| s.name == PropertyKey::Xmin));
+}
+
+#[test]
 fn test_grouped_histogram_desugars_to_grouped_bin_and_stacked_rect() {
     let analysis = analyze_source(
         "Chart(data: \"d.csv\") {\n  Space(value) {\n    Histogram(fill: species, bins: 4)\n  }\n}",
@@ -1650,6 +1680,37 @@ fn test_freqpoly_desugars_to_bin_table_and_line() {
         if matches!(&axes[0], FrameIr::Vector(c) if c.name == "bin_center")));
     assert_eq!(ir.spaces[0].geometries.len(), 1);
     assert_eq!(ir.spaces[0].geometries[0].kind, GeometryKind::Line);
+}
+
+#[test]
+fn test_horizontal_freqpoly_orientation_swaps_generated_axes() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space(value) {\n    FreqPoly(bins: 8, orientation: \"horizontal\")\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let FrameIr::Cartesian(axes) = &ir.spaces[0].frame else {
+        panic!("expected Cartesian frame");
+    };
+    assert!(matches!(&axes[0], FrameIr::Vector(col) if col.name == "count"));
+    assert!(matches!(&axes[1], FrameIr::Vector(col) if col.name == "bin_center"));
+}
+
+#[test]
+fn generated_axis_orientation_does_not_swap_two_dimensional_frames() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(value * group) {\n    Histogram(orientation: \"horizontal\")\n  }\n}",
+        "E1302"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(value * group) {\n    FreqPoly(orientation: \"horizontal\")\n  }\n}",
+        "E1302"
+    ));
 }
 
 #[test]
@@ -2684,9 +2745,9 @@ fn polar_invalid_direction_is_e1910() {
 }
 
 #[test]
-fn transpose_swaps_two_dimensional_cartesian_frame() {
+fn physical_frame_order_is_the_horizontal_form() {
     let analysis = analyze_source(
-        "Chart(data: \"p.csv\") { Space(transpose(quarter * amount)) { Bar() } }",
+        "Chart(data: \"p.csv\") { Space(amount * quarter) { Bar() } }",
         &schema(),
     );
     assert!(
@@ -2703,11 +2764,21 @@ fn transpose_swaps_two_dimensional_cartesian_frame() {
 }
 
 #[test]
-fn transpose_rejects_polar_coords() {
-    assert!(has(
-        "Chart(data: \"p.csv\") { Space(transpose(quarter * amount), coords: \"polar\") { Bar() } }",
-        "E1911"
-    ));
+fn removed_transpose_is_e1912_with_rewrite_help() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") { Space(transpose(quarter * amount)) { Bar() } }",
+        &schema(),
+    );
+    let diagnostic = analysis
+        .diagnostics
+        .iter()
+        .find(|diag| diag.code == "E1912")
+        .expect("removed transpose diagnostic");
+    assert!(diagnostic.message.contains("removed"));
+    assert!(diagnostic
+        .help
+        .as_deref()
+        .is_some_and(|help| help.contains("amount * quarter")));
 }
 
 #[test]
@@ -2719,11 +2790,16 @@ fn unknown_frame_operator_is_e1912() {
 }
 
 #[test]
-fn transpose_requires_two_dimensional_frame() {
+fn removed_transpose_malformed_call_is_e1912() {
     assert!(has(
         "Chart(data: \"p.csv\") { Space(transpose(amount)) { Bar() } }",
-        "E1913"
+        "E1912"
     ));
+}
+
+#[test]
+fn transpose_column_names_remain_ordinary_columns() {
+    clean("Chart(data: \"p.csv\") { Space(`transpose` * value) { Point() } }");
 }
 
 #[test]

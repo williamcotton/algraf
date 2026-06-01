@@ -1,6 +1,6 @@
 # Algraf v0.46.0 Plan
 
-Status: Planned
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_45_PLAN.md`](V0_45_PLAN.md)
@@ -187,7 +187,7 @@ Removal behavior should be deliberately simple:
 
 ### 1. Update the spec to make axes physical
 
-Status: Planned.
+Status: Implemented.
 
 - Rewrite the Cartesian algebra sections that currently describe `transpose` so
   the normative source contract is physical axis order.
@@ -204,7 +204,7 @@ Status: Planned.
 
 ### 2. Add generated-axis `orientation` where needed
 
-Status: Planned.
+Status: Implemented.
 
 - Add `orientation` parsing, validation, IR storage, and registry metadata for
   `Histogram` and `FreqPoly`.
@@ -219,7 +219,7 @@ Status: Planned.
 
 ### 3. Remove `transpose(...)` in analyzer and editor services
 
-Status: Planned.
+Status: Implemented.
 
 - Delete compatibility lowering for valid `transpose(a * b)` forms.
 - Emit the removed-transpose error on the operator span, with help text that
@@ -236,7 +236,7 @@ Status: Planned.
 
 ### 4. Rewrite horizontal examples and tutorial docs
 
-Status: Planned.
+Status: Implemented.
 
 - Rewrite every checked-in tutorial or example chart that uses
   `transpose(...)` to the physical-axis equivalent.
@@ -250,7 +250,7 @@ Status: Planned.
 
 ### 5. Rewrite tests around physical frames
 
-Status: Planned.
+Status: Implemented.
 
 - Replace horizontal renderer tests authored with `transpose(...)` by tests that
   author physical horizontal frames directly.
@@ -264,7 +264,7 @@ Status: Planned.
 
 ### 6. Remove positive product surface for frame operators
 
-Status: Planned.
+Status: Implemented.
 
 - Remove `transpose` from registry snippets, completions, hover examples,
   tutorial text, and generated docs.
@@ -303,16 +303,18 @@ in sync.
 
 ### Mechanical formatter assistance
 
-Status: Planned.
+Status: Implemented.
 
 - Consider a formatter-preserving rewrite path for `transpose(a * b)` that the
   LSP code action and CLI format command can share.
 - The formatter should not silently rewrite source without an explicit user
   action in v0.46.0.
+  The shipped rewrite is an explicit LSP quick fix; the CLI formatter remains
+  non-mutating for removed syntax.
 
 ### Removal diagnostic polish
 
-Status: Planned.
+Status: Implemented.
 
 - Make CLI human diagnostics include the replacement frame in the help text when
   the operand is a simple two-axis Cartesian frame.
@@ -321,7 +323,7 @@ Status: Planned.
 
 ### Generated-axis orientation examples
 
-Status: Planned.
+Status: Implemented.
 
 - Add a compact checked-in example for horizontal generated-axis output only
   after `orientation` has landed and the example can run from checked-in data.

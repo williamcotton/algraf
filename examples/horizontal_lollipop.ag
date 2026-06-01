@@ -4,7 +4,7 @@ Chart(data: "programming_languages.csv", width: 760, height: 500, title: "Progra
     Scale(stroke: paradigm, palette: "accent")
     Guide(axis: x, label: "Share (%)")
     Guide(axis: y, label: "Programming Language")
-    Space(transpose(language * popularity)) {
+    Space(popularity * language) {
         Bar(fill: "#f3f3f3", stroke: "#dddddd", strokeWidth: 1.5)
         Point(fill: paradigm, size: 9)
     }

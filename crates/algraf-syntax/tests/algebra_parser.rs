@@ -112,7 +112,7 @@ fn test_facet_expression() {
 }
 
 #[test]
-fn test_frame_operator_call() {
+fn test_removed_frame_call_shape_is_preserved_for_recovery() {
     assert_eq!(
         shape("transpose(group * value)"),
         "transpose((group * value))"
@@ -123,7 +123,7 @@ fn test_frame_operator_call() {
 }
 
 #[test]
-fn test_frame_operator_composes_with_nesting() {
+fn test_removed_frame_call_shape_composes_with_nesting_for_rewrite() {
     assert_eq!(
         shape("transpose((group * value)) / region"),
         "(transpose((group * value)) / region)"

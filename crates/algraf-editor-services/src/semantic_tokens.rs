@@ -92,11 +92,6 @@ fn semantic_token_type(tokens: &[algraf_syntax::TokenWithSpan], idx: usize) -> O
         TokenKind::Ident(_) if next_significant_is_colon_all(tokens, idx) => {
             Some(token_type_index(SemanticTokenType::PROPERTY))
         }
-        TokenKind::Ident(name)
-            if name == "transpose" && next_significant_is_lparen(tokens, idx) =>
-        {
-            Some(token_type_index(SemanticTokenType::OPERATOR))
-        }
         TokenKind::Ident(name) if declaration_name(name) || registry::geometry(name).is_some() => {
             Some(token_type_index(SemanticTokenType::FUNCTION))
         }
@@ -187,14 +182,6 @@ fn next_significant_is_ident(tokens: &[algraf_syntax::TokenWithSpan], idx: usize
         .is_some_and(|token| matches!(token.kind, TokenKind::Ident(_)))
 }
 
-fn next_significant_is_lparen(tokens: &[algraf_syntax::TokenWithSpan], idx: usize) -> bool {
-    use algraf_syntax::TokenKind;
-    tokens
-        .iter()
-        .skip(idx + 1)
-        .find(|token| !matches!(token.kind, TokenKind::Whitespace | TokenKind::Comment(_)))
-        .is_some_and(|token| matches!(token.kind, TokenKind::LParen))
-}
 #[cfg(test)]
 mod semantic_token_tests {
     use super::{semantic_tokens_for, token_type_index, SemanticTokenType};
@@ -244,13 +231,5 @@ mod semantic_token_tests {
             .expect("comment token");
         // "// café 𝄞" is "// café " (8 UTF-16 units) plus `𝄞` (2 units) => 10.
         assert_eq!(comment.length, 10);
-    }
-
-    #[test]
-    fn transpose_call_is_operator_token() {
-        let source = "Chart(data: \"d.csv\") { Space(transpose(x)) { Point() } }";
-        let tokens = semantic_tokens_for(source);
-        let operator_type = token_type_index(SemanticTokenType::OPERATOR);
-        assert!(tokens.iter().any(|token| token.token_type == operator_type));
     }
 }
