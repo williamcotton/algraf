@@ -403,7 +403,10 @@ fn embedded_facade_interactive_svg_embeds_runtime() {
     assert!(!static_svg.contains("<script"), "{static_svg}");
     assert!(static_svg.contains("<title>g: A\ny: 2</title>"));
     assert!(interactive_svg.contains("<script"), "{interactive_svg}");
-    assert!(interactive_svg.contains("algraf-crosshair"), "{interactive_svg}");
+    assert!(
+        interactive_svg.contains("algraf-crosshair"),
+        "{interactive_svg}"
+    );
     assert!(interactive_svg.contains("<title>g: A\ny: 2</title>"));
 
     let body_end = interactive_svg.find("<script").unwrap();
