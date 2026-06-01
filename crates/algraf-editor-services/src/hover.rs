@@ -3,7 +3,8 @@ use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::ir::ColumnDefIr;
 use algraf_semantics::registry::{self, Accept, ArgDoc, CallDoc, GeometryDef, PropSpec};
 use algraf_syntax::ast::{
-    AlgebraExpr, Arg, ChartItem, DeriveDecl, LiteralKind, Root, SpaceBlock, ValueExpr,
+    AlgebraExpr, Arg, CallValue, ChartItem, DeriveDecl, Literal, LiteralKind, Root, SpaceBlock,
+    TableDecl, ValueExpr,
 };
 use algraf_syntax::{
     node_span, parse, source_constructor_meta, tokenize, unescape_quoted_ident,
@@ -72,6 +73,9 @@ fn hover_for_ident(
     let span = tokens[idx].span;
     if let Some(target) = derived_hover_target_at(&state.text, span.start) {
         return Some(derived_table_hover(state, target));
+    }
+    if let Some(target) = named_table_hover_target_at(&state.text, span.start) {
+        return Some(named_table_hover(state, target));
     }
     if let Some(context) = call_name_context_at(&state.text, span.start) {
         match context {
@@ -294,6 +298,157 @@ fn derived_hover_target_at(text: &str, offset: usize) -> Option<DerivedHoverTarg
     None
 }
 
+struct NamedTableHoverTarget {
+    name: String,
+    source_label: Option<String>,
+    context: NamedTableHoverContext,
+}
+
+enum NamedTableHoverContext {
+    Declaration,
+    Reference,
+    DeriveInput,
+}
+
+struct NamedTableDeclInfo {
+    name: String,
+    name_span: Span,
+    source_label: Option<String>,
+}
+
+fn named_table_hover_target_at(text: &str, offset: usize) -> Option<NamedTableHoverTarget> {
+    let root = Root::cast(parse(text).syntax())?;
+    let declarations = named_table_declarations(&root);
+
+    for table in &declarations {
+        if table.name_span.contains(offset) {
+            return Some(NamedTableHoverTarget {
+                name: table.name.clone(),
+                source_label: table.source_label.clone(),
+                context: NamedTableHoverContext::Declaration,
+            });
+        }
+    }
+
+    for node in root.syntax().descendants() {
+        if node.kind() == SyntaxKind::DERIVE_DECL {
+            let Some(decl) = DeriveDecl::cast(node.clone()) else {
+                continue;
+            };
+            if let (Some(source), Some(source_span)) = (decl.source_name(), decl.source_name_span())
+            {
+                if source_span.contains(offset) {
+                    if let Some(table) = declarations.iter().find(|table| table.name == source) {
+                        return Some(NamedTableHoverTarget {
+                            name: table.name.clone(),
+                            source_label: table.source_label.clone(),
+                            context: NamedTableHoverContext::DeriveInput,
+                        });
+                    }
+                }
+            }
+        }
+
+        if node.kind() != SyntaxKind::ALGEBRA_NAME || !is_data_arg_value(&node) {
+            continue;
+        }
+        let Some(name_expr) = algraf_syntax::ast::AlgebraName::cast(node.clone()) else {
+            continue;
+        };
+        let (Some(name), Some(span)) = (name_expr.name(), name_expr.ident_span()) else {
+            continue;
+        };
+        if span.contains(offset) {
+            if let Some(table) = declarations.iter().find(|table| table.name == name) {
+                return Some(NamedTableHoverTarget {
+                    name: table.name.clone(),
+                    source_label: table.source_label.clone(),
+                    context: NamedTableHoverContext::Reference,
+                });
+            }
+        }
+    }
+
+    None
+}
+
+fn named_table_declarations(root: &Root) -> Vec<NamedTableDeclInfo> {
+    let mut out = Vec::new();
+    for decl in root.tables() {
+        if let Some(info) = named_table_decl_info(&decl) {
+            out.push(info);
+        }
+    }
+    for chart in root.charts() {
+        for item in chart.items() {
+            let ChartItem::Table(decl) = item else {
+                continue;
+            };
+            if let Some(info) = named_table_decl_info(&decl) {
+                out.push(info);
+            }
+        }
+    }
+    out
+}
+
+fn named_table_decl_info(decl: &TableDecl) -> Option<NamedTableDeclInfo> {
+    Some(NamedTableDeclInfo {
+        name: decl.name()?,
+        name_span: decl.name_span().unwrap_or_else(|| node_span(decl.syntax())),
+        source_label: source_path_value_span(decl.source()).map(|(label, _)| label),
+    })
+}
+
+fn named_table_hover(state: &DocumentState, target: NamedTableHoverTarget) -> String {
+    let mut out = format!("**Named table {}**", inline_code(&target.name));
+    match target.context {
+        NamedTableHoverContext::Declaration => {}
+        NamedTableHoverContext::Reference => {
+            out.push_str("\n\nThis data binding reads from the named table.");
+        }
+        NamedTableHoverContext::DeriveInput => {
+            out.push_str("\n\nThis `Derive` reads from the named table.");
+        }
+    }
+    if let Some(label) = target.source_label.as_deref() {
+        out.push_str("\n\nSource: ");
+        out.push_str(&inline_code(label));
+    }
+
+    if let Some(preview) = state.source_previews.tables.get(&target.name) {
+        if !preview.label.is_empty()
+            && target.source_label.as_deref() != Some(preview.label.as_str())
+        {
+            out.push_str("\n\nResolved path: ");
+            out.push_str(&inline_code(&preview.label));
+        }
+        out.push_str("\n\nSampled schema:\n\n");
+        out.push_str(&source_schema_table(&preview.schema));
+        if !preview.rows.is_empty() && !preview.row_headers.is_empty() {
+            out.push_str("\n\nSample rows:\n\n");
+            out.push_str(&sample_rows_table(&preview.row_headers, &preview.rows));
+        } else {
+            out.push_str("\n\nSample rows unavailable.");
+        }
+        out.push_str("\n\nProvisional LSP sample.");
+        return out;
+    }
+
+    if let Some(schema) = state.table_schemas.get(&target.name) {
+        out.push_str("\n\nSampled schema:\n\n");
+        out.push_str(&source_schema_table(schema));
+        out.push_str("\n\nSample rows unavailable.");
+        out.push_str("\n\nProvisional LSP sample.");
+        return out;
+    }
+
+    out.push_str(
+        "\n\nNamed table schema unavailable. Diagnostics, if any, report the specific load problem.",
+    );
+    out
+}
+
 fn is_data_arg_value(node: &SyntaxNode) -> bool {
     let mut current = node.parent();
     while let Some(parent) = current {
@@ -487,7 +642,7 @@ fn source_hover_target_at(text: &str, offset: usize) -> Option<SourceHoverTarget
     let root = Root::cast(parse(text).syntax())?;
     for decl in root.tables() {
         let Some(name) = decl.name() else { continue };
-        let Some((label, span)) = string_literal_value_span(decl.source()) else {
+        let Some((label, span)) = source_path_value_span(decl.source()) else {
             continue;
         };
         if span.contains(offset) {
@@ -499,7 +654,7 @@ fn source_hover_target_at(text: &str, offset: usize) -> Option<SourceHoverTarget
             if arg.key().as_deref() != Some("data") {
                 continue;
             }
-            let Some((label, span)) = string_literal_value_span(arg.value()) else {
+            let Some((label, span)) = source_path_value_span(arg.value()) else {
                 continue;
             };
             if span.contains(offset) {
@@ -511,7 +666,7 @@ fn source_hover_target_at(text: &str, offset: usize) -> Option<SourceHoverTarget
                 continue;
             };
             let Some(name) = decl.name() else { continue };
-            let Some((label, span)) = string_literal_value_span(decl.source()) else {
+            let Some((label, span)) = source_path_value_span(decl.source()) else {
                 continue;
             };
             if span.contains(offset) {
@@ -522,10 +677,42 @@ fn source_hover_target_at(text: &str, offset: usize) -> Option<SourceHoverTarget
     None
 }
 
+fn source_path_value_span(value: Option<ValueExpr>) -> Option<(String, Span)> {
+    match value? {
+        ValueExpr::Literal(lit) => string_literal_span(lit),
+        ValueExpr::Call(call) if is_source_constructor_call(&call) => {
+            source_constructor_path_span(&call)
+        }
+        _ => None,
+    }
+}
+
+fn is_source_constructor_call(call: &CallValue) -> bool {
+    call.name()
+        .and_then(|name| source_constructor_meta(&name))
+        .is_some()
+}
+
+fn source_constructor_path_span(call: &CallValue) -> Option<(String, Span)> {
+    for arg in call.args() {
+        if arg.key().is_some() {
+            continue;
+        }
+        if let Some(path) = string_literal_value_span(arg.value()) {
+            return Some(path);
+        }
+    }
+    None
+}
+
 fn string_literal_value_span(value: Option<ValueExpr>) -> Option<(String, Span)> {
     let ValueExpr::Literal(lit) = value? else {
         return None;
     };
+    string_literal_span(lit)
+}
+
+fn string_literal_span(lit: Literal) -> Option<(String, Span)> {
     if lit.kind() != Some(LiteralKind::String) {
         return None;
     }
@@ -881,7 +1068,7 @@ pub fn dtype_name(dtype: DataType) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::document::{AnalysisState, DocumentState};
+    use crate::document::{AnalysisState, DocumentState, SourcePreview};
     use algraf_semantics::analyze_with_tables;
     use std::collections::HashMap;
 
@@ -1011,6 +1198,91 @@ mod tests {
         assert!(md.contains("Type: `float`"));
         assert!(md.contains("Source: Table `cities`"));
         assert!(md.contains("Examples: `45.1`"));
+    }
+
+    #[test]
+    fn hovers_named_table_declarations_and_references() {
+        let text = "Chart(data: \"main.csv\") {\n  Table rides = Parquet(\"rides.parquet\")\n  Derive bins from rides = Bin2D(trip_distance, total_amount, bins: 42)\n  Space(trip_distance * total_amount, data: rides) {\n    Point()\n  }\n}";
+        let mut state = state(text);
+        state.source_previews.tables.insert(
+            "rides".to_string(),
+            SourcePreview {
+                label: "/tmp/rides.parquet".to_string(),
+                schema: vec![
+                    col("trip_distance", DataType::Float, &[]),
+                    col("total_amount", DataType::Float, &[]),
+                ],
+                row_headers: Vec::new(),
+                rows: Vec::new(),
+            },
+        );
+        state.table_schemas.insert(
+            "rides".to_string(),
+            vec![
+                col("trip_distance", DataType::Float, &[]),
+                col("total_amount", DataType::Float, &[]),
+            ],
+        );
+
+        let declaration_offset = text.find("rides =").unwrap() + 1;
+        let declaration = markdown(hover_at(&state, declaration_offset).expect("hover"));
+        assert!(declaration.contains("Named table `rides`"), "{declaration}");
+        assert!(
+            declaration.contains("Source: `rides.parquet`"),
+            "{declaration}"
+        );
+        assert!(
+            declaration.contains("Resolved path: `/tmp/rides.parquet`"),
+            "{declaration}"
+        );
+        assert!(
+            declaration.contains("| trip_distance | float |"),
+            "{declaration}"
+        );
+        assert!(
+            declaration.contains("Sample rows unavailable."),
+            "{declaration}"
+        );
+
+        let derive_offset = text.find("from rides").unwrap() + "from ".len();
+        let derive = markdown(hover_at(&state, derive_offset).expect("hover"));
+        assert!(
+            derive.contains("This `Derive` reads from the named table."),
+            "{derive}"
+        );
+
+        let data_offset = text.find("data: rides").unwrap() + "data: ".len();
+        let data = markdown(hover_at(&state, data_offset).expect("hover"));
+        assert!(
+            data.contains("This data binding reads from the named table."),
+            "{data}"
+        );
+    }
+
+    #[test]
+    fn hovers_source_constructor_path_preview() {
+        let text = "Chart(data: Parquet(\"rides.parquet\")) {\n  Space(trip_distance * total_amount) { Point() }\n}";
+        let mut state = state(text);
+        state.primary_schema = Some(vec![
+            col("trip_distance", DataType::Float, &[]),
+            col("total_amount", DataType::Float, &[]),
+        ]);
+        state.source_previews.primary = Some(SourcePreview {
+            label: "/tmp/rides.parquet".to_string(),
+            schema: vec![
+                col("trip_distance", DataType::Float, &[]),
+                col("total_amount", DataType::Float, &[]),
+            ],
+            row_headers: Vec::new(),
+            rows: Vec::new(),
+        });
+
+        let offset = text.find("rides.parquet").unwrap() + 1;
+        let md = markdown(hover_at(&state, offset).expect("hover"));
+        assert!(md.contains("Data source `rides.parquet`"), "{md}");
+        assert!(md.contains("Resolved path: `/tmp/rides.parquet`"), "{md}");
+        assert!(md.contains("| total_amount | float |"), "{md}");
+        assert!(md.contains("Sample rows unavailable."), "{md}");
     }
 
     #[test]

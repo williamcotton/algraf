@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.47.0
+Status: 0.48.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.47.0 specification.
+This working copy is the 0.48.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -2701,6 +2701,11 @@ Hover source previews SHOULD reuse the same cached, bounded schema-sampling
 path. A hover MAY include a few raw source rows for compact CSV/TSV previews,
 but the sample MUST be bounded, labeled provisional, and omitted when the source
 is unavailable, unsupported for row preview, or too large for the editor path.
+Since version 0.48.0, this same preview behavior MUST apply to the path string
+inside recognized source constructors such as `Parquet("file.parquet")` and
+`TopoJson("map.topojson", object: "name")`, for both chart primary sources and
+named table sources. Constructor-backed previews MAY omit raw rows when the
+format's editor path exposes schema metadata but no bounded row sample.
 
 ### 10.10 Named Tables
 
@@ -2717,6 +2722,13 @@ exactly as it binds to a derived table; the space's algebra and geometry
 properties resolve their columns against that table's schema. Named tables stay
 behind the dataframe boundary (§10.5): the parser, semantics, LSP, and renderer
 gain no source-specific knowledge beyond the table's name and resolved schema.
+Since version 0.48.0, LSP hover on a named table declaration name,
+`Chart(data: name)`, `Space(..., data: name)`, or
+`Derive output from name = ...` reference MUST identify the named table and show
+its sampled schema when one is available. The hover SHOULD include the source
+spelling and MAY include bounded sample rows under the same limits as source
+preview hover (§10.9). If schema analysis is incomplete or invalid, the hover
+MUST NOT invent a schema.
 
 `Chart(data: name)` binds the chart's primary data source to a visible named
 table. A missing `Chart(data:)` binds to `Table main = ...` when such a table is
@@ -8155,12 +8167,19 @@ Derived-table hover shows the table name, producer stat, and output schema for
 `Space(..., data: derived_name)` MUST resolve against that derived table's
 schema, not the primary source schema.
 
-Source-string hover for `Chart(data: "file.csv")` and `Table name = "file.csv"`
-SHOULD show the resolved source label, sampled column types, sample values from
-the schema, and a bounded raw row preview when available. Source previews MUST
-be labeled provisional and MUST degrade gracefully when data is missing,
-unreadable, unsupported for row preview, or too large to sample on the editor
-path.
+Source-path hover for `Chart(data: "file.csv")`, `Table name = "file.csv"`,
+`Chart(data: Parquet("file.parquet"))`, and constructor-backed named table
+sources SHOULD show the resolved source label, sampled column types, sample
+values from the schema, and a bounded raw row preview when available. Source
+previews MUST be labeled provisional and MUST degrade gracefully when data is
+missing, unreadable, unsupported for row preview, or too large to sample on the
+editor path.
+
+Named-table hover for `Table name = ...` declarations, `Chart(data: name)`,
+`Space(..., data: name)`, and `Derive output from name = ...` references MUST
+show the table name and sampled schema when available. Column hover inside
+`Space(..., data: name)` MUST continue to resolve against that named table's
+schema, not the primary source schema.
 
 Declaration hover for `Chart`, `Space`, `Theme`, `Scale`, `Guide`, `Layout`, and
 `Table` shows a short description, accepted attributes with value forms/defaults
@@ -10428,6 +10447,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.46.0 | [`V0_46_PLAN.md`](V0_46_PLAN.md) | Physical orientation migration and local image marks | Implemented |
 | 0.46.1 | [`V0_46_1_PLAN.md`](V0_46_1_PLAN.md) | Table-source spelling consistency | Implemented |
 | 0.47.0 | [`V0_47_PLAN.md`](V0_47_PLAN.md) | Explicit derived-table input sources | Implemented |
+| 0.48.0 | [`V0_48_PLAN.md`](V0_48_PLAN.md) | Editor hover parity for named tables and constructor-backed sources | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

@@ -435,6 +435,32 @@ mod tests {
     }
 
     #[test]
+    fn service_hover_previews_constructor_backed_named_table_source() {
+        let source = "Chart(data: \"main.csv\") {\n  Table grid = TopoJson(\"grid.topojson\", object: \"grid\")\n  Space(geom, data: grid, projection: \"equirectangular\") { Geo(fill: value) }\n}";
+        let (state, uri) = analyzed(
+            source,
+            &[("main.csv", "x\n1\n"), ("grid.topojson", GRID_TOPOJSON)],
+        );
+        let offset = source.find("grid.topojson").unwrap();
+        let position = offset_to_position(source, offset);
+
+        let response =
+            handle_feature_request(&state, &uri, EditorFeatureRequest::Hover { position });
+        let hover: Option<Hover> = serde_json::from_value(response.result).unwrap();
+        let hover = hover.expect("constructor source hover");
+        let markdown = hover_markdown(&hover);
+
+        assert!(
+            markdown.contains("Data source `grid.topojson`"),
+            "{markdown}"
+        );
+        assert!(markdown.contains("Table: `grid`"), "{markdown}");
+        assert!(markdown.contains("Sampled schema"), "{markdown}");
+        assert!(markdown.contains("| value | integer |"), "{markdown}");
+        assert!(markdown.contains("Sample rows unavailable."), "{markdown}");
+    }
+
+    #[test]
     fn service_hover_previews_named_table_source_with_non_ascii_text() {
         let source = "Chart(data: \"main.csv\") {\n  Table cities = \"cités.csv\"\n  Space(`café` * pop, data: cities) { Point() }\n}";
         let (state, uri) = analyzed(
