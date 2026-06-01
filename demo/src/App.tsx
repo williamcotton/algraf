@@ -18,12 +18,16 @@ import {
 import { AlgrafChart } from "./AlgrafChart";
 import { AlgrafEditor } from "./AlgrafEditor";
 
-interface DemoDataset {
+interface DemoDataFile {
   file: string;
   label: string;
   rows: number;
   columns: number;
   url: string;
+}
+
+interface DemoDataset extends DemoDataFile {
+  auxiliaryFiles?: DemoDataFile[];
 }
 
 interface ChartPreset {
@@ -69,6 +73,29 @@ const DATASETS: Record<string, DemoDataset> = {
     rows: 1461,
     columns: 6,
     url: "/data/seattle-weather.csv",
+  },
+  astronauts: {
+    file: "astronauts.csv",
+    label: "Astronaut ages",
+    rows: 564,
+    columns: 2,
+    url: "/data/astronauts.csv",
+  },
+  minard: {
+    file: "minard_troops.csv",
+    label: "Minard campaign",
+    rows: 50,
+    columns: 6,
+    url: "/data/minard_troops.csv",
+    auxiliaryFiles: [
+      {
+        file: "minard_cities.csv",
+        label: "Minard cities",
+        rows: 19,
+        columns: 4,
+        url: "/data/minard_cities.csv",
+      },
+    ],
   },
 };
 
@@ -196,6 +223,82 @@ const CHART_PRESETS: ChartPreset[] = [
 }
 `,
   },
+  {
+    id: "astronaut-ages",
+    title: "Astronauts",
+    dataset: "astronauts",
+    summary: "Histogram, blend, annotations",
+    source: `Chart(
+    data: "astronauts.csv",
+    width: 760,
+    height: 460,
+    title: "How old are astronauts on their most recent mission?",
+    subtitle: "Age of astronauts when they were selected and when they were sent on their mission",
+) {
+    Theme(
+        name: "minimal",
+        plotBackground: "#EBEBEB",
+        gridMajor: Line(stroke: "#FFFFFF", strokeWidth: 1),
+    )
+    Scale(axis: x, domain: [20, 80])
+    Scale(axis: y, domain: [0, 69])
+    Scale(
+        fill: series,
+        range: ["selection_age" => "#beaed4", "mission_age" => "#7fc97f"],
+        labels: ["selection_age" => "Age at selection", "mission_age" => "Age at mission"],
+        label: "",
+    )
+    Guide(axis: x, label: "Age of astronaut (years)")
+    Guide(axis: y, label: "count")
+
+    Space((mission_age + selection_age)) {
+        Histogram(binWidth: 1, alpha: 0.8, stroke: "#000000")
+        VLine(x: 34, stroke: "#000000", strokeWidth: 1, dash: "dotted")
+        VLine(x: 44, stroke: "#000000", strokeWidth: 1, dash: "dotted")
+        Text(x: 34, y: 66, label: "Mean age at selection = 34", anchor: "start", dx: 15, dy: 10, size: 14)
+        Text(x: 44, y: 49, label: "Mean age at mission = 44", anchor: "start", dx: 15, dy: 10, size: 14)
+        Text(
+            x: 60,
+            y: 20,
+            label: "John Glenn was 77\\non his last mission -\\nthe oldest person to\\ntravel in space!",
+            anchor: "start",
+            dx: 6,
+            size: 14,
+        )
+    }
+}
+`,
+  },
+  {
+    id: "minard-campaign",
+    title: "Minard",
+    dataset: "minard",
+    summary: "Path widths, labels, two CSVs",
+    source: `Chart(
+    data: "minard_troops.csv",
+    title: "Napoleon's Russian Campaign",
+    subtitle: "Inspired by the graphic of C.J. Minard",
+    marginRight: 40
+) {
+    Theme(name: "void")
+    Table cities = "minard_cities.csv"
+
+    Scale(stroke: direction,
+          range: ["A" => "burlywood", "R" => "black"],
+          labels: ["A" => "Advance", "R" => "Retreat"],
+          label: "Direction")
+    Scale(strokeWidth: survivors, domain: [0, null], range: [0, 30], label: "Troops")
+
+    Space(long * lat) {
+        Path(stroke: direction, strokeWidth: survivors, group: group)
+    }
+
+    Space(long * lat, data: cities) {
+        Text(label: city, size: 6)
+    }
+}
+`,
+  },
 ];
 
 const DEFAULT_PRESET = CHART_PRESETS[0];
@@ -209,8 +312,8 @@ interface PreviewStats {
 
 interface RenderSnapshot {
   source: string;
-  dataText: string;
   dataFile: string;
+  filesSignature: string;
   result: AlgrafRenderResult;
 }
 
@@ -220,6 +323,7 @@ export function App(): React.ReactElement {
   const [selectedPresetId, setSelectedPresetId] = React.useState(DEFAULT_PRESET.id);
   const [source, setSource] = React.useState(DEFAULT_PRESET.source);
   const [dataText, setDataText] = React.useState("");
+  const [auxiliaryDataTexts, setAuxiliaryDataTexts] = React.useState<Record<string, string>>({});
   const [dataState, setDataState] = React.useState<LoadState>("loading");
   const [dataRevision, setDataRevision] = React.useState(0);
   const [renderSnapshot, setRenderSnapshot] = React.useState<RenderSnapshot | null>(null);
@@ -253,21 +357,18 @@ export function App(): React.ReactElement {
     setDataState("loading");
     setDataError(null);
     setDataText("");
+    setAuxiliaryDataTexts({});
 
-    fetch(selectedDataset.url)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`failed to fetch ${selectedDataset.url}: ${response.status}`);
-        }
-        return response.text();
-      })
-      .then((text) => {
+    fetchDatasetFiles(selectedDataset)
+      .then(({ auxiliaryTexts, primaryText }) => {
         if (cancelled) return;
-        setDataText(text);
+        setDataText(primaryText);
+        setAuxiliaryDataTexts(auxiliaryTexts);
         setDataState("ready");
       })
       .catch((err: unknown) => {
         if (cancelled) return;
+        setAuxiliaryDataTexts({});
         setDataError(errorMessage(err));
         setDataState("error");
       });
@@ -275,7 +376,16 @@ export function App(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [dataRevision, selectedDataset.url]);
+  }, [dataRevision, selectedDataset]);
+
+  const dataFiles = React.useMemo(
+    () => ({
+      [selectedDataset.file]: dataText,
+      ...auxiliaryDataTexts,
+    }),
+    [auxiliaryDataTexts, dataText, selectedDataset.file],
+  );
+  const dataFilesSignature = React.useMemo(() => stableFilesSignature(dataFiles), [dataFiles]);
 
   const renderCurrent = React.useCallback(() => {
     if (!runtime || dataState !== "ready") {
@@ -283,21 +393,22 @@ export function App(): React.ReactElement {
     }
 
     const renderSource = source;
-    const renderDataText = dataText;
+    const renderFiles = dataFiles;
+    const renderFilesSignature = dataFilesSignature;
     setRendering(true);
     window.setTimeout(() => {
       try {
         setRenderSnapshot({
           source: renderSource,
-          dataText: renderDataText,
           dataFile: selectedDataset.file,
-          result: runtime.render(renderSource, { [selectedDataset.file]: renderDataText }),
+          filesSignature: renderFilesSignature,
+          result: runtime.render(renderSource, renderFiles),
         });
       } catch (err: unknown) {
         setRenderSnapshot({
           source: renderSource,
-          dataText: renderDataText,
           dataFile: selectedDataset.file,
+          filesSignature: renderFilesSignature,
           result: {
             svg: null,
             sidecar: null,
@@ -309,7 +420,7 @@ export function App(): React.ReactElement {
         setRendering(false);
       }
     }, 0);
-  }, [dataState, dataText, runtime, selectedDataset.file, source]);
+  }, [dataFiles, dataFilesSignature, dataState, runtime, selectedDataset.file, source]);
 
   React.useEffect(() => {
     if (!runtime || dataState !== "ready") {
@@ -334,7 +445,7 @@ export function App(): React.ReactElement {
   const diagnosticsAreCurrent = Boolean(
     renderSnapshot &&
       renderSnapshot.source === source &&
-      renderSnapshot.dataText === dataText &&
+      renderSnapshot.filesSignature === dataFilesSignature &&
       renderSnapshot.dataFile === selectedDataset.file,
   );
   const diagnostics = diagnosticsAreCurrent ? (result?.diagnostics ?? []) : [];
@@ -342,7 +453,8 @@ export function App(): React.ReactElement {
   const hasErrors = diagnostics.some((diagnostic) => diagnostic.severity === "error") || Boolean(currentError);
   const stats = React.useMemo(() => previewStats(result?.sidecar), [result?.sidecar]);
   const dataRows = React.useMemo(() => estimateRows(dataText, selectedDataset.file), [dataText, selectedDataset.file]);
-  const editorFiles = React.useMemo(() => ({ [selectedDataset.file]: dataText }), [dataText, selectedDataset.file]);
+  const auxiliaryFileCount = selectedDataset.auxiliaryFiles?.length ?? 0;
+  const dataDetail = `${dataRows ?? selectedDataset.rows} rows, ${selectedDataset.columns} cols, ${formatBytes(dataText.length)}${linkedFilesDetail(auxiliaryFileCount)}`;
 
   return (
     <main className="app-shell">
@@ -387,7 +499,7 @@ export function App(): React.ReactElement {
           <PaneHeader icon={<Code2 size={17} aria-hidden="true" />} title="Algraf" detail={`${source.length} bytes`} />
           <AlgrafEditor
             diagnostics={diagnostics}
-            files={editorFiles}
+            files={dataFiles}
             onChange={setSource}
             runtime={runtime}
             value={source}
@@ -398,7 +510,7 @@ export function App(): React.ReactElement {
           <PaneHeader
             icon={<Database size={17} aria-hidden="true" />}
             title={selectedDataset.file}
-            detail={`${dataRows ?? selectedDataset.rows} rows, ${selectedDataset.columns} cols, ${formatBytes(dataText.length)}`}
+            detail={dataDetail}
             action={
               <button className="compact-button" type="button" onClick={() => setDataRevision((revision) => revision + 1)}>
                 <RefreshCw size={15} aria-hidden="true" />
@@ -553,6 +665,48 @@ function previewStats(sidecar: string | null | undefined): PreviewStats | null {
   } catch {
     return null;
   }
+}
+
+async function fetchDatasetFiles(dataset: DemoDataset): Promise<{
+  auxiliaryTexts: Record<string, string>;
+  primaryText: string;
+}> {
+  const auxiliaryFiles = dataset.auxiliaryFiles ?? [];
+  const [primaryText, ...auxiliaryTexts] = await Promise.all([
+    fetchDataFile(dataset),
+    ...auxiliaryFiles.map((file) => fetchDataFile(file)),
+  ]);
+
+  return {
+    primaryText,
+    auxiliaryTexts: Object.fromEntries(
+      auxiliaryFiles.map((file, index) => [file.file, auxiliaryTexts[index] ?? ""]),
+    ),
+  };
+}
+
+async function fetchDataFile(file: DemoDataFile): Promise<string> {
+  const response = await fetch(file.url);
+  if (!response.ok) {
+    throw new Error(`failed to fetch ${file.url}: ${response.status}`);
+  }
+  return response.text();
+}
+
+function stableFilesSignature(files: Record<string, string>): string {
+  const sortedEntries = Object.entries(files).sort(([left], [right]) => {
+    if (left < right) return -1;
+    if (left > right) return 1;
+    return 0;
+  });
+  return JSON.stringify(Object.fromEntries(sortedEntries));
+}
+
+function linkedFilesDetail(count: number): string {
+  if (count === 0) {
+    return "";
+  }
+  return `, +${count} linked file${count === 1 ? "" : "s"}`;
 }
 
 function estimateRows(text: string, file: string): number | null {

@@ -11,8 +11,8 @@ npm run dev
 `npm run dev` builds `crates/algraf-wasm` for `wasm32-unknown-unknown`, copies
 the generated binary to `public/wasm/algraf.wasm`, then starts Vite. The app
 ships a small gallery of chart presets backed by public CSV datasets in
-`public/data/`, and passes the selected file to the WASM runtime as an
-in-memory Algraf data source.
+`public/data/`, and passes the selected dataset files to the WASM runtime as
+in-memory Algraf data sources.
 
 Included gallery data:
 
@@ -21,6 +21,9 @@ Included gallery data:
 - `iris.csv` - Iris flower measurements, 150 rows.
 - `stocks.csv` - example stock prices, 559 rows.
 - `seattle-weather.csv` - daily Seattle weather, 1,461 rows.
+- `astronauts.csv` - astronaut age measurements, 564 rows.
+- `minard_troops.csv` - Minard campaign troop positions, 50 rows.
+- `minard_cities.csv` - Minard campaign city labels, 19 rows.
 
 See `public/data/README.md` for source URLs.
 
