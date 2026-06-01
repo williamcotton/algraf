@@ -41,6 +41,13 @@ pub fn format(source: &str) -> String {
         printer.source_header(&header);
         printer.line("");
     }
+    let tables = root_view.tables();
+    for table in &tables {
+        printer.table_binding(table);
+    }
+    if !tables.is_empty() && !charts.is_empty() {
+        printer.line("");
+    }
     for (index, chart) in charts.iter().enumerate() {
         if index > 0 {
             printer.line("");
@@ -324,6 +331,11 @@ impl Printer {
 
     /// Render a block opener `Keyword(frame?, args) {`.
     fn block_header(&mut self, keyword: &str, frame: Option<&AlgebraExpr>, args: &[Arg]) {
+        if keyword == "Chart" && frame.is_none() && args.is_empty() {
+            self.line("Chart {");
+            return;
+        }
+
         let mut inner = String::new();
         if let Some(frame) = frame {
             inner.push_str(&render_algebra(frame));

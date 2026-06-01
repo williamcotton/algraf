@@ -11,6 +11,20 @@ pub fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol
     let Some(chart) = root.chart() else {
         return Vec::new();
     };
+    let mut out = root
+        .tables()
+        .into_iter()
+        .map(|decl| {
+            let name = decl.name().unwrap_or_else(|| "Table".to_string());
+            symbol(
+                source,
+                &format!("Table {name}"),
+                SymbolKind::VARIABLE,
+                decl.syntax(),
+                Vec::new(),
+            )
+        })
+        .collect::<Vec<_>>();
 
     let mut chart_symbol = symbol(
         source,
@@ -124,7 +138,8 @@ pub fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol
         }
     }
     chart_symbol.children = Some(children);
-    vec![chart_symbol]
+    out.push(chart_symbol);
+    out
 }
 
 fn symbol(

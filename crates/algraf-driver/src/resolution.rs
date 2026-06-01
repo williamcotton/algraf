@@ -199,7 +199,28 @@ impl SourceResolver<'_> {
     }
 
     pub(crate) fn resolve_chart_data_path(&self, chart: &ChartBlock) -> Option<ResolvedSource> {
-        self.resolve_source_expr_path(&chart_data_source(chart))
+        let source = chart_data_source(chart);
+        self.resolve_chart_source_expr_path(chart, &source)
+    }
+
+    fn resolve_chart_source_expr_path(
+        &self,
+        chart: &ChartBlock,
+        source_expr: &SourceExpr,
+    ) -> Option<ResolvedSource> {
+        match source_expr {
+            SourceExpr::TableRef { name, .. } => self
+                .table_ref_source(chart, name)
+                .as_ref()
+                .and_then(|source| self.resolve_source_expr_path(source)),
+            _ => self.resolve_source_expr_path(source_expr),
+        }
+    }
+
+    fn table_ref_source(&self, chart: &ChartBlock, name: &str) -> Option<SourceExpr> {
+        chart_table_sources(chart)
+            .into_iter()
+            .find_map(|(table_name, source)| (table_name == name).then_some(source))
     }
 
     pub(crate) fn resolve_named_table_sources(
@@ -282,8 +303,12 @@ impl SourceResolver<'_> {
                     object: object.clone(),
                 })
             }
+            SourceExpr::TableRef { name, .. } => Err(DriverError::Usage(format!(
+                "chart data table `{name}` could not be resolved"
+            ))),
             SourceExpr::Missing | SourceExpr::Invalid { .. } => Err(DriverError::Usage(
-                "chart has no data source; add Chart(data: \"file.csv\")".to_string(),
+                "chart has no data source; add Chart(data: \"file.csv\") or Table main = \"file.csv\""
+                    .to_string(),
             )),
         }
     }
@@ -475,6 +500,11 @@ pub(crate) fn resolve_chart_inputs(
     let resolver = env.resolver();
     let primary = if source.is_missing() || matches!(source, SourceExpr::Invalid { .. }) {
         None
+    } else if let SourceExpr::TableRef { name, .. } = &source {
+        resolver
+            .table_ref_source(chart, name)
+            .map(|source| resolver.data_location(&source))
+            .transpose()?
     } else {
         Some(resolver.data_location(&source)?)
     };

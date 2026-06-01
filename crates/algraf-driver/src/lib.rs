@@ -625,6 +625,83 @@ mod tests {
     }
 
     #[test]
+    fn table_ref_chart_data_loads_primary_from_named_table() {
+        let root = PathBuf::from("/mem/table-ref-primary");
+        let source = SourceInput::Path(root.join("chart.ag"));
+        let memory = MemoryIo::default()
+            .with_file(root.join("some.csv"), b"x,y\n1,2\n".as_slice())
+            .with_file(root.join("cities.csv"), b"long,lat\n3,4\n".as_slice());
+        let chart = parse_chart(
+            r#"Table main = "some.csv"
+            Chart(data: main) {
+                Table cities = "cities.csv"
+                Space(x * y) { Point() }
+            }"#,
+        );
+
+        let prepared = prepare_chart_with_io(
+            &chart,
+            PrepareOptions {
+                source_input: &source,
+                base_dir: None,
+                data_override: None,
+                data_format_override: None,
+                multi_chart: false,
+            },
+            &memory,
+        )
+        .unwrap();
+
+        assert_eq!(prepared.primary.unwrap().frame.row_count(), 1);
+        assert!(prepared
+            .named_tables
+            .iter()
+            .any(|table| table.name == "main"));
+        assert!(prepared
+            .named_tables
+            .iter()
+            .any(|table| table.name == "cities"));
+        assert!(
+            prepared.analysis.diagnostics.is_empty(),
+            "{:?}",
+            prepared.analysis.diagnostics
+        );
+    }
+
+    #[test]
+    fn chart_without_args_uses_table_main_as_primary() {
+        let root = PathBuf::from("/mem/table-main-default");
+        let source = SourceInput::Path(root.join("chart.ag"));
+        let memory = MemoryIo::default().with_file(root.join("some.csv"), b"x,y\n1,2\n".as_slice());
+        let chart = parse_chart(
+            r#"Chart {
+                Table main = "some.csv"
+                Space(x * y, data: main) { Point() }
+            }"#,
+        );
+
+        let prepared = prepare_chart_with_io(
+            &chart,
+            PrepareOptions {
+                source_input: &source,
+                base_dir: None,
+                data_override: None,
+                data_format_override: None,
+                multi_chart: false,
+            },
+            &memory,
+        )
+        .unwrap();
+
+        assert_eq!(prepared.primary.unwrap().frame.row_count(), 1);
+        assert!(
+            prepared.analysis.diagnostics.is_empty(),
+            "{:?}",
+            prepared.analysis.diagnostics
+        );
+    }
+
+    #[test]
     fn caller_input_accepts_explicit_stream_formats_and_input_alias() {
         let source = SourceInput::Inline {
             label: "<eval>".to_string(),

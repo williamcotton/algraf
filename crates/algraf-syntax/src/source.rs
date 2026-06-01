@@ -6,7 +6,9 @@
 
 use algraf_core::Span;
 
-use crate::ast::{Arg, CallValue, ChartBlock, ChartItem, LiteralKind, Root, TableDecl, ValueExpr};
+use crate::ast::{
+    AlgebraExpr, Arg, CallValue, ChartBlock, ChartItem, LiteralKind, Root, TableDecl, ValueExpr,
+};
 use crate::{SyntaxNode, SyntaxToken};
 
 /// A source constructor that selects a data loader explicitly (spec §10.11).
@@ -167,6 +169,8 @@ pub enum SourceExpr {
     },
     /// The bare `input` sentinel, or the compatibility alias `stdin`.
     Stdin { span: Span },
+    /// A reference to a named `Table` declaration used as a chart data source.
+    TableRef { name: String, span: Span },
     /// No source expression was present.
     Missing,
     /// A syntactically present value that is not a valid source expression.
@@ -181,6 +185,7 @@ impl SourceExpr {
             | SourceExpr::Sqlite { span, .. }
             | SourceExpr::TopoJson { span, .. }
             | SourceExpr::Stdin { span }
+            | SourceExpr::TableRef { span, .. }
             | SourceExpr::Invalid { span } => Some(*span),
             SourceExpr::Missing => None,
         }
@@ -427,7 +432,20 @@ pub fn chart_data_source(chart: &ChartBlock) -> SourceExpr {
             return source_expr_from_arg(&arg, true);
         }
     }
-    SourceExpr::Missing
+    main_table_ref(chart).unwrap_or(SourceExpr::Missing)
+}
+
+fn main_table_ref(chart: &ChartBlock) -> Option<SourceExpr> {
+    table_decls_for_chart(chart)
+        .into_iter()
+        .filter_map(|decl| {
+            let name = decl.name()?;
+            (name == "main").then(|| {
+                let span = decl.name_span().unwrap_or_else(|| node_span(decl.syntax()));
+                SourceExpr::TableRef { name, span }
+            })
+        })
+        .next()
 }
 
 /// Extract one `Table name = <source>` declaration's source.
@@ -438,20 +456,31 @@ pub fn table_data_source(decl: &TableDecl) -> SourceExpr {
 /// Extract all named table source declarations in a chart.
 pub fn chart_table_sources(chart: &ChartBlock) -> Vec<(String, SourceExpr)> {
     let mut out = Vec::new();
-    for item in chart.items() {
-        let ChartItem::Table(decl) = item else {
-            continue;
-        };
+    for decl in table_decls_for_chart(chart) {
         let Some(name) = decl.name() else { continue };
         out.push((name, table_data_source(&decl)));
     }
     out
 }
 
+fn table_decls_for_chart(chart: &ChartBlock) -> Vec<TableDecl> {
+    let mut decls = chart
+        .syntax()
+        .parent()
+        .and_then(Root::cast)
+        .map(|root| root.tables())
+        .unwrap_or_default();
+    decls.extend(chart.items().into_iter().filter_map(|item| match item {
+        ChartItem::Table(decl) => Some(decl),
+        _ => None,
+    }));
+    decls
+}
+
 /// Extract a source expression from an argument value. A present argument with
 /// no value is treated as invalid at the argument span.
 pub fn source_expr_from_arg(arg: &Arg, allow_stdin: bool) -> SourceExpr {
-    match source_expr_from_value(arg.value(), allow_stdin) {
+    match source_expr_from_value_inner(arg.value(), allow_stdin, true) {
         SourceExpr::Missing => SourceExpr::Invalid {
             span: node_span(arg.syntax()),
         },
@@ -461,6 +490,14 @@ pub fn source_expr_from_arg(arg: &Arg, allow_stdin: bool) -> SourceExpr {
 
 /// Extract a source expression from an optional value.
 pub fn source_expr_from_value(value: Option<ValueExpr>, allow_stdin: bool) -> SourceExpr {
+    source_expr_from_value_inner(value, allow_stdin, false)
+}
+
+fn source_expr_from_value_inner(
+    value: Option<ValueExpr>,
+    allow_stdin: bool,
+    allow_table_ref: bool,
+) -> SourceExpr {
     match value {
         Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
             SourceExpr::Path {
@@ -472,6 +509,16 @@ pub fn source_expr_from_value(value: Option<ValueExpr>, allow_stdin: bool) -> So
         Some(ValueExpr::Stdin(stdin)) if allow_stdin => SourceExpr::Stdin {
             span: node_span(stdin.syntax()),
         },
+        Some(ValueExpr::Algebra(AlgebraExpr::Name(name)))
+            if allow_table_ref && name.qualifier().is_none() && !name.is_quoted() =>
+        {
+            SourceExpr::TableRef {
+                name: name.name().unwrap_or_default(),
+                span: name
+                    .ident_span()
+                    .unwrap_or_else(|| node_span(name.syntax())),
+            }
+        }
         Some(ValueExpr::Call(call)) if is_source_constructor(&call) => {
             match source_constructor(&call) {
                 Some(SourceConstructor::Path { path, format, span }) => SourceExpr::Path {
@@ -544,6 +591,27 @@ mod tests {
                 format: None,
                 ..
             } if path == "data.csv"
+        ));
+    }
+
+    #[test]
+    fn chart_data_can_reference_document_table() {
+        let chart = first_chart(r#"Table main = "data.csv" Chart(data: main) {}"#);
+        assert!(matches!(
+            chart_data_source(&chart),
+            SourceExpr::TableRef { name, .. } if name == "main"
+        ));
+        let tables = chart_table_sources(&chart);
+        assert_eq!(tables.len(), 1);
+        assert_eq!(tables[0].0, "main");
+    }
+
+    #[test]
+    fn chart_without_data_uses_main_table_as_primary_source() {
+        let chart = first_chart(r#"Chart { Table main = "data.csv" }"#);
+        assert!(matches!(
+            chart_data_source(&chart),
+            SourceExpr::TableRef { name, .. } if name == "main"
         ));
     }
 

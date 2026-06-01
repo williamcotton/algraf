@@ -1,0 +1,8 @@
+Chart {
+    Table main = "penguins.csv"
+    Theme(name: "minimal")
+
+    Space(flipper_length * body_mass, data: main) {
+        Point(fill: species, alpha: 0.82, size: 4)
+    }
+}

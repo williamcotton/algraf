@@ -78,11 +78,12 @@ pub fn completion_context(text: &str, offset: usize) -> CompletionContext {
                 call_name_stack = calls.clone();
             }
             TokenKind::LBrace => {
-                blocks.push(
-                    pending_block
+                let block = pending_block.take().or_else(|| {
+                    previous_ident
                         .take()
-                        .unwrap_or_else(|| "unknown".to_string()),
-                );
+                        .filter(|name| name.as_str() == "Chart")
+                });
+                blocks.push(block.unwrap_or_else(|| "unknown".to_string()));
                 previous_ident = None;
             }
             TokenKind::RBrace => {
@@ -187,6 +188,11 @@ pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Ve
                 "Chart(data: \"$1\") {\n    Space($2) {\n        Point($3)\n    }\n}",
                 "Root chart block",
             ),
+            snippet(
+                "Table",
+                "Table $1 = \"$2.csv\"",
+                "Document-scoped data table",
+            ),
         ],
         CompletionContext::ChartArgs { active_key } => {
             if active_key.as_deref() == Some("data") {
@@ -194,6 +200,7 @@ pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Ve
                     snippet("\"data.csv\"", "\"$1.csv\"", "CSV data path"),
                     keyword("stdin", "Read CSV data from standard input"),
                 ];
+                items.extend(named_table_items(state));
                 items.extend(
                     SOURCE_CONSTRUCTORS
                         .iter()
@@ -317,6 +324,20 @@ fn derived_table_items(state: &DocumentState) -> Vec<CompletionItem> {
                     .map(|table| field(&table.name, "Named CSV table")),
             );
             items
+        })
+        .unwrap_or_default()
+}
+
+fn named_table_items(state: &DocumentState) -> Vec<CompletionItem> {
+    state
+        .analysis
+        .as_ref()
+        .and_then(|analysis| analysis.ir.as_ref())
+        .map(|ir| {
+            ir.tables
+                .iter()
+                .map(|table| field(&table.name, "Named table"))
+                .collect()
         })
         .unwrap_or_default()
 }
@@ -859,6 +880,15 @@ mod tests {
     }
 
     #[test]
+    fn bare_chart_block_context_is_chart_body() {
+        let source = "Chart {\n  ";
+        assert_eq!(
+            completion_context(source, source.len()),
+            CompletionContext::ChartBody
+        );
+    }
+
+    #[test]
     fn space_args_completion_does_not_offer_transpose() {
         let items = completion_items(
             &empty_state(),
@@ -902,6 +932,6 @@ mod tests {
     #[test]
     fn top_level_completion_offers_chart() {
         let items = completion_items(&empty_state(), CompletionContext::TopLevel);
-        assert_eq!(labels(&items), vec!["Algraf", "Chart"]);
+        assert_eq!(labels(&items), vec!["Algraf", "Chart", "Table"]);
     }
 }

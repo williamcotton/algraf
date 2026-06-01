@@ -71,6 +71,11 @@ impl Root {
     pub fn charts(&self) -> Vec<ChartBlock> {
         child_nodes(&self.syntax, ChartBlock::cast)
     }
+
+    /// Every document-scope table declaration, in source order.
+    pub fn tables(&self) -> Vec<TableDecl> {
+        child_nodes(&self.syntax, TableDecl::cast)
+    }
 }
 
 ast_node!(

@@ -52,17 +52,13 @@ pub fn analyze_document_with_io(
     let syntax = parsed.syntax();
     let parse_diagnostics = parsed.diagnostics().to_vec();
     let data_source = algraf_driver::extract_data_source(&syntax);
-    let primary_has_external_schema_source = matches!(
-        data_source,
-        SourceExpr::Path { .. } | SourceExpr::Sqlite { .. } | SourceExpr::TopoJson { .. }
-    );
     let sql_gated_off = parse_diagnostics
         .iter()
         .any(|d| d.code == codes::E0025.as_str());
     let schema = if sql_gated_off {
         SchemaResolution::MissingOrInvalid
     } else {
-        resolve_schema(schema_cache, io, uri, &data_source)
+        resolve_schema(schema_cache, io, uri, &syntax, &data_source)
     };
     // Resolve chart-scoped named-table schemas so column references inside
     // `Space(..., data: tableName)` resolve in the editor (spec §10.x).
@@ -73,6 +69,7 @@ pub fn analyze_document_with_io(
     };
     let table_schemas = table_schema_resolution.schemas;
     let mut source_previews = table_schema_resolution.source_previews;
+    let primary_has_external_schema_source = !matches!(schema, SchemaResolution::MissingOrInvalid);
     let has_external_schema_sources =
         primary_has_external_schema_source || table_schema_resolution.has_external_sources;
 
@@ -149,38 +146,43 @@ fn resolve_schema(
     schema_cache: &InMemorySchemaCache,
     io: &dyn DriverIo,
     uri: &Url,
+    syntax: &SyntaxNode,
     data_source: &SourceExpr,
 ) -> SchemaResolution {
     let span = match data_source {
         SourceExpr::Path { span, .. }
         | SourceExpr::Sqlite { span, .. }
-        | SourceExpr::TopoJson { span, .. } => *span,
+        | SourceExpr::TopoJson { span, .. }
+        | SourceExpr::TableRef { span, .. } => *span,
         _ => return SchemaResolution::MissingOrInvalid,
     };
     let source_input = source_input_for_uri(uri);
-    let Some(resolved) = algraf_driver::resolve_source_expr_path(data_source, &source_input, None)
-    else {
+    let resolved = Root::cast(syntax.clone())
+        .and_then(|root| root.chart())
+        .and_then(|chart| algraf_driver::resolve_chart_data_path(&chart, &source_input, None))
+        .or_else(|| algraf_driver::resolve_source_expr_path(data_source, &source_input, None));
+    let Some(resolved) = resolved else {
         return SchemaResolution::MissingOrInvalid;
     };
     let path = resolved.path;
 
-    let cached = match data_source {
-        SourceExpr::Sqlite { query, .. } => algraf_driver::resolve_sqlite_schema_cached(
+    let cached = match resolved.query.as_deref() {
+        Some(query) => algraf_driver::resolve_sqlite_schema_cached(
             schema_cache,
             io,
             &path,
-            query.as_str(),
+            query,
             DEFAULT_SCHEMA_SAMPLE,
             LoadContext::Primary,
         ),
-        SourceExpr::TopoJson { .. } => resolve_topojson_schema_cached(
+        None if resolved.format == Some(Format::TopoJson) => resolve_topojson_schema_cached(
             schema_cache,
             io,
             &path,
             resolved.object.as_deref(),
             LoadContext::Primary,
         ),
-        _ => resolve_schema_cached(
+        None => resolve_schema_cached(
             schema_cache,
             io,
             &path,

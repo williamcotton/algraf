@@ -78,6 +78,13 @@ fn test_stdin_value_formatting() {
 }
 
 #[test]
+fn test_document_table_and_bare_chart_formatting() {
+    let source = "Table main=\"p.csv\"\nChart{Space(x*y,data:main){Point()}}";
+    let expected = "Table main = \"p.csv\"\n\nChart {\n    Space(x * y, data: main) {\n        Point()\n    }\n}\n";
+    assert_eq!(format(source), expected);
+}
+
+#[test]
 fn test_inset_formatting() {
     let source = "Chart(data:\"p.csv\"){Table mix=\"mix.csv\" Space(x*y){Inset(data:mix,match:[id=>parent.id],size:32){Space(value,coords:\"polar\",theta:\"y\"){Bar(fill:category,layout:\"fill\")}}}}";
     let formatted = format(source);

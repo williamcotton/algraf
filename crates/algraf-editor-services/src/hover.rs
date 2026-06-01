@@ -488,6 +488,15 @@ enum SourceHoverTarget {
 
 fn source_hover_target_at(text: &str, offset: usize) -> Option<SourceHoverTarget> {
     let root = Root::cast(parse(text).syntax())?;
+    for decl in root.tables() {
+        let Some(name) = decl.name() else { continue };
+        let Some((label, span)) = string_literal_value_span(decl.source()) else {
+            continue;
+        };
+        if span.contains(offset) {
+            return Some(SourceHoverTarget::Table { name, label });
+        }
+    }
     for chart in root.charts() {
         for arg in chart.args() {
             if arg.key().as_deref() != Some("data") {

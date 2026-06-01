@@ -40,6 +40,13 @@ impl Analyzer<'_> {
     // --- Chart (spec §13.17 phases 2, 6–8) ---
 
     pub(super) fn chart(&mut self, chart: &ChartBlock) -> Option<ChartIr> {
+        self.reserved_derived_names = chart_derived_names(chart);
+
+        // Resolve named `Table` declarations up front so spaces and column
+        // references can bind to them regardless of declaration order (spec
+        // §10.x).
+        let tables = self.resolve_tables(chart);
+
         let ChartArgs {
             data_source,
             width,
@@ -54,12 +61,6 @@ impl Analyzer<'_> {
             margin_bottom,
             margin_left,
         } = self.chart_args(chart);
-        self.reserved_derived_names = chart_derived_names(chart);
-
-        // Resolve named `Table` declarations up front so spaces and column
-        // references can bind to them regardless of declaration order (spec
-        // §10.x).
-        let tables = self.resolve_tables(chart);
 
         // Collect chart-scope `let` bindings up front so they resolve regardless
         // of declaration order within the chart body (spec §9.6).
@@ -219,12 +220,16 @@ impl Analyzer<'_> {
         }
 
         let data_source = data_source.unwrap_or_else(|| {
-            self.diag(Diagnostic::error(
-                codes::E1001,
-                "Chart requires a `data` argument",
-                span,
-            ));
-            DataSourceIr::Missing
+            if self.table_names.contains("main") {
+                DataSourceIr::Table("main".to_string())
+            } else {
+                self.diag(Diagnostic::error(
+                    codes::E1001,
+                    "Chart requires a `data` argument or a `Table main = ...` declaration",
+                    span,
+                ));
+                DataSourceIr::Missing
+            }
         });
 
         ChartArgs {
@@ -266,6 +271,18 @@ impl Analyzer<'_> {
             SourceExpr::Sqlite { path, query, .. } => DataSourceIr::Sqlite { path, query },
             SourceExpr::TopoJson { path, object, .. } => DataSourceIr::TopoJson { path, object },
             SourceExpr::Stdin { .. } => DataSourceIr::Stdin,
+            SourceExpr::TableRef { name, span } => {
+                if self.table_names.contains(&name) {
+                    DataSourceIr::Table(name)
+                } else {
+                    self.diag(Diagnostic::error(
+                        codes::E1103,
+                        format!("unknown table `{name}`"),
+                        span,
+                    ));
+                    DataSourceIr::Missing
+                }
+            }
             SourceExpr::Invalid { span } => {
                 if let Some(ValueExpr::Call(call)) = arg.value() {
                     if is_source_constructor(&call) {
@@ -284,7 +301,7 @@ impl Analyzer<'_> {
                     codes::E1004,
                     "data source must be a string literal, a \
                      `GeoJson`/`Shapefile`/`Sqlite`/`TopoJson`/`Parquet` source constructor, \
-                     or the `stdin` sentinel",
+                     a named `Table`, or the `stdin` sentinel",
                     span,
                 ));
                 DataSourceIr::Missing
@@ -294,7 +311,7 @@ impl Analyzer<'_> {
                     codes::E1004,
                     "data source must be a string literal, a \
                      `GeoJson`/`Shapefile`/`Sqlite`/`TopoJson`/`Parquet` source constructor, \
-                     or the `stdin` sentinel",
+                     a named `Table`, or the `stdin` sentinel",
                     node_span(arg.syntax()),
                 ));
                 DataSourceIr::Missing

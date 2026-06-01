@@ -8,10 +8,11 @@ impl Parser {
     // --- Program / chart (spec §7.1, §12.7) ---
 
     /// Whether the cursor begins a chart block, including a misspelled `Chart`
-    /// keyword followed by `(`.
+    /// keyword followed by `(` or `{`.
     pub(super) fn at_chart_start(&self) -> bool {
         self.at_kw("Chart")
-            || (self.at_misspelled_kw("Chart") && self.nth_kind(1) == SyntaxKind::L_PAREN)
+            || (self.at_misspelled_kw("Chart")
+                && matches!(self.nth_kind(1), SyntaxKind::L_PAREN | SyntaxKind::L_BRACE))
     }
 
     pub(super) fn at_source_header_start(&self) -> bool {
@@ -35,9 +36,9 @@ impl Parser {
             self.eat_trivia();
         }
 
-        // A document holds one or more chart blocks (spec §7.1). The first
-        // block is required; later blocks render independently.
-        if !self.at_chart_start() {
+        // A document holds one or more chart blocks, optionally preceded by
+        // document-scope table declarations (spec §7.1).
+        if !self.at_chart_start() && !self.at_kw("Table") {
             let span = self.current_span();
             self.error(codes::E0001, "expected Chart block", span);
             if self.at_eof() {
@@ -45,16 +46,21 @@ impl Parser {
             }
             // Search for the first `Chart`, reporting the skipped tokens.
             self.builder.start_node(SyntaxKind::ERROR.into());
-            while !self.at_eof() && !self.at_kw("Chart") {
+            while !self.at_eof() && !self.at_kw("Chart") && !self.at_kw("Table") {
                 let kind = SyntaxKind::from_token(&self.tokens[self.pos].kind);
                 self.push_raw(kind);
             }
             self.builder.finish_node();
         }
 
-        // Parse every chart block in sequence.
+        // Parse every top-level table or chart block in sequence.
+        let mut saw_chart = false;
         loop {
             self.eat_trivia();
+            if self.at_kw("Table") {
+                self.table_decl();
+                continue;
+            }
             if !self.at_chart_start() {
                 break;
             }
@@ -65,9 +71,15 @@ impl Parser {
             }
             let before = self.pos;
             self.chart_block();
+            saw_chart = true;
             if self.pos == before {
                 break;
             }
+        }
+
+        if !saw_chart {
+            let span = self.current_span();
+            self.error(codes::E0001, "expected Chart block", span);
         }
 
         self.eat_trivia();
@@ -81,13 +93,11 @@ impl Parser {
     pub(super) fn chart_block(&mut self) {
         self.builder.start_node(SyntaxKind::CHART_BLOCK.into());
         self.bump_as(SyntaxKind::CHART_KW);
-        self.expect(
-            SyntaxKind::L_PAREN,
-            codes::E0002,
-            "expected '(' after Chart",
-        );
-        self.arg_list();
-        self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
+        if self.at(SyntaxKind::L_PAREN) {
+            self.bump();
+            self.arg_list();
+            self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
+        }
         self.expect(SyntaxKind::L_BRACE, codes::E0007, "expected '{'");
         self.chart_body();
         self.expect(SyntaxKind::R_BRACE, codes::E0008, "expected '}'");

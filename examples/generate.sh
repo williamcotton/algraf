@@ -7,6 +7,7 @@ algraf="$repo_root/target/debug/algraf"
 
 charts=(
     scatter
+    named_primary
     line
     sparkline
     image_marks

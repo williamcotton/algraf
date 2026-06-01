@@ -1248,6 +1248,7 @@ fn data_source_json(data_source: &DataSourceIr) -> Value {
             json!({ "kind": "topojson", "path": path, "object": object })
         }
         DataSourceIr::Stdin => json!({ "kind": "stdin" }),
+        DataSourceIr::Table(name) => json!({ "kind": "table", "name": name }),
         DataSourceIr::Missing => json!({ "kind": "missing" }),
     }
 }

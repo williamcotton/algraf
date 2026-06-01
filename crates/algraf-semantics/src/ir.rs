@@ -68,6 +68,8 @@ pub enum DataSourceIr {
     },
     /// The `stdin` sentinel.
     Stdin,
+    /// The primary source is a named `Table` declaration.
+    Table(String),
     /// No valid data source was declared.
     Missing,
 }

@@ -42,28 +42,27 @@ impl Backend {
             let Some(chart) = Root::cast(syntax.clone()).and_then(|root| root.chart()) else {
                 return Ok(PreviewResult::message(
                     generation,
-                    "chart has no data source; add Chart(data: \"file.csv\")",
+                    "chart has no data source; add Chart(data: \"file.csv\") or Table main = \"file.csv\"",
                 ));
             };
             match algraf_syntax::chart_data_source(&chart) {
-                SourceExpr::Path { .. }
-                | SourceExpr::Sqlite { .. }
-                | SourceExpr::TopoJson { .. } => {
-                    data_dependencies(&chart, &source_input, None, None)
-                        .map(|dependencies| {
-                            dependencies
-                                .into_iter()
-                                .map(|dependency| dependency.path.display().to_string())
-                                .collect()
-                        })
-                        .map_err(|err| err.to_string())
-                }
                 SourceExpr::Stdin { .. } => {
                     Err("preview does not support `stdin` data; use a CSV path".to_string())
                 }
                 SourceExpr::Missing | SourceExpr::Invalid { .. } => {
-                    Err("chart has no data source; add Chart(data: \"file.csv\")".to_string())
+                    Err(
+                        "chart has no data source; add Chart(data: \"file.csv\") or Table main = \"file.csv\""
+                            .to_string(),
+                    )
                 }
+                _ => data_dependencies(&chart, &source_input, None, None)
+                    .map(|dependencies| {
+                        dependencies
+                            .into_iter()
+                            .map(|dependency| dependency.path.display().to_string())
+                            .collect()
+                    })
+                    .map_err(|err| err.to_string()),
             }
         };
         let data_paths = match data_paths {
@@ -221,7 +220,10 @@ fn render_preview(
     let theme = ir.theme.as_ref().map(Theme::from_ir).unwrap_or_default();
     let frame = prepared
         .primary
-        .ok_or_else(|| "chart has no data source; add Chart(data: \"file.csv\")".to_string())?
+        .ok_or_else(|| {
+            "chart has no data source; add Chart(data: \"file.csv\") or Table main = \"file.csv\""
+                .to_string()
+        })?
         .frame;
     let named_frames: HashMap<String, algraf_data::DataFrame> = prepared
         .named_tables

@@ -1,7 +1,7 @@
 //! Named CSV table resolution (spec §10.x): `Table name = "path.csv"`.
 
 use algraf_core::{codes, Diagnostic};
-use algraf_syntax::ast::{ChartBlock, ChartItem, TableDecl, ValueExpr};
+use algraf_syntax::ast::{ChartBlock, ChartItem, Root, TableDecl, ValueExpr};
 use algraf_syntax::{
     is_source_constructor, node_span, source_constructor, source_expr_from_value, SourceExpr,
 };
@@ -18,10 +18,7 @@ impl Analyzer<'_> {
     pub(super) fn resolve_tables(&mut self, chart: &ChartBlock) -> Vec<TableDeclIr> {
         let mut out = Vec::new();
         let mut dup = DupGuard::new(codes::E1105, "`Table` name").related("first declared here");
-        for item in chart.items() {
-            let ChartItem::Table(decl) = item else {
-                continue;
-            };
+        for decl in table_decls_for_chart(chart) {
             let Some(name) = decl.name() else { continue };
             let name_span = decl.name_span().unwrap_or_else(|| node_span(decl.syntax()));
             if dup.already_seen(&mut self.diagnostics, &name, name_span) {
@@ -90,6 +87,15 @@ impl Analyzer<'_> {
                 ));
                 None
             }
+            SourceExpr::TableRef { span, .. } => {
+                self.diag(Diagnostic::error(
+                    codes::E1004,
+                    "`Table` source must be a string-literal path or a \
+                     `GeoJson`/`Shapefile`/`Sqlite`/`TopoJson`/`Parquet` source constructor",
+                    span,
+                ));
+                None
+            }
             SourceExpr::Missing => None,
         }
     }
@@ -102,4 +108,18 @@ impl Analyzer<'_> {
             },
         }
     }
+}
+
+fn table_decls_for_chart(chart: &ChartBlock) -> Vec<TableDecl> {
+    let mut decls = chart
+        .syntax()
+        .parent()
+        .and_then(Root::cast)
+        .map(|root| root.tables())
+        .unwrap_or_default();
+    decls.extend(chart.items().into_iter().filter_map(|item| match item {
+        ChartItem::Table(decl) => Some(decl),
+        _ => None,
+    }));
+    decls
 }

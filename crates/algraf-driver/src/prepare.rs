@@ -10,7 +10,9 @@ use algraf_data::{
 };
 use algraf_semantics::{analyze_chart_with_tables, Analysis};
 use algraf_syntax::ast::{AlgebraExpr, Arg, ChartBlock, ChartItem, LiteralKind, ValueExpr};
-use algraf_syntax::{node_span, unescape_string_literal as string_value, SourceExpr};
+use algraf_syntax::{
+    chart_table_sources, node_span, unescape_string_literal as string_value, SourceExpr,
+};
 
 use crate::error::{DriverError, LoadContext};
 use crate::io::{DriverIo, OsDriverIo};
@@ -291,13 +293,9 @@ struct ChartParsePolicies {
 }
 
 fn parse_policies(chart: &ChartBlock) -> ChartParsePolicies {
-    let table_names: HashSet<String> = chart
-        .items()
+    let table_names: HashSet<String> = chart_table_sources(chart)
         .into_iter()
-        .filter_map(|item| match item {
-            ChartItem::Table(table) => table.name(),
-            _ => None,
-        })
+        .map(|(name, _)| name)
         .collect();
 
     let mut out = ChartParsePolicies::default();

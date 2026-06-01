@@ -90,6 +90,25 @@ Chart(data: "penguins.csv", width: 760, height: 500) {
 
 ![scatter](examples/scatter.svg)
 
+## Naming the primary table
+
+When you want every data source to be introduced with `Table`, declare a table
+named `main` and bind spaces to it explicitly. The equivalent header form is
+`Chart(data: main)` when `main` is declared at document or chart scope.
+
+```algraf
+Chart {
+    Table main = "penguins.csv"
+    Theme(name: "minimal")
+
+    Space(flipper_length * body_mass, data: main) {
+        Point(fill: species, alpha: 0.82, size: 4)
+    }
+}
+```
+
+![named_primary](examples/named_primary.svg)
+
 ## Line series over time
 
 Temporal columns are detected from the CSV schema and get a time-aware

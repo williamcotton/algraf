@@ -64,6 +64,26 @@ fn test_chart_data_stdin() {
 }
 
 #[test]
+fn test_chart_data_named_table_reference() {
+    let source = "Table main = \"p.csv\"\nChart(data: main) {\n}";
+    no_errors(source);
+    let root = root(source);
+    assert_eq!(root.tables().len(), 1);
+    let chart = root.chart().unwrap();
+    let value = chart.args()[0].value().unwrap();
+    assert!(matches!(value, ValueExpr::Algebra(_)));
+}
+
+#[test]
+fn test_chart_without_argument_list() {
+    let source = "Chart {\n  Table main = \"p.csv\"\n  Space(x * y, data: main) { Point() }\n}";
+    no_errors(source);
+    let chart = root(source).chart().unwrap();
+    assert!(chart.args().is_empty());
+    assert!(matches!(chart.items()[0], ChartItem::Table(_)));
+}
+
+#[test]
 fn test_string_literal_value() {
     let source = "Chart(data: \"p.csv\") {\n}";
     no_errors(source);

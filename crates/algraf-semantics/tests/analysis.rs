@@ -3,8 +3,8 @@
 use algraf_core::Span;
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
-    analyze_source, planning, AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef, FrameIr,
-    GeometryKind, GradientIr, GridBinsIr, IntervalOrientationIr, LevelSpecIr, PropertyKey,
+    analyze_source, planning, AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef, DataSourceIr,
+    FrameIr, GeometryKind, GradientIr, GridBinsIr, IntervalOrientationIr, LevelSpecIr, PropertyKey,
     QqDistributionIr, ScaleModeIr, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef,
     StatKind, StatOptionsIr, StepDirectionIr, SummaryReducerIr, TemporalFormatIr,
 };
@@ -2189,6 +2189,43 @@ fn test_named_table_resolves_and_binds() {
         .spaces
         .iter()
         .any(|s| s.data == SpaceDataRef::Table("cities".into())));
+}
+
+#[test]
+fn test_chart_data_can_bind_named_table_as_primary() {
+    let main = vec![col("x", DataType::Float), col("y", DataType::Float)];
+    let analysis = analyze_tables(
+        "Table main = \"some.csv\"\nChart(data: main) {\n  Space(x * y) { Point() }\n}",
+        &main,
+        &[("main", main.clone())],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.data_source, DataSourceIr::Table("main".into()));
+    assert_eq!(ir.tables[0].name, "main");
+    assert_eq!(ir.spaces[0].data, SpaceDataRef::Primary);
+}
+
+#[test]
+fn test_chart_without_args_uses_table_main() {
+    let main = vec![col("x", DataType::Float), col("y", DataType::Float)];
+    let analysis = analyze_tables(
+        "Chart {\n  Table main = \"some.csv\"\n  Space(x * y, data: main) { Point() }\n}",
+        &main,
+        &[("main", main.clone())],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.data_source, DataSourceIr::Table("main".into()));
+    assert_eq!(ir.spaces[0].data, SpaceDataRef::Table("main".into()));
 }
 
 #[test]

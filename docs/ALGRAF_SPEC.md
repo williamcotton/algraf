@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.46.0
+Status: 0.46.1
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.46.0 specification.
+This working copy is the 0.46.1 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -827,10 +827,10 @@ emits it as an identifier and the parser retags it as a keyword in that position
 `let` MUST NOT be used as a plain column identifier; a column literally named
 `let` MUST be referenced with backticks.
 
-`Table` introduces a chart-scoped named data table (spec §7.4, §10.10). It is
-reserved at the start of a chart-body item; like the other block keywords it is
-lexed as an identifier and retagged by the parser. A column literally named
-`Table` MUST be referenced with backticks.
+`Table` introduces a named data table (spec §7.4, §10.10). It is reserved at
+top level and at the start of a chart-body item; like the other block keywords
+it is lexed as an identifier and retagged by the parser. A column literally
+named `Table` MUST be referenced with backticks.
 
 `input` and `stdin` are contextual keywords only in `Chart(data: input)` and
 `Chart(data: stdin)`.
@@ -1017,7 +1017,8 @@ It is intentionally simple enough for recursive descent plus Pratt expression pa
 ### 7.1 Program
 
 ```ebnf
-Program        ::= Trivia* SourceHeader? ChartBlock (Trivia* ChartBlock)* Trivia* EOF
+Program        ::= Trivia* SourceHeader? TopLevelItem (Trivia* TopLevelItem)* Trivia* EOF
+TopLevelItem   ::= TableDecl | ChartBlock
 SourceHeader   ::= "Algraf" "(" SourceHeaderArgs ")"
 SourceHeaderArgs ::= Arg ("," Arg)* ","?
 ```
@@ -1027,6 +1028,11 @@ SourceHeaderArgs ::= Arg ("," Arg)* ","?
 Trivia is not represented as typed AST children.
 
 A source file MUST contain at least one chart block.
+
+Since version 0.46.1, a source file MAY contain document-scope `Table`
+declarations before or between chart blocks. Document-scope tables are visible
+to every chart in the file and use the same source-expression rules as
+chart-scope `Table` declarations (§7.4.1, §10.10).
 
 Version 0.20.0 MAY begin with a single source header before the first chart.
 Version 0.21.0 uses the same header form:
@@ -1058,17 +1064,18 @@ multi-chart document to stdout (no `--output`) is a usage error, since several
 SVG documents cannot be concatenated into one. Each chart resolves its own
 `data` source; sharing the `stdin` data sentinel across charts is a usage error.
 
-If extra top-level tokens appear between or after chart blocks, the parser MUST
-emit diagnostics and recover.
+If extra top-level tokens appear between or after top-level chart/table items,
+the parser MUST emit diagnostics and recover.
 
 ### 7.2 Chart Block
 
 ```ebnf
-ChartBlock     ::= "Chart" "(" ChartArgs? ")" BlockStart ChartBody BlockEnd
+ChartBlock     ::= "Chart" ( "(" ChartArgs? ")" )? BlockStart ChartBody BlockEnd
 ChartArgs      ::= Arg ("," Arg)* ","?
 ChartBody      ::= ChartItem*
 ChartItem      ::= SpaceBlock
                  | DeriveDecl
+                 | TableDecl
                  | LetDecl
                  | ScaleDecl
                  | GuideDecl
@@ -1077,7 +1084,14 @@ ChartItem      ::= SpaceBlock
                  | ErrorItem
 ```
 
-`Chart` MUST include a `data` argument in version 0.1.
+`Chart` MUST declare a primary data source. The primary source may be written as
+`Chart(data: <source>)`, where `<source>` is a source expression or a bare table
+name, or by omitting the argument list when a visible table named `main` exists.
+`Chart { Table main = "some.csv" ... }` is therefore equivalent to
+`Chart(data: main) { Table main = "some.csv" ... }` for primary-data loading.
+
+If neither `Chart(data: ...)` nor a visible `Table main = ...` declaration is
+available, semantic analysis MUST emit `E1001`.
 
 `Chart` MAY include `width` and `height` arguments.
 
@@ -1106,6 +1120,28 @@ Chart(data: "penguins.csv", width: 800, height: 520) {
     Theme(name: "minimal")
 
     Space(flipper_length * body_mass) {
+        Point()
+    }
+}
+```
+
+Equivalent primary-table spellings:
+
+```ag
+Table main = "penguins.csv"
+
+Chart(data: main, width: 800, height: 520) {
+    Space(flipper_length * body_mass) {
+        Point()
+    }
+}
+```
+
+```ag
+Chart {
+    Table main = "penguins.csv"
+
+    Space(flipper_length * body_mass, data: main) {
         Point()
     }
 }
@@ -1281,15 +1317,20 @@ SqliteSource   ::= "Sqlite" "(" String "," String ")"
 TopoJsonSource ::= "TopoJson" "(" String ("," "object" ":" String)? ")"
 ```
 
-`Table` creates a chart-scoped named data table from an independent source
-(spec §10.10). The `SourceExpr` position is a *source expression*: a string path
-uses extension-based format selection, geospatial and Parquet constructors select
-their loader explicitly, `Sqlite(path, query)` selects a local SQLite query
-(spec §10.12), and `TopoJson(path, object:)` selects a TopoJSON object.
+`Table` creates a named data table from an independent source (spec §10.10). A
+`Table` may appear at document scope or inside a chart body. Document-scope
+tables are visible to every chart in that source file; chart-scope tables are
+visible only within their chart. The `SourceExpr` position is a *source
+expression*: a string path uses extension-based format selection, geospatial and
+Parquet constructors select their loader explicitly, `Sqlite(path, query)`
+selects a local SQLite query (spec §10.12), and `TopoJson(path, object:)`
+selects a TopoJSON object.
 
 A `Table` name MUST be unique among `Table` declarations (`E1105`) and MUST NOT
-conflict with the primary or a derived table (`E1108`). A `Table` is bound to a
+conflict with a derived table (`E1108`). A `Table` is bound to a
 `Space` by bare identifier in `data:`, exactly as a derived table is (spec §7.3).
+A `Chart(data: name)` value MAY name a visible `Table`; in that position the
+identifier is a table reference, not a column reference or string path.
 
 Example:
 
@@ -1946,6 +1987,8 @@ Name resolution depends on position.
 
 In `Chart(data: "file.csv")`, `data` is a property key.
 
+In `Chart(data: main)`, `main` is a visible `Table` reference.
+
 In `Space(x * y)`, `x` and `y` are column references.
 
 In `Derive bins = Bin(value, bins: 25)`, `bins` is a derived table name and `value` is a column reference in the active input table.
@@ -2026,7 +2069,11 @@ Version 0.1 supports CSV files. Version 0.7 adds TSV, JSON, and NDJSON files
 formats load into the same dataframe abstraction and behave identically
 downstream once materialized.
 
-`Chart(data: "path.csv")` resolves `path.csv` relative to the source file directory by default.
+`Chart(data: "path.csv")` resolves `path.csv` relative to the source file
+directory by default. Since version 0.46.1, `Chart(data: name)` MAY instead
+name a visible `Table`; in that case the table's source is the chart's primary
+data source. If `Chart` omits its argument list and a visible `Table main = ...`
+exists, `main` is used as the primary source.
 
 The data source format is selected by the path's file extension (spec §10.2).
 `Chart(data: "sales.json")` loads JSON; `Chart(data: "sales.tsv")` loads TSV.
@@ -2638,10 +2685,12 @@ is unavailable, unsupported for row preview, or too large for the editor path.
 
 ### 10.10 Named Tables
 
-A chart MAY declare named, chart-scoped data tables with `Table name = <source>`
-(spec §7.4.1). Each named table is an independent source, loaded the same way as
-`Chart(data:)` — including format selection by extension (spec §10.2), explicit
-source constructors (`GeoJson`, `Shapefile`, `TopoJson`, `Parquet`, and gated `Sqlite`), path
+A chart or document MAY declare named data tables with `Table name = <source>`
+(spec §7.4.1). Chart-scope tables are visible only to their chart;
+document-scope tables are visible to every chart in the file. Each named table
+is an independent source, loaded the same way as `Chart(data:)` — including
+format selection by extension (spec §10.2), explicit source constructors
+(`GeoJson`, `Shapefile`, `TopoJson`, `Parquet`, and gated `Sqlite`), path
 resolution, `--base-dir`, and source security in §10.8, all unchanged.
 
 A `Space` binds to a named table by bare identifier in its `data:` argument,
@@ -2650,13 +2699,19 @@ properties resolve their columns against that table's schema. Named tables stay
 behind the dataframe boundary (§10.5): the parser, semantics, LSP, and renderer
 gain no source-specific knowledge beyond the table's name and resolved schema.
 
+`Chart(data: name)` binds the chart's primary data source to a visible named
+table. A missing `Chart(data:)` binds to `Table main = ...` when such a table is
+visible. These primary-table spellings do not change `Space(data:)`: a space
+with no `data:` reads the primary table, while `Space(..., data: name)` reads
+the named table directly.
+
 Named tables are independent overlays: version 0.6 defines no join or relational
 operation between tables. When two compatible spaces overlay but back onto
 different tables, their shared position scales MUST be unioned across all
 contributing tables so the layers align (spec §17.5).
 
 Diagnostics: a duplicate `Table` name is `E1105`; a name that conflicts with the
-primary or a derived table is `E1108`; a `Table` source file that cannot be
+derived table is `E1108`; a `Table` source file that cannot be
 found is `E1106`, and one that cannot be read is `E1107`. (`E1103` still covers
 an unknown identifier passed to a space's `data:`.)
 
@@ -9534,13 +9589,13 @@ missing `=>`/stray separator in a map literal)
 
 ### 26.2 Semantic Diagnostics
 
-`E1001 Chart requires data argument`
+`E1001 Chart requires data argument or Table main`
 
 `E1002 duplicate Chart argument`
 
 `E1003 unsupported Chart argument`
 
-`E1004 data source must be string literal or caller-input sentinel`
+`E1004 data source must be string literal, source constructor, table reference, or caller-input sentinel`
 
 `E1005 data file not found`
 
@@ -9588,7 +9643,7 @@ missing `=>`/stray separator in a map literal)
 
 `E1107 Table data file could not be read`
 
-`E1108 Table name conflicts with primary or derived table`
+`E1108 Table name conflicts with derived table`
 
 `E1201 unknown geometry`
 
@@ -10333,6 +10388,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.44.0 | [`V0_44_PLAN.md`](V0_44_PLAN.md) | Compositional glyph charts and recursive render scenes | Implemented |
 | 0.45.0 | [`V0_45_PLAN.md`](V0_45_PLAN.md) | Inset planning/emission separation | Implemented |
 | 0.46.0 | [`V0_46_PLAN.md`](V0_46_PLAN.md) | Physical orientation migration and local image marks | Implemented |
+| 0.46.1 | [`V0_46_1_PLAN.md`](V0_46_1_PLAN.md) | Table-source spelling consistency | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
@@ -10535,13 +10591,15 @@ Future optional Polars support must implement the same internal table abstractio
 ## 33. Appendix A: Complete EBNF Draft
 
 ```ebnf
-Program        ::= Trivia* ChartBlock (Trivia* ChartBlock)* Trivia* EOF
+Program        ::= Trivia* SourceHeader? TopLevelItem (Trivia* TopLevelItem)* Trivia* EOF
+TopLevelItem   ::= TableDecl | ChartBlock
 
-ChartBlock     ::= "Chart" "(" ChartArgs? ")" "{" ChartBody "}"
+ChartBlock     ::= "Chart" ("(" ChartArgs? ")")? "{" ChartBody "}"
 ChartArgs      ::= Arg ("," Arg)* ","?
 ChartBody      ::= ChartItem*
 ChartItem      ::= SpaceBlock
                  | DeriveDecl
+                 | TableDecl
                  | LetDecl
                  | ScaleDecl
                  | GuideDecl
@@ -10574,6 +10632,14 @@ StatInput      ::= Algebra
 StatArgs       ::= "," Arg ("," Arg)* ","?
 
 LetDecl        ::= "let" Ident "=" Value
+TableDecl      ::= "Table" Ident "=" SourceExpr
+
+SourceExpr     ::= String
+                 | GeoJsonSource
+                 | ShapefileSource
+                 | ParquetSource
+                 | SqliteSource
+                 | TopoJsonSource
 
 GeometryCall   ::= Ident "(" ArgList? ")"
 ScaleDecl      ::= "Scale" "(" ArgList? ")"
