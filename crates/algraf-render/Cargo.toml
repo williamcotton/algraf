@@ -25,5 +25,9 @@ default = ["sql"]
 # Forward the native SQLite backend (spec §10.12); off in the WASM build.
 sql = ["algraf-data/sql", "algraf-semantics/sql", "algraf-driver/sql"]
 
+[[bin]]
+name = "render-timing"
+path = "src/bin/render_timing.rs"
+
 [dev-dependencies]
 algraf-syntax = { workspace = true }

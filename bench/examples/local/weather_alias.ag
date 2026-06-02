@@ -1,0 +1,10 @@
+Chart(data: input, width: 800, height: 400) {
+    Theme(name: "minimal")
+    Guide(axis: x, label: "Hour", timeFormat: "time-minute")
+    Guide(axis: y, label: "Temperature (C)")
+
+    Space(time * temp) {
+        Line(stroke: "#e74c3c", strokeWidth: 3)
+        Point(fill: "#e74c3c", size: 3, tooltip: [time, temp])
+    }
+}

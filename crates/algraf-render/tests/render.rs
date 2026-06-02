@@ -854,6 +854,16 @@ fn test_smooth_se_renders_confidence_band() {
 }
 
 #[test]
+fn test_faceted_smooth_ignores_empty_stroke_groups() {
+    let result = render_result(
+        "Chart(data: \"s.csv\") { Space((x * y) / island) { Smooth(method: \"lm\", stroke: species) } }",
+        "island,species,x,y\nA,alpha,1,2\nA,alpha,2,3\nB,beta,1,5\nB,beta,2,7\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.svg.matches("algraf-geom-smooth").count(), 2);
+}
+
+#[test]
 fn test_temporal_axis() {
     let svg = render_svg(
         "Chart(data: \"t.csv\") { Space(day * value) { Line() } }",

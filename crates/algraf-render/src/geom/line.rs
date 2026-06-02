@@ -294,6 +294,9 @@ pub(super) fn render_smooth(
     let row_list = render_rows(table, rows);
 
     for (_, group_rows) in grouped_rows(geo, &stroke, table, row_list) {
+        if group_rows.is_empty() {
+            continue;
+        }
         let mut points: Vec<(f64, f64)> = group_rows
             .iter()
             .filter_map(|&r| Some((space.resolve_x(table, r)?, space.resolve_y(table, r)?)))
