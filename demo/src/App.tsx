@@ -17,6 +17,7 @@ import {
 } from "./algrafWasm";
 import { AlgrafChart } from "./AlgrafChart";
 import { AlgrafEditor } from "./AlgrafEditor";
+import { publicAssetUrl } from "./publicAssets";
 
 interface DemoDataFile {
   file: string;
@@ -44,56 +45,56 @@ const DATASETS: Record<string, DemoDataset> = {
     label: "Palmer penguins",
     rows: 344,
     columns: 8,
-    url: "/data/penguins.csv",
+    url: publicAssetUrl("data/penguins.csv"),
   },
   gapminder: {
     file: "gapminder.csv",
     label: "Gapminder",
     rows: 1704,
     columns: 6,
-    url: "/data/gapminder.csv",
+    url: publicAssetUrl("data/gapminder.csv"),
   },
   iris: {
     file: "iris.csv",
     label: "Iris flowers",
     rows: 150,
     columns: 5,
-    url: "/data/iris.csv",
+    url: publicAssetUrl("data/iris.csv"),
   },
   stocks: {
     file: "stocks.csv",
     label: "Tech stocks",
     rows: 559,
     columns: 3,
-    url: "/data/stocks.csv",
+    url: publicAssetUrl("data/stocks.csv"),
   },
   weather: {
     file: "seattle-weather.csv",
     label: "Seattle weather",
     rows: 1461,
     columns: 6,
-    url: "/data/seattle-weather.csv",
+    url: publicAssetUrl("data/seattle-weather.csv"),
   },
   astronauts: {
     file: "astronauts.csv",
     label: "Astronaut ages",
     rows: 564,
     columns: 2,
-    url: "/data/astronauts.csv",
+    url: publicAssetUrl("data/astronauts.csv"),
   },
   minard: {
     file: "minard_troops.csv",
     label: "Minard campaign",
     rows: 50,
     columns: 6,
-    url: "/data/minard_troops.csv",
+    url: publicAssetUrl("data/minard_troops.csv"),
     auxiliaryFiles: [
       {
         file: "minard_cities.csv",
         label: "Minard cities",
         rows: 19,
         columns: 4,
-        url: "/data/minard_cities.csv",
+        url: publicAssetUrl("data/minard_cities.csv"),
       },
     ],
   },

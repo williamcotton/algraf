@@ -64,3 +64,18 @@ Browser limitations:
 
 `npm run check` type-checks the Monaco provider mappings. The project does not
 currently include a Playwright or equivalent browser smoke harness.
+
+## GitHub Pages Deployment
+
+The repository includes a GitHub Actions workflow at
+`.github/workflows/demo-pages.yml`. It builds the Rust `wasm32-unknown-unknown`
+target, runs the demo's Vite build, and publishes `demo/dist` to GitHub Pages.
+
+The workflow computes the Vite base path from the repository name. A user or
+organization Pages repository such as `owner.github.io` is served from `/`;
+ordinary project repositories are served from `/<repo>/`. For this repository,
+the deployed demo URL is:
+
+```text
+https://williamcotton.github.io/algraf/
+```

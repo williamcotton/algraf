@@ -1,3 +1,5 @@
+import { publicAssetUrl } from "./publicAssets";
+
 export interface AlgrafDiagnostic {
   code: string;
   severity: "error" | "warning" | "information" | "hint";
@@ -91,7 +93,7 @@ export interface AlgrafRuntime {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-export async function loadAlgrafRuntime(url = "/wasm/algraf.wasm"): Promise<AlgrafRuntime> {
+export async function loadAlgrafRuntime(url = publicAssetUrl("wasm/algraf.wasm")): Promise<AlgrafRuntime> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`failed to fetch ${url}: ${response.status}`);

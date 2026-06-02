@@ -53,8 +53,11 @@ Three artifacts govern behavior, and they must stay in sync:
 - **Create the plan artifact even if work starts first.** Every feature,
   maintenance back-port, or release-scoped fix must have a current/new
   `docs/V0_<minor>_PLAN.md` entry. If implementation starts before planning is
-  written down, create or update the plan artifact in the same change rather
-  than editing an old completed plan. When that plan starts a new current
+  written down, create or update the appropriate plan artifact in the same
+  change rather than editing an old completed plan. If the work is outside the
+  active plan's declared purpose/scope, or if the active plan's items are
+  already `Implemented`, start the next minor `docs/V0_<minor>_PLAN.md` instead
+  of appending to the previous release. When that plan starts a new current
   release, immediately align the workspace/spec/package version stamps for that
   release (`Cargo.toml`, `Cargo.lock`, `docs/ALGRAF_SPEC.md`,
   `editors/vscode/package.json`, `editors/vscode/package-lock.json`, and any
