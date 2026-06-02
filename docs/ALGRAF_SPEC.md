@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.50.0
+Status: 0.51.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.50.0 specification.
+This working copy is the 0.51.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -8039,6 +8039,17 @@ edits MAY reuse cached diagnostics only when the document has no external schema
 sources; documents that depend on files or SQLite queries MUST re-run schema
 resolution so fingerprint invalidation can observe external changes.
 
+When an editor/LSP document uses `Chart(data: input)` or `Chart(data: stdin)`
+and the host has not supplied caller-provided data bytes or an injected primary
+schema, analysis MUST treat the primary table schema as unknown rather than
+empty. In that state, primary-table column references MUST resolve with
+`Unknown` type and MUST NOT emit `E1101` solely because the caller-input schema
+is unavailable. The editor/LSP MUST still report syntax diagnostics,
+non-column semantic diagnostics, and diagnostics for named tables whose schemas
+are available or whose source-specific errors are known. CLI and embedded
+render/check paths that receive caller-provided bytes still infer the schema and
+validate primary columns normally.
+
 Document state:
 
 ```rust
@@ -10484,6 +10495,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.48.0 | [`V0_48_PLAN.md`](V0_48_PLAN.md) | Editor hover parity for named tables and constructor-backed sources | Implemented |
 | 0.49.0 | [`V0_49_PLAN.md`](V0_49_PLAN.md) | Embedded host parity for interactive SVG output | Implemented |
 | 0.50.0 | [`V0_50_PLAN.md`](V0_50_PLAN.md) | README tutorial split and release version alignment | Implemented |
+| 0.51.0 | [`V0_51_PLAN.md`](V0_51_PLAN.md) | Caller-input editor diagnostics and planning artifact discipline | In progress |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
@@ -10493,6 +10505,14 @@ Promoted items MUST be copied into the relevant normative sections of this
 specification before or alongside implementation. Deferred optional items remain
 non-commitments until explicitly promoted. The standing deferred list is
 maintained in [`V0_3_PLAN.md`](V0_3_PLAN.md) and referenced by later plans.
+
+Feature work, maintenance back-ports, and release-scoped fixes MUST have a
+current versioned plan artifact. If implementation starts before planning is
+written down, the implementation change MUST create or update the current
+`docs/V0_<minor>_PLAN.md` artifact in the same change and MUST update this
+specification before stopping. Completed release plans are historical records;
+new work belongs in a new or currently active plan rather than reopening old
+scope.
 
 ## 31. Implementation Milestones
 

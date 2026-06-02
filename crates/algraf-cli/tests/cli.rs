@@ -496,6 +496,31 @@ fn source_and_csv_cannot_both_read_from_stdin() {
 }
 
 #[test]
+fn check_stdin_source_conflict_does_not_report_unknown_columns() {
+    let source = "Chart(data: stdin) {\n  Space(x * y) { Point() }\n}\n";
+    let mut child = Command::new(bin())
+        .arg("check")
+        .arg("-")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(source.as_bytes())
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    let err = stderr(&output);
+
+    assert_eq!(output.status.code(), Some(1), "stderr: {err}");
+    assert!(err.contains("Chart(data: stdin) but source was also read from stdin"));
+    assert!(!err.contains("unknown column"), "stderr: {err}");
+}
+
+#[test]
 fn render_eval_uses_stdin_for_json_input_and_variables() {
     let source = r##"Chart(data: input, width: 320, height: 220) {
   Space(x * y) {

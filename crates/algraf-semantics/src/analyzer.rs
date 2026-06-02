@@ -46,6 +46,15 @@ pub struct Analysis {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+/// Options that tune semantic analysis at caller boundaries.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AnalysisOptions {
+    /// Treat the primary table schema as unknown instead of empty. Column
+    /// references against that table resolve with `Unknown` type and do not
+    /// emit `E1101`; named and derived tables still validate normally.
+    pub allow_unknown_primary_columns: bool,
+}
+
 /// Analyze a parsed tree against a primary data schema (spec §13.17).
 ///
 /// This analyzes the document's first chart block. Multi-chart documents
@@ -63,7 +72,26 @@ pub fn analyze_with_tables(
     primary_schema: &[ColumnDef],
     table_schemas: &HashMap<String, Vec<ColumnDef>>,
 ) -> Analysis {
-    let mut analyzer = Analyzer::new(primary_schema, table_schemas);
+    analyze_with_tables_and_options(
+        root,
+        primary_schema,
+        table_schemas,
+        AnalysisOptions::default(),
+    )
+}
+
+/// Analyze a parsed tree with explicit caller-boundary options.
+pub fn analyze_with_tables_and_options(
+    root: &SyntaxNode,
+    primary_schema: &[ColumnDef],
+    table_schemas: &HashMap<String, Vec<ColumnDef>>,
+    options: AnalysisOptions,
+) -> Analysis {
+    let mut analyzer = Analyzer::new(
+        primary_schema,
+        table_schemas,
+        options.allow_unknown_primary_columns,
+    );
     let ir = Root::cast(root.clone())
         .and_then(|r| r.chart())
         .and_then(|chart| analyzer.chart(&chart));
@@ -86,7 +114,7 @@ pub fn analyze_chart_with_tables(
     primary_schema: &[ColumnDef],
     table_schemas: &HashMap<String, Vec<ColumnDef>>,
 ) -> Analysis {
-    let mut analyzer = Analyzer::new(primary_schema, table_schemas);
+    let mut analyzer = Analyzer::new(primary_schema, table_schemas, false);
     let ir = analyzer.chart(chart);
     Analysis {
         ir,

@@ -8,7 +8,7 @@ use algraf_driver::{
     resolve_named_table_sources, resolve_schema_cached, resolve_topojson_schema_cached,
     CachedSchema, InMemorySchemaCache, LoadContext, OsDriverIo,
 };
-use algraf_semantics::analyze_with_tables;
+use algraf_semantics::{analyze_with_tables, analyze_with_tables_and_options, AnalysisOptions};
 use algraf_syntax::ast::Root;
 use algraf_syntax::{parse, SourceExpr, SyntaxNode};
 use lsp_types::Url;
@@ -69,7 +69,10 @@ pub fn analyze_document_with_io(
     };
     let table_schemas = table_schema_resolution.schemas;
     let mut source_previews = table_schema_resolution.source_previews;
-    let primary_has_external_schema_source = !matches!(schema, SchemaResolution::MissingOrInvalid);
+    let primary_has_external_schema_source = !matches!(
+        schema,
+        SchemaResolution::MissingOrInvalid | SchemaResolution::CallerInput
+    );
     let has_external_schema_sources =
         primary_has_external_schema_source || table_schema_resolution.has_external_sources;
 
@@ -104,6 +107,21 @@ pub fn analyze_document_with_io(
         }
         SchemaResolution::MissingOrInvalid => {
             let result = analyze_with_tables(&syntax, &[], &table_schemas);
+            diagnostics.extend(result.diagnostics.clone());
+            analysis = Some(AnalysisState {
+                ir: result.ir,
+                diagnostics: result.diagnostics,
+            });
+        }
+        SchemaResolution::CallerInput => {
+            let result = analyze_with_tables_and_options(
+                &syntax,
+                &[],
+                &table_schemas,
+                AnalysisOptions {
+                    allow_unknown_primary_columns: true,
+                },
+            );
             diagnostics.extend(result.diagnostics.clone());
             analysis = Some(AnalysisState {
                 ir: result.ir,
@@ -154,6 +172,7 @@ fn resolve_schema(
         | SourceExpr::Sqlite { span, .. }
         | SourceExpr::TopoJson { span, .. }
         | SourceExpr::TableRef { span, .. } => *span,
+        SourceExpr::Stdin { .. } => return SchemaResolution::CallerInput,
         _ => return SchemaResolution::MissingOrInvalid,
     };
     let source_input = source_input_for_uri(uri);

@@ -103,9 +103,7 @@ impl Analyzer<'_> {
     pub(super) fn table_active(&self, name: &str) -> ActiveTable {
         match self.table_schemas.get(name) {
             Some(schema) => ActiveTable::from_schema(schema),
-            None => ActiveTable {
-                columns: Vec::new(),
-            },
+            None => ActiveTable::empty(),
         }
     }
 }

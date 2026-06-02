@@ -84,7 +84,7 @@ impl Analyzer<'_> {
         let mut scales = Vec::new();
         let mut theme: Option<ThemeIr> = None;
         let mut spaces = Vec::new();
-        let primary_table = ActiveTable::from_schema(self.primary);
+        let primary_table = self.primary_table();
         for item in chart.items() {
             match item {
                 ChartItem::Derive(_) => {}

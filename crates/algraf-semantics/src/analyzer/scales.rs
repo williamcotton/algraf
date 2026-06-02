@@ -72,6 +72,7 @@ impl Analyzer<'_> {
                 key if registry::SCALE_AESTHETIC_TARGETS.contains(&key) => match arg.value() {
                     Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
                         let column = if name.name().as_deref() == Some("series")
+                            && !table.has_unknown_columns()
                             && table.get("series").is_none()
                         {
                             ColumnRef {

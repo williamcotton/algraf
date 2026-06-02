@@ -76,6 +76,7 @@ pub enum SchemaResolution {
         path: Option<PathBuf>,
         format: Option<Format>,
     },
+    CallerInput,
     MissingOrInvalid,
     Unavailable {
         diagnostic: CoreDiagnostic,

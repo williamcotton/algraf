@@ -110,10 +110,7 @@ impl Analyzer<'_> {
         schemas: &HashMap<usize, Vec<ColumnDefIr>>,
     ) -> Option<(SpaceDataRef, ActiveTable)> {
         let Some(source) = derive.source_name() else {
-            return Some((
-                SpaceDataRef::Primary,
-                ActiveTable::from_schema(self.primary),
-            ));
+            return Some((SpaceDataRef::Primary, self.primary_table()));
         };
 
         if self.table_names.contains(&source) {
@@ -1837,7 +1834,7 @@ impl Analyzer<'_> {
                 ));
             }
         }
-        if table.get(&output).is_some() {
+        if !table.has_unknown_columns() && table.get(&output).is_some() {
             self.diag(Diagnostic::error(
                 codes::E1404,
                 format!("Cut output column `{output}` already exists"),

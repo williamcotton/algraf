@@ -167,13 +167,16 @@ pub fn prepare_chart_partial_with_io(
         Ok(resolved) => resolved,
         Err(err) => {
             // Source resolution failed (for example stdin shared across charts).
-            // Record it and analyze with no schema so column references still
-            // resolve as far as they can.
+            // Record it without running semantic column validation against an
+            // empty schema; that would turn a source-level stdin conflict into
+            // unrelated unknown-column diagnostics.
             let source = crate::extract_chart_data_source(chart);
             let span = source.span().unwrap_or_else(|| Span::new(0, 0));
             report.push(ReportPhase::Load, driver_error_diagnostic(&err, span));
-            let analysis = analyze_chart_with_tables(chart, &[], &HashMap::new());
-            report.extend(ReportPhase::Semantic, analysis.diagnostics.iter().cloned());
+            let analysis = Analysis {
+                ir: None,
+                diagnostics: Vec::new(),
+            };
             return PreparedReport {
                 source,
                 primary: None,

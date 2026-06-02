@@ -219,6 +219,13 @@ impl Analyzer<'_> {
                 match table.get(&name) {
                     Some(dtype) => Some(ColumnRef { name, dtype, span }),
                     None => {
+                        if table.has_unknown_columns() {
+                            return Some(ColumnRef {
+                                name,
+                                dtype: DataType::Unknown,
+                                span,
+                            });
+                        }
                         self.diag(Diagnostic::error(
                             codes::E1101,
                             format!("unknown column `{name}`"),
@@ -344,7 +351,11 @@ impl Analyzer<'_> {
         if prop.accepts.contains(&Accept::Color) {
             if let ValueForm::Column(name) = &form {
                 let raw = name.name().unwrap_or_default();
-                if !name.is_quoted() && table.get(&raw).is_none() && is_css_color_name(&raw) {
+                if !name.is_quoted()
+                    && !table.has_unknown_columns()
+                    && table.get(&raw).is_none()
+                    && is_css_color_name(&raw)
+                {
                     self.diag(
                         Diagnostic::new(
                             Severity::Hint,

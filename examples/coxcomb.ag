@@ -1,4 +1,4 @@
-Chart(data: "coxcomb_deaths.csv", width: 420, height: 420, title: "Deaths by month (coxcomb)") {
+Chart(data: stdin, width: 420, height: 420, title: "Deaths by month (coxcomb)") {
   Space(month * deaths, coords: "polar", theta: "x") {
     Bar(fill: month)
   }

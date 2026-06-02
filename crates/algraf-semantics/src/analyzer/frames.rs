@@ -1020,9 +1020,7 @@ impl Analyzer<'_> {
             ));
             return None;
         };
-        let child_table = child_table.unwrap_or_else(|| ActiveTable {
-            columns: Vec::new(),
-        });
+        let child_table = child_table.unwrap_or_else(ActiveTable::empty);
 
         if (width.is_some() || height.is_some()) && (size_number.is_some() || size_column.is_some())
         {
@@ -1274,6 +1272,13 @@ impl Analyzer<'_> {
                     span,
                 },
                 None => {
+                    if table.has_unknown_columns() {
+                        return Some(InsetParentRefIr::Parent(ColumnRef {
+                            name: col_name,
+                            dtype: DataType::Unknown,
+                            span,
+                        }));
+                    }
                     self.diag(Diagnostic::error(
                         codes::E1101,
                         format!("unknown parent row column `{col_name}`"),
@@ -1394,12 +1399,7 @@ impl Analyzer<'_> {
             }
         }
 
-        default_data.unwrap_or_else(|| {
-            (
-                SpaceDataRef::Primary,
-                ActiveTable::from_schema(self.primary),
-            )
-        })
+        default_data.unwrap_or_else(|| (SpaceDataRef::Primary, self.primary_table()))
     }
 
     // --- Algebra frame (spec §8, §13.5) ---
@@ -1504,6 +1504,13 @@ impl Analyzer<'_> {
                 span,
             },
             None => {
+                if table.has_unknown_columns() {
+                    return ColumnRef {
+                        name: col_name,
+                        dtype: DataType::Unknown,
+                        span,
+                    };
+                }
                 let mut diag =
                     Diagnostic::error(codes::E1101, format!("unknown column `{col_name}`"), span);
                 if let Some(suggestion) = closest(&col_name, table.names()) {

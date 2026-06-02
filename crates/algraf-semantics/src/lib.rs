@@ -13,7 +13,7 @@ mod util;
 
 pub use analyzer::{
     analyze, analyze_chart, analyze_chart_with_tables, analyze_source, analyze_with_tables,
-    Analysis,
+    analyze_with_tables_and_options, Analysis, AnalysisOptions,
 };
 pub use ir::{
     AestheticMapping, AxisSelectorIr, AxisViewDomainIr, BinClosedIr, BinIntervalIr, ChartIr,

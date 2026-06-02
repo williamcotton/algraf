@@ -661,6 +661,45 @@ async fn missing_data_file_keeps_semantic_diagnostics() {
 }
 
 #[tokio::test]
+async fn caller_input_source_does_not_publish_unknown_columns() {
+    for sentinel in ["input", "stdin"] {
+        let dir = temp_project(&format!("caller-input-no-unknown-columns-{sentinel}"));
+        let source_path = dir.join("chart.ag");
+        let source = format!(
+            "Chart(data: {sentinel}) {{\n    Space(x * y) {{\n        Point(fill: group, bogus: x)\n    }}\n}}"
+        );
+        std::fs::write(&source_path, &source).unwrap();
+        let uri = Url::from_file_path(&source_path).unwrap();
+
+        let (mut service, mut socket) = initialized_service().await;
+        open_document(&mut service, uri, &source).await;
+
+        let notification = next_client_notification(&mut socket).await;
+        assert_eq!(notification.method(), "textDocument/publishDiagnostics");
+        let params: PublishDiagnosticsParams =
+            serde_json::from_value(notification.params().unwrap().clone()).unwrap();
+
+        let messages = params
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.message.as_str())
+            .collect::<Vec<_>>();
+        assert!(
+            messages
+                .iter()
+                .any(|message| message.contains("unknown property `bogus`")),
+            "{sentinel}: {messages:?}"
+        );
+        assert!(
+            !messages
+                .iter()
+                .any(|message| message.contains("unknown column")),
+            "{sentinel}: {messages:?}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn declaration_diagnostic_span_starts_at_declaration_keyword() {
     let dir = temp_project("declaration-span");
     let source_path = dir.join("chart.ag");

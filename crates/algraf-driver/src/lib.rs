@@ -991,6 +991,26 @@ Chart(data: "b.csv") { Space(x * y) { Line() } }"#,
         assert!(matches!(err, DriverError::Usage(message) if message.contains("stdin data")));
     }
 
+    #[test]
+    fn partial_preparation_reports_stdin_conflict_without_unknown_columns() {
+        let source = SourceInput::Stdin;
+        let chart = parse_chart(r#"Chart(data: stdin) { Space(x * y) { Point() } }"#);
+
+        let prepared = prepare_chart_partial(&chart, partial_options(&source));
+
+        assert!(prepared.primary.is_none());
+        assert!(prepared
+            .report
+            .entries()
+            .iter()
+            .any(|(phase, d)| *phase == ReportPhase::Load && d.code == codes::E1006.as_str()));
+        assert!(!prepared
+            .report
+            .entries()
+            .iter()
+            .any(|(_, d)| d.code == codes::E1101.as_str()));
+    }
+
     fn partial_options(source: &SourceInput) -> PrepareOptions<'_> {
         PrepareOptions {
             source_input: source,

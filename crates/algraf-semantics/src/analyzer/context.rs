@@ -20,18 +20,35 @@ use crate::ir::*;
 #[derive(Clone)]
 pub(super) struct ActiveTable {
     pub(super) columns: Vec<(String, DataType)>,
+    unknown_columns: bool,
 }
 
 impl ActiveTable {
     pub(super) fn from_schema(schema: &[ColumnDef]) -> Self {
         ActiveTable {
             columns: schema.iter().map(|c| (c.name.clone(), c.dtype)).collect(),
+            unknown_columns: false,
         }
     }
 
     pub(super) fn from_ir(schema: &[ColumnDefIr]) -> Self {
         ActiveTable {
             columns: schema.iter().map(|c| (c.name.clone(), c.dtype)).collect(),
+            unknown_columns: false,
+        }
+    }
+
+    pub(super) fn empty() -> Self {
+        ActiveTable {
+            columns: Vec::new(),
+            unknown_columns: false,
+        }
+    }
+
+    pub(super) fn unknown() -> Self {
+        ActiveTable {
+            columns: Vec::new(),
+            unknown_columns: true,
         }
     }
 
@@ -44,6 +61,10 @@ impl ActiveTable {
 
     pub(super) fn names(&self) -> impl Iterator<Item = &str> {
         self.columns.iter().map(|(n, _)| n.as_str())
+    }
+
+    pub(super) fn has_unknown_columns(&self) -> bool {
+        self.unknown_columns
     }
 }
 
@@ -96,6 +117,7 @@ pub(super) enum StyleFragmentLookup {
 
 pub(super) struct Analyzer<'a> {
     pub(super) primary: &'a [ColumnDef],
+    pub(super) allow_unknown_primary_columns: bool,
     /// Schemas of chart-scoped named tables, keyed by declaration name.
     pub(super) table_schemas: &'a HashMap<String, Vec<ColumnDef>>,
     /// Names of declared `Table`s that resolved (used by `space_data`).
@@ -118,9 +140,11 @@ impl<'a> Analyzer<'a> {
     pub(super) fn new(
         primary: &'a [ColumnDef],
         table_schemas: &'a HashMap<String, Vec<ColumnDef>>,
+        allow_unknown_primary_columns: bool,
     ) -> Self {
         Analyzer {
             primary,
+            allow_unknown_primary_columns,
             table_schemas,
             table_names: HashSet::new(),
             derived: HashMap::new(),
@@ -130,6 +154,14 @@ impl<'a> Analyzer<'a> {
             row_context_tables: Vec::new(),
             synthetic_counter: 0,
             diagnostics: Vec::new(),
+        }
+    }
+
+    pub(super) fn primary_table(&self) -> ActiveTable {
+        if self.allow_unknown_primary_columns {
+            ActiveTable::unknown()
+        } else {
+            ActiveTable::from_schema(self.primary)
         }
     }
 
