@@ -321,7 +321,8 @@ deterministic data.
 ## Running Algraf in the browser
 
 The root-level [`demo/`](demo) app builds `crates/algraf-wasm` for the browser,
-loads `/wasm/algraf.wasm`, and calls the manual render ABI with source text plus
+loads the generated `wasm/algraf.wasm` asset through the host's configured
+public base path, and calls the manual render ABI with source text plus
 host-supplied data text.
 
 ```bash
@@ -333,6 +334,12 @@ npm run dev
 The runtime returns `{ svg, sidecar, diagnostics, error }`. The demo fetches its
 sample data before calling WASM; browser networking stays host-owned, and the
 WASM runtime itself only sees the in-memory `files` map.
+
+The demo can be deployed as a static GitHub Pages site with the workflow in
+`.github/workflows/demo-pages.yml`. Before the first deployment, enable Pages in
+the repository settings and set the publishing source to GitHub Actions. Project
+Pages deployments are served under `/<repo>/`; for `williamcotton/algraf`, browse to
+`https://williamcotton.github.io/algraf/` after the workflow deploys.
 
 ## Workspace layout
 

@@ -1,9 +1,10 @@
 # Algraf v0.51.0 Plan
 
-Status: In progress
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_50_PLAN.md`](V0_50_PLAN.md)
+Follow-on plan: [`V0_52_PLAN.md`](V0_52_PLAN.md)
 Roadmap theme: editor diagnostics and planning artifact discipline.
 
 ## Purpose

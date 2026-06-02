@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.51.0
+Status: 0.52.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.51.0 specification.
+This working copy is the 0.52.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9424,6 +9424,12 @@ fail through the same data/driver diagnostic path used for SQLite data errors.
 PNG/raster output, filesystem-backed source discovery, and host-owned UI state
 are outside the v0.34 browser runtime.
 
+The root-level browser demo is a static host for this ABI, not a separate
+runtime contract. When the demo is served from a subpath, such as GitHub Pages
+project sites, it MUST resolve its own public `wasm/` and `data/` assets through
+the host's configured public base path. Root-absolute demo asset URLs are not
+part of the browser ABI.
+
 ## 25. Examples Compared With GramGraph
 
 ### 25.1 Grouped Line Chart
@@ -10495,7 +10501,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.48.0 | [`V0_48_PLAN.md`](V0_48_PLAN.md) | Editor hover parity for named tables and constructor-backed sources | Implemented |
 | 0.49.0 | [`V0_49_PLAN.md`](V0_49_PLAN.md) | Embedded host parity for interactive SVG output | Implemented |
 | 0.50.0 | [`V0_50_PLAN.md`](V0_50_PLAN.md) | README tutorial split and release version alignment | Implemented |
-| 0.51.0 | [`V0_51_PLAN.md`](V0_51_PLAN.md) | Caller-input editor diagnostics and planning artifact discipline | In progress |
+| 0.51.0 | [`V0_51_PLAN.md`](V0_51_PLAN.md) | Caller-input editor diagnostics and planning artifact discipline | Implemented |
+| 0.52.0 | [`V0_52_PLAN.md`](V0_52_PLAN.md) | Static browser demo deployment | In progress |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
@@ -10508,11 +10515,14 @@ maintained in [`V0_3_PLAN.md`](V0_3_PLAN.md) and referenced by later plans.
 
 Feature work, maintenance back-ports, and release-scoped fixes MUST have a
 current versioned plan artifact. If implementation starts before planning is
-written down, the implementation change MUST create or update the current
+written down, the implementation change MUST create or update the appropriate
 `docs/V0_<minor>_PLAN.md` artifact in the same change and MUST update this
-specification before stopping. Completed release plans are historical records;
-new work belongs in a new or currently active plan rather than reopening old
-scope.
+specification before stopping. New work outside the active plan's declared
+purpose/scope, or work that begins after all active plan items are already
+`Implemented`, MUST start the next minor plan and immediately align
+workspace/spec/package version stamps to that release. Completed release plans
+are historical records; new work belongs in a new or currently active plan
+rather than reopening old scope.
 
 ## 31. Implementation Milestones
 
