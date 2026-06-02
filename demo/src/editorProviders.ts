@@ -105,8 +105,8 @@ interface LspSemanticTokens {
 
 export function registerAlgrafEditorProviders(
   languageId: string,
-  getRuntime: () => AlgrafRuntime | null,
-  getFiles: () => Record<string, string>,
+  getRuntime: (model: monaco.editor.ITextModel) => AlgrafRuntime | null,
+  getFiles: (model: monaco.editor.ITextModel) => Record<string, string>,
 ): monaco.IDisposable {
   const disposables: monaco.IDisposable[] = [
     monaco.languages.registerHoverProvider(languageId, {
@@ -313,15 +313,15 @@ export function registerAlgrafEditorProviders(
 
 function requestFeature<T>(
   model: monaco.editor.ITextModel,
-  getRuntime: () => AlgrafRuntime | null,
-  getFiles: () => Record<string, string>,
+  getRuntime: (model: monaco.editor.ITextModel) => AlgrafRuntime | null,
+  getFiles: (model: monaco.editor.ITextModel) => Record<string, string>,
   request: AlgrafEditorFeatureRequest,
 ): T | null {
-  const runtime = getRuntime();
+  const runtime = getRuntime(model);
   if (!runtime) {
     return null;
   }
-  const response = runtime.editorService<T>(model.getValue(), getFiles(), request, model.uri.toString());
+  const response = runtime.editorService<T>(model.getValue(), getFiles(model), request, model.uri.toString());
   if (response.error) {
     console.warn(`Algraf editor service failed: ${response.error}`);
     return null;

@@ -1,7 +1,7 @@
 # Demo Data
 
-The playground checks these public datasets into `demo/public/data/` so the
-WASM demo is self-contained after install.
+The browser demo checks these public datasets into `demo/public/data/` so the
+WASM site is self-contained after install.
 
 | File | Rows | Source |
 | --- | ---: | --- |
@@ -13,6 +13,7 @@ WASM demo is self-contained after install.
 | `astronauts.csv` | 564 | Algraf example fixture from `examples/astronauts.csv`. |
 | `minard_troops.csv` | 50 | Algraf example fixture from `examples/minard_troops.csv`. |
 | `minard_cities.csv` | 19 | Algraf example fixture from `examples/minard_cities.csv`. |
+| `homepage-starter.csv` | 12 | Small checked-in fixture for `demo/public/homepage.ag`. |
 
 `penguins.json` is the original tiny playground fixture retained for
 compatibility with older local builds.

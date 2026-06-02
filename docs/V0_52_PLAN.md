@@ -1,9 +1,10 @@
 # Algraf v0.52.0 Plan
 
-Status: In progress
+Status: Implemented
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_51_PLAN.md`](V0_51_PLAN.md)
+Follow-on plan: [`V0_53_PLAN.md`](V0_53_PLAN.md)
 Roadmap theme: static browser demo deployment.
 
 ## Purpose

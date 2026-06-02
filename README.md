@@ -8,7 +8,8 @@ against the data, trains scales, and emits deterministic SVG.
 The normative reference is [`docs/ALGRAF_SPEC.md`](docs/ALGRAF_SPEC.md).
 The complete visual gallery lives in [`examples/README.md`](examples/README.md).
 
-Live demo: [`https://williamcotton.github.io/algraf/`](https://williamcotton.github.io/algraf/)
+Live site: [`https://williamcotton.github.io/algraf/`](https://williamcotton.github.io/algraf/)
+Full demos: [`https://williamcotton.github.io/algraf/demos`](https://williamcotton.github.io/algraf/demos)
 
 ## A tour in six charts
 
@@ -325,7 +326,8 @@ deterministic data.
 The root-level [`demo/`](demo) app builds `crates/algraf-wasm` for the browser,
 loads the generated `wasm/algraf.wasm` asset through the host's configured
 public base path, and calls the manual render ABI with source text plus
-host-supplied data text.
+host-supplied data text. The landing page (`/`) includes a small live Monaco
+editor, `/docs` provides a guided tutorial, and `/demos` keeps the full demo gallery.
 
 ```bash
 cd demo

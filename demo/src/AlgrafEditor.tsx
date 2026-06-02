@@ -16,10 +16,18 @@ const LANGUAGE_ID = "algraf";
 const SCOPE_NAME = "source.algraf";
 const THEME_NAME = "algraf-playground";
 const MARKER_OWNER = "algraf-wasm";
-const MODEL_URI = monaco.Uri.parse("inmemory://algraf/demo.ag");
+const DEFAULT_MODEL_URI = "inmemory://algraf/demo.ag";
 
 const encoder = new TextEncoder();
 let setupPromise: Promise<void> | null = null;
+let providerDisposable: monaco.IDisposable | null = null;
+
+interface EditorContext {
+  runtime: () => AlgrafRuntime | null;
+  files: () => Record<string, string>;
+}
+
+const editorContexts = new Map<string, EditorContext>();
 
 export interface AlgrafEditorProps {
   value: string;
@@ -27,9 +35,10 @@ export interface AlgrafEditorProps {
   diagnostics: AlgrafDiagnostic[];
   runtime: AlgrafRuntime | null;
   onChange: (value: string) => void;
+  modelUri?: string;
 }
 
-export function AlgrafEditor({ value, files, diagnostics, runtime, onChange }: AlgrafEditorProps): React.ReactElement {
+export function AlgrafEditor({ value, files, diagnostics, runtime, onChange, modelUri }: AlgrafEditorProps): React.ReactElement {
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   const editorRef = React.useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const modelRef = React.useRef<monaco.editor.ITextModel | null>(null);
@@ -38,6 +47,7 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange }: A
   const filesRef = React.useRef(files);
   const runtimeRef = React.useRef(runtime);
   const [setupError, setSetupError] = React.useState<string | null>(null);
+  const resolvedModelUri = React.useMemo(() => monaco.Uri.parse(modelUri ?? DEFAULT_MODEL_URI), [modelUri]);
 
   React.useEffect(() => {
     onChangeRef.current = onChange;
@@ -76,7 +86,7 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange }: A
     let editor: monaco.editor.IStandaloneCodeEditor | null = null;
     let model: monaco.editor.ITextModel | null = null;
     let contentDisposable: monaco.IDisposable | null = null;
-    let providerDisposable: monaco.IDisposable | null = null;
+    let contextKey: string | null = null;
 
     setupAlgrafMonaco()
       .then(() => {
@@ -84,7 +94,13 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange }: A
           return;
         }
 
-        model = monaco.editor.createModel(value, LANGUAGE_ID, MODEL_URI);
+        ensureAlgrafProviders();
+        model = monaco.editor.createModel(value, LANGUAGE_ID, resolvedModelUri);
+        contextKey = model.uri.toString();
+        editorContexts.set(contextKey, {
+          runtime: () => runtimeRef.current,
+          files: () => filesRef.current,
+        });
         editor = monaco.editor.create(hostRef.current, {
           model,
           theme: THEME_NAME,
@@ -108,12 +124,6 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange }: A
         editorRef.current = editor;
         setAlgrafMarkers(model, diagnosticsRef.current);
 
-        providerDisposable = registerAlgrafEditorProviders(
-          LANGUAGE_ID,
-          () => runtimeRef.current,
-          () => filesRef.current,
-        );
-
         contentDisposable = model.onDidChangeContent(() => {
           onChangeRef.current(model?.getValue() ?? "");
         });
@@ -127,7 +137,9 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange }: A
     return () => {
       cancelled = true;
       contentDisposable?.dispose();
-      providerDisposable?.dispose();
+      if (contextKey) {
+        editorContexts.delete(contextKey);
+      }
       if (model) {
         monaco.editor.setModelMarkers(model, MARKER_OWNER, []);
       }
@@ -140,13 +152,21 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange }: A
         modelRef.current = null;
       }
     };
-  }, []);
+  }, [resolvedModelUri]);
 
   return (
     <div className="algraf-editor-shell">
       <div aria-label="Algraf source" className="algraf-editor" ref={hostRef} />
       {setupError ? <div className="algraf-editor-error">Editor failed to load: {setupError}</div> : null}
     </div>
+  );
+}
+
+function ensureAlgrafProviders(): void {
+  providerDisposable ??= registerAlgrafEditorProviders(
+    LANGUAGE_ID,
+    (model) => editorContexts.get(model.uri.toString())?.runtime() ?? null,
+    (model) => editorContexts.get(model.uri.toString())?.files() ?? {},
   );
 }
 

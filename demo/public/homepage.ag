@@ -1,0 +1,16 @@
+Chart(data: "data/homepage-starter.csv", width: 620, height: 360, title: "A small Algraf chart") {
+    Theme(name: "minimal")
+    Scale(fill: series, palette: "accent")
+    Guide(axis: x, label: "Week")
+    Guide(axis: y, label: "Value")
+
+    Space(week * value) {
+        Line(stroke: series, strokeWidth: 2.4)
+        Point(
+            fill: series,
+            size: 4.8,
+            tooltip: [series, week, value],
+            highlight: series
+        )
+    }
+}

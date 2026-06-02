@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.52.0
+Status: 0.53.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.52.0 specification.
+This working copy is the 0.53.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9430,6 +9430,13 @@ project sites, it MUST resolve its own public `wasm/` and `data/` assets through
 the host's configured public base path. Root-absolute demo asset URLs are not
 part of the browser ABI.
 
+Version 0.53.0 organizes the static browser demo host as a light-themed site
+with `/`, `/docs`, and `/demos` routes. The landing page, guided docs, and demos
+route use the browser WASM runtime; Monaco-backed editor feedback in those hosts
+remains an adapter over the browser editor-service ABI described above, not a
+separate TypeScript language implementation. Static deployment hosts MAY serve
+the same app through an HTML fallback for clean-path routes.
+
 ## 25. Examples Compared With GramGraph
 
 ### 25.1 Grouped Line Chart
@@ -10502,7 +10509,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.49.0 | [`V0_49_PLAN.md`](V0_49_PLAN.md) | Embedded host parity for interactive SVG output | Implemented |
 | 0.50.0 | [`V0_50_PLAN.md`](V0_50_PLAN.md) | README tutorial split and release version alignment | Implemented |
 | 0.51.0 | [`V0_51_PLAN.md`](V0_51_PLAN.md) | Caller-input editor diagnostics and planning artifact discipline | Implemented |
-| 0.52.0 | [`V0_52_PLAN.md`](V0_52_PLAN.md) | Static browser demo deployment | In progress |
+| 0.52.0 | [`V0_52_PLAN.md`](V0_52_PLAN.md) | Static browser demo deployment | Implemented |
+| 0.53.0 | [`V0_53_PLAN.md`](V0_53_PLAN.md) | Language landing site and demo navigation | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
