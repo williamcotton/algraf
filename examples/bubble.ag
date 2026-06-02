@@ -1,7 +1,7 @@
 Chart(data: "co2_gdp.csv", width: 800, height: 500, title: "CO2 Emissions vs. GDP per Capita (2024)") {
     Theme(name: "minimal")
     Scale(fill: continent, palette: "default")
-    Scale(size: population, range: [4, 25], label: "Population (M)")
+    Scale(size: population, range: [4, 25], breaks: [25, 100, 500, 1000, 1400], label: "Population (M)")
     Guide(axis: x, label: "GDP per Capita ($)")
     Guide(axis: y, label: "CO2 Emissions per Capita (Tons)")
 

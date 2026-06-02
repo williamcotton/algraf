@@ -10,7 +10,9 @@ Chart(
           range: ["A" => "burlywood", "R" => "black"],
           labels: ["A" => "Advance", "R" => "Retreat"],
           label: "Direction")
-    Scale(strokeWidth: survivors, domain: [0, null], range: [0, 30], label: "Troops")
+    Scale(strokeWidth: survivors, domain: [0, null], range: [0, 30],
+          breaks: [50000, 100000, 200000, 300000, 340000],
+          labels: ["50k", "100k", "200k", "300k", "340k"], label: "Troops")
 
     Guide(axis: x, label: null)
     Guide(axis: y, label: null)

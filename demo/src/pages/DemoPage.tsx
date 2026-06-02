@@ -108,7 +108,7 @@ const CHART_PRESETS: ChartPreset[] = [
     source: `Chart(data: "penguins.csv", width: 820, height: 520, title: "Palmer penguin morphology") {
     Theme(name: "minimal")
     Scale(fill: species, palette: "accent")
-    Scale(size: bill_length_mm, range: [2.5, 8.5], label: "Bill length (mm)")
+    Scale(size: bill_length_mm, range: [2.5, 8.5], breaks: [35, 40, 45, 50, 55, 60], label: "Bill length (mm)")
     Guide(axis: x, label: "Flipper length (mm)")
     Guide(axis: y, label: "Body mass (g)")
 
@@ -135,7 +135,8 @@ const CHART_PRESETS: ChartPreset[] = [
     Theme(name: "minimal")
     Scale(axis: x, type: "log10")
     Scale(fill: continent, palette: "default")
-    Scale(size: pop, range: [1.5, 16], label: "Population")
+    Scale(size: pop, range: [1.5, 16], breaks: [100000000, 300000000, 600000000, 900000000, 1200000000],
+          labels: ["100M", "300M", "600M", "900M", "1.2B"], label: "Population")
     Guide(axis: x, label: "GDP per capita")
     Guide(axis: y, label: "Life expectancy")
 
@@ -287,7 +288,9 @@ const CHART_PRESETS: ChartPreset[] = [
           range: ["A" => "burlywood", "R" => "black"],
           labels: ["A" => "Advance", "R" => "Retreat"],
           label: "Direction")
-    Scale(strokeWidth: survivors, domain: [0, null], range: [0, 30], label: "Troops")
+    Scale(strokeWidth: survivors, domain: [0, null], range: [0, 30],
+          breaks: [50000, 100000, 200000, 300000, 340000],
+          labels: ["50k", "100k", "200k", "300k", "340k"], label: "Troops")
 
     Space(long * lat) {
         Path(stroke: direction, strokeWidth: survivors, group: group)

@@ -3164,15 +3164,13 @@
   <rect x="786" y="100" width="12" height="12" fill="#E15759" />
   <text x="804" y="110" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">American</text>
   <text x="786" y="148" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Passengers (M)</text>
-  <line x1="786" y1="163" x2="814" y2="163" stroke="#222222" stroke-width="1.2" stroke-linecap="round" />
-  <text x="825.75" y="167" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
-  <line x1="786" y1="181" x2="814" y2="181" stroke="#222222" stroke-width="2.775" stroke-linecap="round" />
-  <text x="825.75" y="185" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1.05</text>
-  <line x1="786" y1="199" x2="814" y2="199" stroke="#222222" stroke-width="4.35" stroke-linecap="round" />
-  <text x="825.75" y="203" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2.1</text>
-  <line x1="786" y1="217" x2="814" y2="217" stroke="#222222" stroke-width="5.925" stroke-linecap="round" />
-  <text x="825.75" y="221" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3.15</text>
-  <line x1="786" y1="235" x2="814" y2="235" stroke="#222222" stroke-width="7.5" stroke-linecap="round" />
-  <text x="825.75" y="239" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4.2</text>
+  <line x1="786" y1="163" x2="814" y2="163" stroke="#222222" stroke-width="3.45" stroke-linecap="round" />
+  <text x="825.75" y="167" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1.5</text>
+  <line x1="786" y1="181" x2="814" y2="181" stroke="#222222" stroke-width="4.95" stroke-linecap="round" />
+  <text x="825.75" y="185" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2.5</text>
+  <line x1="786" y1="199" x2="814" y2="199" stroke="#222222" stroke-width="6.45" stroke-linecap="round" />
+  <text x="825.75" y="203" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3.5</text>
+  <line x1="786" y1="217" x2="814" y2="217" stroke="#222222" stroke-width="7.5" stroke-linecap="round" />
+  <text x="825.75" y="221" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4.2</text>
 </g>
 </svg>

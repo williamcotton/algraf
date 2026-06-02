@@ -1,7 +1,7 @@
 Chart(data: "penguin_measurements.csv", width: 900, height: 420, title: "Palmer penguins across five channels") {
     Theme(name: "minimal")
     Scale(fill: species, palette: "default")
-    Scale(size: bill_length, range: [3, 11], label: "Bill length (mm)")
+    Scale(size: bill_length, breaks: [36, 40, 44, 48, 52], range: [3, 11], label: "Bill length (mm)")
     Guide(axis: x, label: "Flipper length (mm)")
     Guide(axis: y, label: "Body mass (g)")
 

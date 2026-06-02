@@ -78,7 +78,8 @@
 </g>
 <g class="algraf-legends">
   <text x="586" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Volume</text>
-  <text x="636" y="89" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="586" y1="85" x2="614" y2="85" stroke="#222222" stroke-width="2.8" stroke-linecap="round" />
+  <text x="636" y="89" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
   <line x1="586" y1="103" x2="614" y2="103" stroke="#222222" stroke-width="7" stroke-linecap="round" />
   <text x="636" y="107" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
   <line x1="586" y1="122" x2="614" y2="122" stroke="#222222" stroke-width="14" stroke-linecap="round" />

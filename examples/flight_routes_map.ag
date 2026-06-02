@@ -6,7 +6,8 @@ Chart(data: "flight_routes.csv", width: 900, height: 600,
     Table cities = "us_cities.csv"
 
     Scale(stroke: airline, palette: "default", label: "Airline")
-    Scale(strokeWidth: passengers, domain: [0, null], range: [1.2, 7.5], label: "Passengers (M)")
+    Scale(strokeWidth: passengers, domain: [0, null], range: [1.2, 7.5],
+          breaks: [1.5, 2.5, 3.5, 4.2], label: "Passengers (M)")
 
     // Basemap
     Space(geom, data: counties, projection: "albers_usa") {

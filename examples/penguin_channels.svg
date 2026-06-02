@@ -222,20 +222,20 @@
   <rect x="766" y="114" width="12" height="12" fill="#E15759" />
   <text x="784" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Chinstrap</text>
   <text x="766" y="162" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Bill length (mm)</text>
-  <circle cx="777" cy="177" r="3" fill="#222222" />
-  <text x="796" y="181" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">35.9</text>
-  <circle cx="777" cy="195" r="5" fill="#222222" />
-  <text x="796" y="199" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">39.75</text>
-  <circle cx="777" cy="214" r="7" fill="#222222" />
-  <text x="796" y="218" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">43.6</text>
-  <circle cx="777" cy="236" r="9" fill="#222222" />
-  <text x="796" y="240" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">47.45</text>
-  <circle cx="777" cy="262" r="11" fill="#222222" />
-  <text x="796" y="266" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">51.3</text>
-  <text x="766" y="296" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">sex</text>
-  <circle cx="772" cy="310" r="6" fill="#4E79A7" />
-  <text x="784" y="314" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">male</text>
-  <rect x="766" y="322" width="12" height="12" fill="#4E79A7" />
-  <text x="784" y="332" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">female</text>
+  <circle cx="777" cy="177" r="3.052" fill="#222222" />
+  <text x="796" y="181" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">36</text>
+  <circle cx="777" cy="195" r="5.13" fill="#222222" />
+  <text x="796" y="199" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <circle cx="777" cy="214.208" r="7.208" fill="#222222" />
+  <text x="796" y="218.208" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">44</text>
+  <circle cx="777" cy="236.701" r="9.286" fill="#222222" />
+  <text x="796" y="240.701" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">48</text>
+  <circle cx="777" cy="262.987" r="11" fill="#222222" />
+  <text x="796" y="266.987" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">52</text>
+  <text x="766" y="296.987" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">sex</text>
+  <circle cx="772" cy="310.987" r="6" fill="#4E79A7" />
+  <text x="784" y="314.987" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">male</text>
+  <rect x="766" y="322.987" width="12" height="12" fill="#4E79A7" />
+  <text x="784" y="332.987" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">female</text>
 </g>
 </svg>

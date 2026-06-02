@@ -5,7 +5,8 @@ Chart(data: GeoJson("us_counties.geojson"), width: 800, height: 500,
     Table cities = "us_cities.csv"
 
     Scale(fill: population, gradient: ["#feb24c", "#f03b20"], label: "Population")
-    Scale(size: population, range: [5, 25], label: "Population Scale")
+    Scale(size: population, range: [5, 25], breaks: [500000, 1000000, 2500000, 5000000, 8000000],
+          labels: ["0.5M", "1M", "2.5M", "5M", "8M"], label: "Population Scale")
 
     // Basemap
     Space(geom, projection: "albers_usa") {

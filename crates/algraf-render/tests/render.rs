@@ -2263,7 +2263,7 @@ fn test_mapped_strokewidth_emits_size_legend() {
 fn test_mapped_size_emits_radius_legend() {
     let csv = "x,y,m\n1,1,0\n2,2,5\n3,1,10\n";
     let svg = render_svg(
-        "Chart(data: \"t.csv\") { Scale(size: m, range: [0, 12]) Space(x * y) { Point(size: m) } }",
+        "Chart(data: \"t.csv\") { Scale(size: m, range: [0, 12], breaks: [0, 5, 10]) Space(x * y) { Point(size: m) } }",
         csv,
     );
     // A `size` mapping yields circle swatches sized by the mapped radius.

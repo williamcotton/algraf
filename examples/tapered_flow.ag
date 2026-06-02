@@ -1,5 +1,5 @@
 Chart(data: "tapered_flow.csv", width: 720, height: 420, title: "Tapered flow ribbon") {
-    Scale(strokeWidth: volume, domain: [0, null], range: [0, 28], label: "Volume")
+    Scale(strokeWidth: volume, domain: [0, null], range: [0, 28], breaks: [10, 25, 50, 75, 100], label: "Volume")
     Guide(axis: x, label: "Distance")
     Guide(axis: y, label: "Elevation")
 

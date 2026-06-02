@@ -116,15 +116,15 @@
   <rect x="666" y="168" width="12" height="12" fill="#EDC948" />
   <text x="684" y="178" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Africa</text>
   <text x="666" y="216" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Population (M)</text>
-  <circle cx="691" cy="231" r="4" fill="#222222" />
-  <text x="724" y="235" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
-  <circle cx="691" cy="252.25" r="9.25" fill="#222222" />
-  <text x="724" y="256.25" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">369.25</text>
-  <circle cx="691" cy="282" r="14.5" fill="#222222" />
-  <text x="724" y="286" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">713.5</text>
-  <circle cx="691" cy="322.25" r="19.75" fill="#222222" />
-  <text x="724" y="326.25" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1057.75</text>
-  <circle cx="691" cy="373" r="25" fill="#222222" />
-  <text x="724" y="377" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1402</text>
+  <circle cx="690.969" cy="231" r="4" fill="#222222" />
+  <text x="723.939" y="235" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <circle cx="690.969" cy="249" r="5.144" fill="#222222" />
+  <text x="723.939" y="253" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100</text>
+  <circle cx="690.969" cy="272.244" r="11.244" fill="#222222" />
+  <text x="723.939" y="276.244" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">500</text>
+  <circle cx="690.969" cy="308.357" r="18.869" fill="#222222" />
+  <text x="723.939" y="312.357" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1000</text>
+  <circle cx="690.969" cy="358.196" r="24.969" fill="#222222" />
+  <text x="723.939" y="362.196" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1400</text>
 </g>
 </svg>

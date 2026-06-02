@@ -360,7 +360,7 @@ legend stands on its own with circle/square swatches that match the points.
 Chart(data: "penguin_measurements.csv", width: 900, height: 420, title: "Palmer penguins across five channels") {
     Theme(name: "minimal")
     Scale(fill: species, palette: "default")
-    Scale(size: bill_length, range: [3, 11], label: "Bill length (mm)")
+    Scale(size: bill_length, breaks: [36, 40, 44, 48, 52], range: [3, 11], label: "Bill length (mm)")
     Guide(axis: x, label: "Flipper length (mm)")
     Guide(axis: y, label: "Body mass (g)")
 
@@ -381,7 +381,7 @@ Continuous point sizes are mapped using the `size` property. We can customize th
 Chart(data: "co2_gdp.csv", width: 800, height: 500, title: "CO2 Emissions vs. GDP per Capita (2024)") {
     Theme(name: "minimal")
     Scale(fill: continent, palette: "default")
-    Scale(size: population, range: [4, 25], label: "Population (M)")
+    Scale(size: population, range: [4, 25], breaks: [25, 100, 500, 1000, 1400], label: "Population (M)")
     Guide(axis: x, label: "GDP per Capita ($)")
     Guide(axis: y, label: "CO2 Emissions per Capita (Tons)")
 
@@ -2399,7 +2399,7 @@ from the data.
 
 ```algraf
 Chart(data: "route.csv", title: "Path with variable width") {
-    Scale(strokeWidth: load, domain: [0, null], range: [1, 18], label: "Load")
+    Scale(strokeWidth: load, domain: [0, null], range: [1, 18], breaks: [10, 25, 45, 70], label: "Load")
 
     Space(x * y) {
         Path(stroke: "#4E79A7", strokeWidth: load)
@@ -2519,7 +2519,9 @@ Chart(
           range: ["A" => "burlywood", "R" => "black"],
           labels: ["A" => "Advance", "R" => "Retreat"],
           label: "Direction")
-    Scale(strokeWidth: survivors, domain: [0, null], range: [0, 30], label: "Troops")
+    Scale(strokeWidth: survivors, domain: [0, null], range: [0, 30],
+          breaks: [50000, 100000, 200000, 300000, 340000],
+          labels: ["50k", "100k", "200k", "300k", "340k"], label: "Troops")
 
     Guide(axis: x, label: null)
     Guide(axis: y, label: null)
@@ -2545,7 +2547,7 @@ ribbon, as in the Minard troop flow.
 
 ```algraf
 Chart(data: "tapered_flow.csv", width: 720, height: 420, title: "Tapered flow ribbon") {
-    Scale(strokeWidth: volume, domain: [0, null], range: [0, 28], label: "Volume")
+    Scale(strokeWidth: volume, domain: [0, null], range: [0, 28], breaks: [10, 25, 50, 75, 100], label: "Volume")
     Guide(axis: x, label: "Distance")
     Guide(axis: y, label: "Elevation")
 
@@ -2717,7 +2719,8 @@ Chart(data: GeoJson("us_counties.geojson"), width: 800, height: 500,
     Table cities = "us_cities.csv"
 
     Scale(fill: population, gradient: ["#feb24c", "#f03b20"], label: "Population")
-    Scale(size: population, range: [5, 25], label: "Population Scale")
+    Scale(size: population, range: [5, 25], breaks: [500000, 1000000, 2500000, 5000000, 8000000],
+          labels: ["0.5M", "1M", "2.5M", "5M", "8M"], label: "Population Scale")
 
     // Basemap
     Space(geom, projection: "albers_usa") {
@@ -2789,7 +2792,8 @@ Chart(data: "flight_routes.csv", width: 900, height: 600,
     Table cities = "us_cities.csv"
 
     Scale(stroke: airline, palette: "default", label: "Airline")
-    Scale(strokeWidth: passengers, domain: [0, null], range: [1.2, 7.5], label: "Passengers (M)")
+    Scale(strokeWidth: passengers, domain: [0, null], range: [1.2, 7.5],
+          breaks: [1.5, 2.5, 3.5, 4.2], label: "Passengers (M)")
 
     // Basemap
     Space(geom, data: counties, projection: "albers_usa") {

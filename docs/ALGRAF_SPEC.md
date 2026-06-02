@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.54.0
+Status: 0.55.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.54.0 specification.
+This working copy is the 0.55.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -7644,8 +7644,9 @@ evenly spaced ticks across the trained domain, each drawn as a swatch sized by
 the scale's output: a `strokeWidth` legend draws a line of the mapped thickness,
 and a `size` legend draws a circle of the mapped radius. A swatch whose mapped
 magnitude is zero draws no mark, only its tick label. If the corresponding
-scale declares `breaks:` and a `labels:` array, those exact legend values and
-labels replace the default five evenly spaced entries.
+scale declares `breaks:`, those exact legend values replace the default five
+evenly spaced entries. A paired `labels:` array replaces the displayed text
+positionally.
 
 A `shape` mapping MUST create a discrete shape legend with one swatch per
 category in domain order, each drawn as the marker glyph that category's points
@@ -10517,6 +10518,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.52.0 | [`V0_52_PLAN.md`](V0_52_PLAN.md) | Static browser demo deployment | Implemented |
 | 0.53.0 | [`V0_53_PLAN.md`](V0_53_PLAN.md) | Language landing site and demo navigation | Implemented |
 | 0.54.0 | [`V0_54_PLAN.md`](V0_54_PLAN.md) | Browser demo editor polish | Implemented |
+| 0.55.0 | [`V0_55_PLAN.md`](V0_55_PLAN.md) | Size legend example polish | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

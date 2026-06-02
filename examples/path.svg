@@ -66,15 +66,13 @@
 </g>
 <g class="algraf-legends">
   <text x="666" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Load</text>
-  <line x1="666" y1="85" x2="694" y2="85" stroke="#222222" stroke-width="1" stroke-linecap="round" />
-  <text x="711" y="89" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
-  <line x1="666" y1="103" x2="694" y2="103" stroke="#222222" stroke-width="5.25" stroke-linecap="round" />
-  <text x="711" y="107" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">17.5</text>
-  <line x1="666" y1="121" x2="694" y2="121" stroke="#222222" stroke-width="9.5" stroke-linecap="round" />
-  <text x="711" y="125" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">35</text>
-  <line x1="666" y1="139.875" x2="694" y2="139.875" stroke="#222222" stroke-width="13.75" stroke-linecap="round" />
-  <text x="711" y="143.875" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">52.5</text>
-  <line x1="666" y1="161.75" x2="694" y2="161.75" stroke="#222222" stroke-width="18" stroke-linecap="round" />
-  <text x="711" y="165.75" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">70</text>
+  <line x1="666" y1="85" x2="694" y2="85" stroke="#222222" stroke-width="3.429" stroke-linecap="round" />
+  <text x="711" y="89" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="666" y1="103" x2="694" y2="103" stroke="#222222" stroke-width="7.071" stroke-linecap="round" />
+  <text x="711" y="107" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <line x1="666" y1="121" x2="694" y2="121" stroke="#222222" stroke-width="11.929" stroke-linecap="round" />
+  <text x="711" y="125" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">45</text>
+  <line x1="666" y1="142" x2="694" y2="142" stroke="#222222" stroke-width="18" stroke-linecap="round" />
+  <text x="711" y="146" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">70</text>
 </g>
 </svg>
