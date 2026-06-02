@@ -107,6 +107,7 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange, mod
           automaticLayout: true,
           bracketPairColorization: { enabled: true },
           cursorBlinking: "smooth",
+          fixedOverflowWidgets: true,
           fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
           fontSize: 13,
           lineHeight: 20,
