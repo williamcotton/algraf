@@ -1,4 +1,10 @@
+<p>
+  <img src="demo/public/site-brand-mark.svg" alt="Algraf site brand mark" width="76" height="76">
+</p>
+
 # Algraf
+
+[![Test Suite](https://github.com/williamcotton/algraf/workflows/CI/badge.svg)](https://github.com/williamcotton/algraf/actions/workflows/ci.yml)
 
 Algraf is a block-scoped, algebraic grammar-of-graphics DSL. You describe a
 chart declaratively in a `.ag` file, point it at CSV/TSV/JSON/SQLite/GeoJSON or

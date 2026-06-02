@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.55.0
+Status: 0.56.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.55.0 specification.
+This working copy is the 0.56.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -10519,6 +10519,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.53.0 | [`V0_53_PLAN.md`](V0_53_PLAN.md) | Language landing site and demo navigation | Implemented |
 | 0.54.0 | [`V0_54_PLAN.md`](V0_54_PLAN.md) | Browser demo editor polish | Implemented |
 | 0.55.0 | [`V0_55_PLAN.md`](V0_55_PLAN.md) | Size legend example polish | Implemented |
+| 0.56.0 | [`V0_56_PLAN.md`](V0_56_PLAN.md) | Repository CI visibility and test-suite automation | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
