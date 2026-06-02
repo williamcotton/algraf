@@ -8,6 +8,8 @@ against the data, trains scales, and emits deterministic SVG.
 The normative reference is [`docs/ALGRAF_SPEC.md`](docs/ALGRAF_SPEC.md).
 The complete visual gallery lives in [`examples/README.md`](examples/README.md).
 
+Live demo: [`https://williamcotton.github.io/algraf/`](https://williamcotton.github.io/algraf/)
+
 ## A tour in six charts
 
 Each chart below is a runnable file under [`examples/`](examples/). The examples
@@ -335,11 +337,7 @@ The runtime returns `{ svg, sidecar, diagnostics, error }`. The demo fetches its
 sample data before calling WASM; browser networking stays host-owned, and the
 WASM runtime itself only sees the in-memory `files` map.
 
-The demo can be deployed as a static GitHub Pages site with the workflow in
-`.github/workflows/demo-pages.yml`. Before the first deployment, enable Pages in
-the repository settings and set the publishing source to GitHub Actions. Project
-Pages deployments are served under `/<repo>/`; for `williamcotton/algraf`, browse to
-`https://williamcotton.github.io/algraf/` after the workflow deploys.
+
 
 ## Workspace layout
 
