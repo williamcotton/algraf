@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.56.0
+Status: 0.57.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.56.0 specification.
+This working copy is the 0.57.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9443,6 +9443,28 @@ and overflow widgets can paint outside the editor viewport. This is host UI
 behavior only; the browser editor-service ABI and Rust hover decision logic are
 unchanged.
 
+Version 0.57.0 reorganizes the static demo host's `/docs` route into a
+multi-page documentation section (an overview plus topic pages for the algebra,
+bar layouts, facets, insets, statistics, theming, and tooling), each embedding
+live editors over the browser ABIs above. This is host UI and content only; the
+browser render and editor-service ABIs are unchanged.
+
+The manual pointer/length ABI does not mean the shipped `.wasm` is free of
+`wasm-bindgen`-style imports. Dependencies compiled for
+`wasm32-unknown-unknown` MAY emit their own `wasm-bindgen` import calls; in
+particular `proj4rs` (the projection backend, §16.14) parses every numeric
+proj-string parameter through `js_sys` `parseFloat`/`parseInt` on that target.
+A host that supplies the manual ABI therefore MUST also satisfy those imports
+with a correct marshaling: the `js_sys` number parsers receive their `&str`
+argument as a `(ptr, len)` pair addressing UTF-8 bytes in the module's linear
+memory, and the host MUST decode that slice rather than coerce the pointer
+integer. An incorrect shim does not fail loudly — it silently corrupts the
+projection parameters, so projected maps render distorted while non-projected
+charts are unaffected. Because §24.7 already requires WASM output to match the
+native render scene for capabilities available in the build, and projection is
+one such capability, projected SVG from the browser runtime MUST be coordinate-
+identical to the native renderer for the same source and data.
+
 ## 25. Examples Compared With GramGraph
 
 ### 25.1 Grouped Line Chart
@@ -10520,6 +10542,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.54.0 | [`V0_54_PLAN.md`](V0_54_PLAN.md) | Browser demo editor polish | Implemented |
 | 0.55.0 | [`V0_55_PLAN.md`](V0_55_PLAN.md) | Size legend example polish | Implemented |
 | 0.56.0 | [`V0_56_PLAN.md`](V0_56_PLAN.md) | Repository CI visibility and test-suite automation | Implemented |
+| 0.57.0 | [`V0_57_PLAN.md`](V0_57_PLAN.md) | Multi-page docs site and browser projection ABI fix | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

@@ -21,10 +21,13 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export function App(): React.ReactElement {
-  const [route, setRoute] = React.useState<RouteId>(() => routeFromPathname(window.location.pathname));
+  // Track the full pathname so navigation between docs sub-pages (which all map
+  // to the same top-level route) still triggers a re-render.
+  const [pathname, setPathname] = React.useState<string>(() => window.location.pathname);
+  const route = routeFromPathname(pathname);
 
   React.useEffect(() => {
-    const handlePopState = () => setRoute(routeFromPathname(window.location.pathname));
+    const handlePopState = () => setPathname(window.location.pathname);
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
@@ -36,7 +39,7 @@ export function App(): React.ReactElement {
     if (window.location.pathname !== targetPath) {
       window.history.pushState(null, "", href);
     }
-    setRoute(routeFromPathname(targetPath));
+    setPathname(targetPath);
     window.scrollTo({ top: 0 });
   }, []);
 
@@ -72,7 +75,9 @@ export function App(): React.ReactElement {
 
       <main className="site-main">
         {route === "home" ? <HomePage navigate={navigate} routeHref={routeHref} /> : null}
-        {route === "docs" ? <DocsPage navigate={navigate} routeHref={routeHref} /> : null}
+        {route === "docs" ? (
+          <DocsPage navigate={navigate} routeHref={routeHref} slug={docsSlugFromPathname(pathname)} />
+        ) : null}
         {route === "demos" ? <DemoPage /> : null}
       </main>
 
@@ -80,9 +85,8 @@ export function App(): React.ReactElement {
         <span>Algraf ships parser, renderer, LSP, CLI, and browser runtime together.</span>
         <div className="site-footer-links">
           <a href="https://github.com/williamcotton/algraf">GitHub</a>
-          <a href="https://github.com/williamcotton/algraf/blob/main/docs/ALGRAF_SPEC.md">Spec</a>
           <a href={routeHref("/docs")} onClick={(event) => navigate("/docs", event)}>
-            Quickstart
+            Documentation
           </a>
         </div>
       </footer>
@@ -97,9 +101,21 @@ function routeFromPathname(pathname: string): RouteId {
     path = path.slice(basePath.length) || "/";
   }
   const normalizedPath = path.length > 1 ? path.replace(/\/+$/, "") : path;
-  if (normalizedPath === "/docs") return "docs";
+  if (normalizedPath === "/docs" || normalizedPath.startsWith("/docs/")) return "docs";
   if (normalizedPath === "/demos") return "demos";
   return "home";
+}
+
+function docsSlugFromPathname(pathname: string): string {
+  const basePath = normalizedBasePath();
+  let path = pathname;
+  if (basePath && (path === basePath || path.startsWith(`${basePath}/`))) {
+    path = path.slice(basePath.length) || "/";
+  }
+  const normalizedPath = path.length > 1 ? path.replace(/\/+$/, "") : path;
+  if (normalizedPath === "/docs" || normalizedPath === "/") return "";
+  if (normalizedPath.startsWith("/docs/")) return normalizedPath.slice("/docs/".length);
+  return "";
 }
 
 function routeHref(path: string): string {

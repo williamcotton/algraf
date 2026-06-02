@@ -113,35 +113,65 @@ export async function loadAlgrafRuntime(url = publicAssetUrl("wasm/algraf.wasm")
   };
 }
 
+// proj4rs (pulled in by algraf-render for map projections) parses every
+// proj-string number through `js_sys::parse_float`/`parse_int` on wasm32. Those
+// bindings pass the Rust `&str` as a `(ptr, len)` pair into wasm memory and
+// expect the host shim to decode it. The shims need the module's memory, which
+// only exists after instantiation, so they read it through this holder.
+interface MemoryHolder {
+  memory: WebAssembly.Memory | null;
+}
+
 async function instantiateWasm(response: Response): Promise<WebAssembly.Instance> {
+  const holder: MemoryHolder = { memory: null };
+  const imports = wasmImports(holder);
+  let instance: WebAssembly.Instance | null = null;
+
   if (WebAssembly.instantiateStreaming) {
     try {
-      const result = await WebAssembly.instantiateStreaming(response.clone(), wasmImports());
-      return result.instance;
+      const result = await WebAssembly.instantiateStreaming(response.clone(), imports);
+      instance = result.instance;
     } catch {
       // Local static servers sometimes serve .wasm with a generic MIME type.
     }
   }
 
-  const bytes = await response.arrayBuffer();
-  const result = await WebAssembly.instantiate(bytes, wasmImports());
-  return result.instance;
+  if (!instance) {
+    const bytes = await response.arrayBuffer();
+    const result = await WebAssembly.instantiate(bytes, imports);
+    instance = result.instance;
+  }
+
+  holder.memory = (instance.exports as { memory?: WebAssembly.Memory }).memory ?? null;
+  return instance;
 }
 
-function wasmImports(): WebAssembly.Imports {
+function wasmImports(holder: MemoryHolder): WebAssembly.Imports {
+  const readWasmString = (ptr: number, len: number): string => {
+    if (!holder.memory) {
+      return "";
+    }
+    return decoder.decode(new Uint8Array(holder.memory.buffer, ptr, len));
+  };
+
   return {
     __wbindgen_placeholder__: {
       __wbindgen_object_drop_ref: () => undefined,
       __wbindgen_describe: () => undefined,
       __wbg_slice_742ea240b87540f5: (value: { slice?: (start?: number, end?: number) => unknown }, start: number, end: number) =>
         value?.slice?.(start, end) ?? null,
-      __wbg_parseFloat_c975dff06aab7294: (value: unknown) => Number.parseFloat(String(value)),
+      // js-sys `parse_float(&str)`: the string arrives as (ptr, len), not a value
+      // to stringify. Decoding the pointer integer instead corrupts every
+      // projection parameter, which silently distorts maps (proj4rs aea).
+      __wbg_parseFloat_c975dff06aab7294: (ptr: number, len: number) => Number.parseFloat(readWasmString(ptr, len)),
       __wbg_getInt32_1c64e9ae6cdf8387: (value: Int32Array, index: number) => value[index],
       __wbg_getUint32_d2df457b9b889ec3: (value: Uint32Array, index: number) => value[index],
       __wbg_getFloat32_8e834aa3204c9d65: (value: Float32Array, index: number) => value[index],
       __wbg_getFloat64_9c98e48df974a354: (value: Float64Array, index: number) => value[index],
       __wbg_buffer_297793a8f3a42542: (value: ArrayBufferView) => value.buffer,
-      __wbg_parseInt_dfc3421c30502d69: (value: unknown, radix: number) => Number.parseInt(String(value), radix),
+      // js-sys `parse_int(&str, radix)`: same (ptr, len) string ABI, plus radix.
+      __wbg_parseInt_dfc3421c30502d69: (ptr: number, len: number, radix: number) =>
+        Number.parseInt(readWasmString(ptr, len), radix),
       __wbg___wbindgen_throw_9c31b086c2b26051: (ptr: number, len: number) => {
         throw new Error(`wasm-bindgen throw at ${ptr}:${len}`);
       },
