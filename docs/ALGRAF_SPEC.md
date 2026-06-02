@@ -1231,8 +1231,10 @@ shape shortcut, or raw SVG/HTML injection surface.
 - `width` and `height` give a rectangular viewport and MUST NOT be combined with
   `size`. If only `width` is present, `height` defaults to the same value.
 - `scales` MUST be `"shared"` or `"local"` and defaults to `"shared"`.
-- `guides` is a boolean and defaults to `false`, so repeated child axes and
-  grids are not emitted unless requested.
+- `guides` is a boolean and defaults to `false`, so repeated child position
+  guides are not emitted unless requested. It controls child Cartesian
+  grids/axes and polar grids/labels; legends remain governed by ordinary
+  `Guide` declarations and the inset scale policy below.
 - `clip` MUST be `"rect"`, `"circle"`, or `false` and defaults to `"rect"`.
 - `padding`, `dx`, and `dy` are finite pixel numbers and default to `2`, `0`,
   and `0`.
@@ -1254,16 +1256,21 @@ qualifiers. Null match values never match, including null-to-null. Matched child
 rows preserve child table order, and duplicate child rows are rendered
 deterministically.
 
-With `scales: "shared"`, each child `Space` trains its position scales across
-the union of all matched child rows for that inset declaration. With
-`scales: "local"`, each inset instance trains from only that instance's matched
-rows. Position guides in child spaces default off, but child marks remain
-ordinary Algraf marks and may carry tooltips, highlights, themes, scales, and
-nested insets. `let`, `Scale`, `Guide`, and `Theme` declarations directly
-inside an `Inset` body apply as inherited defaults to each child `Space`;
-declarations inside a child `Space` override those defaults. Inset contents
-MUST NOT contain user-authored JavaScript, CSS, HTML, external images, or raw SVG
-fragments.
+With `scales: "shared"`, each child `Space` bound to the inset data table
+trains its position scales across the union of all matched child rows for that
+inset declaration. Child spaces bound to another named or derived table train
+against that table's own rows. Shared-scale inset child legends MUST use the
+same planned row subset used for child scale training and MAY be merged with
+other chart legends. With `scales: "local"`, each child `Space` bound to the
+inset data table trains from only that instance's matched rows, and chart-level
+legends for marks inside that inset MUST NOT be emitted because there is no
+single shared legend domain. Position guides in child spaces default off, but
+child marks remain ordinary Algraf marks and may carry tooltips, highlights,
+themes, scales, and nested insets. `let`, `Scale`, `Guide`, and `Theme`
+declarations directly inside an `Inset` body apply as inherited defaults to
+each child `Space`; declarations inside a child `Space` override those
+defaults. Inset contents MUST NOT contain user-authored JavaScript, CSS, HTML,
+external images, or raw SVG fragments.
 
 Example:
 
@@ -6364,7 +6371,8 @@ log10 MUST be implemented in version 0.2
 
 sqrt MUST be implemented in version 0.23
 
-reverse SHOULD be later
+`reverse: true` for position axes MUST be supported since version 0.2.0
+(§16.13).
 
 ### 16.3 Continuous Scale
 
@@ -7352,17 +7360,20 @@ equivalent op (§24.6). Because both backends observe the same primitive calls,
 they agree on coordinates and colors by construction, and a new geometry or
 guide primitive reaches every backend at once.
 
-Inset rendering is recursive over the same planned scene. For each inset
-instance, the renderer MUST resolve the parent anchor in pixel coordinates,
-match child rows explicitly, allocate the child viewport, train each child space
-using the declared shared/local policy, and emit child layers through the same
-mark sink using absolute SVG coordinates. Nested insets MUST be supported with a
-deterministic maximum depth of at least 8; exceeding that limit emits `E2109`
-and skips the over-depth child scene. Recursive mark budgets MUST estimate
-matched child output before emission and emit `E2110` when the configured
-budget would be exceeded. Inset clipping MUST be represented as rectangular or
-circular clip scopes in SVG, draw-list, and raster output, or omitted when
-`clip: false`.
+Inset planning is recursive over the same planned scene. For each inset
+instance, planning MUST resolve the parent anchor in pixel coordinates, match
+child rows explicitly, allocate the child viewport, train each child space using
+the declared shared/local policy, resolve child themes/guides/scales, and store
+the resulting child panels before any backend emits output. Emission MUST
+consume those planned child panels and emit child layers through the same mark
+sink using absolute coordinates; backends MUST NOT recompute matches, anchors,
+scale domains, guide visibility, or row subsets. Nested insets MUST be
+supported with a deterministic maximum depth of at least 8; exceeding that
+limit emits `E2109` and skips the over-depth child scene. Recursive mark
+budgets MUST estimate matched child output before emission and emit `E2110`
+when the configured budget would be exceeded. Inset clipping MUST be
+represented as rectangular or circular clip scopes in SVG, draw-list, and
+raster output, or omitted when `clip: false`.
 
 ### 18.8 Path Formatting
 
@@ -7603,7 +7614,9 @@ thinning overlapping labels, the renderer MUST account for the angle: rotated
 labels are parallel strands whose adjacency depends on the perpendicular gap
 between baselines (the tick spacing scaled by `sin|angle|`) rather than their
 length, so a rotated axis keeps more category labels than a horizontal one at the
-same spacing.
+same spacing. X-axis label thinning MUST evaluate candidates in visual pixel
+order, not source/domain order, so reversed axes preserve edge labels and use
+the same non-overlap rule as non-reversed axes.
 
 Version 0.40 MUST support `Guide(axis: x, tickLabelRows: n)` and
 `Guide(axis: y, tickLabelRows: n)` for deterministic tick-label dodging.
@@ -7641,6 +7654,11 @@ use (§16.10). The title follows the same rules as color legends — the scale's
 standalone shape legend draws its swatches in the default mark fill; when the
 same column is also mapped to `fill` or `stroke`, the shape legend is merged
 into that color legend instead of duplicated (§19.7).
+
+Marks inside an `Inset` contribute chart-level legends only when the containing
+inset uses `scales: "shared"` (§7.3). Those legend domains use the same shared
+row subset used for child scale training. Marks inside `scales: "local"` insets
+MUST NOT emit chart-level legends.
 
 Alpha mappings are accepted where geometry registries allow them, but alpha
 scale targets and alpha legends are deferred past version 0.40. Dash/stroke
@@ -9175,9 +9193,9 @@ The renderer is organized around one boundary, between **planning** and
 
 - Planning (pipeline steps 12–17) consumes the IR and loaded data eagerly and
   resolves a fully described render scene: derived tables, geometry-local stats,
-  trained scales, layout rectangles, guide measurements, and legends. Planning
-  reads data only through the data-table abstraction and MUST NOT write output
-  bytes.
+  trained scales, layout rectangles, guide measurements, inset instances,
+  planned child panels, and legends. Planning reads data only through the
+  data-table abstraction and MUST NOT write output bytes.
 - Emission (pipeline step 18) takes that scene and serializes it through one
   output backend. The backend MUST NOT make layout or scale decisions, and it
   MUST consume the planned render scene rather than the source AST.
@@ -9214,11 +9232,15 @@ The renderer ships three backends over this seam:
   pixel `rect`. `plots[]` carries every top-level, faceted, and inset plot
   area's `id`, `plot_rect`, and `axes` so nested charts are addressable without
   re-running layout. Top-level plot IDs are `plot0`, `plot1`, etc. Inset plot
-  IDs are hierarchical and include the parent panel, inset declaration index,
-  parent row index, and child-space index, e.g. `p0:i0[3]:s0`. A plot MAY
-  include `clip_rect` when coordinate zoom or an inset clip bounds data marks
-  (§16.17). Circular inset clips report their bounding rectangle in metadata;
-  the draw scene carries the exact circle clip. `axes.x`
+  IDs are hierarchical and include the current mark prefix, inset declaration
+  index, parent source-row index, and child-space index, e.g.
+  `p0:i0[3]:s0`. The bracketed row value is the parent table's source row
+  number, not the ordinal among rendered inset instances, so IDs stay stable
+  when earlier parent rows fail to match or cannot resolve an anchor. Nested
+  inset IDs extend this prefix recursively. A plot MAY include `clip_rect` when
+  coordinate zoom or an inset clip bounds data marks (§16.17). Circular inset
+  clips report their bounding rectangle in metadata; the draw scene carries the
+  exact circle clip. `axes.x`
   and `axes.y`, when present, describe host-invertible scales with `scale`,
   `domain`, `range`, `format`, and `label`; band scales also carry padding and
   bandwidth metadata. Continuous scale names are `linear`, `log10`, and `sqrt`;
