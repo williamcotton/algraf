@@ -14,8 +14,8 @@ path = "src/main.rs"
 algraf-core = { workspace = true }
 algraf-syntax = { workspace = true }
 algraf-semantics = { workspace = true }
-algraf-driver = { workspace = true, features = ["parquet"] }
-algraf-data = { workspace = true, features = ["parquet"] }
+algraf-driver = { workspace = true, features = ["parquet", "arrow-stream"] }
+algraf-data = { workspace = true, features = ["parquet", "arrow-stream"] }
 # Native binary: re-enable the SQLite backend the workspace defaults off; the
 # `sql` feature cascades to data/semantics/driver through render.
 algraf-render = { workspace = true, features = ["sql"] }
@@ -28,5 +28,6 @@ png = { workspace = true }
 
 [dev-dependencies]
 arrow-array = { workspace = true }
+arrow-ipc = { workspace = true }
 arrow-schema = { workspace = true }
 parquet = { workspace = true, features = ["arrow"] }

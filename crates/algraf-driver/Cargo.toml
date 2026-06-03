@@ -18,6 +18,7 @@ default = ["sql"]
 # Forward the native SQLite backend (spec §10.12); off in the WASM build.
 sql = ["algraf-data/sql", "algraf-semantics/sql"]
 parquet = ["algraf-data/parquet"]
+arrow-stream = ["algraf-data/arrow-stream"]
 
 [dev-dependencies]
 tokio = { workspace = true }

@@ -14,7 +14,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.57.0"
+version = "0.57.5"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/williamcotton/algraf"
@@ -60,5 +60,6 @@ insta = "1"
 pretty_assertions = "1"
 parquet = "53"
 arrow-array = "53"
+arrow-ipc = "53"
 arrow-schema = "53"
 bytes = "1"

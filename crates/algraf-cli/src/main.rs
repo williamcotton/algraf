@@ -98,6 +98,8 @@ enum DataFormatArg {
     Geojson,
     Topojson,
     Parquet,
+    #[value(name = "arrow-stream", alias = "arrow")]
+    ArrowStream,
 }
 
 impl From<DataFormatArg> for Format {
@@ -110,6 +112,7 @@ impl From<DataFormatArg> for Format {
             DataFormatArg::Geojson => Format::GeoJson,
             DataFormatArg::Topojson => Format::TopoJson,
             DataFormatArg::Parquet => Format::Parquet,
+            DataFormatArg::ArrowStream => Format::ArrowStream,
         }
     }
 }
@@ -152,7 +155,7 @@ struct RenderArgs {
     png_dpi: Option<u32>,
     #[arg(long)]
     base_dir: Option<PathBuf>,
-    /// CSV data path, or `-` for stdin (overrides the chart's data argument).
+    /// Data path, or `-` for stdin (overrides the chart's data argument).
     #[arg(long)]
     data: Option<String>,
     /// Explicit format for caller-provided primary data or --data paths.
@@ -328,9 +331,10 @@ fn read_template_source(
 fn driver_error(err: DriverError) -> CliError {
     match err {
         DriverError::Usage(message) => CliError::Usage(message),
-        DriverError::Data { .. } | DriverError::StdinRead(_) | DriverError::StdinParse(_) => {
-            CliError::Io(err.to_string())
-        }
+        DriverError::Data { .. }
+        | DriverError::StdinRead(_)
+        | DriverError::StdinData { .. }
+        | DriverError::StdinParse(_) => CliError::Io(err.to_string()),
     }
 }
 
@@ -701,6 +705,7 @@ fn prepare_render_inputs(
         Err(
             err @ (DriverError::Data { .. }
             | DriverError::StdinRead(_)
+            | DriverError::StdinData { .. }
             | DriverError::StdinParse(_)),
         ) => {
             let source_expr = algraf_driver::extract_chart_data_source(chart);
@@ -999,6 +1004,7 @@ fn schema_cmd(args: SchemaArgs) -> Result<(), CliError> {
         Err(
             err @ (DriverError::Data { .. }
             | DriverError::StdinRead(_)
+            | DriverError::StdinData { .. }
             | DriverError::StdinParse(_)),
         ) => {
             let span = ast_data

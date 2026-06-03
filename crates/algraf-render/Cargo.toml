@@ -21,9 +21,10 @@ tiny-skia = { workspace = true }
 png = { workspace = true }
 
 [features]
-default = ["sql"]
+default = ["sql", "arrow-stream"]
 # Forward the native SQLite backend (spec §10.12); off in the WASM build.
 sql = ["algraf-data/sql", "algraf-semantics/sql", "algraf-driver/sql"]
+arrow-stream = ["algraf-data/arrow-stream", "algraf-driver/arrow-stream"]
 
 [[bin]]
 name = "render-timing"
@@ -31,3 +32,6 @@ path = "src/bin/render_timing.rs"
 
 [dev-dependencies]
 algraf-syntax = { workspace = true }
+arrow-array = { workspace = true }
+arrow-ipc = { workspace = true }
+arrow-schema = { workspace = true }

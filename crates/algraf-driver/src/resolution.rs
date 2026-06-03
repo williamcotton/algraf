@@ -100,7 +100,7 @@ pub enum DataLocation {
         object: Option<String>,
     },
     Input {
-        /// `None` means parse caller-provided bytes as CSV.
+        /// `None` means sniff caller-provided bytes and fall back to CSV.
         format: Option<Format>,
     },
 }
@@ -251,7 +251,7 @@ impl SourceResolver<'_> {
             if data == "-" {
                 if self.env.source_input.is_stdin() {
                     return Err(DriverError::Usage(
-                        "cannot read both source and CSV data from stdin".to_string(),
+                        "cannot read both source and caller-provided data from stdin".to_string(),
                     ));
                 }
                 return Ok(DataLocation::Input {

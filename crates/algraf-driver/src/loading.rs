@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use algraf_data::{
     read_bytes_as_with_temporal_policy, read_format_with_temporal_policy,
     read_schema_bytes_as_with_temporal_policy, read_schema_format_with_temporal_policy,
-    read_topojson, ColumnDef, DataError, DataFrame, DataWarning, Format, LoadResult, Table,
-    TemporalParsePolicy,
+    read_topojson, sniff_caller_input_format, ColumnDef, DataError, DataFrame, DataWarning, Format,
+    LoadResult, SniffedFormat, Table, TemporalParsePolicy,
 };
 use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::SourceExpr;
@@ -98,9 +98,7 @@ fn load_location(
         DataLocation::TopoJson { path, object } => {
             load_topojson_with_io(&path, object.as_deref(), context.load_context, io)
         }
-        DataLocation::Input { format } => {
-            read_input(io, format.unwrap_or(Format::Csv), context.temporal_policy)
-        }
+        DataLocation::Input { format } => read_input(io, format, context.temporal_policy),
     }
 }
 
@@ -288,12 +286,9 @@ fn load_schema_location(
         DataLocation::TopoJson { path, object } => {
             load_topojson_schema_with_io(&path, object.as_deref(), context.load_context, io)
         }
-        DataLocation::Input { format } => read_input_schema(
-            sample_size,
-            io,
-            format.unwrap_or(Format::Csv),
-            context.temporal_policy,
-        ),
+        DataLocation::Input { format } => {
+            read_input_schema(sample_size, io, format, context.temporal_policy)
+        }
     }
 }
 
@@ -466,45 +461,46 @@ fn load_resolved_named_table_schemas_with_io(
 
 fn read_input(
     io: &dyn DriverIo,
-    format: Format,
+    format: Option<Format>,
     temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<LoadResult, DriverError> {
     let bytes = io.read_stdin().map_err(|e| {
-        DriverError::StdinRead(format!(
-            "failed to read caller-provided {} input: {e}",
-            format.as_str()
-        ))
+        DriverError::StdinRead(format!("failed to read caller-provided input: {e}"))
     })?;
-    read_bytes_as_with_temporal_policy(bytes.as_slice(), format, temporal_policy).map_err(|e| {
-        DriverError::StdinParse(format!(
-            "failed to parse caller-provided {} input: {e}",
-            format.as_str()
-        ))
-    })
+    let format = resolve_input_format(format, bytes.as_slice())?;
+    read_bytes_as_with_temporal_policy(bytes.as_slice(), format, temporal_policy)
+        .map_err(|source| DriverError::StdinData { source })
 }
 
 fn read_input_schema(
     sample_size: usize,
     io: &dyn DriverIo,
-    format: Format,
+    format: Option<Format>,
     temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<Vec<ColumnDef>, DriverError> {
     let bytes = io.read_stdin().map_err(|e| {
-        DriverError::StdinRead(format!(
-            "failed to read caller-provided {} input: {e}",
-            format.as_str()
-        ))
+        DriverError::StdinRead(format!("failed to read caller-provided input: {e}"))
     })?;
+    let format = resolve_input_format(format, bytes.as_slice())?;
     read_schema_bytes_as_with_temporal_policy(
         bytes.as_slice(),
         format,
         sample_size,
         temporal_policy,
     )
-    .map_err(|e| {
-        DriverError::StdinParse(format!(
-            "failed to parse caller-provided {} input: {e}",
-            format.as_str()
-        ))
-    })
+    .map_err(|source| DriverError::StdinData { source })
+}
+
+fn resolve_input_format(format: Option<Format>, bytes: &[u8]) -> Result<Format, DriverError> {
+    if let Some(format) = format {
+        return Ok(format);
+    }
+    match sniff_caller_input_format(bytes) {
+        SniffedFormat::Supported(format) => Ok(format),
+        SniffedFormat::Unsupported(name) => Err(DriverError::StdinData {
+            source: DataError::UnsupportedStreamFormat(format!(
+                "{name} is not supported at the caller-data boundary; use arrow-stream, parquet, or an explicit text format"
+            )),
+        }),
+    }
 }

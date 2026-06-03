@@ -20,6 +20,7 @@ shapefile = { workspace = true }
 libsqlite3-sys = { workspace = true, optional = true }
 parquet = { workspace = true, optional = true, features = ["arrow"] }
 arrow-array = { workspace = true, optional = true }
+arrow-ipc = { workspace = true, optional = true }
 arrow-schema = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
 
@@ -29,6 +30,7 @@ default = ["sql"]
 # library, so it is excluded from the WASM build, which has no C linker.
 sql = ["dep:libsqlite3-sys"]
 parquet = ["dep:parquet", "dep:arrow-array", "dep:arrow-schema", "dep:bytes"]
+arrow-stream = ["dep:arrow-ipc", "dep:arrow-array", "dep:arrow-schema"]
 
 [[example]]
 name = "generate_large_fixtures"

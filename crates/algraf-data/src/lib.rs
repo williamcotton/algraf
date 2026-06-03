@@ -4,6 +4,7 @@
 //! the concrete [`DataFrame`] storage is internal to the runtime and must not
 //! leak into parser, semantics, LSP, or renderer interfaces (spec §10.5).
 
+pub mod arrow_stream;
 pub mod csv;
 pub mod error;
 pub mod format;
@@ -44,7 +45,7 @@ pub use format::{
     read_format_with_temporal_policy, read_path, read_path_as, read_sample_rows_bytes_as,
     read_schema_bytes, read_schema_bytes_as, read_schema_bytes_as_with_temporal_policy,
     read_schema_format, read_schema_format_with_temporal_policy, read_schema_path,
-    read_schema_path_as, Format,
+    read_schema_path_as, sniff_caller_input_format, Format, SniffedFormat,
 };
 pub use frame::{
     Column, ColumnView, DataFrame, NullBitmap, NullableColumn, RowView, Table, TableScan,

@@ -53,6 +53,15 @@ pub enum DataError {
     #[error("Parquet error: {0}")]
     Parquet(String),
 
+    /// An Arrow IPC stream failed to decode or used a type Algraf does not support.
+    #[error("Arrow IPC stream error: {0}")]
+    ArrowStream(String),
+
+    /// Magic-byte sniffing found a stream/file format that is not supported at
+    /// the caller-data boundary.
+    #[error("unsupported caller-provided stream format: {0}")]
+    UnsupportedStreamFormat(String),
+
     /// A SQLite statement failed to parse or execute (spec §10.12).
     #[error("SQLite query error: {0}")]
     SqliteQuery(String),

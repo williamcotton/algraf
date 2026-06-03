@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+#[cfg(feature = "arrow-stream")]
+use std::sync::Arc;
 
 use algraf_data::{read_csv_str, DataFrame, Table};
 use algraf_driver::SourceInput;
@@ -13,6 +15,12 @@ use algraf_render::{
 };
 use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
+#[cfg(feature = "arrow-stream")]
+use arrow_array::{ArrayRef, Float64Array, RecordBatch};
+#[cfg(feature = "arrow-stream")]
+use arrow_ipc::writer::StreamWriter;
+#[cfg(feature = "arrow-stream")]
+use arrow_schema::{DataType as ArrowDataType, Field, Schema};
 
 /// Parse + analyze + render `source` against `csv`, returning the SVG.
 fn render_svg(source: &str, csv: &str) -> String {
@@ -25,6 +33,28 @@ fn render_result(source: &str, csv: &str) -> RenderResult {
     let analysis = analyze(&parsed.syntax(), frame.schema());
     let ir = analysis.ir.expect("ir");
     render(&ir, &frame, &Theme::minimal(), None).expect("render")
+}
+
+#[cfg(feature = "arrow-stream")]
+fn arrow_stream_fixture() -> Vec<u8> {
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("x", ArrowDataType::Float64, false),
+        Field::new("y", ArrowDataType::Float64, false),
+    ]));
+    let batch = RecordBatch::try_new(
+        schema.clone(),
+        vec![
+            Arc::new(Float64Array::from(vec![1.0, 3.0])) as ArrayRef,
+            Arc::new(Float64Array::from(vec![2.0, 4.0])) as ArrayRef,
+        ],
+    )
+    .unwrap();
+    let mut bytes = Vec::new();
+    let mut writer = StreamWriter::try_new(&mut bytes, &schema).unwrap();
+    writer.write(&batch).unwrap();
+    writer.finish().unwrap();
+    drop(writer);
+    bytes
 }
 
 fn render_result_with_tables(
@@ -367,6 +397,25 @@ fn embedded_facade_renders_json_input_with_variables() {
     assert_eq!(result.content_type, "image/svg+xml");
     assert!(svg.contains("<svg"));
     assert!(svg.contains("#e74c3c"));
+}
+
+#[cfg(feature = "arrow-stream")]
+#[test]
+fn embedded_facade_renders_arrow_stream_input() {
+    let source = "Chart(data: input, width: 320, height: 220) {\n  Space(x * y) { Point() }\n}";
+    let result = render_embedded(
+        source,
+        arrow_stream_fixture(),
+        EmbeddedRenderOptions {
+            data_format: algraf_data::Format::ArrowStream,
+            ..EmbeddedRenderOptions::default()
+        },
+    )
+    .unwrap();
+
+    let svg = result.svg().unwrap();
+    assert_eq!(result.content_type, "image/svg+xml");
+    assert!(svg.contains("<svg"));
 }
 
 #[test]

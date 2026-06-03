@@ -20,9 +20,11 @@ fn test_format_from_extension() {
     assert_eq!(Format::from_path(Path::new("a.json")), Format::Json);
     assert_eq!(Format::from_path(Path::new("a.ndjson")), Format::NdJson);
     assert_eq!(Format::from_path(Path::new("a.jsonl")), Format::NdJson);
+    assert_eq!(Format::from_path(Path::new("a.parquet")), Format::Parquet);
     // Case-insensitive.
     assert_eq!(Format::from_path(Path::new("A.JSON")), Format::Json);
     // Unknown and missing extensions fall back to CSV.
+    assert_eq!(Format::from_path(Path::new("a.arrow")), Format::Csv);
     assert_eq!(Format::from_path(Path::new("a.txt")), Format::Csv);
     assert_eq!(Format::from_path(Path::new("a")), Format::Csv);
 }

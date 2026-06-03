@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.57.0
+Status: 0.57.5
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.57.0 specification.
+This working copy is the 0.57.5 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -2083,9 +2083,10 @@ Quoted identifiers MUST be used to reference keyword-like column names.
 ### 10.1 Initial Data Source Model
 
 Version 0.1 supports CSV files. Version 0.7 adds TSV, JSON, and NDJSON files
-(spec §10.2). Version 0.43 adds native CLI Parquet loading (spec §10.13). All
-formats load into the same dataframe abstraction and behave identically
-downstream once materialized.
+(spec §10.2). Version 0.43 adds native CLI Parquet loading (spec §10.13).
+Version 0.57 adds Arrow IPC stream loading for caller-provided data
+(spec §10.14). All formats load into the same dataframe abstraction and behave
+identically downstream once materialized.
 
 `Chart(data: "path.csv")` resolves `path.csv` relative to the source file
 directory by default. Since version 0.46.1, `Chart(data: name)` MAY instead
@@ -2099,12 +2100,12 @@ The same rule applies to the `--data` override and to `Table name = "..."`
 declarations (spec §10.10).
 
 The data crate MUST keep path-oriented compatibility APIs for all supported
-formats. Streamable single-file formats (`csv`, `tsv`, `json`, `ndjson`, and
-`geojson`) MUST also be loadable from an already-open reader or byte slice so
-callers can provide bytes without forcing the data crate to re-open a filesystem
-path. Parquet MUST have native path and byte APIs; native filesystem paths SHOULD
-use the Parquet reader's path/chunk interface rather than first buffering the
-entire file into a `Vec<u8>`.
+formats. Streamable single-file formats (`csv`, `tsv`, `json`, `ndjson`,
+`geojson`, and `arrow-stream`) MUST also be loadable from an already-open reader
+or byte slice so callers can provide bytes without forcing the data crate to
+re-open a filesystem path. Parquet MUST have native path and byte APIs; native
+filesystem paths SHOULD use the Parquet reader's path/chunk interface rather
+than first buffering the entire file into a `Vec<u8>`.
 
 Version 0.8 and later geospatial releases add geospatial **source constructors**
 on the same seam, selected explicitly rather than by extension (spec §10.11):
@@ -2144,18 +2145,26 @@ The canonical command for CSV data from stdin is:
 cat data.csv | algraf render chart.ag --data -
 ```
 
+The canonical PDL-to-Algraf pipe uses Arrow IPC stream bytes on standard input:
+
+```bash
+pdl run prep.pdl --stdout-format arrow-stream | algraf render chart.ag --data - --data-format arrow-stream --output chart.svg
+```
+
 When `--data -` is used, it overrides the chart's `data` argument for the render
 command and supplies caller-provided bytes from standard input.
 
 The recommended source pattern for piped data is `Chart(data: input)`.
 
 When `Chart(data: input)` or `Chart(data: stdin)` is used with no explicit
-format override, the CLI and embedded facade MUST parse caller-provided bytes as
-CSV. The CLI `--data-format <csv|tsv|json|ndjson|geojson|topojson|parquet>` option
-MUST select the stream format for `--data -`, `Chart(data: input)`, and
-`Chart(data: stdin)`. The same option also overrides extension inference for a
-primary `--data <path>` override. Path-backed chart declarations continue to
-select format by source syntax or file extension.
+format override, the CLI and embedded facade MUST inspect caller-provided bytes
+for supported binary stream magic before falling back to CSV. The CLI
+`--data-format <csv|tsv|json|ndjson|geojson|topojson|parquet|arrow-stream>`
+option MUST select the stream format for `--data -`, `Chart(data: input)`, and
+`Chart(data: stdin)`. The alias `arrow` MAY be accepted for `arrow-stream`.
+The same option also overrides extension inference for a primary
+`--data <path>` override. Path-backed chart declarations continue to select
+format by source syntax or file extension.
 
 `Chart` MUST include `data` in version 0.1 even when the CLI supplies `--data`.
 
@@ -2228,9 +2237,13 @@ case-insensitively:
 | `.parquet`, `.parq`| Parquet |
 
 An unrecognized or absent extension MUST be treated as CSV. Caller-provided
-bytes (`Chart(data: input)`, the `stdin` compatibility alias, or `--data -`) are
-CSV by default, unless the CLI or embedded host supplies an explicit data-format
-override.
+bytes (`Chart(data: input)`, the `stdin` compatibility alias, or `--data -`) use
+explicit `--data-format` first; without it, the driver MUST sniff Arrow IPC
+stream and Parquet magic bytes, SHOULD reject sniffed Arrow IPC file bytes with
+a deterministic unsupported-format diagnostic, and MUST then fall back to CSV.
+Sniffing MUST preserve all consumed bytes before handing the stream to the
+selected decoder. JSON and NDJSON caller input require explicit `--data-format`
+in version 0.57; text sniffing for those formats is deferred.
 
 #### 10.2.2 TSV
 
@@ -2914,7 +2927,48 @@ surface.
 Advanced row-group pruning, predicate pushdown, remote object stores, and
 browser/WASM Parquet loading are deferred.
 
-### 10.14 Runtime Cache Policy
+### 10.14 Arrow IPC Stream Caller Data
+
+Version 0.57 supports Apache Arrow IPC stream input for caller-provided primary
+data. The promoted format name is `arrow-stream`.
+
+`arrow-stream` is a data-loader format, not new Algraf source syntax. It is
+selected by `--data-format arrow-stream`, by the optional `arrow` alias, by an
+embedded host's explicit data-format override, or by caller-input sniffing. It
+MUST work for `--data -`, `Chart(data: input)`, `Chart(data: stdin)`, and a
+primary `--data <path>` override paired with `--data-format arrow-stream`.
+Path-backed source extension inference does not select Arrow IPC streams in
+version 0.57; a chart path such as `Chart(data: "events.arrow")` continues to
+use the extension policy in §10.2.1 unless a CLI/host override supplies the
+format.
+
+Arrow IPC stream loading MUST stay behind the `algraf-data` facade. Parser,
+semantics, renderer, editor-services, LSP, and source syntax MUST NOT depend on
+Arrow IPC reader types. The native CLI build MUST include Arrow IPC stream
+support. Libraries and WASM builds MAY gate the reader behind a Cargo feature;
+when disabled, an explicit `arrow-stream` load MUST fail through a registered
+diagnostic rather than panic.
+
+Arrow stream schema loading MUST map Arrow booleans, signed and unsigned
+integers, floats, UTF-8 strings, dates, and timestamps into Algraf `DataType`
+values using the same policy as Parquet (§10.13). Arrow stream `null` values
+MUST become Algraf missing cells. Date and timestamp columns MUST become
+`Temporal` columns using UTC-equivalent instants. Unsupported Arrow physical or
+logical types MUST fail through `E1021` rather than panic. Unsigned integer
+values too large for `i64` MAY be saturated or rejected, but the chosen behavior
+MUST be deterministic.
+
+Malformed Arrow IPC streams, invalid stream schemas, truncated batches, and
+Arrow IPC reader errors MUST fail through `E1021`. Sniffed Arrow IPC file bytes
+MUST fail through `E1022` in version 0.57 because the promoted interop boundary
+is the stream format. Sniffed Parquet bytes MAY be loaded when Parquet support
+is enabled; otherwise they fail through the existing Parquet diagnostic path.
+
+The Arrow IPC stream reader MAY materialize the full stream before rendering.
+Streaming render, Arrow IPC file parity, Arrow stream output, and browser/WASM
+Arrow stream decoding are deferred.
+
+### 10.15 Runtime Cache Policy
 
 Algraf distinguishes four cache kinds:
 
@@ -8563,9 +8617,10 @@ The command MUST reject using `-` for both source and caller-provided data.
 If the source contains `Chart(data: input)` or `Chart(data: stdin)`, caller data
 reads from stdin unless `--data <path>` overrides it.
 
-`--data-format <csv|tsv|json|ndjson|geojson|topojson|parquet>` MUST select the format
-for caller-provided bytes and for a primary `--data <path>` override. Without
-this flag, caller-provided bytes are CSV and `--data <path>` uses extension
+`--data-format <csv|tsv|json|ndjson|geojson|topojson|parquet|arrow-stream>`
+MUST select the format for caller-provided bytes and for a primary
+`--data <path>` override. Without this flag, caller-provided bytes use the
+sniffing and CSV-fallback policy from §10.2.1 and `--data <path>` uses extension
 inference.
 
 `--var key=value` MAY be repeated on source-consuming commands. Expansion
@@ -8604,7 +8659,7 @@ Render options:
 
 `--data <path|->`
 
-`--data-format <csv|tsv|json|ndjson|geojson|topojson|parquet>`
+`--data-format <csv|tsv|json|ndjson|geojson|topojson|parquet|arrow-stream>`
 
 `--mark-budget <n>`
 
@@ -8901,7 +8956,7 @@ by `SourceFingerprint` (spec §10.9), storing schemas and load errors rather tha
 full frames
 
 runtime cache policy documentation distinguishing schema, full-frame,
-render-result, and persistent caches (spec §10.14)
+render-result, and persistent caches (spec §10.15)
 
 chart data dependency inventory
 
@@ -9019,6 +9074,8 @@ Recommended dependencies:
 `geo-types`, `geojson`, and `shapefile` for geospatial sources
 
 `libsqlite3-sys` for local SQLite sources
+
+`arrow-ipc` for Arrow IPC stream caller data
 
 `thiserror` for errors
 
@@ -9422,6 +9479,9 @@ reading files.
 The WASM runtime does not enable the native `sql` Cargo feature, so SQLite
 sources are unavailable in that build. A SQLite source in a no-`sql` build MUST
 fail through the same data/driver diagnostic path used for SQLite data errors.
+The WASM runtime MAY also omit Arrow IPC stream decoding. An explicit
+`arrow-stream` load in a build without that feature MUST fail through `E1021`
+rather than panic or attempt process stdin access.
 PNG/raster output, filesystem-backed source discovery, and host-owned UI state
 are outside the v0.34 browser runtime.
 
@@ -9759,6 +9819,10 @@ missing `=>`/stray separator in a map literal)
 `E1019 explicit temporal parse failure (onError: "error")`
 
 `E1020 Parquet parse error or unsupported Parquet column type`
+
+`E1021 Arrow IPC stream parse error or unsupported Arrow stream column type`
+
+`E1022 unsupported caller-provided stream format`
 
 `E1101 unknown column`
 
@@ -10543,6 +10607,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.55.0 | [`V0_55_PLAN.md`](V0_55_PLAN.md) | Size legend example polish | Implemented |
 | 0.56.0 | [`V0_56_PLAN.md`](V0_56_PLAN.md) | Repository CI visibility and test-suite automation | Implemented |
 | 0.57.0 | [`V0_57_PLAN.md`](V0_57_PLAN.md) | Multi-page docs site and browser projection ABI fix | Implemented |
+| 0.57.5 | [`V0_57_5_PLAN.md`](V0_57_5_PLAN.md) | PDL and Unix-pipe interop for caller-provided data streams | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

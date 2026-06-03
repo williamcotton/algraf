@@ -7,7 +7,8 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use algraf_render::{render_embedded, EmbeddedRenderOptions};
-use arrow_array::{ArrayRef, Float64Array, RecordBatch, StringArray};
+use arrow_array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
+use arrow_ipc::writer::StreamWriter;
 use arrow_schema::{DataType as ArrowDataType, Field, Schema};
 use parquet::arrow::ArrowWriter;
 
@@ -70,6 +71,36 @@ fn write_parquet_fixture(dir: &Path) -> (PathBuf, PathBuf) {
     )
     .unwrap();
     (chart, data)
+}
+
+fn arrow_stream_fixture() -> Vec<u8> {
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("x", ArrowDataType::Float64, false),
+        Field::new("y", ArrowDataType::Float64, false),
+        Field::new("group", ArrowDataType::Utf8, true),
+        Field::new("count", ArrowDataType::Int64, false),
+    ]));
+    let batch = RecordBatch::try_new(
+        schema.clone(),
+        vec![
+            Arc::new(Float64Array::from(vec![1.0, 2.0, 3.0, 4.0])) as ArrayRef,
+            Arc::new(Float64Array::from(vec![3.0, 5.0, 4.0, 7.0])) as ArrayRef,
+            Arc::new(StringArray::from(vec![
+                Some("a"),
+                Some("b"),
+                Some("a"),
+                Some("b"),
+            ])) as ArrayRef,
+            Arc::new(Int64Array::from(vec![1, 2, 3, 4])) as ArrayRef,
+        ],
+    )
+    .unwrap();
+    let mut bytes = Vec::new();
+    let mut writer = StreamWriter::try_new(&mut bytes, &schema).unwrap();
+    writer.write(&batch).unwrap();
+    writer.finish().unwrap();
+    drop(writer);
+    bytes
 }
 
 fn data_fixture(name: &str) -> PathBuf {
@@ -471,7 +502,7 @@ fn data_flag_does_not_replace_missing_chart_data() {
 }
 
 #[test]
-fn source_and_csv_cannot_both_read_from_stdin() {
+fn source_and_caller_data_cannot_both_read_from_stdin() {
     let source = "Chart(data: \"ignored.csv\") {\n  Space(x * y) { Point() }\n}\n";
     let mut child = Command::new(bin())
         .arg("render")
@@ -492,7 +523,7 @@ fn source_and_csv_cannot_both_read_from_stdin() {
     let output = child.wait_with_output().unwrap();
 
     assert_eq!(output.status.code(), Some(2), "stderr: {}", stderr(&output));
-    assert!(stderr(&output).contains("cannot read both source and CSV data from stdin"));
+    assert!(stderr(&output).contains("cannot read both source and caller-provided data from stdin"));
 }
 
 #[test]
@@ -575,6 +606,98 @@ fn render_eval_uses_stdin_for_json_input_and_variables() {
     )
     .unwrap();
     assert_eq!(out, facade.svg().unwrap());
+}
+
+#[test]
+fn render_eval_accepts_arrow_stream_stdin_explicit_and_sniffed() {
+    let source = "Chart(data: input) {\n  Space(x * y) {\n    Point(fill: group)\n  }\n}\n";
+    for args in [
+        vec!["--data", "-", "--data-format", "arrow-stream"],
+        vec!["--data", "-"],
+    ] {
+        let mut child = Command::new(bin())
+            .arg("render")
+            .arg("--eval")
+            .arg(source)
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(&arrow_stream_fixture())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+
+        assert!(output.status.success(), "stderr: {}", stderr(&output));
+        assert!(stdout(&output).contains("<svg"));
+    }
+}
+
+#[test]
+fn schema_accepts_arrow_stream_stdin_and_alias() {
+    let source = "Chart(data: input) {\n  Space(x * y) { Point() }\n}\n";
+    let mut child = Command::new(bin())
+        .arg("schema")
+        .arg("--eval")
+        .arg(source)
+        .arg("--json")
+        .arg("--data")
+        .arg("-")
+        .arg("--data-format")
+        .arg("arrow")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(&arrow_stream_fixture())
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(out.contains("\"name\": \"x\""), "stdout: {out}");
+    assert!(out.contains("\"type\": \"float\""), "stdout: {out}");
+    assert!(out.contains("\"name\": \"count\""), "stdout: {out}");
+    assert!(out.contains("\"type\": \"integer\""), "stdout: {out}");
+}
+
+#[test]
+fn sniffed_arrow_file_is_a_registered_diagnostic() {
+    let source = "Chart(data: input) {\n  Space(x * y) { Point() }\n}\n";
+    let mut child = Command::new(bin())
+        .arg("check")
+        .arg("--eval")
+        .arg(source)
+        .arg("--data")
+        .arg("-")
+        .arg("--json")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(b"ARROW1\0\0")
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(out.contains("\"code\": \"E1022\""), "stdout: {out}");
+    assert!(stderr(&output).is_empty(), "stderr: {}", stderr(&output));
 }
 
 #[test]

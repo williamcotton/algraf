@@ -71,6 +71,9 @@ fn hover_for_ident(
     name: &str,
 ) -> Option<String> {
     let span = tokens[idx].span;
+    if is_caller_input_data_arg(tokens, idx, name) {
+        return Some(caller_input_hover(name));
+    }
     if let Some(target) = derived_hover_target_at(&state.text, span.start) {
         return Some(derived_table_hover(state, target));
     }
@@ -142,6 +145,32 @@ fn hover_for_ident(
         return Some(column);
     }
     None
+}
+
+fn is_caller_input_data_arg(
+    tokens: &[algraf_syntax::TokenWithSpan],
+    idx: usize,
+    name: &str,
+) -> bool {
+    use algraf_syntax::TokenKind;
+    if !matches!(name, "input" | "stdin") || idx < 2 {
+        return false;
+    }
+    matches!(
+        (&tokens[idx - 2].kind, &tokens[idx - 1].kind),
+        (TokenKind::Ident(key), TokenKind::Colon) if key == "data"
+    )
+}
+
+fn caller_input_hover(name: &str) -> String {
+    let alias = if name == "stdin" {
+        "\n\n`stdin` is a compatibility alias for `input`."
+    } else {
+        ""
+    };
+    format!(
+        "**Caller-provided data**\n\n`{name}` reads primary chart data from the host or from `--data -`. Use `--data-format arrow-stream` for PDL/Arrow pipes, or omit the format to sniff Arrow/Parquet and fall back to CSV.{alias}"
+    )
 }
 
 fn is_stat_name(name: &str) -> bool {
@@ -1152,6 +1181,14 @@ mod tests {
         let offset = text.find("GeoJson").unwrap() + 1;
         let md = markdown(hover_at(&state(text), offset).expect("hover"));
         assert!(md.contains("Source `GeoJson`"));
+    }
+
+    #[test]
+    fn hovers_caller_input_data_source() {
+        let text = "Chart(data: input) {\n  Space(x * y) { Point() }\n}";
+        let md = markdown(hover_at(&state(text), text.find("input").unwrap()).expect("hover"));
+        assert!(md.contains("Caller-provided data"));
+        assert!(md.contains("--data-format arrow-stream"));
     }
 
     #[test]

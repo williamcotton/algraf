@@ -202,7 +202,8 @@ pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Ve
             if active_key.as_deref() == Some("data") {
                 let mut items = vec![
                     snippet("\"data.csv\"", "\"$1.csv\"", "CSV data path"),
-                    keyword("stdin", "Read CSV data from standard input"),
+                    keyword("input", "Caller-provided chart data"),
+                    keyword("stdin", "Caller-provided chart data alias"),
                 ];
                 items.extend(named_table_items(state));
                 items.extend(

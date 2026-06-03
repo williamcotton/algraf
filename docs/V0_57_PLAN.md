@@ -51,9 +51,9 @@ proj-string parameter through `js_sys` `parseFloat`/`parseInt` when compiled for
 `wasm32-unknown-unknown`. `wasm-bindgen` passes the Rust `&str` to those imports
 as a `(ptr, len)` pair into the module's linear memory. The demo host's manual
 import shim coerced the pointer integer to a string instead of decoding the
-slice, so every projection parameter (`lat_1`, `lon_0`, …) parsed to garbage and
-projected maps rendered mirrored and collapsed while non-projected charts looked
-fine.
+slice, so every projection parameter (`lat_1`, `lon_0`, ...) parsed to garbage
+and projected maps rendered mirrored and collapsed while non-projected charts
+looked fine.
 
 Acceptance criteria:
 

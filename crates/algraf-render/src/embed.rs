@@ -387,9 +387,10 @@ fn has_blocking(diagnostics: &[Diagnostic], strict: bool) -> bool {
 fn map_driver_error(err: DriverError) -> EmbeddedRenderError {
     match err {
         DriverError::Usage(message) => EmbeddedRenderError::Usage(message),
-        DriverError::Data { .. } | DriverError::StdinRead(_) | DriverError::StdinParse(_) => {
-            EmbeddedRenderError::Driver(err.to_string())
-        }
+        DriverError::Data { .. }
+        | DriverError::StdinRead(_)
+        | DriverError::StdinData { .. }
+        | DriverError::StdinParse(_) => EmbeddedRenderError::Driver(err.to_string()),
     }
 }
 

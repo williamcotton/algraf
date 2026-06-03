@@ -5,6 +5,8 @@
 //! same [`DataFrame`](crate::DataFrame) shape, so downstream parser, semantics,
 //! and render code stay format-agnostic (spec §10.5).
 
+#[cfg(feature = "arrow-stream")]
+use std::io::Cursor;
 use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
@@ -46,6 +48,17 @@ pub enum Format {
     TopoJson,
     /// An Apache Parquet columnar table (`.parquet`).
     Parquet,
+    /// An Apache Arrow IPC stream. This is selected explicitly for
+    /// caller-provided data or by caller-input sniffing; path extension
+    /// inference does not select it in v0.57.
+    ArrowStream,
+}
+
+/// Result of caller-input format sniffing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SniffedFormat {
+    Supported(Format),
+    Unsupported(&'static str),
 }
 
 impl Format {
@@ -60,6 +73,7 @@ impl Format {
             Format::Shapefile => "shapefile",
             Format::TopoJson => "topojson",
             Format::Parquet => "parquet",
+            Format::ArrowStream => "arrow-stream",
         }
     }
 
@@ -99,12 +113,29 @@ impl FromStr for Format {
             "geojson" => Ok(Format::GeoJson),
             "topojson" => Ok(Format::TopoJson),
             "parquet" | "parq" => Ok(Format::Parquet),
+            "arrow-stream" | "arrow" => Ok(Format::ArrowStream),
             "shapefile" | "shp" => Ok(Format::Shapefile),
             _ => Err(format!(
-                "unsupported data format {value:?}; expected csv, tsv, json, ndjson, geojson, topojson, or parquet"
+                "unsupported data format {value:?}; expected csv, tsv, json, ndjson, geojson, topojson, parquet, or arrow-stream"
             )),
         }
     }
+}
+
+/// Sniff caller-provided bytes before falling back to CSV (spec §10.2.1,
+/// §10.14). The returned format is only a format selection; the caller still
+/// passes the original, complete byte slice to the selected decoder.
+pub fn sniff_caller_input_format(bytes: &[u8]) -> SniffedFormat {
+    if bytes.starts_with(b"ARROW1") {
+        return SniffedFormat::Unsupported("Arrow IPC file");
+    }
+    if bytes.starts_with(b"PAR1") {
+        return SniffedFormat::Supported(Format::Parquet);
+    }
+    if looks_like_arrow_stream(bytes) {
+        return SniffedFormat::Supported(Format::ArrowStream);
+    }
+    SniffedFormat::Supported(Format::Csv)
 }
 
 /// Fully load a data source from a path, selecting the format by extension
@@ -152,6 +183,7 @@ pub fn read_bytes_as_with_temporal_policy(
             "a shapefile must be loaded from a sidecar bundle, not a byte slice".to_string(),
         )),
         Format::Parquet => read_parquet_bytes_dispatch(bytes),
+        Format::ArrowStream => read_arrow_stream_dispatch(bytes),
         _ => read_format_with_temporal_policy(bytes, format, temporal_policy),
     }
 }
@@ -184,6 +216,7 @@ pub fn read_format_with_temporal_policy<R: Read>(
             reader.read_to_end(&mut bytes)?;
             read_parquet_bytes_dispatch(&bytes)
         }
+        Format::ArrowStream => read_arrow_stream_reader_dispatch(reader),
     }
 }
 
@@ -247,7 +280,8 @@ pub fn read_sample_rows_bytes_as(
         | Format::GeoJson
         | Format::Shapefile
         | Format::TopoJson
-        | Format::Parquet => Ok(None),
+        | Format::Parquet
+        | Format::ArrowStream => Ok(None),
     }
 }
 
@@ -262,6 +296,7 @@ pub fn read_schema_bytes_as_with_temporal_policy(
             "a shapefile must be loaded from a sidecar bundle, not a byte slice".to_string(),
         )),
         Format::Parquet => read_parquet_schema_bytes_dispatch(bytes),
+        Format::ArrowStream => read_arrow_stream_schema_dispatch(bytes),
         _ => read_schema_format_with_temporal_policy(bytes, format, sample, temporal_policy),
     }
 }
@@ -306,7 +341,37 @@ pub fn read_schema_format_with_temporal_policy<R: Read>(
             reader.read_to_end(&mut bytes)?;
             read_parquet_schema_bytes_dispatch(&bytes)
         }
+        Format::ArrowStream => read_arrow_stream_schema_reader_dispatch(reader),
     }
+}
+
+fn looks_like_arrow_stream(bytes: &[u8]) -> bool {
+    if !has_plausible_arrow_stream_prefix(bytes) {
+        return false;
+    }
+    looks_like_arrow_stream_dispatch(bytes)
+}
+
+fn has_plausible_arrow_stream_prefix(bytes: &[u8]) -> bool {
+    if bytes.len() < 8 {
+        return false;
+    }
+    let first = i32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+    if first == -1 {
+        let len = i32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
+        return len > 0 && (len as usize) <= bytes.len().saturating_sub(8);
+    }
+    first > 0 && (first as usize) <= bytes.len().saturating_sub(4)
+}
+
+#[cfg(feature = "arrow-stream")]
+fn looks_like_arrow_stream_dispatch(bytes: &[u8]) -> bool {
+    arrow_ipc::reader::StreamReader::try_new(Cursor::new(bytes), None).is_ok()
+}
+
+#[cfg(not(feature = "arrow-stream"))]
+fn looks_like_arrow_stream_dispatch(bytes: &[u8]) -> bool {
+    has_plausible_arrow_stream_prefix(bytes)
 }
 
 #[cfg(feature = "parquet")]
@@ -354,5 +419,57 @@ fn read_parquet_schema_bytes_dispatch(bytes: &[u8]) -> Result<Vec<ColumnDef>, Da
 fn read_parquet_schema_bytes_dispatch(_bytes: &[u8]) -> Result<Vec<ColumnDef>, DataError> {
     Err(DataError::Parquet(
         "Parquet support is not enabled in this build".to_string(),
+    ))
+}
+
+#[cfg(feature = "arrow-stream")]
+fn read_arrow_stream_dispatch(bytes: &[u8]) -> Result<LoadResult, DataError> {
+    crate::arrow_stream::read_arrow_stream_bytes(bytes)
+}
+
+#[cfg(not(feature = "arrow-stream"))]
+fn read_arrow_stream_dispatch(_bytes: &[u8]) -> Result<LoadResult, DataError> {
+    Err(DataError::ArrowStream(
+        "Arrow IPC stream support is not enabled in this build".to_string(),
+    ))
+}
+
+#[cfg(feature = "arrow-stream")]
+fn read_arrow_stream_reader_dispatch<R: Read>(reader: R) -> Result<LoadResult, DataError> {
+    crate::arrow_stream::read_arrow_stream(reader)
+}
+
+#[cfg(not(feature = "arrow-stream"))]
+fn read_arrow_stream_reader_dispatch<R: Read>(_reader: R) -> Result<LoadResult, DataError> {
+    Err(DataError::ArrowStream(
+        "Arrow IPC stream support is not enabled in this build".to_string(),
+    ))
+}
+
+#[cfg(feature = "arrow-stream")]
+fn read_arrow_stream_schema_dispatch(bytes: &[u8]) -> Result<Vec<ColumnDef>, DataError> {
+    crate::arrow_stream::read_arrow_stream_schema_bytes(bytes)
+}
+
+#[cfg(not(feature = "arrow-stream"))]
+fn read_arrow_stream_schema_dispatch(_bytes: &[u8]) -> Result<Vec<ColumnDef>, DataError> {
+    Err(DataError::ArrowStream(
+        "Arrow IPC stream support is not enabled in this build".to_string(),
+    ))
+}
+
+#[cfg(feature = "arrow-stream")]
+fn read_arrow_stream_schema_reader_dispatch<R: Read>(
+    reader: R,
+) -> Result<Vec<ColumnDef>, DataError> {
+    crate::arrow_stream::read_arrow_stream_schema(reader)
+}
+
+#[cfg(not(feature = "arrow-stream"))]
+fn read_arrow_stream_schema_reader_dispatch<R: Read>(
+    _reader: R,
+) -> Result<Vec<ColumnDef>, DataError> {
+    Err(DataError::ArrowStream(
+        "Arrow IPC stream support is not enabled in this build".to_string(),
     ))
 }

@@ -153,11 +153,12 @@ impl PreparationReport {
 
 /// Map a driver/data loading error to a stable `(code, message)` pair. This is
 /// the single place CLI and LSP agree on driver-error wording, so missing-file,
-/// unreadable-file, malformed CSV/JSON, and geospatial parse messages stay
-/// consistent across adapters (spec §26, codes `E1005`–`E1010`, `E1805`).
+/// unreadable-file, malformed CSV/JSON, Arrow stream, and geospatial parse
+/// messages stay consistent across adapters.
 pub fn driver_error_code_message(err: &DriverError) -> (DiagnosticCode, String) {
     match err {
         DriverError::Data { path, source, .. } => data_error_code_message(path, source),
+        DriverError::StdinData { source } => stdin_data_error_code_message(source),
         DriverError::Usage(message)
         | DriverError::StdinRead(message)
         | DriverError::StdinParse(message) => (codes::E1006, message.clone()),
@@ -234,6 +235,20 @@ pub fn data_error_code_message(path: &Path, err: &DataError) -> (DiagnosticCode,
             codes::E1020,
             format!("Parquet parse error in {}: {message}", path.display()),
         ),
+        DataError::ArrowStream(message) => (
+            codes::E1021,
+            format!(
+                "Arrow IPC stream parse error in {}: {message}",
+                path.display()
+            ),
+        ),
+        DataError::UnsupportedStreamFormat(message) => (
+            codes::E1022,
+            format!(
+                "unsupported caller-provided stream format in {}: {message}",
+                path.display()
+            ),
+        ),
         DataError::SqliteQuery(message) => (
             codes::E1011,
             format!("SQLite query error in {}: {message}", path.display()),
@@ -248,6 +263,81 @@ pub fn data_error_code_message(path: &Path, err: &DataError) -> (DiagnosticCode,
                 "unsupported SQLite type `{type_name}` in column `{column}` from {}",
                 path.display()
             ),
+        ),
+    }
+}
+
+/// Map caller-provided stdin data errors to stable diagnostics without inventing
+/// a fake filesystem path.
+pub fn stdin_data_error_code_message(err: &DataError) -> (DiagnosticCode, String) {
+    match err {
+        DataError::Io(io) => (
+            codes::E1006,
+            format!("caller-provided input could not be read: {io}"),
+        ),
+        DataError::Csv(err) => (
+            codes::E1006,
+            format!("CSV parse error in caller-provided input: {err}"),
+        ),
+        DataError::MissingHeader => (
+            codes::E1007,
+            "CSV header missing in caller-provided input".to_string(),
+        ),
+        DataError::DuplicateHeader(name) => (
+            codes::E1008,
+            format!("duplicate CSV column `{name}` in caller-provided input"),
+        ),
+        DataError::DuplicateColumn(name) => (
+            codes::E1008,
+            format!("duplicate data column `{name}` in caller-provided input"),
+        ),
+        DataError::Json(err) => (
+            codes::E1009,
+            format!("malformed JSON in caller-provided input: {err}"),
+        ),
+        DataError::NdJson { line, source } => (
+            codes::E1009,
+            format!("malformed JSON on line {line} in caller-provided input: {source}"),
+        ),
+        DataError::JsonNotArray => (
+            codes::E1010,
+            "JSON data must be an array of row objects in caller-provided input".to_string(),
+        ),
+        DataError::JsonRowNotObject { index } => (
+            codes::E1010,
+            format!("JSON row {index} is not an object in caller-provided input"),
+        ),
+        DataError::NdJsonRowNotObject { line } => (
+            codes::E1010,
+            format!("NDJSON line {line} is not an object in caller-provided input"),
+        ),
+        DataError::Geo(message) => (
+            codes::E1805,
+            format!("geospatial parse error in caller-provided input: {message}"),
+        ),
+        DataError::Parquet(message) => (
+            codes::E1020,
+            format!("Parquet parse error in caller-provided input: {message}"),
+        ),
+        DataError::ArrowStream(message) => (
+            codes::E1021,
+            format!("Arrow IPC stream parse error in caller-provided input: {message}"),
+        ),
+        DataError::UnsupportedStreamFormat(message) => (
+            codes::E1022,
+            format!("unsupported caller-provided stream format: {message}"),
+        ),
+        DataError::SqliteQuery(message) => (
+            codes::E1011,
+            format!("SQLite query error in caller-provided input: {message}"),
+        ),
+        DataError::SqliteSafety(message) => (
+            codes::E1012,
+            format!("unsafe SQLite source in caller-provided input: {message}"),
+        ),
+        DataError::SqliteUnsupportedType { column, type_name } => (
+            codes::E1013,
+            format!("unsupported SQLite type `{type_name}` in column `{column}` from caller-provided input"),
         ),
     }
 }

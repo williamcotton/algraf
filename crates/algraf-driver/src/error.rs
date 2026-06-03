@@ -33,6 +33,11 @@ pub enum DriverError {
     },
     #[error("{0}")]
     StdinRead(String),
+    #[error("failed to parse caller-provided input: {source}")]
+    StdinData {
+        #[source]
+        source: DataError,
+    },
     #[error("{0}")]
     StdinParse(String),
 }

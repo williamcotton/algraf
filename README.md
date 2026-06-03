@@ -8,8 +8,9 @@
 
 Algraf is a block-scoped, algebraic grammar-of-graphics DSL. You describe a
 chart declaratively in a `.ag` file, point it at CSV/TSV/JSON/SQLite/GeoJSON or
-native CLI Parquet data, and the `algraf` binary parses the source, validates it
-against the data, trains scales, and emits deterministic SVG.
+native CLI Parquet data, or pipe caller-provided Arrow stream data from tools
+such as PDL. The `algraf` binary parses the source, validates it against the
+data, trains scales, and emits deterministic SVG.
 
 The normative reference is [`docs/ALGRAF_SPEC.md`](docs/ALGRAF_SPEC.md).
 The complete visual gallery lives in [`examples/README.md`](examples/README.md).
@@ -262,6 +263,7 @@ when stdin or an override path cannot be inferred from a file extension.
 
 ```bash
 cat data.csv | algraf render chart.ag --data - --data-format csv --output chart.svg
+pdl run prep.pdl --stdout-format arrow-stream | algraf render chart.ag --data - --data-format arrow-stream --output chart.svg
 ```
 
 ## Output backends
