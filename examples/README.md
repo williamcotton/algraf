@@ -1930,7 +1930,7 @@ A slopegraph compares values at two points in time/categories (e.g. 2024 vs 2026
 
 Because the end-labels name the series directly, the `metric` legend is redundant, so it is turned off with `Guide(legend: false)`. With the legend gone there is nothing to reserve space on the right for those labels, so `marginRight: 150` keeps a minimum right margin wide enough for them to fit on the canvas.
 
-Two of the 2026 endpoints (Customer Support and Platform Ease) are nearly tied, so their labels would collide. `declutter: true` on the `Text` layer spreads vertically-overlapping labels apart automatically — it operates on the final label positions, is scoped to labels sharing the same x, and keeps them within the plot.
+Two of the 2026 endpoints (Customer Support and Platform Ease) are nearly tied, so their labels would collide. `declutter: true` on the `Text` layer spreads overlapping labels apart automatically — it operates on the final label positions, handles same-column and same-row collisions, and keeps adjusted labels within the plot when the group fits.
 
 ```algraf
 Chart(data: "satisfaction.csv", width: 760, height: 480, marginRight: 150, title: "Customer Satisfaction Shift (2024 vs 2026)") {
@@ -1952,6 +1952,38 @@ Chart(data: "satisfaction.csv", width: 760, height: 480, marginRight: 150, title
 ```
 
 ![satisfaction_slope](satisfaction_slope.svg)
+
+## Station bubble labels with decluttering
+
+Direct labels can collide when several points share the same row. Here the three stations with six trips have neighboring dock capacities, so their labels would overlap horizontally if each one stayed centered above its point. `declutter: true` keeps the point layer fixed and spreads only the text labels.
+
+```algraf
+Chart(data: "station_throughput.csv", width: 760, height: 470, title: "Station throughput vs dock capacity") {
+    Theme(name: "minimal")
+    Scale(fill: zone, palette: "accent", label: "Zone")
+    Scale(size: revenue,
+          range: [5, 13],
+          breaks: [20, 50, 100],
+          labels: ["$20", "$50", "$100"],
+          label: "Revenue")
+    Scale(axis: x, domain: [0, 36], breaks: [0, 10, 20, 30], labels: ["0", "10", "20", "30"], expand: [0, 0.05])
+    Scale(axis: y, domain: [0, 8], breaks: [0, 2, 4, 6, 8], labels: ["0", "2", "4", "6", "8"], expand: [0, 0.05])
+    Guide(axis: x, label: "Dock capacity")
+    Guide(axis: y, label: "Trips")
+
+    Space(capacity * trips) {
+        Point(
+            fill: zone,
+            size: revenue,
+            alpha: 0.85,
+            tooltip: [station_name, zone, capacity, trips, revenue]
+        )
+        Text(label: station_name, dy: -12, size: 10, declutter: true)
+    }
+}
+```
+
+![station_throughput](station_throughput.svg)
 
 ## Per-row label offsets
 

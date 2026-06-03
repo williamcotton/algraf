@@ -18,7 +18,7 @@ The complete visual gallery lives in [`examples/README.md`](examples/README.md).
 Live site: [`https://williamcotton.github.io/algraf/`](https://williamcotton.github.io/algraf/)
 Full demos: [`https://williamcotton.github.io/algraf/demos`](https://williamcotton.github.io/algraf/demos)
 
-## A tour in six charts
+## A tour in seven charts
 
 Each chart below is a runnable file under [`examples/`](examples/). The examples
 start with one `Space` and one geometry, then add one or two features at a time:
@@ -225,6 +225,44 @@ Chart(
 ```
 
 ![minard](examples/minard.svg)
+
+## 7. Station labels: declutter nearby text
+
+Direct labels can collide when several points share a row. `declutter: true`
+keeps the text layer deterministic while spreading same-row and same-column
+collisions apart after all offsets are applied.
+
+New features: mapped size scales, tooltips, and opt-in text decluttering. The
+three stations at six trips have neighboring dock capacities, so the text layer
+separates their labels without changing the point positions.
+
+```algraf
+Chart(data: "station_throughput.csv", width: 760, height: 470, title: "Station throughput vs dock capacity") {
+    Theme(name: "minimal")
+    Scale(fill: zone, palette: "accent", label: "Zone")
+    Scale(size: revenue,
+          range: [5, 13],
+          breaks: [20, 50, 100],
+          labels: ["$20", "$50", "$100"],
+          label: "Revenue")
+    Scale(axis: x, domain: [0, 36], breaks: [0, 10, 20, 30], labels: ["0", "10", "20", "30"], expand: [0, 0.05])
+    Scale(axis: y, domain: [0, 8], breaks: [0, 2, 4, 6, 8], labels: ["0", "2", "4", "6", "8"], expand: [0, 0.05])
+    Guide(axis: x, label: "Dock capacity")
+    Guide(axis: y, label: "Trips")
+
+    Space(capacity * trips) {
+        Point(
+            fill: zone,
+            size: revenue,
+            alpha: 0.85,
+            tooltip: [station_name, zone, capacity, trips, revenue]
+        )
+        Text(label: station_name, dy: -12, size: 10, declutter: true)
+    }
+}
+```
+
+![station_throughput](examples/station_throughput.svg)
 
 ## Install and run
 

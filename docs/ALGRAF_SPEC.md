@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.57.5
+Status: 0.58.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.57.5 specification.
+This working copy is the 0.58.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -5282,14 +5282,17 @@ pixel-space `nudge` and `dx`/`dy`. On band axes the value is a band-width
 fraction. `nudgeData` is ignored for polar and spatial spaces.
 
 `declutter` — boolean literal; default `false`. When `true`, labels that overlap
-vertically are spread apart before rendering. Decluttering operates on the final
-positions (after `nudgeData`, `nudge`, `dx`, and `dy`), is scoped to labels
-sharing an x column (rounded to the nearest pixel), and keeps each adjusted
-group within the plot's vertical
-extent. The result MUST be deterministic: within a column, labels are laid out at
-a minimum gap of `1.2 ×` the font size, minimizing displacement from their
-targets, with stable ordering. Horizontal de-overlap and connector lines are not
-provided in this version.
+vertically or horizontally are spread apart before rendering. Decluttering
+operates on the final positions (after `nudgeData`, `nudge`, `dx`, and `dy`).
+Vertical decluttering is scoped to labels sharing an x column (rounded to the
+nearest pixel) and keeps each adjusted group within the plot's vertical extent.
+Horizontal decluttering is scoped to labels sharing a y baseline (rounded to the
+nearest pixel), uses the renderer's deterministic estimated text widths, and
+keeps each adjusted group within the plot's horizontal extent when the estimated
+group fits. The result MUST be deterministic: within a column or row, labels are
+laid out to maintain stable non-overlap while minimizing displacement from their
+targets, with stable ordering. Connector lines and arbitrary two-dimensional
+force layout are not provided in this version.
 
 Text also accepts `fill`, `alpha`, and `size`.
 
@@ -10608,6 +10611,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.56.0 | [`V0_56_PLAN.md`](V0_56_PLAN.md) | Repository CI visibility and test-suite automation | Implemented |
 | 0.57.0 | [`V0_57_PLAN.md`](V0_57_PLAN.md) | Multi-page docs site and browser projection ABI fix | Implemented |
 | 0.57.5 | [`V0_57_5_PLAN.md`](V0_57_5_PLAN.md) | PDL and Unix-pipe interop for caller-provided data streams | Implemented |
+| 0.58.0 | [`V0_58_PLAN.md`](V0_58_PLAN.md) | Two-axis text label decluttering for dense direct annotations | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

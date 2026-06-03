@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="470" viewBox="0 0 760 470" role="img" aria-label="Station throughput vs dock capacity">
+<title>Station throughput vs dock capacity</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="470" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Station throughput vs dock capacity</text>
+<rect class="algraf-plot-area" x="60" y="66" width="550" height="354" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="136.389" y1="66" x2="136.389" y2="420" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="289.167" y1="66" x2="289.167" y2="420" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="441.944" y1="66" x2="441.944" y2="420" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="375.75" x2="610" y2="375.75" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="287.25" x2="610" y2="287.25" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="198.75" x2="610" y2="198.75" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="110.25" x2="610" y2="110.25" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="66" x2="60" y2="420" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="212.778" y1="66" x2="212.778" y2="420" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="365.556" y1="66" x2="365.556" y2="420" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="518.333" y1="66" x2="518.333" y2="420" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="420" x2="610" y2="420" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="331.5" x2="610" y2="331.5" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="243" x2="610" y2="243" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="154.5" x2="610" y2="154.5" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="66" x2="610" y2="66" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="548.889" cy="110.25" r="7.2" fill="#006BA4" opacity="0.85"><title>station_name: Central Station
+zone: Downtown
+capacity: 32
+trips: 7
+revenue: 27.9</title></circle>
+  <circle cx="487.778" cy="154.5" r="6.921" fill="#006BA4" opacity="0.85"><title>station_name: Library Plaza
+zone: Downtown
+capacity: 28
+trips: 6
+revenue: 26.4</title></circle>
+  <circle cx="457.222" cy="154.5" r="7.723" fill="#FF800E" opacity="0.85"><title>station_name: Market Hall
+zone: Market
+capacity: 26
+trips: 6
+revenue: 30.7</title></circle>
+  <circle cx="426.667" cy="154.5" r="7.238" fill="#ABABAB" opacity="0.85"><title>station_name: North Campus
+zone: Campus
+capacity: 24
+trips: 6
+revenue: 28.1</title></circle>
+  <circle cx="518.333" cy="243" r="13" fill="#595959" opacity="0.85"><title>station_name: Museum Loop
+zone: Cultural
+capacity: 30
+trips: 4
+revenue: 59</title></circle>
+  <circle cx="396.111" cy="243" r="11.657" fill="#5F9ED1" opacity="0.85"><title>station_name: River Park
+zone: Riverfront
+capacity: 22
+trips: 4
+revenue: 51.8</title></circle>
+  <circle cx="335" cy="243" r="5" fill="#ABABAB" opacity="0.85"><title>station_name: Science Center
+zone: Campus
+capacity: 18
+trips: 4
+revenue: 16.1</title></circle>
+  <circle cx="365.556" cy="287.25" r="6.734" fill="#5F9ED1" opacity="0.85"><title>station_name: Marina Gate
+zone: Riverfront
+capacity: 20
+trips: 3
+revenue: 25.4</title></circle>
+  <circle cx="304.444" cy="331.5" r="6.268" fill="#5F9ED1" opacity="0.85"><title>station_name: Harbor Point
+zone: Riverfront
+capacity: 16
+trips: 2
+revenue: 22.9</title></circle>
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="548.889" y="98.25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Central Station</text>
+  <text x="532.222" y="142.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Library Plaza</text>
+  <text x="456.222" y="142.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Market Hall</text>
+  <text x="383.222" y="142.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">North Campus</text>
+  <text x="518.333" y="231" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Museum Loop</text>
+  <text x="403.556" y="231" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">River Park</text>
+  <text x="327.556" y="231" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Science Center</text>
+  <text x="365.556" y="275.25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Marina Gate</text>
+  <text x="304.444" y="319.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Harbor Point</text>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="420" x2="610" y2="420" stroke="#333333" stroke-width="1" />
+  <line x1="60" y1="420" x2="60" y2="425" stroke="#333333" stroke-width="1" />
+  <text x="60" y="438" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="212.778" y1="420" x2="212.778" y2="425" stroke="#333333" stroke-width="1" />
+  <text x="212.778" y="438" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="365.556" y1="420" x2="365.556" y2="425" stroke="#333333" stroke-width="1" />
+  <text x="365.556" y="438" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="518.333" y1="420" x2="518.333" y2="425" stroke="#333333" stroke-width="1" />
+  <text x="518.333" y="438" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <text x="335" y="458" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Dock capacity</text>
+  <line x1="60" y1="66" x2="60" y2="420" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="420" x2="60" y2="420" stroke="#333333" stroke-width="1" />
+  <text x="52" y="424" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="331.5" x2="60" y2="331.5" stroke="#333333" stroke-width="1" />
+  <text x="52" y="335.5" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="55" y1="243" x2="60" y2="243" stroke="#333333" stroke-width="1" />
+  <text x="52" y="247" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="55" y1="154.5" x2="60" y2="154.5" stroke="#333333" stroke-width="1" />
+  <text x="52" y="158.5" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <line x1="55" y1="66" x2="60" y2="66" stroke="#333333" stroke-width="1" />
+  <text x="52" y="70" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
+  <text x="32.8" y="243" text-anchor="middle" transform="rotate(-90 32.8 243)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Trips</text>
+</g>
+<g class="algraf-legends">
+  <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Zone</text>
+  <rect x="626" y="78" width="12" height="12" fill="#006BA4" />
+  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Downtown</text>
+  <rect x="626" y="96" width="12" height="12" fill="#FF800E" />
+  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Market</text>
+  <rect x="626" y="114" width="12" height="12" fill="#ABABAB" />
+  <text x="644" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Campus</text>
+  <rect x="626" y="132" width="12" height="12" fill="#595959" />
+  <text x="644" y="142" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Cultural</text>
+  <rect x="626" y="150" width="12" height="12" fill="#5F9ED1" />
+  <text x="644" y="160" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Riverfront</text>
+  <text x="626" y="198" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Revenue</text>
+  <circle cx="639" cy="213" r="5.727" fill="#222222" />
+  <text x="660" y="217" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">$20</text>
+  <circle cx="639" cy="236.322" r="11.322" fill="#222222" />
+  <text x="660" y="240.322" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">$50</text>
+  <circle cx="639" cy="266.643" r="13" fill="#222222" />
+  <text x="660" y="270.643" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">$100</text>
+</g>
+</svg>

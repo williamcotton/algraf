@@ -685,6 +685,14 @@ fn text_y(svg: &str, label: &str) -> f64 {
     element[y_start..y_start + y_end].parse().unwrap()
 }
 
+/// Extract the `x` attribute of the `<text>` element whose content is `label`.
+fn text_x(svg: &str, label: &str) -> f64 {
+    let element = text_element(svg, label);
+    let x_start = element.find("x=\"").unwrap() + 3;
+    let x_end = element[x_start..].find('"').unwrap();
+    element[x_start..x_start + x_end].parse().unwrap()
+}
+
 fn text_element<'a>(svg: &'a str, label: &str) -> &'a str {
     let needle = format!(">{label}</text>");
     let element_end = svg.find(&needle).expect("label") + needle.len();
@@ -702,6 +710,40 @@ fn test_text_declutter_separates_overlapping_labels() {
     );
     // gap = size * 1.2 = 12.
     assert!((text_y(&svg, "A") - text_y(&svg, "B")).abs() >= 12.0 - 1e-6);
+}
+
+#[test]
+fn test_text_declutter_separates_same_row_station_labels() {
+    let csv = "\
+station_name,zone,capacity,trips,revenue
+Central Station,Downtown,32,7,27.9
+Library Plaza,Downtown,28,6,26.4
+Market Hall,Market,26,6,30.7
+North Campus,Campus,24,6,28.1
+Museum Loop,Cultural,30,4,59
+River Park,Riverfront,22,4,51.8
+Science Center,Campus,18,4,16.1
+Marina Gate,Riverfront,20,3,25.4
+Harbor Point,Riverfront,16,2,22.9
+";
+    let svg = render_svg(
+        "Chart(data: \"p.csv\", width: 760, height: 470) {
+            Scale(axis: x, domain: [0, 36], expand: [0, 0.05])
+            Scale(axis: y, domain: [0, 8], expand: [0, 0.05])
+            Space(capacity * trips) {
+                Text(label: station_name, dy: -12, size: 10, declutter: true)
+            }
+        }",
+        csv,
+    );
+
+    let north = text_x(&svg, "North Campus");
+    let market = text_x(&svg, "Market Hall");
+    let library = text_x(&svg, "Library Plaza");
+    // Estimated widths are 72, 66, and 78 px respectively; the declutter gap is
+    // 4 px, so adjacent centered labels need 73 and 76 px between centers.
+    assert!(market - north >= 73.0 - 0.01);
+    assert!(library - market >= 76.0 - 0.01);
 }
 
 #[test]

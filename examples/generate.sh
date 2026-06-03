@@ -96,6 +96,7 @@ charts=(
     legend_merge
     scale_label
     satisfaction_slope
+    station_throughput
     dumbbell
     uncertainty_intervals
     horizontal_intervals

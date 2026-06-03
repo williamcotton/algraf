@@ -1,0 +1,10 @@
+station_name,zone,capacity,trips,revenue
+Central Station,Downtown,32,7,27.9
+Library Plaza,Downtown,28,6,26.400000000000002
+Market Hall,Market,26,6,30.7
+North Campus,Campus,24,6,28.1
+Museum Loop,Cultural,30,4,59
+River Park,Riverfront,22,4,51.8
+Science Center,Campus,18,4,16.099999999999998
+Marina Gate,Riverfront,20,3,25.4
+Harbor Point,Riverfront,16,2,22.9
