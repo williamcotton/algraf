@@ -1534,7 +1534,9 @@ Chart(data: "timeseries.csv", width: 760, height: 420) {
 
 `Area(layout: "stack")` groups rows by `group` when present, otherwise by a
 categorical `fill` or `stroke` mapping. The y domain is trained from the
-stacked totals, so each polygon stays inside the plot area.
+stacked totals, so each polygon stays inside the plot area. If a group is absent
+at one x-position, it contributes zero there and the stacked bands remain
+contiguous.
 
 ```algraf
 Chart(data: "area_layouts.csv", width: 760, height: 420, title: "Trips by rider type") {

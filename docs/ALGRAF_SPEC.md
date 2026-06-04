@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.61.0
+Status: 0.62.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.61.0 specification.
+This working copy is the 0.62.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -5221,6 +5221,11 @@ by categorical `fill` or categorical `stroke`, and renders one polygon per
 group over cumulative y ranges. Positive and negative values stack separately
 around the baseline. Scale-domain training MUST include stacked lower and upper
 bounds.
+
+Grouped stack and fill Area layouts MUST evaluate every non-empty group at every
+valid physical x-position observed by any group. If a group has no row at an
+observed x-position, that group/x cell contributes zero height; duplicate rows
+for one group/x cell are aggregated before stacking.
 
 `Area(layout: "fill")` uses the same grouping and positive/negative separation
 as `"stack"`, but normalizes each physical x-position stack to share of total.
@@ -10689,6 +10694,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.59.0 | [`V0_59_PLAN.md`](V0_59_PLAN.md) | CI artifacts for distributable editor and browser outputs | Implemented |
 | 0.60.0 | [`V0_60_PLAN.md`](V0_60_PLAN.md) | GitHub Release assets for distributable editor and browser outputs | Implemented |
 | 0.61.0 | [`V0_61_PLAN.md`](V0_61_PLAN.md) | Story-chart expression: stacked/fill Area, categorical axis order, numeric Text format, and terminal Label geometry | Implemented |
+| 0.62.0 | [`V0_62_PLAN.md`](V0_62_PLAN.md) | Sparse stacked/fill Area continuity for story-chart tables | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

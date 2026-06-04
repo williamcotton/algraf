@@ -477,6 +477,10 @@ pub(super) fn render_area(
         let Some(value_col) = space.y_axis().and_then(|axis| axis.data_column()) else {
             return;
         };
+        let x_positions = area_x_positions(space, table, &row_list, value_col);
+        if x_positions.len() < 2 {
+            return;
+        }
         let totals = if layout == AreaLayout::Fill {
             area_totals_by_x(space, table, &row_list, value_col)
         } else {
@@ -485,36 +489,38 @@ pub(super) fn render_area(
         let mut positive: HashMap<String, f64> = HashMap::new();
         let mut negative: HashMap<String, f64> = HashMap::new();
         for group_rows in groups {
-            let mut points: Vec<(f64, f64, f64, usize)> = Vec::new();
-            for &row in &group_rows {
-                let Some(x) = space.resolve_x(table, row) else {
-                    continue;
-                };
-                let Some(mut value) = cell_f64(table, value_col, row) else {
-                    continue;
-                };
-                let key = area_x_key(x);
+            let Some(group_row) = group_rows.first().copied() else {
+                continue;
+            };
+            let group_values = area_group_values_by_x(space, table, &group_rows, value_col);
+            if group_values.is_empty() {
+                continue;
+            }
+            let mut points: Vec<(f64, f64, f64, usize)> = Vec::with_capacity(x_positions.len());
+            for (key, x) in &x_positions {
+                let mut value = group_values.get(key).copied().unwrap_or(0.0);
                 if layout == AreaLayout::Fill {
                     let total = if value >= 0.0 {
                         totals
-                            .get(&key)
+                            .get(key)
                             .map(|(positive, _)| *positive)
                             .unwrap_or(0.0)
                     } else {
                         totals
-                            .get(&key)
+                            .get(key)
                             .map(|(_, negative)| negative.abs())
                             .unwrap_or(0.0)
                     };
                     if total <= f64::EPSILON {
-                        continue;
+                        value = 0.0;
+                    } else {
+                        value /= total;
                     }
-                    value /= total;
                 }
                 let accumulator = if value >= 0.0 {
-                    positive.entry(key).or_insert(0.0)
+                    positive.entry(key.clone()).or_insert(0.0)
                 } else {
-                    negative.entry(key).or_insert(0.0)
+                    negative.entry(key.clone()).or_insert(0.0)
                 };
                 let lower_value = baseline_value + *accumulator;
                 *accumulator += value;
@@ -524,7 +530,7 @@ pub(super) fn render_area(
                 else {
                     continue;
                 };
-                points.push((x, lower, upper, row));
+                points.push((*x, lower, upper, group_row));
             }
             emit_area_polygon(sink, table, &points, &fill, &stroke, stroke_width, alpha);
         }
@@ -656,6 +662,45 @@ fn area_totals_by_x(
         }
     }
     totals
+}
+
+fn area_group_values_by_x(
+    space: &crate::space::ScaledSpace,
+    table: &dyn algraf_data::Table,
+    rows: &[usize],
+    value_col: &str,
+) -> HashMap<String, f64> {
+    let mut values = HashMap::new();
+    for &row in rows {
+        let Some(x) = space.resolve_x(table, row) else {
+            continue;
+        };
+        let Some(value) = cell_f64(table, value_col, row) else {
+            continue;
+        };
+        *values.entry(area_x_key(x)).or_insert(0.0) += value;
+    }
+    values
+}
+
+fn area_x_positions(
+    space: &crate::space::ScaledSpace,
+    table: &dyn algraf_data::Table,
+    rows: &[usize],
+    value_col: &str,
+) -> Vec<(String, f64)> {
+    let mut positions = Vec::new();
+    for &row in rows {
+        let Some(x) = space.resolve_x(table, row) else {
+            continue;
+        };
+        if cell_f64(table, value_col, row).is_some() {
+            positions.push((area_x_key(x), x));
+        }
+    }
+    positions.sort_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+    positions.dedup_by(|a, b| a.0 == b.0);
+    positions
 }
 
 fn area_x_key(x: f64) -> String {

@@ -22,8 +22,8 @@
   <line x1="60" y1="51.713" x2="610" y2="51.713" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <g class="algraf-layer algraf-geom-area">
-  <path d="M60 236.319 L243.333 176.481 L426.667 181.574 L610 140.833 L610 370 L60 370 Z" fill="#4E79A7" opacity="0.35" />
-  <path d="M60 88.634 L243.333 121.736 L426.667 64.444 L610 98.819 L610 370 L60 370 Z" fill="#F28E2B" opacity="0.35" />
+  <path d="M60 236.319 L243.333 176.481 L426.667 181.574 L610 140.833 L610 370 L426.667 370 L243.333 370 L60 370 Z" fill="#4E79A7" opacity="0.35" />
+  <path d="M60 88.634 L243.333 121.736 L426.667 64.444 L610 98.819 L610 370 L426.667 370 L243.333 370 L60 370 Z" fill="#F28E2B" opacity="0.35" />
 </g>
 <g class="algraf-layer algraf-geom-line">
   <path d="M60 236.319 L243.333 176.481 L426.667 181.574 L610 140.833" fill="none" stroke="#4E79A7" stroke-width="2" opacity="1" />

@@ -701,10 +701,28 @@ fn text_element<'a>(svg: &'a str, label: &str) -> &'a str {
 }
 
 fn layer_path_count(svg: &str, class: &str) -> usize {
+    layer_paths(svg, class).len()
+}
+
+fn layer_paths<'a>(svg: &'a str, class: &str) -> Vec<&'a str> {
     let start = svg.find(class).expect("layer class");
     let layer = &svg[start..];
     let end = layer.find("</g>").expect("layer end");
-    layer[..end].matches("<path").count()
+    let layer = &layer[..end];
+    layer
+        .match_indices("<path")
+        .map(|(index, _)| {
+            let path = &layer[index..];
+            let end = path.find('>').expect("path end") + 1;
+            &path[..end]
+        })
+        .collect()
+}
+
+fn path_d(path: &str) -> &str {
+    let start = path.find("d=\"").expect("path d") + 3;
+    let end = path[start..].find('"').expect("path d end");
+    &path[start..start + end]
 }
 
 #[test]
@@ -844,6 +862,26 @@ fn area_stack_and_fill_train_domains_and_emit_group_paths() {
         serde_json::from_str(&fill.metadata.to_json()).expect("metadata json");
     let fill_max = fill_metadata["axes"]["y"]["domain"][1].as_f64().unwrap();
     assert!((1.0..=1.1).contains(&fill_max), "{fill_metadata}");
+}
+
+#[test]
+fn area_stack_and_fill_keep_sparse_groups_contiguous() {
+    let csv = "x,y,series\n1,2,A\n1,1,B\n2,2,A\n3,2,A\n3,1,B\n";
+
+    for layout in ["stack", "fill"] {
+        let result = render_result(
+            &format!(
+                "Chart(data: \"p.csv\") {{ Space(x * y) {{ Area(fill: series, layout: \"{layout}\") }} }}"
+            ),
+            csv,
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        let l_counts = layer_paths(&result.svg, "algraf-geom-area")
+            .iter()
+            .map(|path| path_d(path).matches('L').count())
+            .collect::<Vec<_>>();
+        assert_eq!(l_counts, vec![5, 5], "{layout}: {}", result.svg);
+    }
 }
 
 #[test]
