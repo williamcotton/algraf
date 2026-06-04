@@ -389,7 +389,12 @@ The runtime returns `{ svg, sidecar, diagnostics, error }`. The demo fetches its
 sample data before calling WASM; browser networking stays host-owned, and the
 WASM runtime itself only sees the in-memory `files` map.
 
-
+Algraf v0.63 also provides local package-shaped browser integrations:
+`packages/wasm` (`algraf-wasm`) for runtime loading and ABI types, and
+`editors/monaco` (`algraf-editor`) for Monaco/React editor wiring. During
+development, hosts can install them with filesystem `file:` paths and pass a
+local `wasmUrl` for a copied `public/wasm/algraf.wasm` artifact. See
+[`docs/NPM_PACKAGES.md`](docs/NPM_PACKAGES.md).
 
 ## Workspace layout
 

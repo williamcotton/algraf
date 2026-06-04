@@ -6,7 +6,7 @@ import type {
   LspDiagnostic,
   LspPosition,
   LspRange,
-} from "./algrafWasm";
+} from "./index";
 
 const SEMANTIC_TOKEN_TYPES = [
   "keyword",

@@ -1,9 +1,9 @@
 import React from "react";
 import { AlertCircle, CheckCircle2, Code2, LoaderCircle, Play } from "lucide-react";
+import { AlgrafEditor } from "algraf-editor";
+import { type AlgrafDiagnostic, type AlgrafRenderResult } from "algraf-wasm";
 
 import { AlgrafChart } from "../../AlgrafChart";
-import { AlgrafEditor } from "../../AlgrafEditor";
-import { type AlgrafDiagnostic, type AlgrafRenderResult } from "../../algrafWasm";
 import { publicAssetUrl } from "../../publicAssets";
 import { type RuntimeState, useAlgrafRuntime } from "./useAlgrafRuntime";
 

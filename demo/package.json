@@ -1,6 +1,6 @@
 {
   "name": "algraf-playground-demo",
-  "version": "0.62.0",
+  "version": "0.63.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,6 +12,8 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "algraf-editor": "file:../editors/monaco",
+    "algraf-wasm": "file:../packages/wasm",
     "lucide-react": "^0.468.0",
     "monaco-editor": "^0.55.1",
     "monaco-editor-textmate": "^4.0.0",

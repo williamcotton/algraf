@@ -1,14 +1,15 @@
 import React from "react";
 import { ArrowRight, CheckCircle2, Code2, LoaderCircle, Play } from "lucide-react";
-
-import { AlgrafChart } from "../AlgrafChart";
-import { AlgrafEditor } from "../AlgrafEditor";
+import { AlgrafEditor } from "algraf-editor";
 import {
   type AlgrafDiagnostic,
   type AlgrafRenderResult,
   type AlgrafRuntime,
   loadAlgrafRuntime,
-} from "../algrafWasm";
+} from "algraf-wasm";
+
+import { AlgrafChart } from "../AlgrafChart";
+import { publicAssetUrl } from "../publicAssets";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -72,7 +73,7 @@ export function HomePage({ navigate, routeHref }: RoutedPageProps): React.ReactE
   React.useEffect(() => {
     let cancelled = false;
     setRuntimeState("loading");
-    loadAlgrafRuntime()
+    loadAlgrafRuntime({ wasmUrl: publicAssetUrl("wasm/algraf.wasm") })
       .then((loaded) => {
         if (cancelled) return;
         setRuntime(loaded);

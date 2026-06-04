@@ -1,6 +1,7 @@
 import React from "react";
+import { type AlgrafRuntime, loadAlgrafRuntime } from "algraf-wasm";
 
-import { type AlgrafRuntime, loadAlgrafRuntime } from "../../algrafWasm";
+import { publicAssetUrl } from "../../publicAssets";
 
 export type RuntimeState = "loading" | "ready" | "error";
 
@@ -17,7 +18,7 @@ let runtimePromise: Promise<AlgrafRuntime> | null = null;
 
 function sharedRuntime(): Promise<AlgrafRuntime> {
   if (!runtimePromise) {
-    runtimePromise = loadAlgrafRuntime().catch((err) => {
+    runtimePromise = loadAlgrafRuntime({ wasmUrl: publicAssetUrl("wasm/algraf.wasm") }).catch((err) => {
       // Allow a later caller to retry after a transient failure.
       runtimePromise = null;
       throw err;

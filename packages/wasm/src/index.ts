@@ -1,5 +1,3 @@
-import { publicAssetUrl } from "./publicAssets";
-
 export interface AlgrafDiagnostic {
   code: string;
   severity: "error" | "warning" | "information" | "hint";
@@ -90,13 +88,25 @@ export interface AlgrafRuntime {
   ): AlgrafEditorServiceResult<T>;
 }
 
+export interface LoadAlgrafRuntimeOptions {
+  wasmUrl?: string | URL;
+  fetcher?: typeof fetch;
+}
+
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-export async function loadAlgrafRuntime(url = publicAssetUrl("wasm/algraf.wasm")): Promise<AlgrafRuntime> {
-  const response = await fetch(url);
+export function defaultAlgrafWasmUrl(baseUrl = import.meta.url): string {
+  return new URL("../dist/algraf.wasm", baseUrl).toString();
+}
+
+export async function loadAlgrafRuntime(options: LoadAlgrafRuntimeOptions | string | URL = {}): Promise<AlgrafRuntime> {
+  const resolvedOptions = normalizeLoadOptions(options);
+  const wasmUrl = resolvedOptions.wasmUrl ?? defaultAlgrafWasmUrl();
+  const fetcher = resolvedOptions.fetcher ?? fetch;
+  const response = await fetcher(wasmUrl);
   if (!response.ok) {
-    throw new Error(`failed to fetch ${url}: ${response.status}`);
+    throw new Error(`failed to fetch ${wasmUrl.toString()}: ${response.status}`);
   }
 
   const instance = await instantiateWasm(response);
@@ -111,6 +121,10 @@ export async function loadAlgrafRuntime(url = publicAssetUrl("wasm/algraf.wasm")
       return editorServiceWithExports<T>(exports, source, files, request, uri);
     },
   };
+}
+
+function normalizeLoadOptions(options: LoadAlgrafRuntimeOptions | string | URL): LoadAlgrafRuntimeOptions {
+  return typeof options === "string" || options instanceof URL ? { wasmUrl: options } : options;
 }
 
 // proj4rs (pulled in by algraf-render for map projections) parses every

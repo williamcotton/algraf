@@ -2,7 +2,7 @@
   "name": "algraf-vscode",
   "displayName": "Algraf",
   "description": "VS Code language support for Algraf charts.",
-  "version": "0.62.0",
+  "version": "0.63.0",
   "publisher": "algraf",
   "license": "MIT OR Apache-2.0",
   "repository": {
@@ -27,7 +27,8 @@
   ],
   "main": "./dist/extension.js",
   "scripts": {
-    "check": "tsc -p ./ --noEmit",
+    "sync:assets": "node ../../scripts/sync-editor-assets.mjs",
+    "check": "npm run sync:assets && tsc -p ./ --noEmit",
     "compile": "npm run check && esbuild src/extension.ts --bundle --external:vscode --platform=node --format=cjs --outfile=dist/extension.js --sourcemap",
     "watch": "tsc -watch -p ./ --noEmit",
     "prepackage": "npm run compile",

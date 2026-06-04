@@ -7,15 +7,14 @@ import {
   LoaderCircle,
   RefreshCw,
 } from "lucide-react";
-
+import { AlgrafEditor } from "algraf-editor";
 import {
   type AlgrafDiagnostic,
   type AlgrafRenderResult,
   type AlgrafRuntime,
   loadAlgrafRuntime,
-} from "../algrafWasm";
+} from "algraf-wasm";
 import { AlgrafChart } from "../AlgrafChart";
-import { AlgrafEditor } from "../AlgrafEditor";
 import { publicAssetUrl } from "../publicAssets";
 
 interface DemoDataFile {
@@ -337,7 +336,7 @@ export function DemoPage(): React.ReactElement {
 
   React.useEffect(() => {
     let cancelled = false;
-    loadAlgrafRuntime()
+    loadAlgrafRuntime({ wasmUrl: publicAssetUrl("wasm/algraf.wasm") })
       .then((loaded) => {
         if (cancelled) return;
         setRuntime(loaded);

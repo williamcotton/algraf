@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.62.0
+Status: 0.63.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.62.0 specification.
+This working copy is the 0.63.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9591,6 +9591,33 @@ Version 0.60.0 publishes the VS Code extension `.vsix` and standalone browser
 and `latest` aliases. This is repository packaging only; the language, renderer,
 editor services, browser demo, and WASM ABI are unchanged.
 
+Version 0.63.0 adds package-shaped browser integrations without changing `.ag`
+syntax, rendering, scale, guide, data, CLI, LSP, or WASM ABI behavior. The
+canonical static editor assets live under `editors/assets/`. The VS Code
+extension remains self-contained by syncing those assets into package-local
+grammar and language-configuration paths before extension compile, check,
+package, or prepublish workflows. The `packages/wasm/` package publishes the
+org-free package name `algraf-wasm` and owns runtime loading, browser ABI types,
+and helpers for caller-provided WASM URLs or a generated package-local
+`algraf.wasm` artifact. The `editors/monaco/` package publishes the org-free
+package name `algraf-editor` and owns Monaco language registration, TextMate
+grammar wiring, language configuration, theme defaults, marker conversion,
+provider registration, structural runtime/editor-service types, and a thin
+React editor component.
+
+`algraf-wasm` MUST NOT include Monaco, React, preview UI, editor chrome, or
+product-specific controls. `algraf-editor` MUST NOT implement Algraf parsing,
+analysis, rendering, diagnostics, completion, hover, signature help,
+formatting, semantic tokens, code actions, symbols, definition/reference, or
+rename in TypeScript; it MUST adapt the upstream WASM/editor-service ABI into
+Monaco providers. In source mode, hosts MAY consume sibling package directories
+from `../algraf` and pass an explicit local `wasmUrl` for a generated artifact
+copied into public assets. In packed mode, release validation MAY build local
+tarballs into ignored package `dist/` or workspace `artifacts/` directories and
+install them with `file:` paths before npm publication. Generated
+`algraf.wasm` binaries and local package tarballs MUST NOT be checked into
+source.
+
 The manual pointer/length ABI does not mean the shipped `.wasm` is free of
 `wasm-bindgen`-style imports. Dependencies compiled for
 `wasm32-unknown-unknown` MAY emit their own `wasm-bindgen` import calls; in
@@ -10695,6 +10722,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.60.0 | [`V0_60_PLAN.md`](V0_60_PLAN.md) | GitHub Release assets for distributable editor and browser outputs | Implemented |
 | 0.61.0 | [`V0_61_PLAN.md`](V0_61_PLAN.md) | Story-chart expression: stacked/fill Area, categorical axis order, numeric Text format, and terminal Label geometry | Implemented |
 | 0.62.0 | [`V0_62_PLAN.md`](V0_62_PLAN.md) | Sparse stacked/fill Area continuity for story-chart tables | Implemented |
+| 0.63.0 | [`V0_63_PLAN.md`](V0_63_PLAN.md) | Shared editor assets and first-party Monaco integration | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

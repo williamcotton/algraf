@@ -8,18 +8,21 @@ import { Registry } from "monaco-textmate";
 import { loadWASM as loadOnigasm } from "onigasm";
 import onigasmWasmUrl from "onigasm/lib/onigasm.wasm?url";
 
-import algrafGrammar from "../../editors/vscode/syntaxes/algraf.tmLanguage.json";
-import type { AlgrafDiagnostic, AlgrafRuntime } from "./algrafWasm";
-import { registerAlgrafEditorProviders } from "./editorProviders";
+import algrafGrammar from "../assets/algraf.tmLanguage.json";
+import algrafLanguageConfiguration from "../assets/language-configuration.json";
+import { registerAlgrafEditorProviders } from "./providers";
 
-const LANGUAGE_ID = "algraf";
-const SCOPE_NAME = "source.algraf";
-const THEME_NAME = "algraf-playground";
-const MARKER_OWNER = "algraf-wasm";
-const DEFAULT_MODEL_URI = "inmemory://algraf/demo.ag";
+export { registerAlgrafEditorProviders } from "./providers";
+
+export const ALGRAF_LANGUAGE_ID = "algraf";
+export const ALGRAF_SCOPE_NAME = "source.algraf";
+export const ALGRAF_THEME_NAME = "algraf-playground";
+export const ALGRAF_MARKER_OWNER = "algraf-wasm";
+export const ALGRAF_DEFAULT_MODEL_URI = "inmemory://algraf/demo.ag";
 
 const encoder = new TextEncoder();
 let setupPromise: Promise<void> | null = null;
+let onigasmPromise: Promise<void> | null = null;
 let providerDisposable: monaco.IDisposable | null = null;
 
 interface EditorContext {
@@ -29,6 +32,80 @@ interface EditorContext {
 
 const editorContexts = new Map<string, EditorContext>();
 
+export interface AlgrafDiagnostic {
+  code: string;
+  severity: "error" | "warning" | "information" | "hint";
+  message: string;
+  span: {
+    start: number;
+    end: number;
+  };
+  related?: Array<{
+    span: {
+      start: number;
+      end: number;
+    };
+    message: string;
+  }>;
+  help?: string;
+}
+
+export interface LspPosition {
+  line: number;
+  character: number;
+}
+
+export interface LspRange {
+  start: LspPosition;
+  end: LspPosition;
+}
+
+export interface LspDiagnostic {
+  range: LspRange;
+  severity?: number;
+  code?: string | number;
+  source?: string;
+  message: string;
+  relatedInformation?: Array<{
+    location: {
+      uri: string;
+      range: LspRange;
+    };
+    message: string;
+  }>;
+}
+
+export type AlgrafEditorFeatureRequest =
+  | { kind: "diagnostics" }
+  | { kind: "hover"; position: LspPosition }
+  | { kind: "completion"; position: LspPosition }
+  | { kind: "signatureHelp"; position: LspPosition }
+  | { kind: "formatting" }
+  | { kind: "rangeFormatting"; range: LspRange }
+  | { kind: "semanticTokens" }
+  | { kind: "codeActions"; range: LspRange; diagnostics: LspDiagnostic[] }
+  | { kind: "definition"; position: LspPosition }
+  | { kind: "references"; position: LspPosition; includeDeclaration: boolean }
+  | { kind: "documentHighlights"; position: LspPosition }
+  | { kind: "prepareRename"; position: LspPosition }
+  | { kind: "rename"; position: LspPosition; newName: string }
+  | { kind: "documentSymbols" };
+
+export interface AlgrafEditorServiceResult<T = unknown> {
+  diagnostics: LspDiagnostic[];
+  result: T;
+  error: string | null;
+}
+
+export interface AlgrafRuntime {
+  editorService<T = unknown>(
+    source: string,
+    files: Record<string, string>,
+    request: AlgrafEditorFeatureRequest,
+    uri?: string,
+  ): AlgrafEditorServiceResult<T>;
+}
+
 export interface AlgrafEditorProps {
   value: string;
   files: Record<string, string>;
@@ -36,9 +113,43 @@ export interface AlgrafEditorProps {
   runtime: AlgrafRuntime | null;
   onChange: (value: string) => void;
   modelUri?: string;
+  languageId?: string;
+  themeName?: string;
+  theme?: monaco.editor.IStandaloneThemeData;
+  className?: string;
+  editorClassName?: string;
+  options?: monaco.editor.IStandaloneEditorConstructionOptions;
+  setupOptions?: SetupAlgrafMonacoOptions;
 }
 
-export function AlgrafEditor({ value, files, diagnostics, runtime, onChange, modelUri }: AlgrafEditorProps): React.ReactElement {
+export interface SetupAlgrafMonacoOptions {
+  languageId?: string;
+  aliases?: string[];
+  extensions?: string[];
+  scopeName?: string;
+  themeName?: string;
+  theme?: monaco.editor.IStandaloneThemeData;
+  grammar?: unknown;
+  languageConfiguration?: monaco.languages.LanguageConfiguration;
+  onigasmWasmUrl?: string;
+  configureWorker?: boolean;
+}
+
+export function AlgrafEditor({
+  value,
+  files,
+  diagnostics,
+  runtime,
+  onChange,
+  modelUri,
+  languageId = ALGRAF_LANGUAGE_ID,
+  themeName = ALGRAF_THEME_NAME,
+  theme,
+  className = "algraf-editor-shell",
+  editorClassName = "algraf-editor",
+  options,
+  setupOptions,
+}: AlgrafEditorProps): React.ReactElement {
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   const editorRef = React.useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const modelRef = React.useRef<monaco.editor.ITextModel | null>(null);
@@ -47,7 +158,7 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange, mod
   const filesRef = React.useRef(files);
   const runtimeRef = React.useRef(runtime);
   const [setupError, setSetupError] = React.useState<string | null>(null);
-  const resolvedModelUri = React.useMemo(() => monaco.Uri.parse(modelUri ?? DEFAULT_MODEL_URI), [modelUri]);
+  const resolvedModelUri = React.useMemo(() => monaco.Uri.parse(modelUri ?? ALGRAF_DEFAULT_MODEL_URI), [modelUri]);
 
   React.useEffect(() => {
     onChangeRef.current = onChange;
@@ -88,14 +199,14 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange, mod
     let contentDisposable: monaco.IDisposable | null = null;
     let contextKey: string | null = null;
 
-    setupAlgrafMonaco()
+    setupAlgrafMonaco({ ...setupOptions, languageId, themeName, theme })
       .then(() => {
         if (cancelled || !hostRef.current) {
           return;
         }
 
-        ensureAlgrafProviders();
-        model = monaco.editor.createModel(value, LANGUAGE_ID, resolvedModelUri);
+        ensureAlgrafProviders(languageId);
+        model = monaco.editor.createModel(value, languageId, resolvedModelUri);
         contextKey = model.uri.toString();
         editorContexts.set(contextKey, {
           runtime: () => runtimeRef.current,
@@ -103,7 +214,7 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange, mod
         });
         editor = monaco.editor.create(hostRef.current, {
           model,
-          theme: THEME_NAME,
+          theme: themeName,
           automaticLayout: true,
           bracketPairColorization: { enabled: true },
           cursorBlinking: "smooth",
@@ -119,6 +230,7 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange, mod
           smoothScrolling: true,
           tabSize: 4,
           wordWrap: "off",
+          ...options,
         });
 
         modelRef.current = model;
@@ -142,7 +254,7 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange, mod
         editorContexts.delete(contextKey);
       }
       if (model) {
-        monaco.editor.setModelMarkers(model, MARKER_OWNER, []);
+        monaco.editor.setModelMarkers(model, ALGRAF_MARKER_OWNER, []);
       }
       editor?.dispose();
       model?.dispose();
@@ -153,73 +265,67 @@ export function AlgrafEditor({ value, files, diagnostics, runtime, onChange, mod
         modelRef.current = null;
       }
     };
-  }, [resolvedModelUri]);
+  }, [languageId, options, resolvedModelUri, setupOptions, theme, themeName]);
 
   return (
-    <div className="algraf-editor-shell">
-      <div aria-label="Algraf source" className="algraf-editor" ref={hostRef} />
+    <div className={className}>
+      <div aria-label="Algraf source" className={editorClassName} ref={hostRef} />
       {setupError ? <div className="algraf-editor-error">Editor failed to load: {setupError}</div> : null}
     </div>
   );
 }
 
-function ensureAlgrafProviders(): void {
+function ensureAlgrafProviders(languageId: string): void {
   providerDisposable ??= registerAlgrafEditorProviders(
-    LANGUAGE_ID,
+    languageId,
     (model) => editorContexts.get(model.uri.toString())?.runtime() ?? null,
     (model) => editorContexts.get(model.uri.toString())?.files() ?? {},
   );
 }
 
-function setupAlgrafMonaco(): Promise<void> {
-  setupPromise ??= (async () => {
-    configureMonacoWorker();
-
-    if (!monaco.languages.getLanguages().some((language) => language.id === LANGUAGE_ID)) {
-      monaco.languages.register({
-        id: LANGUAGE_ID,
-        aliases: ["Algraf", "algraf"],
-        extensions: [".ag"],
-      });
-      monaco.languages.setLanguageConfiguration(LANGUAGE_ID, {
-        comments: {
-          lineComment: "//",
-        },
-        brackets: [
-          ["{", "}"],
-          ["[", "]"],
-          ["(", ")"],
-        ],
-        autoClosingPairs: [
-          { open: "{", close: "}" },
-          { open: "[", close: "]" },
-          { open: "(", close: ")" },
-          { open: '"', close: '"' },
-          { open: "`", close: "`" },
-        ],
-        surroundingPairs: [
-          { open: "{", close: "}" },
-          { open: "[", close: "]" },
-          { open: "(", close: ")" },
-          { open: '"', close: '"' },
-          { open: "`", close: "`" },
-        ],
-      });
-    }
-
-    defineAlgrafTheme();
-
-    await loadOnigasm(onigasmWasmUrl);
-    const registry = new Registry({
-      getGrammarDefinition: async () => ({
-        format: "json",
-        content: algrafGrammar,
-      }),
-    });
-    await wireTmGrammars(monaco as unknown as Parameters<typeof wireTmGrammars>[0], registry, new Map([[LANGUAGE_ID, SCOPE_NAME]]));
-  })();
-
+export function setupAlgrafMonaco(options: SetupAlgrafMonacoOptions = {}): Promise<void> {
+  setupPromise ??= setupAlgrafMonacoOnce(options).catch((error: unknown) => {
+    setupPromise = null;
+    throw error;
+  });
   return setupPromise;
+}
+
+export function registerAlgrafLanguage(options: SetupAlgrafMonacoOptions = {}): void {
+  const languageId = options.languageId ?? ALGRAF_LANGUAGE_ID;
+  if (monaco.languages.getLanguages().some((language) => language.id === languageId)) {
+    return;
+  }
+  monaco.languages.register({
+    id: languageId,
+    aliases: options.aliases ?? ["Algraf", "algraf"],
+    extensions: options.extensions ?? [".ag"],
+  });
+  monaco.languages.setLanguageConfiguration(
+    languageId,
+    (options.languageConfiguration ?? algrafLanguageConfiguration) as monaco.languages.LanguageConfiguration,
+  );
+}
+
+async function setupAlgrafMonacoOnce(options: SetupAlgrafMonacoOptions): Promise<void> {
+  if (options.configureWorker !== false) {
+    configureMonacoWorker();
+  }
+  registerAlgrafLanguage(options);
+  defineAlgrafTheme(options.themeName ?? ALGRAF_THEME_NAME, options.theme ?? defaultAlgrafTheme());
+
+  await loadOnigasmOnce(options.onigasmWasmUrl ?? onigasmWasmUrl);
+  const registry = new Registry({
+    getGrammarDefinition: async () => ({
+      format: "json",
+      content: options.grammar ?? algrafGrammar,
+    }),
+  });
+  await wireTmGrammars(
+    monaco as unknown as Parameters<typeof wireTmGrammars>[0],
+    registry,
+    new Map([[options.languageId ?? ALGRAF_LANGUAGE_ID, options.scopeName ?? ALGRAF_SCOPE_NAME]]),
+  );
 }
 
 function configureMonacoWorker(): void {
@@ -232,20 +338,49 @@ function configureMonacoWorker(): void {
   };
 }
 
-function defineAlgrafTheme(): void {
-  monaco.editor.defineTheme(THEME_NAME, {
+function loadOnigasmOnce(url: string): Promise<void> {
+  onigasmPromise ??= loadOnigasm(url).catch((error: unknown) => {
+    onigasmPromise = null;
+    throw error;
+  });
+  return onigasmPromise;
+}
+
+export function defineAlgrafTheme(
+  themeName = ALGRAF_THEME_NAME,
+  theme: monaco.editor.IStandaloneThemeData = defaultAlgrafTheme(),
+): void {
+  monaco.editor.defineTheme(themeName, theme);
+}
+
+export function defaultAlgrafTheme(): monaco.editor.IStandaloneThemeData {
+  return {
     base: "vs",
     inherit: true,
     rules: [
-      { token: "comment", foreground: "6c757d", fontStyle: "italic" },
-      { token: "string", foreground: "8a4b08" },
+      { token: "comment", foreground: "6b7280", fontStyle: "italic" },
+      { token: "string", foreground: "7a4a10" },
+      { token: "number", foreground: "b42318" },
+      { token: "keyword", foreground: "166f5c", fontStyle: "bold" },
+      { token: "function", foreground: "0f5f8f", fontStyle: "bold" },
+      { token: "property", foreground: "9a5512" },
+      { token: "variable", foreground: "355f8c" },
+      { token: "operator", foreground: "4f5b63" },
       { token: "constant.character.escape", foreground: "9f5b00", fontStyle: "bold" },
-      { token: "constant.numeric", foreground: "b23b2a" },
+      { token: "constant.numeric", foreground: "b42318" },
       { token: "constant.language", foreground: "6f42c1" },
       { token: "invalid.illegal", foreground: "b42318", fontStyle: "underline" },
+      { token: "keyword.control", foreground: "166f5c", fontStyle: "bold" },
       { token: "keyword.declaration", foreground: "166f5c", fontStyle: "bold" },
       { token: "keyword.operator.frame", foreground: "7a3f98", fontStyle: "bold" },
       { token: "keyword.operator", foreground: "4f5b63" },
+      { token: "support.function", foreground: "0f5f8f", fontStyle: "bold" },
+      { token: "support.function.aggregate", foreground: "0f5f8f", fontStyle: "bold" },
+      { token: "support.function.aggregate.pdl", foreground: "0f5f8f", fontStyle: "bold" },
+      { token: "support.function.scalar", foreground: "0f5f8f", fontStyle: "bold" },
+      { token: "support.function.scalar.pdl", foreground: "0f5f8f", fontStyle: "bold" },
+      { token: "support.function.window", foreground: "0f5f8f", fontStyle: "bold" },
+      { token: "support.function.window.pdl", foreground: "0f5f8f", fontStyle: "bold" },
       { token: "entity.name.function.geometry", foreground: "0f5f8f", fontStyle: "bold" },
       { token: "entity.name.function.stat", foreground: "7a3f98", fontStyle: "bold" },
       { token: "entity.name.function.source", foreground: "3c6b22", fontStyle: "bold" },
@@ -255,33 +390,33 @@ function defineAlgrafTheme(): void {
       { token: "variable.parameter.property", foreground: "9a5512" },
       { token: "variable.other.declaration", foreground: "145f52", fontStyle: "bold" },
       { token: "variable.other.quoted", foreground: "385f70" },
-      { token: "variable.other.column", foreground: "263a40" },
+      { token: "variable.other.column", foreground: "355f8c" },
       { token: "punctuation", foreground: "68757d" },
     ],
     colors: {
       "editor.background": "#ffffff",
-      "editor.foreground": "#182025",
-      "editor.lineHighlightBackground": "#f4f8f7",
+      "editor.foreground": "#171f24",
+      "editor.lineHighlightBackground": "#f4f7f6",
       "editorLineNumber.foreground": "#9aa6ac",
-      "editorLineNumber.activeForeground": "#2f7868",
+      "editorLineNumber.activeForeground": "#21695d",
       "editorCursor.foreground": "#1f6f62",
       "editor.selectionBackground": "#cfe8df",
       "editor.inactiveSelectionBackground": "#e8f2ee",
       "editorIndentGuide.background1": "#edf1f3",
       "editorIndentGuide.activeBackground1": "#c9d8d3",
     },
-  });
+  };
 }
 
-function setAlgrafMarkers(model: monaco.editor.ITextModel, diagnostics: AlgrafDiagnostic[]): void {
+export function setAlgrafMarkers(model: monaco.editor.ITextModel, diagnostics: AlgrafDiagnostic[]): void {
   monaco.editor.setModelMarkers(
     model,
-    MARKER_OWNER,
-    diagnostics.map((diagnostic) => diagnosticToMarker(model, diagnostic)),
+    ALGRAF_MARKER_OWNER,
+    diagnostics.map((diagnostic) => diagnosticToAlgrafMarker(model, diagnostic)),
   );
 }
 
-function diagnosticToMarker(
+export function diagnosticToAlgrafMarker(
   model: monaco.editor.ITextModel,
   diagnostic: AlgrafDiagnostic,
 ): monaco.editor.IMarkerData {
