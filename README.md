@@ -6,6 +6,8 @@
 
 [![Test Suite](https://github.com/williamcotton/algraf/workflows/CI/badge.svg)](https://github.com/williamcotton/algraf/actions/workflows/ci.yml)
 
+[Download VS Code VSIX](https://github.com/williamcotton/algraf/releases/latest/download/algraf-vscode-latest.vsix) | [Download browser WASM](https://github.com/williamcotton/algraf/releases/latest/download/algraf-wasm-latest.wasm)
+
 Algraf is a block-scoped, algebraic grammar-of-graphics DSL. You describe a
 chart declaratively in a `.ag` file, point it at CSV/TSV/JSON/SQLite/GeoJSON or
 native CLI Parquet data, or pipe caller-provided Arrow stream data from tools

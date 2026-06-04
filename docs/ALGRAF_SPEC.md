@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.59.0
+Status: 0.60.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.59.0 specification.
+This working copy is the 0.60.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9512,6 +9512,11 @@ bar layouts, facets, insets, statistics, theming, and tooling), each embedding
 live editors over the browser ABIs above. This is host UI and content only; the
 browser render and editor-service ABIs are unchanged.
 
+Version 0.60.0 publishes the VS Code extension `.vsix` and standalone browser
+`algraf.wasm` runtime as GitHub Release assets with both versioned filenames
+and `latest` aliases. This is repository packaging only; the language, renderer,
+editor services, browser demo, and WASM ABI are unchanged.
+
 The manual pointer/length ABI does not mean the shipped `.wasm` is free of
 `wasm-bindgen`-style imports. Dependencies compiled for
 `wasm32-unknown-unknown` MAY emit their own `wasm-bindgen` import calls; in
@@ -10613,7 +10618,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.57.5 | [`V0_57_5_PLAN.md`](V0_57_5_PLAN.md) | PDL and Unix-pipe interop for caller-provided data streams | Implemented |
 | 0.58.0 | [`V0_58_PLAN.md`](V0_58_PLAN.md) | Two-axis text label decluttering for dense direct annotations | Implemented |
 | 0.59.0 | [`V0_59_PLAN.md`](V0_59_PLAN.md) | CI artifacts for distributable editor and browser outputs | Implemented |
-| 0.60.0 | [`V0_60_PLAN.md`](V0_60_PLAN.md) | Next implementation theme selection | In progress |
+| 0.60.0 | [`V0_60_PLAN.md`](V0_60_PLAN.md) | GitHub Release assets for distributable editor and browser outputs | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
