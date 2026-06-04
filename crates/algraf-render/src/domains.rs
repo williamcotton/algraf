@@ -10,7 +10,8 @@ use algraf_data::{DataType, Table};
 use algraf_semantics::{FrameIr, GeometryIr, GeometryKind, PropertyKey};
 
 use crate::helpers::{
-    bar_layout, frame_axis_index, number_setting_opt, vector_column_name, BarLayout,
+    area_layout, bar_layout, frame_axis_index, number_setting_opt, vector_column_name, AreaLayout,
+    BarLayout,
 };
 use crate::scale::{cell_category, cell_f64, cell_micros};
 use crate::stats;
@@ -234,11 +235,7 @@ pub fn train_space_domains(
             // is zero, also suppress lower padding so the x-axis sits flush
             // against the area's bottom edge.
             GeometryKind::Area => {
-                let baseline = number_setting_opt(geometry, PropertyKey::Baseline).unwrap_or(0.0);
-                hints.y.add_numeric(baseline);
-                if baseline.abs() < f64::EPSILON {
-                    hints.y.include_zero();
-                }
+                train_area(frame, table, geometry, &mut hints);
             }
             GeometryKind::HLine => {
                 if let Some(y) = number_setting_opt(geometry, PropertyKey::Y) {
@@ -284,6 +281,66 @@ pub fn train_space_domains(
         }
     }
     hints
+}
+
+fn train_area(
+    frame: &FrameIr,
+    table: &dyn Table,
+    geometry: &GeometryIr,
+    hints: &mut SpaceDomainHints,
+) {
+    let baseline = number_setting_opt(geometry, PropertyKey::Baseline).unwrap_or(0.0);
+    hints.y.add_numeric(baseline);
+    if baseline.abs() < f64::EPSILON {
+        hints.y.include_zero();
+    }
+    if area_layout(geometry) == AreaLayout::Identity {
+        return;
+    }
+    let Some(x_axis) = frame_axis_index(frame, 0) else {
+        return;
+    };
+    let Some(y_col) = frame_axis_index(frame, 1).and_then(vector_column_name) else {
+        return;
+    };
+    let mut positive: HashMap<String, f64> = HashMap::new();
+    let mut negative: HashMap<String, f64> = HashMap::new();
+    for row in 0..table.row_count() {
+        let Some(key) = area_stack_key(x_axis, table, row) else {
+            continue;
+        };
+        let Some(value) = cell_f64(table, y_col, row) else {
+            continue;
+        };
+        if value >= 0.0 {
+            *positive.entry(key).or_insert(0.0) += value;
+        } else {
+            *negative.entry(key).or_insert(0.0) += value;
+        }
+    }
+    match area_layout(geometry) {
+        AreaLayout::Identity => {}
+        AreaLayout::Stack => {
+            for value in positive.values().chain(negative.values()) {
+                hints.y.add_numeric(baseline + *value);
+            }
+        }
+        AreaLayout::Fill => {
+            let has_positive = positive.values().any(|value| value.abs() > f64::EPSILON);
+            let has_negative = negative.values().any(|value| value.abs() > f64::EPSILON);
+            let min = if has_negative {
+                baseline - 1.0
+            } else {
+                baseline
+            };
+            let max = if has_positive {
+                baseline + 1.0
+            } else {
+                baseline
+            };
+            hints.y.set_numeric_bounds(min, max);
+        }
+    }
 }
 
 fn train_violin(
@@ -470,6 +527,22 @@ fn axis_group_key(frame: &FrameIr, table: &dyn Table, row: usize) -> Option<Stri
     }
 }
 
+fn area_stack_key(frame: &FrameIr, table: &dyn Table, row: usize) -> Option<String> {
+    match frame {
+        FrameIr::Vector(column) => match column.dtype {
+            DataType::Integer | DataType::Float => {
+                cell_f64(table, &column.name, row).map(|value| format!("{:016x}", value.to_bits()))
+            }
+            DataType::Temporal => {
+                cell_micros(table, &column.name, row).map(|value| value.to_string())
+            }
+            _ => cell_category(table, &column.name, row),
+        },
+        FrameIr::Nested { outer, .. } => area_stack_key(outer, table, row),
+        _ => Some(row.to_string()),
+    }
+}
+
 fn positional_value(
     geometry: &GeometryIr,
     property: PropertyKey,
@@ -497,4 +570,28 @@ fn positional_temporal(
         .iter()
         .find(|mapping| mapping.aesthetic == property)?;
     cell_micros(table, &mapping.column.name, row)
+}
+
+#[cfg(test)]
+mod tests {
+    use algraf_data::{read_csv_str, Table};
+    use algraf_semantics::analyze;
+    use algraf_syntax::parse;
+
+    use super::train_space_domains;
+
+    #[test]
+    fn area_stack_domain_training_uses_stacked_totals() {
+        let frame = read_csv_str("x,y,series\n1,2,A\n1,3,B\n2,4,A\n2,1,B\n")
+            .expect("csv")
+            .frame;
+        let parsed = parse(
+            "Chart(data: \"p.csv\") { Space(x * y) { Area(fill: series, layout: \"stack\") } }",
+        );
+        let ir = analyze(&parsed.syntax(), frame.schema()).ir.expect("ir");
+        let space = &ir.spaces[0];
+        let hints = train_space_domains(&space.frame, &frame, &space.geometries);
+
+        assert_eq!(hints.y.numeric_extent(), Some((0.0, 5.0)));
+    }
 }

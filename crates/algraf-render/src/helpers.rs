@@ -9,6 +9,13 @@ pub(crate) enum BarLayout {
     Fill,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AreaLayout {
+    Identity,
+    Stack,
+    Fill,
+}
+
 pub(crate) fn bar_layout(geometry: &GeometryIr) -> BarLayout {
     geometry
         .settings
@@ -20,6 +27,19 @@ pub(crate) fn bar_layout(geometry: &GeometryIr) -> BarLayout {
             _ => None,
         })
         .unwrap_or(BarLayout::Identity)
+}
+
+pub(crate) fn area_layout(geometry: &GeometryIr) -> AreaLayout {
+    geometry
+        .settings
+        .iter()
+        .find(|setting| setting.name == PropertyKey::Layout)
+        .and_then(|setting| match &setting.value {
+            SettingValue::String(value) if value == "stack" => Some(AreaLayout::Stack),
+            SettingValue::String(value) if value == "fill" => Some(AreaLayout::Fill),
+            _ => None,
+        })
+        .unwrap_or(AreaLayout::Identity)
 }
 
 pub(crate) fn frame_axis(frame: &FrameIr, axis: AxisSelectorIr) -> Option<&FrameIr> {

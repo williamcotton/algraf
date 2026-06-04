@@ -1,0 +1,11 @@
+Chart(data: "area_layouts.csv", width: 760, height: 420, title: "Trip mix by rider type") {
+    Theme(name: "minimal")
+    Scale(fill: rider_type, palette: "accent", label: "Rider type")
+    Scale(axis: y, breaks: [0, 0.5, 1], labels: ["0%", "50%", "100%"])
+    Guide(axis: x, label: "Day")
+    Guide(axis: y, label: "Share of trips")
+
+    Space(day * trips) {
+        Area(fill: rider_type, layout: "fill", baseline: 0, alpha: 0.55)
+    }
+}

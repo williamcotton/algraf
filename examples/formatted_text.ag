@@ -1,0 +1,11 @@
+Chart(data: "formatted_text.csv", width: 720, height: 440, title: "Revenue per dock") {
+    Theme(name: "minimal")
+    Scale(fill: zone, palette: "accent", label: "Zone")
+    Guide(axis: x, label: "Dock capacity")
+    Guide(axis: y, label: "Trips")
+
+    Space(capacity * trips) {
+        Point(fill: zone, size: 7, alpha: 0.86)
+        Text(label: revenue_per_dock, format: "$.2f", dx: 8, anchor: "start", size: 10)
+    }
+}

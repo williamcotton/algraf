@@ -1,0 +1,11 @@
+Chart(data: "categorical_domain_order.csv", width: 720, height: 420, title: "Metrics in declared order") {
+    Theme(name: "minimal")
+    Scale(axis: x, domain: ["Trips", "Revenue", "Stations", "Docks"])
+    Guide(axis: x, label: "Metric")
+    Guide(axis: y, label: "Value")
+
+    Space(metric * value) {
+        Bar(fill: "#4E79A7", alpha: 0.88)
+        Text(label: value, format: ".0f", dy: -8, anchor: "middle", size: 10)
+    }
+}

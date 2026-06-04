@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="440" viewBox="0 0 760 440" role="img" aria-label="Series-end labels">
+<title>Series-end labels</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="440" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Series-end labels</text>
+<rect class="algraf-plot-area" x="60" y="66" width="570" height="324" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="158.167" y1="66" x2="158.167" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="345" y1="66" x2="345" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="531.833" y1="66" x2="531.833" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="299.531" x2="630" y2="299.531" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="231.406" x2="630" y2="231.406" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="163.282" x2="630" y2="163.282" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="66" x2="60" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="256.333" y1="66" x2="256.333" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="433.667" y1="66" x2="433.667" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="630" y1="66" x2="630" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="333.593" x2="630" y2="333.593" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="265.468" x2="630" y2="265.468" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="197.344" x2="630" y2="197.344" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="129.22" x2="630" y2="129.22" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M60 183.719 L256.333 156.469 L433.667 122.407 L630 88.345" fill="none" stroke="#006BA4" stroke-width="3" opacity="1" />
+  <path d="M60 238.219 L256.333 251.844 L433.667 265.468 L630 272.281" fill="none" stroke="#FF800E" stroke-width="3" opacity="1" />
+  <path d="M60 306.343 L256.333 319.968 L433.667 340.405 L630 367.655" fill="none" stroke="#ABABAB" stroke-width="3" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="60" cy="183.719" r="5" fill="#006BA4" opacity="1" />
+  <circle cx="256.333" cy="156.469" r="5" fill="#006BA4" opacity="1" />
+  <circle cx="433.667" cy="122.407" r="5" fill="#006BA4" opacity="1" />
+  <circle cx="630" cy="88.345" r="5" fill="#006BA4" opacity="1" />
+  <circle cx="60" cy="238.219" r="5" fill="#FF800E" opacity="1" />
+  <circle cx="256.333" cy="251.844" r="5" fill="#FF800E" opacity="1" />
+  <circle cx="433.667" cy="265.468" r="5" fill="#FF800E" opacity="1" />
+  <circle cx="630" cy="272.281" r="5" fill="#FF800E" opacity="1" />
+  <circle cx="60" cy="306.343" r="5" fill="#ABABAB" opacity="1" />
+  <circle cx="256.333" cy="319.968" r="5" fill="#ABABAB" opacity="1" />
+  <circle cx="433.667" cy="340.405" r="5" fill="#ABABAB" opacity="1" />
+  <circle cx="630" cy="367.655" r="5" fill="#ABABAB" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-label">
+  <text x="638" y="88.345" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#006BA4" opacity="1">member</text>
+  <text x="638" y="272.281" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#FF800E" opacity="1">casual</text>
+  <text x="638" y="367.655" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#ABABAB" opacity="1">visitor</text>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="390" x2="630" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="60" y1="390" x2="60" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="60" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <line x1="256.333" y1="390" x2="256.333" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="256.333" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-02-01</text>
+  <line x1="433.667" y1="390" x2="433.667" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="433.667" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-03-01</text>
+  <line x1="630" y1="390" x2="630" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="630" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-04-01</text>
+  <text x="345" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Month</text>
+  <line x1="60" y1="66" x2="60" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="333.593" x2="60" y2="333.593" stroke="#333333" stroke-width="1" />
+  <text x="52" y="337.593" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0.2</text>
+  <line x1="55" y1="265.468" x2="60" y2="265.468" stroke="#333333" stroke-width="1" />
+  <text x="52" y="269.468" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0.3</text>
+  <line x1="55" y1="197.344" x2="60" y2="197.344" stroke="#333333" stroke-width="1" />
+  <text x="52" y="201.344" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0.4</text>
+  <line x1="55" y1="129.22" x2="60" y2="129.22" stroke="#333333" stroke-width="1" />
+  <text x="52" y="133.22" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0.5</text>
+  <text x="18.4" y="228" text-anchor="middle" transform="rotate(-90 18.4 228)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Share</text>
+</g>
+</svg>

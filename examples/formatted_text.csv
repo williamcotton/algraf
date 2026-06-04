@@ -1,0 +1,7 @@
+station,zone,capacity,trips,revenue_per_dock
+Central,Downtown,32,7,0.87
+Library,Downtown,28,6,0.94
+Market,Market,26,6,1.18
+Museum,Cultural,30,4,1.97
+River,Riverfront,22,4,2.35
+Harbor,Riverfront,16,2,1.43

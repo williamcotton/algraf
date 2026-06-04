@@ -152,7 +152,7 @@ pub(super) fn build_render_plan<'t>(
             let space_guides = ir.guides.with_overrides(&space.guides);
             let space_scales = merged_scales(&ir.scales, &space.scales);
             let clip_marks = space.view.has_zoom();
-            validate_scale_configs(&space.frame, &space_scales, space.span, diagnostics);
+            validate_scale_configs(&space.frame, table, &space_scales, space.span, diagnostics);
             if is_spatial_space(space) {
                 // A spatial space projects geographic coordinates into the plot;
                 // it has no planar axes or facets.

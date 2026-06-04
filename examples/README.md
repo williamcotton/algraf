@@ -1530,6 +1530,49 @@ Chart(data: "timeseries.csv", width: 760, height: 420) {
 
 ![area](area.svg)
 
+## Stacked area layout
+
+`Area(layout: "stack")` groups rows by `group` when present, otherwise by a
+categorical `fill` or `stroke` mapping. The y domain is trained from the
+stacked totals, so each polygon stays inside the plot area.
+
+```algraf
+Chart(data: "area_layouts.csv", width: 760, height: 420, title: "Trips by rider type") {
+    Theme(name: "minimal")
+    Scale(fill: rider_type, palette: "accent", label: "Rider type")
+    Guide(axis: x, label: "Day")
+    Guide(axis: y, label: "Trips")
+
+    Space(day * trips) {
+        Area(fill: rider_type, layout: "stack", baseline: 0, alpha: 0.42)
+    }
+}
+```
+
+![stacked_area](stacked_area.svg)
+
+## Fill-normalized area layout
+
+`Area(layout: "fill")` normalizes each x-position stack to a share-of-total
+axis. The y domain is locked to the normalized range, independent of the raw
+counts in the source table.
+
+```algraf
+Chart(data: "area_layouts.csv", width: 760, height: 420, title: "Trip mix by rider type") {
+    Theme(name: "minimal")
+    Scale(fill: rider_type, palette: "accent", label: "Rider type")
+    Scale(axis: y, breaks: [0, 0.5, 1], labels: ["0%", "50%", "100%"])
+    Guide(axis: x, label: "Day")
+    Guide(axis: y, label: "Share of trips")
+
+    Space(day * trips) {
+        Area(fill: rider_type, layout: "fill", baseline: 0, alpha: 0.55)
+    }
+}
+```
+
+![fill_area](fill_area.svg)
+
 ## Categorical strip / barcode
 
 A categorical x paired with a continuous y and a low-alpha `Point` makes
@@ -1985,6 +2028,53 @@ Chart(data: "station_throughput.csv", width: 760, height: 470, title: "Station t
 
 ![station_throughput](station_throughput.svg)
 
+## Numeric text formatting
+
+`Text(format: ...)` formats numeric label columns with deterministic,
+locale-independent output. This keeps data preparation focused on values while
+Algraf handles the display form.
+
+```algraf
+Chart(data: "formatted_text.csv", width: 720, height: 440, title: "Revenue per dock") {
+    Theme(name: "minimal")
+    Scale(fill: zone, palette: "accent", label: "Zone")
+    Guide(axis: x, label: "Dock capacity")
+    Guide(axis: y, label: "Trips")
+
+    Space(capacity * trips) {
+        Point(fill: zone, size: 7, alpha: 0.86)
+        Text(label: revenue_per_dock, format: "$.2f", dx: 8, anchor: "start", size: 10)
+    }
+}
+```
+
+![formatted_text](formatted_text.svg)
+
+## Terminal series labels
+
+`Label` places one text mark per group at the physical x-axis start or end.
+It is useful for direct labels on line endings without preparing a helper label
+table.
+
+```algraf
+Chart(data: "terminal_labels.csv", width: 760, height: 440, marginRight: 130, title: "Series-end labels") {
+    Theme(name: "minimal")
+    Scale(stroke: segment, palette: "accent")
+    Scale(fill: segment, palette: "accent")
+    Guide(axis: x, label: "Month")
+    Guide(axis: y, label: "Share")
+    Guide(legend: false)
+
+    Space(month * share) {
+        Line(group: segment, stroke: segment, strokeWidth: 3)
+        Point(fill: segment, size: 5)
+        Label(label: segment, group: segment, at: "end", dx: 8, anchor: "start", fill: segment, size: 11)
+    }
+}
+```
+
+![terminal_labels](terminal_labels.svg)
+
 ## Per-row label offsets
 
 When you want full control over where each label sits rather than automatic decluttering, `dx` and `dy` can take a **column** instead of a literal number, so every label is offset by its own value from the data. Here a `labeldy` column lifts some labels above their point and drops others below, keeping each clear of its marker.
@@ -2216,6 +2306,28 @@ Chart(data: "penguins.csv", width: 720, height: 480) {
 ```
 
 ![scale_domain](scale_domain.svg)
+
+## Declared categorical domain order
+
+String-array `domain:` values on position scales declare categorical axis order.
+Categories with no rows still reserve a band, and data categories not listed in
+the declaration are appended after the declared values.
+
+```algraf
+Chart(data: "categorical_domain_order.csv", width: 720, height: 420, title: "Metrics in declared order") {
+    Theme(name: "minimal")
+    Scale(axis: x, domain: ["Trips", "Revenue", "Stations", "Docks"])
+    Guide(axis: x, label: "Metric")
+    Guide(axis: y, label: "Value")
+
+    Space(metric * value) {
+        Bar(fill: "#4E79A7", alpha: 0.88)
+        Text(label: value, format: ".0f", dy: -8, anchor: "middle", size: 10)
+    }
+}
+```
+
+![categorical_domain_order](categorical_domain_order.svg)
 
 ## Visual coordinate zoom
 

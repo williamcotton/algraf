@@ -770,7 +770,7 @@ fn build_axis(
         FrameIr::Vector(col) => Some(build_vector_axis(col, table, range, hints, config)),
         FrameIr::Nested { outer, inner } => {
             if let (FrameIr::Vector(o), FrameIr::Vector(i)) = (outer.as_ref(), inner.as_ref()) {
-                let outer_cats = categorical_domain(table, &o.name);
+                let outer_cats = ordered_categorical_domain(table, &o.name, config);
                 let inner_cats = categorical_domain(table, &i.name);
                 let mut outer_band = BandScale::new(outer_cats, range);
                 if let Some(hints) = hints {
@@ -939,7 +939,7 @@ fn build_vector_axis(
             }
         }
         _ => {
-            let cats = categorical_domain(table, &col.name);
+            let cats = ordered_categorical_domain(table, &col.name, config);
             let mut scale = BandScale::new(cats, range);
             if let Some(hints) = hints {
                 if let Some(pad) = hints.band_pad_inner() {
@@ -960,10 +960,29 @@ fn build_vector_axis(
     }
 }
 
+fn ordered_categorical_domain(
+    table: &dyn Table,
+    column: &str,
+    config: &AxisScaleConfig,
+) -> Vec<String> {
+    let data_categories = categorical_domain(table, column);
+    let Some(declared) = &config.categorical_domain else {
+        return data_categories;
+    };
+    let mut categories = declared.clone();
+    for category in data_categories {
+        if !categories.contains(&category) {
+            categories.push(category);
+        }
+    }
+    categories
+}
+
 #[derive(Debug, Clone, Default)]
 struct AxisScaleConfig {
     scale_type: Option<ScaleTypeIr>,
     domain: Option<[Option<f64>; 2]>,
+    categorical_domain: Option<Vec<String>>,
     breaks: Option<Vec<f64>>,
     break_labels: Option<Vec<String>>,
     expansion: Option<ScaleExpansionIr>,
@@ -1049,6 +1068,9 @@ fn axis_config(
             }
             if scale.domain.is_some() {
                 config.domain = scale.domain;
+            }
+            if scale.categorical_domain.is_some() {
+                config.categorical_domain = scale.categorical_domain.clone();
             }
             if scale.breaks.is_some() {
                 config.breaks = scale.breaks.clone();

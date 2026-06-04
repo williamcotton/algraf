@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use algraf_semantics::{GeometryIr, PropertyKey};
+use algraf_semantics::{AestheticMapping, GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_for_row, number_setting};
 use crate::guide::estimate_text_width;
 use crate::helpers::{bool_setting, string_setting};
 use crate::layout::Rect;
 use crate::render::TextAnchor;
-use crate::scale::{cell_category, cell_micros};
+use crate::scale::{categorical_domain, cell_category, cell_f64, cell_micros};
 use crate::sink::{MarkSink, TextRun};
 use algraf_data::Table;
 use chrono::DateTime;
@@ -53,6 +53,7 @@ pub(super) fn render(sink: &mut dyn MarkSink, geo: &GeometryIr, ctx: GeometryRen
     let label_literal = string_setting(geo, PropertyKey::Label);
     // An off-axis `timeFormat:` (validated and resolved to a chrono pattern in
     // semantics) formats a temporal `label:` column (spec §19.4).
+    let numeric_format = string_setting(geo, PropertyKey::Format);
     let time_format = string_setting(geo, PropertyKey::TimeFormat);
     let literal_positioned_annotation = label_mapping.is_none()
         && label_literal.is_some()
@@ -88,7 +89,13 @@ pub(super) fn render(sink: &mut dyn MarkSink, geo: &GeometryIr, ctx: GeometryRen
             continue;
         };
         let text = if let Some(mapping) = label_mapping {
-            match format_label_cell(table, &mapping.column.name, row, time_format.as_deref()) {
+            match format_label_cell(
+                table,
+                &mapping.column.name,
+                row,
+                numeric_format.as_deref(),
+                time_format.as_deref(),
+            ) {
                 Some(s) => s,
                 None => continue,
             }
@@ -124,6 +131,141 @@ pub(super) fn render(sink: &mut dyn MarkSink, geo: &GeometryIr, ctx: GeometryRen
     }
 }
 
+/// Render a `Label` geometry: draw one terminal label per group at the
+/// physical x-axis start or end (spec §14.16).
+pub(super) fn render_terminal_label(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    ctx: GeometryRenderContext<'_>,
+) {
+    let space = ctx.space;
+    let table = ctx.table;
+    let theme = ctx.theme;
+    let scales = ctx.scales;
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
+    let size = number_setting(geo, PropertyKey::Size, theme.font_size);
+    let at_start = matches!(
+        string_setting(geo, PropertyKey::At).as_deref(),
+        Some("start")
+    );
+    let anchor = match string_setting(geo, PropertyKey::Anchor).as_deref() {
+        Some("start") => TextAnchor::Start,
+        Some("end") => TextAnchor::End,
+        _ => TextAnchor::Middle,
+    };
+    let numeric_format = string_setting(geo, PropertyKey::Format);
+    let label_mapping = geo
+        .mappings
+        .iter()
+        .find(|m| m.aesthetic == PropertyKey::Label);
+    let label_literal = string_setting(geo, PropertyKey::Label);
+    let row_list = render_rows(table, ctx.rows);
+
+    for group_rows in label_groups(geo, label_mapping, table, row_list) {
+        let Some((row, x, y)) = endpoint_row(space, table, &group_rows, at_start) else {
+            continue;
+        };
+        let text = if let Some(mapping) = label_mapping {
+            match format_label_cell(
+                table,
+                &mapping.column.name,
+                row,
+                numeric_format.as_deref(),
+                None,
+            ) {
+                Some(s) => s,
+                None => continue,
+            }
+        } else if let Some(s) = label_literal.clone() {
+            s
+        } else {
+            continue;
+        };
+        let dx = number_for_row(geo, PropertyKey::Dx, table, row, 0.0);
+        let dy = number_for_row(geo, PropertyKey::Dy, table, row, 0.0);
+        let color = fill
+            .resolve(table, row)
+            .unwrap_or_else(|| theme.text_color.clone());
+        emit_label(
+            sink,
+            &PlacedLabel {
+                x: x + dx,
+                y: y + dy,
+                size,
+                color,
+                text,
+            },
+            anchor,
+            &theme.font_family,
+            alpha,
+        );
+    }
+}
+
+fn label_groups(
+    geo: &GeometryIr,
+    label_mapping: Option<&AestheticMapping>,
+    table: &dyn Table,
+    rows: Vec<usize>,
+) -> Vec<Vec<usize>> {
+    if let Some(mapping) = geo
+        .mappings
+        .iter()
+        .find(|mapping| mapping.aesthetic == PropertyKey::Group)
+    {
+        return rows_by_category(table, &mapping.column.name, &rows);
+    }
+    if let Some(mapping) = label_mapping {
+        return rows_by_category(table, &mapping.column.name, &rows);
+    }
+    vec![rows]
+}
+
+fn rows_by_category(table: &dyn Table, column: &str, rows: &[usize]) -> Vec<Vec<usize>> {
+    categorical_domain(table, column)
+        .into_iter()
+        .map(|category| {
+            rows.iter()
+                .copied()
+                .filter(|&row| {
+                    cell_category(table, column, row).as_deref() == Some(category.as_str())
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn endpoint_row(
+    space: &crate::space::ScaledSpace,
+    table: &dyn Table,
+    rows: &[usize],
+    at_start: bool,
+) -> Option<(usize, f64, f64)> {
+    let mut endpoint: Option<(usize, f64, f64)> = None;
+    for &row in rows {
+        let (Some(x), Some(y)) = (space.resolve_x(table, row), space.resolve_y(table, row)) else {
+            continue;
+        };
+        endpoint = match endpoint {
+            None => Some((row, x, y)),
+            Some((current_row, current_x, current_y)) => {
+                let should_replace = if at_start {
+                    x < current_x
+                } else {
+                    x > current_x
+                };
+                if should_replace {
+                    Some((row, x, y))
+                } else {
+                    Some((current_row, current_x, current_y))
+                }
+            }
+        };
+    }
+    endpoint
+}
+
 /// Resolve a label cell to text. When a chrono `pattern` is supplied and the
 /// cell carries a temporal value, format the UTC instant with that pattern;
 /// otherwise fall back to the cell's categorical string (spec §19.4).
@@ -131,8 +273,12 @@ fn format_label_cell(
     table: &dyn Table,
     column: &str,
     row: usize,
+    numeric_format: Option<&str>,
     pattern: Option<&str>,
 ) -> Option<String> {
+    if let Some(format) = numeric_format {
+        return cell_f64(table, column, row).map(|value| format_numeric(value, format));
+    }
     if let Some(pattern) = pattern {
         if let Some(micros) = cell_micros(table, column, row) {
             return DateTime::from_timestamp_micros(micros)
@@ -140,6 +286,34 @@ fn format_label_cell(
         }
     }
     cell_category(table, column, row)
+}
+
+fn format_numeric(value: f64, format: &str) -> String {
+    match format {
+        ".0f" => normalize_negative_zero(format!("{value:.0}")),
+        ".1f" => normalize_negative_zero(format!("{value:.1}")),
+        ".2f" => normalize_negative_zero(format!("{value:.2}")),
+        "$.2f" => {
+            let body = normalize_negative_zero(format!("{value:.2}"));
+            if let Some(stripped) = body.strip_prefix('-') {
+                format!("-${stripped}")
+            } else {
+                format!("${body}")
+            }
+        }
+        ".0%" => normalize_negative_zero(format!("{:.0}", value * 100.0)) + "%",
+        ".1%" => normalize_negative_zero(format!("{:.1}", value * 100.0)) + "%",
+        ".2%" => normalize_negative_zero(format!("{:.2}", value * 100.0)) + "%",
+        _ => value.to_string(),
+    }
+}
+
+fn normalize_negative_zero(text: String) -> String {
+    if text == "-0" || text.starts_with("-0.") && text[3..].chars().all(|ch| ch == '0') {
+        text[1..].to_string()
+    } else {
+        text
+    }
 }
 
 fn emit_label(
@@ -184,7 +358,7 @@ fn declutter_vertical(labels: &mut [PlacedLabel], plot: Rect) {
             continue;
         }
         let gap = labels[indices[0]].size * 1.2;
-        // Stable order by target y, breaking ties by original index.
+        // Stable target-y sorting, breaking ties by original index.
         let mut order = indices.clone();
         order.sort_by(|&a, &b| labels[a].y.total_cmp(&labels[b].y).then_with(|| a.cmp(&b)));
 

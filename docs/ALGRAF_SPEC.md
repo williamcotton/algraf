@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.60.0
+Status: 0.61.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.60.0 specification.
+This working copy is the 0.61.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -5189,6 +5189,8 @@ Syntax:
 
 ```ag
 Area(baseline: 0, fill: series, alpha: 0.25)
+Area(fill: series, layout: "stack")
+Area(fill: series, layout: "fill")
 ```
 
 Supported spaces:
@@ -5207,7 +5209,27 @@ alpha
 
 group
 
+layout (`"identity"`, `"stack"`, or `"fill"`; default `"identity"`)
+
 Area MUST sort by x within group.
+
+`Area(layout: "identity")` fills between each group's y values and the
+`baseline`.
+
+`Area(layout: "stack")` groups rows by explicit `group` when present, otherwise
+by categorical `fill` or categorical `stroke`, and renders one polygon per
+group over cumulative y ranges. Positive and negative values stack separately
+around the baseline. Scale-domain training MUST include stacked lower and upper
+bounds.
+
+`Area(layout: "fill")` uses the same grouping and positive/negative separation
+as `"stack"`, but normalizes each physical x-position stack to share of total.
+The normalized value axis MUST be locked to the observed normalized range
+around the baseline (for all-positive stacks, baseline through baseline + 1).
+Raw y values MUST NOT expand the normalized axis after fill layout is selected.
+
+Grouped Area layouts require a numeric y axis and a usable grouping aesthetic;
+otherwise semantic analysis MUST emit `E1302`.
 
 ### 14.15 Tile
 
@@ -5296,6 +5318,13 @@ force layout are not provided in this version.
 
 Text also accepts `fill`, `alpha`, and `size`.
 
+`format` — string literal naming a deterministic numeric display format for a
+numeric `label:` column. Supported formats are `.0f`, `.1f`, `.2f`, `$.2f`,
+`.0%`, `.1%`, and `.2%`. Formatting MUST be locale-independent and identical
+across SVG and draw-list output. `format` requires a numeric label column; using
+it with a non-numeric label, a literal-only label, an unknown format string, or
+with `timeFormat` MUST emit `E1908`.
+
 `timeFormat` (since 0.31) — string literal naming a temporal format (the §19.4
 named or custom chrono-style patterns). When `label:` maps a temporal column,
 each label renders that column's UTC instant with the format instead of its
@@ -5304,8 +5333,32 @@ format, it emits `E1907`.
 
 Label boxes are expressed as `Rect` plus `Text` in version 0.36.0. The rectangle
 bounds MUST be data columns or literals supplied by the author. Auto-sized
-padded labels are deferred until the renderer has text measurement semantics;
-there is no `Label` geometry in this version.
+padded labels are deferred until the renderer has text measurement semantics.
+
+#### 14.16.1 Terminal Label
+
+Syntax:
+
+```ag
+Label(label: series, at: "end", group: series, dx: 8, fill: series)
+```
+
+Supported spaces:
+
+2D Cartesian
+
+`Label` renders one text mark per group at the start or end row in physical
+x-axis order. `at` accepts `"start"` or `"end"` and defaults to `"end"`.
+
+If `group` is present, it defines the terminal-label groups. If `group` is
+absent and `label:` maps a column, rows are grouped by that label column. If
+both are absent, one terminal label is emitted for the layer.
+
+`Label` accepts `label`, `at`, `group`, `fill`, `alpha`, `size`, `anchor`,
+`dx`, `dy`, and `format`. Styling, numeric formatting, and literal/mapped label
+resolution follow `Text` where applicable. `Label` requires x and y axes;
+unsupported `at` values MUST emit `E1204`, and a missing two-dimensional
+Cartesian position space MUST emit `E1302`.
 
 ### 14.17 HLine
 
@@ -6740,6 +6793,22 @@ is reserved for a `null` bound used where data inference is not meaningful.)
 Version 0.6.0 MUST support a numeric output `range: [lo, hi]` on `size` and
 `strokeWidth` scales, mapping the trained domain into that pixel range
 (spec §16.8). Either bound MAY be `null` to use the default range end.
+
+Version 0.61.0 MUST support string-array `domain:` values on position-axis
+scales for categorical and nested-band axes:
+
+```ag
+Scale(axis: x, domain: ["Trips", "Revenue", "Stations"])
+```
+
+Declared categories MUST lead the trained categorical domain in source order.
+Declared categories with no matching rows MUST still reserve bands. Observed
+data categories not listed in the declaration MUST be appended in first-
+appearance order and SHOULD emit `R0004` so authors know the declared order was
+incomplete. Empty string domains and duplicate declared categories MUST emit
+`E1604`. String-array domains on aesthetic scales MUST emit `E1606`; string-
+array domains that cannot apply to a continuous position axis MUST emit `R0004`
+at render time.
 
 Algraf does not expose a visible no-op `Blank` mark in version 0.36.0. The
 limit-anchor use case MUST be expressed with explicit scale domains, for
@@ -9942,7 +10011,7 @@ missing `=>`/stray separator in a map literal)
 
 `E1907 invalid temporal output format`
 
-`E1908 reserved`
+`E1908 invalid numeric text format`
 
 `E1909 invalid polar startAngle`
 
@@ -10619,6 +10688,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.58.0 | [`V0_58_PLAN.md`](V0_58_PLAN.md) | Two-axis text label decluttering for dense direct annotations | Implemented |
 | 0.59.0 | [`V0_59_PLAN.md`](V0_59_PLAN.md) | CI artifacts for distributable editor and browser outputs | Implemented |
 | 0.60.0 | [`V0_60_PLAN.md`](V0_60_PLAN.md) | GitHub Release assets for distributable editor and browser outputs | Implemented |
+| 0.61.0 | [`V0_61_PLAN.md`](V0_61_PLAN.md) | Story-chart expression: stacked/fill Area, categorical axis order, numeric Text format, and terminal Label geometry | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

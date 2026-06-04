@@ -1,10 +1,12 @@
+use std::collections::HashMap;
 use std::fmt::Write;
 
 use algraf_core::{codes, Diagnostic};
 use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting, number_spec, ColorSpec, NumberSpec};
-use crate::helpers::{bool_setting, number_setting_opt, string_setting};
+use crate::helpers::{area_layout, bool_setting, number_setting_opt, string_setting, AreaLayout};
+use crate::scale::cell_f64;
 use crate::sink::{Dash, Fill, MarkSink, Paint, Stroke};
 use crate::stats;
 use crate::svg::num;
@@ -439,17 +441,7 @@ pub(super) fn render_area(
     let alpha = number_setting(geo, PropertyKey::Alpha, 0.4);
 
     let row_list = render_rows(table, rows);
-    let groups = match &fill {
-        ColorSpec::Categorical { .. } | ColorSpec::Binned { .. } => {
-            grouped_rows_by_color(&fill, table, row_list)
-        }
-        _ => match &stroke {
-            ColorSpec::Categorical { .. } | ColorSpec::Binned { .. } => {
-                grouped_rows_by_color(&stroke, table, row_list)
-            }
-            _ => vec![row_list],
-        },
-    };
+    let groups = area_groups(geo, &fill, &stroke, table, row_list.clone());
 
     // Polar Area: a closed polygon through the angle-ordered vertices (radar),
     // filled directly rather than down to a baseline (spec §16.16).
@@ -479,6 +471,65 @@ pub(super) fn render_area(
     let Some(baseline_y) = space.map_y(baseline_value) else {
         return;
     };
+    let layout = area_layout(geo);
+
+    if layout != AreaLayout::Identity {
+        let Some(value_col) = space.y_axis().and_then(|axis| axis.data_column()) else {
+            return;
+        };
+        let totals = if layout == AreaLayout::Fill {
+            area_totals_by_x(space, table, &row_list, value_col)
+        } else {
+            HashMap::new()
+        };
+        let mut positive: HashMap<String, f64> = HashMap::new();
+        let mut negative: HashMap<String, f64> = HashMap::new();
+        for group_rows in groups {
+            let mut points: Vec<(f64, f64, f64, usize)> = Vec::new();
+            for &row in &group_rows {
+                let Some(x) = space.resolve_x(table, row) else {
+                    continue;
+                };
+                let Some(mut value) = cell_f64(table, value_col, row) else {
+                    continue;
+                };
+                let key = area_x_key(x);
+                if layout == AreaLayout::Fill {
+                    let total = if value >= 0.0 {
+                        totals
+                            .get(&key)
+                            .map(|(positive, _)| *positive)
+                            .unwrap_or(0.0)
+                    } else {
+                        totals
+                            .get(&key)
+                            .map(|(_, negative)| negative.abs())
+                            .unwrap_or(0.0)
+                    };
+                    if total <= f64::EPSILON {
+                        continue;
+                    }
+                    value /= total;
+                }
+                let accumulator = if value >= 0.0 {
+                    positive.entry(key).or_insert(0.0)
+                } else {
+                    negative.entry(key).or_insert(0.0)
+                };
+                let lower_value = baseline_value + *accumulator;
+                *accumulator += value;
+                let upper_value = baseline_value + *accumulator;
+                let (Some(lower), Some(upper)) =
+                    (space.map_y(lower_value), space.map_y(upper_value))
+                else {
+                    continue;
+                };
+                points.push((x, lower, upper, row));
+            }
+            emit_area_polygon(sink, table, &points, &fill, &stroke, stroke_width, alpha);
+        }
+        return;
+    };
 
     for group_rows in groups {
         let mut points: Vec<(f64, f64, usize)> = group_rows
@@ -496,30 +547,119 @@ pub(super) fn render_area(
         }
         points.sort_by(|a, b| a.0.total_cmp(&b.0));
 
-        let mut d = String::new();
-        for (i, (x, y, _)) in points.iter().enumerate() {
-            let cmd = if i == 0 { 'M' } else { 'L' };
-            let _ = write!(d, "{cmd}{} {} ", num(*x), num(*y));
-        }
-        let last_x = points.last().unwrap().0;
-        let first_x = points.first().unwrap().0;
-        let _ = write!(d, "L{} {} ", num(last_x), num(baseline_y));
-        let _ = write!(d, "L{} {} ", num(first_x), num(baseline_y));
-        d.push('Z');
-
-        let first_row = points[0].2;
-        let fill_color = fill
-            .resolve(table, first_row)
-            .unwrap_or_else(|| DEFAULT_FILL.to_string());
-        sink.path(
-            d.trim_end(),
-            &Paint {
-                fill: Fill::Color(fill_color),
-                stroke: stroke_style(&stroke, stroke_width, table, first_row),
-                opacity: Some(alpha),
-            },
+        let area_points = points
+            .into_iter()
+            .map(|(x, y, row)| (x, baseline_y, y, row))
+            .collect::<Vec<_>>();
+        emit_area_polygon(
+            sink,
+            table,
+            &area_points,
+            &fill,
+            &stroke,
+            stroke_width,
+            alpha,
         );
     }
+}
+
+fn area_groups(
+    geo: &GeometryIr,
+    fill: &ColorSpec,
+    stroke: &ColorSpec,
+    table: &dyn algraf_data::Table,
+    rows: Vec<usize>,
+) -> Vec<Vec<usize>> {
+    if geo
+        .mappings
+        .iter()
+        .any(|mapping| mapping.aesthetic == PropertyKey::Group)
+    {
+        return grouped_rows(geo, stroke, table, rows)
+            .into_iter()
+            .map(|(_, rows)| rows)
+            .collect();
+    }
+
+    match fill {
+        ColorSpec::Categorical { .. } | ColorSpec::Binned { .. } => {
+            grouped_rows_by_color(fill, table, rows)
+        }
+        _ => match stroke {
+            ColorSpec::Categorical { .. } | ColorSpec::Binned { .. } => {
+                grouped_rows_by_color(stroke, table, rows)
+            }
+            _ => vec![rows],
+        },
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_area_polygon(
+    sink: &mut dyn MarkSink,
+    table: &dyn algraf_data::Table,
+    points: &[(f64, f64, f64, usize)],
+    fill: &ColorSpec,
+    stroke: &ColorSpec,
+    stroke_width: f64,
+    alpha: f64,
+) {
+    if points.len() < 2 {
+        return;
+    }
+    let mut points = points.to_vec();
+    points.sort_by(|a, b| a.0.total_cmp(&b.0));
+
+    let mut d = String::new();
+    for (i, (x, _, upper, _)) in points.iter().enumerate() {
+        let cmd = if i == 0 { 'M' } else { 'L' };
+        let _ = write!(d, "{cmd}{} {} ", num(*x), num(*upper));
+    }
+    for (x, lower, _, _) in points.iter().rev() {
+        let _ = write!(d, "L{} {} ", num(*x), num(*lower));
+    }
+    d.push('Z');
+
+    let first_row = points[0].3;
+    let fill_color = fill
+        .resolve(table, first_row)
+        .unwrap_or_else(|| DEFAULT_FILL.to_string());
+    sink.path(
+        d.trim_end(),
+        &Paint {
+            fill: Fill::Color(fill_color),
+            stroke: stroke_style(stroke, stroke_width, table, first_row),
+            opacity: Some(alpha),
+        },
+    );
+}
+
+fn area_totals_by_x(
+    space: &crate::space::ScaledSpace,
+    table: &dyn algraf_data::Table,
+    rows: &[usize],
+    value_col: &str,
+) -> HashMap<String, (f64, f64)> {
+    let mut totals = HashMap::new();
+    for &row in rows {
+        let Some(x) = space.resolve_x(table, row) else {
+            continue;
+        };
+        let Some(value) = cell_f64(table, value_col, row) else {
+            continue;
+        };
+        let entry = totals.entry(area_x_key(x)).or_insert((0.0, 0.0));
+        if value >= 0.0 {
+            entry.0 += value;
+        } else {
+            entry.1 += value;
+        }
+    }
+    totals
+}
+
+fn area_x_key(x: f64) -> String {
+    format!("{:016x}", x.to_bits())
 }
 
 #[cfg(test)]

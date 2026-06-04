@@ -1,7 +1,9 @@
 use algraf_core::{codes, Diagnostic};
+use algraf_data::{DataType, Table};
 use algraf_semantics::{AxisSelectorIr, FrameIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, ThemeIr};
 
 use crate::helpers::{frame_axis, vector_column};
+use crate::scale::categorical_domain;
 use crate::theme::Theme;
 
 /// Resolve a per-space theme, applying space-local overrides on top of the base.
@@ -39,6 +41,7 @@ pub(super) fn merged_scales(chart_scales: &[ScaleIr], space_scales: &[ScaleIr]) 
 
 pub(super) fn validate_scale_configs(
     frame: &FrameIr,
+    table: &dyn Table,
     scales: &[ScaleIr],
     span: algraf_core::Span,
     diagnostics: &mut Vec<Diagnostic>,
@@ -50,6 +53,9 @@ pub(super) fn validate_scale_configs(
         let Some(axis_frame) = frame_axis(frame, *axis) else {
             continue;
         };
+        if let Some(declared) = &scale.categorical_domain {
+            validate_categorical_domain(scale, axis_frame, table, declared, diagnostics);
+        }
         if matches!(
             scale.scale_type,
             Some(ScaleTypeIr::Log10) | Some(ScaleTypeIr::Sqrt)
@@ -113,5 +119,49 @@ pub(super) fn validate_scale_configs(
             "scale declarations could not be matched to this space",
             span,
         ));
+    }
+}
+
+fn validate_categorical_domain(
+    scale: &ScaleIr,
+    axis_frame: &FrameIr,
+    table: &dyn Table,
+    declared: &[String],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let Some(column) = categorical_axis_column(axis_frame) else {
+        diagnostics.push(Diagnostic::warning(
+            codes::R0004,
+            "string-array domain applies only to categorical position axes",
+            scale.span,
+        ));
+        return;
+    };
+    let observed = categorical_domain(table, &column.name);
+    let appended: Vec<String> = observed
+        .into_iter()
+        .filter(|category| !declared.contains(category))
+        .collect();
+    if !appended.is_empty() {
+        diagnostics.push(Diagnostic::warning(
+            codes::R0004,
+            format!(
+                "data categories not listed in explicit domain were appended: {}",
+                appended.join(", ")
+            ),
+            scale.span,
+        ));
+    }
+}
+
+fn categorical_axis_column(frame: &FrameIr) -> Option<&algraf_semantics::ColumnRef> {
+    match frame {
+        FrameIr::Vector(column)
+            if column.dtype == DataType::Unknown || column.dtype.is_categorical() =>
+        {
+            Some(column)
+        }
+        FrameIr::Nested { outer, .. } => categorical_axis_column(outer),
+        _ => None,
     }
 }

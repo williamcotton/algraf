@@ -1,0 +1,14 @@
+Chart(data: "terminal_labels.csv", width: 760, height: 440, marginRight: 130, title: "Series-end labels") {
+    Theme(name: "minimal")
+    Scale(stroke: segment, palette: "accent")
+    Scale(fill: segment, palette: "accent")
+    Guide(axis: x, label: "Month")
+    Guide(axis: y, label: "Share")
+    Guide(legend: false)
+
+    Space(month * share) {
+        Line(group: segment, stroke: segment, strokeWidth: 3)
+        Point(fill: segment, size: 5)
+        Label(label: segment, group: segment, at: "end", dx: 8, anchor: "start", fill: segment, size: 11)
+    }
+}

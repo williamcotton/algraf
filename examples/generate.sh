@@ -45,6 +45,8 @@ charts=(
     reference
     bar_count
     area
+    stacked_area
+    fill_area
     labels
     text
     segment
@@ -53,6 +55,7 @@ charts=(
     log_scale
     sqrt_scale
     scale_domain
+    categorical_domain_order
     coordinate_zoom
     fixed_aspect
     facet_grid
@@ -97,6 +100,8 @@ charts=(
     scale_label
     satisfaction_slope
     station_throughput
+    formatted_text
+    terminal_labels
     dumbbell
     uncertainty_intervals
     horizontal_intervals

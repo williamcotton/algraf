@@ -72,6 +72,7 @@ pub(crate) fn render(
         GeometryKind::Rug => annotation::render_rug(sink, geo, ctx),
         GeometryKind::Area => line::render_area(sink, geo, ctx),
         GeometryKind::Text => text::render(sink, geo, ctx),
+        GeometryKind::Label => text::render_terminal_label(sink, geo, ctx),
         GeometryKind::Image => image::render(sink, geo, ctx, diagnostics),
         GeometryKind::Segment => annotation::render_segment(sink, geo, ctx, diagnostics),
         GeometryKind::Geo => geo::render(sink, geo, ctx),
@@ -124,6 +125,7 @@ fn estimated_row_mark_count(kind: GeometryKind, ctx: &GeometryRenderContext<'_>)
             | GeometryKind::Tile
             | GeometryKind::Image
             | GeometryKind::Text
+            | GeometryKind::Label
             | GeometryKind::Rug
             | GeometryKind::Segment
             | GeometryKind::Geo

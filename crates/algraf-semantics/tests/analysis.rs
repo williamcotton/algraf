@@ -56,7 +56,7 @@ fn has(source: &str, code: &str) -> bool {
 }
 
 #[test]
-fn v041_layout_grid_free_scales_labels_and_spacing_analyze() {
+fn layout_grid_free_scales_labels_and_spacing_analyze() {
     let src = r#"Chart(data: "p.csv") {
   Layout(facetRows: species, facetCols: type, facetScales: "free-y",
          facetLabel: "name-value", facetLabels: ["A" => "Alpha"],
@@ -86,7 +86,7 @@ fn v041_layout_grid_free_scales_labels_and_spacing_analyze() {
 }
 
 #[test]
-fn v041_coordinate_zoom_and_fixed_aspect_analyze() {
+fn coordinate_zoom_and_fixed_aspect_analyze() {
     let src = r#"Chart(data: "p.csv") {
   Space(flipper_length * body_mass, zoomX: [170, 220], zoomY: [3000, 6000], aspect: 1) {
     Point()
@@ -102,7 +102,7 @@ fn v041_coordinate_zoom_and_fixed_aspect_analyze() {
 }
 
 #[test]
-fn v041_jitter_points_stat_analyzes() {
+fn jitter_points_stat_analyzes() {
     let src = r#"Chart(data: "p.csv") {
   Derive jittered = JitterPoints(x, y, width: 0.2, height: 0.1)
   Space(x * y, data: jittered) { Point() }
@@ -126,7 +126,7 @@ fn v041_jitter_points_stat_analyzes() {
 }
 
 #[test]
-fn v041_bar_layout_dodge_remains_rejected() {
+fn bar_layout_dodge_remains_rejected() {
     assert!(has(
         r#"Chart(data: "p.csv") { Space((quarter / group) * value) { Bar(layout: "dodge") } }"#,
         "E1204"
@@ -608,6 +608,40 @@ fn test_scale_declaration_is_recorded() {
 }
 
 #[test]
+fn scale_string_domain_is_recorded_for_position_axes() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, domain: [\"Revenue\", \"Rides\"])\n  Space(species * amount) { Bar() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(
+        ir.scales[0].categorical_domain,
+        Some(vec!["Revenue".to_string(), "Rides".to_string()])
+    );
+}
+
+#[test]
+fn scale_string_domain_rejects_empty_duplicate_and_aesthetic_use() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, domain: [])\n  Space(species * amount) { Bar() }\n}",
+        "E1604"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, domain: [\"A\", \"A\"])\n  Space(species * amount) { Bar() }\n}",
+        "E1604"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: species, domain: [\"A\", \"B\"])\n  Space(flipper_length * body_mass) { Point(fill: species) }\n}",
+        "E1606"
+    ));
+}
+
+#[test]
 fn test_scale_integer_is_recorded() {
     let analysis = analyze_source(
         "Chart(data: \"p.csv\") {\n  Scale(axis: y, integer: true)\n  Space(flipper_length * body_mass) { Point() }\n}",
@@ -753,6 +787,20 @@ fn test_stacked_bar_has_no_dodge_hint() {
         !cs.iter().any(|c| c.starts_with("E")),
         "stacked bar should be valid: {cs:?}"
     );
+}
+
+#[test]
+fn area_layout_validates_grouping_and_numeric_y() {
+    clean("Chart(data: \"f.csv\") {\n  Space(time * amount) {\n    Area(fill: type, layout: \"stack\")\n  }\n}");
+    clean("Chart(data: \"f.csv\") {\n  Space(time * amount) {\n    Area(group: type, layout: \"fill\")\n  }\n}");
+    assert!(has(
+        "Chart(data: \"f.csv\") {\n  Space(time * amount) {\n    Area(layout: \"stack\")\n  }\n}",
+        "E1302"
+    ));
+    assert!(has(
+        "Chart(data: \"f.csv\") {\n  Space(time * type) {\n    Area(fill: type, layout: \"stack\")\n  }\n}",
+        "E1302"
+    ));
 }
 
 #[test]
@@ -1897,6 +1945,40 @@ fn test_text_geometry_is_registered() {
 }
 
 #[test]
+fn text_numeric_format_is_validated() {
+    clean("Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Text(label: amount, format: \"$.2f\")\n  }\n}");
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Text(label: amount, format: \"scientific\")\n  }\n}",
+        "E1908"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Text(label: species, format: \".2f\")\n  }\n}",
+        "E1908"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(time * amount) {\n    Text(label: amount, format: \".2f\", timeFormat: \"month\")\n  }\n}",
+        "E1908"
+    ));
+}
+
+#[test]
+fn label_geometry_is_registered_and_validated() {
+    clean("Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Line(group: species, stroke: species)\n    Label(label: species, group: species, at: \"end\", dx: 8, fill: species)\n  }\n}");
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Label(label: species, at: \"middle\")\n  }\n}",
+        "E1204"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(body_mass) {\n    Label(label: species)\n  }\n}",
+        "E1302"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Label(label: species, format: \".2f\")\n  }\n}",
+        "E1908"
+    ));
+}
+
+#[test]
 fn test_text_missing_label_is_rejected() {
     assert!(has(
         "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Text()\n  }\n}",
@@ -2492,7 +2574,7 @@ fn test_guide_axis_label_null_suppresses() {
 }
 
 #[test]
-fn test_v040_derived_stats_analyze_with_explicit_schemas() {
+fn test_derived_stats_analyze_with_explicit_schemas() {
     let analysis = analyze_tables(
         "Chart(data: \"t.csv\") {\n  \
          Derive unique = Distinct(group, value)\n  \
@@ -2563,7 +2645,7 @@ fn test_v040_derived_stats_analyze_with_explicit_schemas() {
 }
 
 #[test]
-fn test_v040_scale_breaks_labels_modes_and_guide_rows() {
+fn test_scale_breaks_labels_modes_and_guide_rows() {
     let analysis = analyze_tables(
         "Chart(data: \"t.csv\") {\n  \
          Scale(axis: y, domain: [0, 100], breaks: [0, 50, 100], labels: [\"zero\", \"half\", \"full\"], expand: [0.05, 1])\n  \

@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="440" viewBox="0 0 720 440" role="img" aria-label="Revenue per dock">
+<title>Revenue per dock</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="440" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Revenue per dock</text>
+<rect class="algraf-plot-area" x="60" y="66" width="510" height="324" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="136.39" y1="66" x2="136.39" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="273.782" y1="66" x2="273.782" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="411.175" y1="66" x2="411.175" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="339.724" x2="570" y2="339.724" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="283.862" x2="570" y2="283.862" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="228" x2="570" y2="228" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="172.138" x2="570" y2="172.138" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="116.276" x2="570" y2="116.276" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="67.694" y1="66" x2="67.694" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="205.086" y1="66" x2="205.086" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="342.478" y1="66" x2="342.478" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="479.871" y1="66" x2="479.871" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="367.655" x2="570" y2="367.655" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="311.793" x2="570" y2="311.793" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="255.931" x2="570" y2="255.931" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="200.069" x2="570" y2="200.069" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="144.207" x2="570" y2="144.207" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="88.345" x2="570" y2="88.345" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="534.828" cy="88.345" r="7" fill="#006BA4" opacity="0.86" />
+  <circle cx="424.914" cy="144.207" r="7" fill="#006BA4" opacity="0.86" />
+  <circle cx="369.957" cy="144.207" r="7" fill="#FF800E" opacity="0.86" />
+  <circle cx="479.871" cy="255.931" r="7" fill="#ABABAB" opacity="0.86" />
+  <circle cx="260.043" cy="255.931" r="7" fill="#595959" opacity="0.86" />
+  <circle cx="95.172" cy="367.655" r="7" fill="#595959" opacity="0.86" />
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="542.828" y="88.345" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$0.87</text>
+  <text x="432.914" y="144.207" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$0.94</text>
+  <text x="377.957" y="144.207" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$1.18</text>
+  <text x="487.871" y="255.931" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$1.97</text>
+  <text x="268.043" y="255.931" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$2.35</text>
+  <text x="103.172" y="367.655" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$1.43</text>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="390" x2="570" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="67.694" y1="390" x2="67.694" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="67.694" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15</text>
+  <line x1="205.086" y1="390" x2="205.086" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="205.086" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="342.478" y1="390" x2="342.478" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="342.478" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <line x1="479.871" y1="390" x2="479.871" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="479.871" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <text x="315" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Dock capacity</text>
+  <line x1="60" y1="66" x2="60" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="367.655" x2="60" y2="367.655" stroke="#333333" stroke-width="1" />
+  <text x="52" y="371.655" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="55" y1="311.793" x2="60" y2="311.793" stroke="#333333" stroke-width="1" />
+  <text x="52" y="315.793" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <line x1="55" y1="255.931" x2="60" y2="255.931" stroke="#333333" stroke-width="1" />
+  <text x="52" y="259.931" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="55" y1="200.069" x2="60" y2="200.069" stroke="#333333" stroke-width="1" />
+  <text x="52" y="204.069" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <line x1="55" y1="144.207" x2="60" y2="144.207" stroke="#333333" stroke-width="1" />
+  <text x="52" y="148.207" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <line x1="55" y1="88.345" x2="60" y2="88.345" stroke="#333333" stroke-width="1" />
+  <text x="52" y="92.345" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">7</text>
+  <text x="32.8" y="228" text-anchor="middle" transform="rotate(-90 32.8 228)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Trips</text>
+</g>
+<g class="algraf-legends">
+  <text x="586" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Zone</text>
+  <rect x="586" y="78" width="12" height="12" fill="#006BA4" />
+  <text x="604" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Downtown</text>
+  <rect x="586" y="96" width="12" height="12" fill="#FF800E" />
+  <text x="604" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Market</text>
+  <rect x="586" y="114" width="12" height="12" fill="#ABABAB" />
+  <text x="604" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Cultural</text>
+  <rect x="586" y="132" width="12" height="12" fill="#595959" />
+  <text x="604" y="142" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Riverfront</text>
+</g>
+</svg>

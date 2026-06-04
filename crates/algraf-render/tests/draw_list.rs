@@ -313,6 +313,58 @@ fn draw_list_records_path_dash() {
 }
 
 #[test]
+fn draw_list_records_formatted_text_marks() {
+    let list = draw_list(
+        "Chart(data: \"p.csv\") { Space(x * y) { Text(label: value, format: \".1%\") } }",
+        "x,y,value\n1,2,0.125\n",
+    );
+    assert_eq!(texts(&list, DrawRole::Mark), vec!["12.5%".to_string()]);
+}
+
+#[test]
+fn draw_list_records_terminal_labels_by_physical_x_endpoint() {
+    let end = draw_list(
+        "Chart(data: \"p.csv\") { Space(x * y) { Label(label: series, group: series, at: \"end\") } }",
+        "x,y,series\n1,2,A\n2,4,A\n1,5,B\n2,3,B\n",
+    );
+    let end_labels = end
+        .ops
+        .iter()
+        .filter_map(|op| match op {
+            DrawOp::Text {
+                role: DrawRole::Mark,
+                x,
+                content,
+                ..
+            } => Some((content.clone(), *x)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(end_labels.len(), 2);
+    assert!(end_labels.iter().all(|(_, x)| *x > 400.0));
+
+    let start = draw_list(
+        "Chart(data: \"p.csv\") { Space(x * y) { Label(label: series, group: series, at: \"start\") } }",
+        "x,y,series\n1,2,A\n2,4,A\n1,5,B\n2,3,B\n",
+    );
+    let start_labels = start
+        .ops
+        .iter()
+        .filter_map(|op| match op {
+            DrawOp::Text {
+                role: DrawRole::Mark,
+                x,
+                content,
+                ..
+            } => Some((content.clone(), *x)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(start_labels.len(), 2);
+    assert!(start_labels.iter().all(|(_, x)| *x < 400.0));
+}
+
+#[test]
 fn draw_list_records_inert_interaction_metadata() {
     let list = draw_list(
         "Chart(data: \"p.csv\", width: 200, height: 200) { Space(x * y) { Point(tooltip: [g], highlight: \"g\") } }",

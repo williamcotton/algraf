@@ -337,7 +337,7 @@ async fn schema_resolution_uses_topojson_constructor_object() {
 }
 
 #[tokio::test]
-async fn declaration_completion_knows_v02_scale_and_guide_keys() {
+async fn declaration_completion_knows_scale_and_guide_keys() {
     let dir = temp_project("decl-completion");
     let source_path = dir.join("chart.ag");
     let data_path = dir.join("data.csv");

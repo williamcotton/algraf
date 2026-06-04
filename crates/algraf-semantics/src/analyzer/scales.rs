@@ -40,7 +40,8 @@ impl Analyzer<'_> {
         let mut scale_type = None;
         let mut mode = None;
         let mut domain: Option<[Option<f64>; 2]> = None;
-        let mut _domain_span: Option<Span> = None;
+        let mut categorical_domain: Option<Vec<String>> = None;
+        let mut domain_span: Option<Span> = None;
         let mut breaks: Option<Vec<f64>> = None;
         let mut breaks_span: Option<Span> = None;
         let mut break_labels: Option<Vec<String>> = None;
@@ -144,14 +145,17 @@ impl Analyzer<'_> {
                 },
                 "domain" => {
                     if let Some(value) = arg.value() {
-                        _domain_span = Some(node_span(value.syntax()));
+                        domain_span = Some(node_span(value.syntax()));
                         match self.numeric_bounds(&value) {
                             Some(bounds) => domain = Some(bounds),
-                            None => self.diag(Diagnostic::error(
-                                codes::E1204,
-                                "`domain` expects two numeric values (each may be `null`)",
-                                node_span(value.syntax()),
-                            )),
+                            None => match self.categorical_domain(&value) {
+                                Some(values) => categorical_domain = Some(values),
+                                None => self.diag(Diagnostic::error(
+                                    codes::E1204,
+                                    "`domain` expects [min, max] numeric bounds or a non-empty string array",
+                                    node_span(value.syntax()),
+                                )),
+                            },
                         }
                     }
                 }
@@ -326,6 +330,14 @@ impl Analyzer<'_> {
                 }
             }
             ScaleTargetIr::Aesthetic { aesthetic, column } => {
+                if categorical_domain.is_some() {
+                    self.diag(Diagnostic::error(
+                        codes::E1606,
+                        "string-array `domain` applies only to position axes",
+                        domain_span.unwrap_or(span),
+                    ));
+                    categorical_domain = None;
+                }
                 let is_color = aesthetic == "fill" || aesthetic == "stroke";
                 let numeric_col = column.as_ref().is_some_and(|c| {
                     matches!(
@@ -556,6 +568,7 @@ impl Analyzer<'_> {
             scale_type,
             mode,
             domain,
+            categorical_domain,
             breaks,
             break_labels,
             expansion,
@@ -607,6 +620,35 @@ impl Analyzer<'_> {
             }
         }
         Some(out)
+    }
+
+    /// Parse an explicit categorical position-axis domain. Values are retained
+    /// in source order; duplicates and empty arrays are authoring errors because
+    /// they would make trained band domains ambiguous.
+    fn categorical_domain(&mut self, value: &ValueExpr) -> Option<Vec<String>> {
+        let ValueForm::StringArray(Some(values)) = ValueForm::of(value) else {
+            return None;
+        };
+        if values.is_empty() {
+            self.diag(Diagnostic::error(
+                codes::E1604,
+                "categorical `domain` must not be empty",
+                node_span(value.syntax()),
+            ));
+            return None;
+        }
+        let mut seen = HashSet::new();
+        for category in &values {
+            if !seen.insert(category.clone()) {
+                self.diag(Diagnostic::error(
+                    codes::E1604,
+                    format!("duplicate category `{category}` in explicit domain"),
+                    node_span(value.syntax()),
+                ));
+                return None;
+            }
+        }
+        Some(values)
     }
 
     fn break_values(&mut self, value: &ValueExpr) -> Option<Vec<f64>> {

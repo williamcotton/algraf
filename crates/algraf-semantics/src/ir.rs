@@ -408,6 +408,9 @@ pub struct ScaleIr {
     /// Numeric domain bounds. Each element may be `None`, meaning "infer this
     /// bound from the data" (e.g. `domain: [0, null]`, spec §16.11).
     pub domain: Option<[Option<f64>; 2]>,
+    /// Explicit source-ordered categorical domain for a position axis. Data
+    /// categories not listed here are appended by render-time scale training.
+    pub categorical_domain: Option<Vec<String>>,
     /// Exact break values for axes or legends. Temporal breaks are stored as
     /// UTC-equivalent microseconds, matching temporal domain bounds.
     pub breaks: Option<Vec<f64>>,
@@ -1197,6 +1200,7 @@ pub enum GeometryKind {
     Rug,
     Area,
     Text,
+    Label,
     Image,
     Segment,
     /// Polymorphic spatial mark: dispatches on each row's geometry value
@@ -1235,6 +1239,7 @@ pub const GEOMETRY_KINDS: &[GeometryKind] = &[
     GeometryKind::Rug,
     GeometryKind::Area,
     GeometryKind::Text,
+    GeometryKind::Label,
     GeometryKind::Image,
     GeometryKind::Segment,
     GeometryKind::Geo,
@@ -1270,6 +1275,7 @@ impl GeometryKind {
             GeometryKind::Rug => "Rug",
             GeometryKind::Area => "Area",
             GeometryKind::Text => "Text",
+            GeometryKind::Label => "Label",
             GeometryKind::Image => "Image",
             GeometryKind::Segment => "Segment",
             GeometryKind::Geo => "Geo",
@@ -1304,6 +1310,7 @@ impl GeometryKind {
             GeometryKind::Rug => "rug",
             GeometryKind::Area => "area",
             GeometryKind::Text => "text",
+            GeometryKind::Label => "label",
             GeometryKind::Image => "image",
             GeometryKind::Segment => "segment",
             GeometryKind::Geo => "geo",
@@ -1356,7 +1363,9 @@ pub enum PropertyKey {
     Orientation,
     Baseline,
     Label,
+    Format,
     Anchor,
+    At,
     Dx,
     Dy,
     Declutter,
@@ -1409,7 +1418,9 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::Orientation,
     PropertyKey::Baseline,
     PropertyKey::Label,
+    PropertyKey::Format,
     PropertyKey::Anchor,
+    PropertyKey::At,
     PropertyKey::Dx,
     PropertyKey::Dy,
     PropertyKey::Declutter,
@@ -1463,7 +1474,9 @@ impl PropertyKey {
             PropertyKey::Orientation => "orientation",
             PropertyKey::Baseline => "baseline",
             PropertyKey::Label => "label",
+            PropertyKey::Format => "format",
             PropertyKey::Anchor => "anchor",
+            PropertyKey::At => "at",
             PropertyKey::Dx => "dx",
             PropertyKey::Dy => "dy",
             PropertyKey::Declutter => "declutter",

@@ -186,7 +186,7 @@ fn test_table_and_map_round_trip() {
 }
 
 #[test]
-fn test_source_header_and_v020_calls_format() {
+fn test_source_header_and_source_constructor_calls_format() {
     let source = "Algraf(version:\"0.20\",features:[\"experimental\"])\nChart(data:\"t.csv\"){let muted=Style(fill:\"#6b7280\",alpha:0.5)\nScale(fill:value,gradient:[Stop(value:0,color:\"#3366cc\"),Stop(value:100,color:\"#cc3333\")])\nGuide(axis:x,timeFormat:\"iso-minute\")\nSpace(time*value){Point(style:muted)}}";
     let formatted = format(source);
     assert!(

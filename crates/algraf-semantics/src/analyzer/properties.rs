@@ -122,8 +122,11 @@ impl Analyzer<'_> {
         }
 
         self.bar_dodge_hint(def, frame, coords, &mappings, &settings, span);
+        self.check_area_geometry(def, frame, &mappings, &settings, span);
+        self.check_label_geometry(def, frame, span);
         self.check_polar_radius(def, coords, &mappings, span);
         self.check_image_src(def, &mappings, &settings);
+        self.check_numeric_format(def, &mappings, &settings);
         self.check_text_time_format(def, &mappings, &mut settings);
 
         Some(GeometryIr {
@@ -503,6 +506,84 @@ impl Analyzer<'_> {
         }
     }
 
+    /// Validate Area's frame and grouped-layout requirements (v0.61). Area
+    /// needs a numeric physical y axis. Stacked/fill layouts need an explicit
+    /// grouping column or a categorical color mapping so the renderer can emit
+    /// one polygon per series.
+    fn check_area_geometry(
+        &mut self,
+        def: &GeometryDef,
+        frame: &FrameIr,
+        mappings: &[AestheticMapping],
+        settings: &[GeometrySetting],
+        span: Span,
+    ) {
+        if def.kind != GeometryKind::Area {
+            return;
+        }
+        let y_col = frame_axis_index(frame, 1).and_then(vector_column);
+        match y_col {
+            Some(column)
+                if matches!(
+                    column.dtype,
+                    DataType::Integer | DataType::Float | DataType::Unknown
+                ) => {}
+            Some(column) => self.diag(Diagnostic::error(
+                codes::E1302,
+                format!(
+                    "Area requires a numeric y column, but `{}` is {:?}",
+                    column.name, column.dtype
+                ),
+                column.span,
+            )),
+            None => self.diag(Diagnostic::error(
+                codes::E1302,
+                "Area requires a two-dimensional x * y space",
+                span,
+            )),
+        }
+
+        let grouped_layout = settings.iter().any(|setting| {
+            setting.name == PropertyKey::Layout
+                && matches!(&setting.value, SettingValue::String(value) if value == "stack" || value == "fill")
+        });
+        if !grouped_layout {
+            return;
+        }
+        let usable_group = mappings.iter().any(|mapping| match mapping.aesthetic {
+            PropertyKey::Group => !mapping.column.dtype.is_geometry(),
+            PropertyKey::Fill | PropertyKey::Stroke => {
+                mapping.column.dtype == DataType::Unknown || mapping.column.dtype.is_categorical()
+            }
+            _ => false,
+        });
+        if !usable_group {
+            self.diag(
+                Diagnostic::error(
+                    codes::E1302,
+                    "stacked Area layouts require `group:` or a categorical `fill:`/`stroke:` mapping",
+                    span,
+                )
+                .with_help("e.g. `Area(fill: series, layout: \"stack\")`"),
+            );
+        }
+    }
+
+    /// Label is a terminal series label, so it needs a two-dimensional Cartesian
+    /// frame with an x axis whose physical start/end can be compared.
+    fn check_label_geometry(&mut self, def: &GeometryDef, frame: &FrameIr, span: Span) {
+        if def.kind != GeometryKind::Label {
+            return;
+        }
+        if frame_axis_index(frame, 0).is_none() || frame_axis_index(frame, 1).is_none() {
+            self.diag(Diagnostic::error(
+                codes::E1302,
+                "Label requires a two-dimensional x * y space",
+                span,
+            ));
+        }
+    }
+
     /// Validate the `Image(src: ...)` source surface (spec §14.x). Literal
     /// values must be local file paths; mapped values must come from a stringy
     /// column so render-time asset loading never treats numeric data as paths.
@@ -603,6 +684,12 @@ impl Analyzer<'_> {
         if def.kind != GeometryKind::Text {
             return;
         }
+        if settings
+            .iter()
+            .any(|setting| setting.name == PropertyKey::Format)
+        {
+            return;
+        }
         let Some(setting) = settings
             .iter_mut()
             .find(|s| s.name == PropertyKey::TimeFormat)
@@ -637,6 +724,92 @@ impl Analyzer<'_> {
             return;
         }
         setting.value = SettingValue::String(format.chrono_pattern().to_string());
+    }
+
+    /// Validate numeric text formatting for `Text` and `Label` (v0.61). The
+    /// renderer receives only a known deterministic format string.
+    fn check_numeric_format(
+        &mut self,
+        def: &GeometryDef,
+        mappings: &[AestheticMapping],
+        settings: &[GeometrySetting],
+    ) {
+        if !matches!(def.kind, GeometryKind::Text | GeometryKind::Label) {
+            return;
+        }
+        let Some(setting) = settings
+            .iter()
+            .find(|setting| setting.name == PropertyKey::Format)
+        else {
+            return;
+        };
+        let SettingValue::String(raw) = &setting.value else {
+            return;
+        };
+        if !matches!(
+            raw.as_str(),
+            ".0f" | ".1f" | ".2f" | "$.2f" | ".0%" | ".1%" | ".2%"
+        ) {
+            self.diag(Diagnostic::error(
+                codes::E1908,
+                format!("unknown numeric label format `{raw}`"),
+                setting.span,
+            ));
+            return;
+        }
+        if settings
+            .iter()
+            .any(|setting| setting.name == PropertyKey::TimeFormat)
+        {
+            self.diag(Diagnostic::error(
+                codes::E1908,
+                "`format` and `timeFormat` cannot be used together",
+                setting.span,
+            ));
+            return;
+        }
+        let Some(label) = mappings
+            .iter()
+            .find(|mapping| mapping.aesthetic == PropertyKey::Label)
+        else {
+            self.diag(
+                Diagnostic::error(
+                    codes::E1908,
+                    "`format` applies only to a numeric `label:` column",
+                    setting.span,
+                )
+                .with_help("map `label:` to a numeric column, or remove `format`"),
+            );
+            return;
+        };
+        if !matches!(
+            label.column.dtype,
+            DataType::Integer | DataType::Float | DataType::Unknown
+        ) {
+            self.diag(Diagnostic::error(
+                codes::E1908,
+                format!(
+                    "`format` requires a numeric label column, but `{}` is {:?}",
+                    label.column.name, label.column.dtype
+                ),
+                label.span,
+            ));
+        }
+    }
+}
+
+fn frame_axis_index(frame: &FrameIr, index: usize) -> Option<&FrameIr> {
+    match frame {
+        FrameIr::Cartesian(axes) => axes.get(index),
+        _ if index == 0 => Some(frame),
+        _ => None,
+    }
+}
+
+fn vector_column(frame: &FrameIr) -> Option<&ColumnRef> {
+    match frame {
+        FrameIr::Vector(column) => Some(column),
+        _ => None,
     }
 }
 

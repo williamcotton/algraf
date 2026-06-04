@@ -700,6 +700,13 @@ fn text_element<'a>(svg: &'a str, label: &str) -> &'a str {
     &svg[element_start..element_end]
 }
 
+fn layer_path_count(svg: &str, class: &str) -> usize {
+    let start = svg.find(class).expect("layer class");
+    let layer = &svg[start..];
+    let end = layer.find("</g>").expect("layer end");
+    layer[..end].matches("<path").count()
+}
+
 #[test]
 fn test_text_declutter_separates_overlapping_labels() {
     // `lo`/`hi` anchor the y domain; A and B map to nearly the same y.
@@ -758,6 +765,26 @@ fn test_text_without_declutter_leaves_positions() {
 }
 
 #[test]
+fn text_numeric_format_renders_in_svg() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") { Space(x * y) { Text(label: value, format: \"$.2f\") } }",
+        "x,y,value\n1,2,3.5\n",
+    );
+    assert!(svg.contains(">$3.50</text>"), "{svg}");
+}
+
+#[test]
+fn label_renders_one_terminal_text_per_group() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") { Space(x * y) { Line(group: series) Label(label: series, group: series, at: \"end\", dx: 4) } }",
+        "x,y,series\n1,2,Alpha\n2,4,Alpha\n1,5,Beta\n2,3,Beta\n",
+    );
+    assert_eq!(svg.matches(">Alpha</text>").count(), 1, "{svg}");
+    assert_eq!(svg.matches(">Beta</text>").count(), 1, "{svg}");
+    assert!(text_x(&svg, "Alpha") > text_x(&svg, "Beta") - 1.0);
+}
+
+#[test]
 fn test_text_dy_column_offsets_each_label() {
     // A and B share the same y (same cy); only their `off` differs.
     let csv = "x,y,name,off\n1,40,A,0\n2,40,B,20\n3,60,C,0\n";
@@ -766,6 +793,57 @@ fn test_text_dy_column_offsets_each_label() {
         csv,
     );
     assert!((text_y(&svg, "B") - text_y(&svg, "A") - 20.0).abs() < 1e-6);
+}
+
+#[test]
+fn categorical_scale_domain_orders_axis_and_warns_on_append() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Scale(axis: x, domain: [\"B\", \"A\"]) Space(g * y) { Bar() } }",
+        "g,y\nA,1\nC,2\n",
+    );
+    assert!(result.diagnostics.iter().any(|d| d.code == "R0004"));
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+    assert_eq!(
+        metadata["axes"]["x"]["domain"],
+        serde_json::json!(["B", "A", "C"])
+    );
+}
+
+#[test]
+fn string_domain_on_continuous_axis_warns_at_render_time() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Scale(axis: x, domain: [\"A\"]) Space(x * y) { Point() } }",
+        "x,y\n1,2\n2,3\n",
+    );
+    assert!(result.diagnostics.iter().any(|d| d.code == "R0004"));
+}
+
+#[test]
+fn area_stack_and_fill_train_domains_and_emit_group_paths() {
+    let stack = render_result(
+        "Chart(data: \"p.csv\") { Space(x * y) { Area(fill: series, layout: \"stack\") } }",
+        "x,y,series\n1,2,A\n1,3,B\n2,4,A\n2,1,B\n",
+    );
+    assert!(stack.diagnostics.is_empty(), "{:?}", stack.diagnostics);
+    assert_eq!(layer_path_count(&stack.svg, "algraf-geom-area"), 2);
+    let stack_metadata: serde_json::Value =
+        serde_json::from_str(&stack.metadata.to_json()).expect("metadata json");
+    assert!(
+        stack_metadata["axes"]["y"]["domain"][1].as_f64().unwrap() >= 5.0,
+        "{stack_metadata}"
+    );
+
+    let fill = render_result(
+        "Chart(data: \"p.csv\") { Space(x * y) { Area(fill: series, layout: \"fill\") } }",
+        "x,y,series\n1,2,A\n1,3,B\n2,4,A\n2,1,B\n",
+    );
+    assert!(fill.diagnostics.is_empty(), "{:?}", fill.diagnostics);
+    assert_eq!(layer_path_count(&fill.svg, "algraf-geom-area"), 2);
+    let fill_metadata: serde_json::Value =
+        serde_json::from_str(&fill.metadata.to_json()).expect("metadata json");
+    let fill_max = fill_metadata["axes"]["y"]["domain"][1].as_f64().unwrap();
+    assert!((1.0..=1.1).contains(&fill_max), "{fill_metadata}");
 }
 
 #[test]
@@ -2013,7 +2091,7 @@ fn test_shape_only_mapping_creates_default_colored_shape_legend() {
 }
 
 #[test]
-fn test_v040_summary_stats_render_from_raw_rows() {
+fn test_summary_stats_render_from_raw_rows() {
     let svg = render_svg(
         r#"Chart(data: "d.csv", width: 420, height: 280) {
   Derive summary = Summary(value, by: [group], reducer: "mean_se")
@@ -2029,7 +2107,7 @@ fn test_v040_summary_stats_render_from_raw_rows() {
 }
 
 #[test]
-fn test_v040_ecdf_qq_and_summary_bin_render() {
+fn test_ecdf_qq_and_summary_bin_render() {
     let ecdf = render_svg(
         r##"Chart(data: "d.csv", width: 420, height: 280) {
   Derive rows = Ecdf(value)
@@ -2059,7 +2137,7 @@ fn test_v040_ecdf_qq_and_summary_bin_render() {
 }
 
 #[test]
-fn test_v040_binned_scale_matches_explicit_class_table() {
+fn test_binned_scale_matches_explicit_class_table() {
     let binned = render_svg(
         r##"Chart(data: "d.csv", width: 420, height: 280) {
   Scale(fill: value, mode: "binned",
@@ -2085,7 +2163,7 @@ fn test_v040_binned_scale_matches_explicit_class_table() {
 }
 
 #[test]
-fn test_v040_identity_color_and_axis_break_labels_render() {
+fn test_identity_color_and_axis_break_labels_render() {
     let svg = render_svg(
         r##"Chart(data: "d.csv", width: 420, height: 280) {
   Scale(axis: x, domain: [0, 100], breaks: [0, 50, 100],

@@ -160,7 +160,7 @@ fn summary_and_summarybin_outputs_are_row_order_independent() {
 }
 
 #[test]
-fn v040_summary_stats_materialize_large_grouped_fixture() {
+fn summary_stats_materialize_large_grouped_fixture() {
     let mut csv = String::from("group,x,value\n");
     for i in 0..2000 {
         let group = match i % 4 {

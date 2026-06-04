@@ -402,9 +402,9 @@ const SCALE_DOC_ARGS: &[ArgDoc] = &[
     },
     ArgDoc {
         name: "domain",
-        value: "[number | null, number | null]",
+        value: "[number | null, number | null] | [string, ...]",
         default: None,
-        doc: "Explicit numeric domain bounds.",
+        doc: "Explicit numeric bounds or categorical axis order.",
     },
     ArgDoc {
         name: "mode",
@@ -766,8 +766,9 @@ pub fn geometry_example(name: &str) -> &'static str {
         "HLine" => "HLine(y: 0, label: \"baseline\")",
         "VLine" => "VLine(x: 0)",
         "Rug" => "Rug(sides: \"b\")",
-        "Area" => "Area(fill: \"#8fb3ff\")",
+        "Area" => "Area(fill: series, layout: \"stack\")",
         "Text" => "Text(label: name, anchor: \"middle\")",
+        "Label" => "Label(label: series, at: \"end\", group: series)",
         "Image" => "Image(src: logo, size: 22)",
         "Segment" => "Segment(x: x0, y: y0, xend: x1, yend: y1)",
         "Geo" => "Geo(fill: region)",
@@ -1305,6 +1306,11 @@ const AREA: &[PropSpec] = &[
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
+    opt(
+        PropertyKey::Layout,
+        &[Accept::Enum(&["identity", "stack", "fill"])],
+    ),
+    opt(PropertyKey::Group, GROUP),
 ];
 
 const TEXT: &[PropSpec] = &[
@@ -1323,8 +1329,25 @@ const TEXT: &[PropSpec] = &[
     opt(PropertyKey::Nudge, POSITION_ADJUST),
     opt(PropertyKey::NudgeData, POSITION_ADJUST),
     opt(PropertyKey::Declutter, &[Accept::Bool]),
+    opt(PropertyKey::Format, &[Accept::Str]),
     // Format a temporal `label:` column using the §19.4 named/custom model.
     opt(PropertyKey::TimeFormat, &[Accept::Str]),
+];
+
+const LABEL: &[PropSpec] = &[
+    req(PropertyKey::Label, &[Accept::Column, Accept::Str]),
+    opt(PropertyKey::At, &[Accept::Enum(&["start", "end"])]),
+    opt(PropertyKey::Group, GROUP),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Size, SIZE),
+    opt(
+        PropertyKey::Anchor,
+        &[Accept::Enum(&["start", "middle", "end"])],
+    ),
+    opt(PropertyKey::Dx, &[Accept::Column, Accept::Number]),
+    opt(PropertyKey::Dy, &[Accept::Column, Accept::Number]),
+    opt(PropertyKey::Format, &[Accept::Str]),
 ];
 
 const IMAGE: &[PropSpec] = &[
@@ -1386,6 +1409,7 @@ const GEOMETRIES: &[GeometryDef] = &[
     geo(GeometryKind::Rug, RUG),
     geo(GeometryKind::Area, AREA),
     geo(GeometryKind::Text, TEXT),
+    geo(GeometryKind::Label, LABEL),
     geo(GeometryKind::Image, IMAGE),
     geo(GeometryKind::Segment, SEGMENT),
     geo(GeometryKind::Geo, GEO),
@@ -1460,8 +1484,9 @@ pub fn geometry_doc(name: &str) -> &'static str {
         "HLine" => "Draws a horizontal reference line.",
         "VLine" => "Draws a vertical reference line.",
         "Rug" => "Draws marginal tick marks for observations.",
-        "Area" => "Draws a filled area from a baseline to y values.",
+        "Area" => "Draws a filled area from a baseline to y values, optionally stacked by group.",
         "Text" => "Draws text labels in the inherited space.",
+        "Label" => "Draws one terminal text label per series at the physical start or end.",
         "Image" => "Draws one local image per row in the inherited space.",
         "Segment" => "Draws explicit line segments between endpoints.",
         "Geo" => "Draws geometry values in a spatial space.",
@@ -1484,6 +1509,7 @@ pub fn property_doc(name: &str) -> &'static str {
         "src" => "Local image source path or string column mapping.",
         "group" => "Series grouping column, independent from color aesthetics.",
         "layout" => "Bar collision layout: `\"identity\"`, `\"stack\"`, or `\"fill\"`.",
+        "format" => "Numeric text format: `.0f`, `.1f`, `.2f`, `$.2f`, `.0%`, `.1%`, or `.2%`.",
         "radius" => "Categorical column mapping selecting concentric rings for a polar radial bar chart (theta: \"y\").",
         "stat" => "Geometry statistic option.",
         "bins" => "Histogram bin count.",
@@ -1517,6 +1543,7 @@ pub fn property_doc(name: &str) -> &'static str {
         "baseline" => "Area or bar baseline.",
         "label" => "Text label or reference-line label.",
         "anchor" => "Text anchor: `\"start\"`, `\"middle\"`, or `\"end\"`.",
+        "at" => "Terminal Label endpoint: `\"start\"` or `\"end\"`.",
         "dx" => "Horizontal text offset, in pixels: a number or a column mapping.",
         "dy" => "Vertical text offset, in pixels: a number or a column mapping.",
         "jitter" => "Deterministic point jitter as [x, y] in data units for continuous axes or band fractions for categorical axes.",

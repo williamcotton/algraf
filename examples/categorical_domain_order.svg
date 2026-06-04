@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420" role="img" aria-label="Metrics in declared order">
+<title>Metrics in declared order</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="420" fill="#ffffff" />
+<text class="algraf-title" x="68" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Metrics in declared order</text>
+<rect class="algraf-plot-area" x="68" y="66" width="622" height="304" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="68" y1="348.078" x2="690" y2="348.078" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="304.233" x2="690" y2="304.233" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="260.389" x2="690" y2="260.389" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="216.544" x2="690" y2="216.544" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="172.7" x2="690" y2="172.7" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="128.855" x2="690" y2="128.855" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="370" x2="690" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="326.156" x2="690" y2="326.156" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="282.311" x2="690" y2="282.311" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="238.467" x2="690" y2="238.467" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="194.622" x2="690" y2="194.622" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="150.778" x2="690" y2="150.778" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="106.933" x2="690" y2="106.933" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-bar">
+  <rect x="239.05" y="88.519" width="124.4" height="281.481" fill="#4E79A7" opacity="0.88" />
+  <rect x="83.55" y="316.948" width="124.4" height="53.052" fill="#4E79A7" opacity="0.88" />
+  <rect x="550.05" y="359.477" width="124.4" height="10.523" fill="#4E79A7" opacity="0.88" />
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="301.25" y="80.519" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">12840</text>
+  <text x="145.75" y="308.948" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">2420</text>
+  <text x="612.25" y="351.477" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">480</text>
+</g>
+<g class="algraf-axes">
+  <line x1="68" y1="370" x2="690" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="145.75" y1="370" x2="145.75" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="145.75" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Trips</text>
+  <line x1="301.25" y1="370" x2="301.25" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="301.25" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Revenue</text>
+  <line x1="456.75" y1="370" x2="456.75" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="456.75" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Stations</text>
+  <line x1="612.25" y1="370" x2="612.25" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="612.25" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Docks</text>
+  <text x="379" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Metric</text>
+  <line x1="68" y1="66" x2="68" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="63" y1="370" x2="68" y2="370" stroke="#333333" stroke-width="1" />
+  <text x="60" y="374" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="63" y1="326.156" x2="68" y2="326.156" stroke="#333333" stroke-width="1" />
+  <text x="60" y="330.156" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2000</text>
+  <line x1="63" y1="282.311" x2="68" y2="282.311" stroke="#333333" stroke-width="1" />
+  <text x="60" y="286.311" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4000</text>
+  <line x1="63" y1="238.467" x2="68" y2="238.467" stroke="#333333" stroke-width="1" />
+  <text x="60" y="242.467" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6000</text>
+  <line x1="63" y1="194.622" x2="68" y2="194.622" stroke="#333333" stroke-width="1" />
+  <text x="60" y="198.622" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8000</text>
+  <line x1="63" y1="150.778" x2="68" y2="150.778" stroke="#333333" stroke-width="1" />
+  <text x="60" y="154.778" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10000</text>
+  <line x1="63" y1="106.933" x2="68" y2="106.933" stroke="#333333" stroke-width="1" />
+  <text x="60" y="110.933" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">12000</text>
+  <text x="12" y="218" text-anchor="middle" transform="rotate(-90 12 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Value</text>
+</g>
+</svg>

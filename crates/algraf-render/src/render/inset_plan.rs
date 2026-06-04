@@ -14,7 +14,7 @@ use crate::scale::cell_f64;
 use crate::space::ScaledSpace;
 use crate::theme::Theme;
 
-use super::common::{merged_scales, resolve_space_theme};
+use super::common::{merged_scales, resolve_space_theme, validate_scale_configs};
 use super::derived::active_table;
 use super::panels::{planned_panel, Panel};
 use super::row_table::RowSubsetTable;
@@ -341,6 +341,13 @@ fn plan_child_panel<'t>(
     let space_guides = ir.guides.with_overrides(&space.guides);
     let space_scales = merged_scales(&ir.scales, &space.scales);
     let hints = train_space_domains(&space.frame, &training, &space.geometries);
+    validate_scale_configs(
+        &space.frame,
+        &training,
+        &space_scales,
+        space.span,
+        diagnostics,
+    );
     let scaled = match space.coords {
         CoordsIr::Polar {
             theta,

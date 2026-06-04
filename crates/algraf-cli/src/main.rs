@@ -1309,6 +1309,7 @@ fn scale_json(scale: &ScaleIr) -> Value {
         "type": scale.scale_type.map(scale_type_str),
         "mode": scale.mode.map(|mode| mode.as_str()),
         "domain": scale.domain,
+        "categoricalDomain": scale.categorical_domain.as_ref(),
         "breaks": scale.breaks.as_ref(),
         "labels": scale.break_labels.as_ref(),
         "expansion": scale.expansion.as_ref().map(|expansion| {

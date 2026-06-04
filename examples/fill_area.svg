@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420" viewBox="0 0 760 420" role="img" aria-label="Trip mix by rider type">
+<title>Trip mix by rider type</title>
+<rect class="algraf-background" x="0" y="0" width="760" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Trip mix by rider type</text>
+<rect class="algraf-plot-area" x="60.8" y="66" width="549.2" height="304" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="106.567" y1="66" x2="106.567" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="198.1" y1="66" x2="198.1" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="289.633" y1="66" x2="289.633" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="381.167" y1="66" x2="381.167" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="472.7" y1="66" x2="472.7" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="564.233" y1="66" x2="564.233" y2="370" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="294" x2="610" y2="294" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="142" x2="610" y2="142" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60.8" y1="66" x2="60.8" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="152.333" y1="66" x2="152.333" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="243.867" y1="66" x2="243.867" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="335.4" y1="66" x2="335.4" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="426.933" y1="66" x2="426.933" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="518.467" y1="66" x2="518.467" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="610" y1="66" x2="610" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="370" x2="610" y2="370" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="218" x2="610" y2="218" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60.8" y1="66" x2="610" y2="66" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-area">
+  <path d="M60.8 181.52 L152.333 186.803 L243.867 201.879 L335.4 199.966 L426.933 209.893 L518.467 215.286 L610 207.649 L610 370 L518.467 370 L426.933 370 L335.4 370 L243.867 370 L152.333 370 L60.8 370 Z" fill="#006BA4" opacity="0.55" />
+  <path d="M60.8 66 L152.333 66 L243.867 66 L335.4 66 L426.933 66 L518.467 66 L610 66 L610 207.649 L518.467 215.286 L426.933 209.893 L335.4 199.966 L243.867 201.879 L152.333 186.803 L60.8 181.52 Z" fill="#FF800E" opacity="0.55" />
+</g>
+<g class="algraf-axes">
+  <line x1="60.8" y1="370" x2="610" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="60.8" y1="370" x2="60.8" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="60.8" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-01</text>
+  <line x1="152.333" y1="370" x2="152.333" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="152.333" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-02</text>
+  <line x1="243.867" y1="370" x2="243.867" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="243.867" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-03</text>
+  <line x1="335.4" y1="370" x2="335.4" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="335.4" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-04</text>
+  <line x1="426.933" y1="370" x2="426.933" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="426.933" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-05</text>
+  <line x1="518.467" y1="370" x2="518.467" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="518.467" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-06</text>
+  <line x1="610" y1="370" x2="610" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="610" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-07</text>
+  <text x="335.4" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Day</text>
+  <line x1="60.8" y1="66" x2="60.8" y2="370" stroke="#333333" stroke-width="1" />
+  <line x1="55.8" y1="370" x2="60.8" y2="370" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="374" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0%</text>
+  <line x1="55.8" y1="218" x2="60.8" y2="218" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="222" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50%</text>
+  <line x1="55.8" y1="66" x2="60.8" y2="66" stroke="#333333" stroke-width="1" />
+  <text x="52.8" y="70" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100%</text>
+  <text x="12" y="218" text-anchor="middle" transform="rotate(-90 12 218)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Share of trips</text>
+</g>
+<g class="algraf-legends">
+  <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Rider type</text>
+  <rect x="626" y="78" width="12" height="12" fill="#006BA4" />
+  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">member</text>
+  <rect x="626" y="96" width="12" height="12" fill="#FF800E" />
+  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">casual</text>
+</g>
+</svg>
