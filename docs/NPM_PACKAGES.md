@@ -1,20 +1,18 @@
 # Algraf Browser Package Development
 
-Algraf v0.66 provides package-shaped browser integrations without requiring npm
-publication during development.
+Algraf v0.67 publishes package-shaped browser integrations for npm consumers.
 
-## Source Mode
+## Published Package Mode
 
-Use source mode for daily cross-repo work:
+Use published packages for demo, Studio, and downstream package-surface checks:
 
-1. Build the local WASM artifact from `algraf/` or use the host app's copy
-   command.
-2. Copy `target/wasm32-unknown-unknown/release/algraf_wasm.wasm` into the
-   host's public assets as `wasm/algraf.wasm`.
-3. Install or alias the sibling packages with filesystem paths:
-   - `algraf-wasm`: `file:../algraf/packages/wasm`
-   - `algraf-editor`: `file:../algraf/editors/monaco`
-4. Load the runtime with an explicit host URL:
+1. Install the published browser packages:
+
+   ```bash
+   npm install algraf-wasm@0.67.0 algraf-editor@0.67.0
+   ```
+
+2. Use the package-local WASM asset or pass an explicit host URL:
 
 ```ts
 import { loadAlgrafRuntime } from "algraf-wasm";
@@ -22,17 +20,16 @@ import { loadAlgrafRuntime } from "algraf-wasm";
 const runtime = await loadAlgrafRuntime({ wasmUrl: "/wasm/algraf.wasm" });
 ```
 
-The Algraf demo and Studio use this mode in this working tree.
+The Algraf demo consumes these published package versions.
 
-## Packed Mode
+## Package Validation
 
 Use packed mode for package-surface validation before publishing:
 
-1. From `packages/wasm`, run `npm run pack:local`.
-2. From `editors/monaco`, run `npm run pack:local`.
-3. Install the generated tarballs from `artifacts/` into the demo or Studio
-   with `file:` paths.
-4. Run the host app's normal type, build, and browser checks.
+1. From `packages/wasm`, run `npm pack --dry-run`.
+2. From `editors/monaco`, run `npm pack --dry-run`.
+3. Run the host app's normal type, build, and browser checks against the
+   published package versions.
 
 Generated `dist/` contents, local tarballs, and copied WASM artifacts are
 ignored source outputs.

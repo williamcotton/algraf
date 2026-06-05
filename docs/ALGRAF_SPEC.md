@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.66.0
+Status: 0.67.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.66.0 specification.
+This working copy is the 0.67.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9670,6 +9670,17 @@ install them with `file:` paths before npm publication. Generated
 `algraf.wasm` binaries and local package tarballs MUST NOT be checked into
 source.
 
+Version 0.67.0 prepares `algraf-wasm` and `algraf-editor` for manual npm
+publication without changing `.ag` syntax, rendering, editor-service behavior,
+or the browser JSON ABI. Published package manifests MUST expose generated
+`dist/` entrypoints for `main`, `module`, `types`, and `exports`, with
+CommonJS `dist/index.cjs`, ESM `dist/index.mjs`, and TypeScript declarations.
+The WASM package tarball MUST include `dist/algraf.wasm`; the editor package
+tarball MUST include generated `dist/` files plus package-local static editor
+assets. `prepack` MUST build the publishable surface, and release validation
+MUST inspect `npm pack --dry-run` output to prove ignored generated `dist/`
+files are included by the npm `files` whitelist.
+
 Version 0.64.0 adds declarative `On(event: "click", emit: column)` event
 emitters for host applications. Event emitters are inert metadata attached to
 the preceding per-datum mark, are serialized through the existing version-1
@@ -10786,6 +10797,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.64.0 | [`V0_64_PLAN.md`](V0_64_PLAN.md) | Declarative event emitters for host applications | Implemented |
 | 0.65.0 | [`V0_65_PLAN.md`](V0_65_PLAN.md) | Explicit categorical position axes for numeric source columns | Implemented |
 | 0.66.0 | [`V0_66_PLAN.md`](V0_66_PLAN.md) | Browser runtime invocation-variable parity | Implemented |
+| 0.67.0 | [`V0_67_PLAN.md`](V0_67_PLAN.md) | npm-ready browser package build outputs | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

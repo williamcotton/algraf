@@ -95,8 +95,13 @@ export interface LoadAlgrafRuntimeOptions {
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
+declare const __ALGRAF_WASM_MODULE_URL__: string | undefined;
+const moduleBaseUrl = typeof __ALGRAF_WASM_MODULE_URL__ === "string" ? __ALGRAF_WASM_MODULE_URL__ : undefined;
 
-export function defaultAlgrafWasmUrl(baseUrl = import.meta.url): string {
+export function defaultAlgrafWasmUrl(baseUrl: string | URL | undefined = moduleBaseUrl): string {
+  if (baseUrl === undefined) {
+    throw new Error("algraf-wasm could not infer a package-local WASM URL; pass loadAlgrafRuntime({ wasmUrl }) explicitly.");
+  }
   return new URL("../dist/algraf.wasm", baseUrl).toString();
 }
 

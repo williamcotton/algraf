@@ -24,7 +24,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-cli"
-version = "0.66.0"
+version = "0.67.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -46,7 +46,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-core"
-version = "0.66.0"
+version = "0.67.0"
 dependencies = [
  "serde",
  "thiserror",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-data"
-version = "0.66.0"
+version = "0.67.0"
 dependencies = [
  "algraf-core",
  "arrow-array",
@@ -76,7 +76,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-driver"
-version = "0.66.0"
+version = "0.67.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-editor-services"
-version = "0.66.0"
+version = "0.67.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -102,7 +102,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-lsp"
-version = "0.66.0"
+version = "0.67.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -122,7 +122,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-render"
-version = "0.66.0"
+version = "0.67.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -144,7 +144,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-semantics"
-version = "0.66.0"
+version = "0.67.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
@@ -153,7 +153,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-syntax"
-version = "0.66.0"
+version = "0.67.0"
 dependencies = [
  "algraf-core",
  "logos",
@@ -162,7 +162,7 @@ dependencies = [
 
 [[package]]
 name = "algraf-wasm"
-version = "0.66.0"
+version = "0.67.0"
 dependencies = [
  "algraf-core",
  "algraf-data",
