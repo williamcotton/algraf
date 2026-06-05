@@ -1,6 +1,6 @@
 # Algraf Browser Package Development
 
-Algraf v0.64 provides package-shaped browser integrations without requiring npm
+Algraf v0.66 provides package-shaped browser integrations without requiring npm
 publication during development.
 
 ## Source Mode

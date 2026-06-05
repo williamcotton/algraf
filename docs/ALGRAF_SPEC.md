@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.65.0
+Status: 0.66.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.65.0 specification.
+This working copy is the 0.66.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9535,11 +9535,19 @@ pointer/length JSON ABI, not generated `wasm-bindgen` bindings:
 - `algraf_alloc(len) -> ptr` allocates a UTF-8 request buffer.
 - `algraf_dealloc(ptr, len)` releases a buffer allocated by the module.
 - `algraf_render_json(ptr, len) -> packed_ptr_len` reads request JSON of the
-  form `{ "source": "...", "files": { "data.json": "..." } }` and returns a
-  pointer/length pair packed into a `u64` with the pointer in the low 32 bits
-  and the byte length in the high 32 bits.
+  form
+  `{ "source": "...", "files": { "data.json": "..." }, "variables": { "color": "#3366cc" } }`
+  and returns a pointer/length pair packed into a `u64` with the pointer in the
+  low 32 bits and the byte length in the high 32 bits. The `variables` field is
+  optional and defaults to an empty map.
 
-The browser JSON ABI supports text data sources supplied as UTF-8 strings.
+The browser JSON ABI supports text data sources supplied as UTF-8 strings. The
+runtime MUST expand `${name}` and `$name` placeholders with
+`algraf_driver::expand_variables` before parsing, using the same raw
+source-fragment substitution semantics as CLI `--var` (spec §22.3). Variable
+substitution failures MUST return the standard render response shape with `svg`
+and `sidecar` set to null, an empty diagnostics array, and a span-less `error`
+string; they MUST NOT panic.
 Convenience `check`, `parse`, and `format` exports are not part of the v0.34
 runtime contract; hosts that need diagnostics call `render` and consume the
 returned diagnostics. A future release MAY add convenience exports if their
@@ -10777,6 +10785,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.63.0 | [`V0_63_PLAN.md`](V0_63_PLAN.md) | Shared editor assets and first-party Monaco integration | Implemented |
 | 0.64.0 | [`V0_64_PLAN.md`](V0_64_PLAN.md) | Declarative event emitters for host applications | Implemented |
 | 0.65.0 | [`V0_65_PLAN.md`](V0_65_PLAN.md) | Explicit categorical position axes for numeric source columns | Implemented |
+| 0.66.0 | [`V0_66_PLAN.md`](V0_66_PLAN.md) | Browser runtime invocation-variable parity | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

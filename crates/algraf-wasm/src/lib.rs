@@ -19,8 +19,8 @@ use std::path::Path;
 use algraf_core::Severity;
 use algraf_driver::InMemorySchemaCache;
 use algraf_driver::{
-    document_charts, driver_error_diagnostic, extract_chart_data_source, parse_source,
-    prepare_chart_with_io, DriverIo, DriverPathMetadata, PrepareOptions, SourceInput,
+    document_charts, driver_error_diagnostic, expand_variables, extract_chart_data_source,
+    parse_source, prepare_chart_with_io, DriverIo, DriverPathMetadata, PrepareOptions, SourceInput,
 };
 use algraf_editor_services::analysis::analyze_document_with_io;
 use algraf_editor_services::document::VirtualFile;
@@ -198,6 +198,8 @@ pub fn render_to_svg(source: &str, files: HashMap<String, Vec<u8>>) -> RenderOut
 struct BrowserRenderRequest {
     source: String,
     files: HashMap<String, String>,
+    #[serde(default)]
+    variables: HashMap<String, String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -240,12 +242,25 @@ fn render_browser_json(input: &[u8]) -> String {
         }
     };
 
+    let source = match expand_variables(&request.source, &request.variables) {
+        Ok(source) => source,
+        Err(err) => {
+            return serde_json::json!({
+                "svg": null,
+                "sidecar": null,
+                "diagnostics": [],
+                "error": format!("variable substitution error: {err}")
+            })
+            .to_string();
+        }
+    };
+
     let files = request
         .files
         .into_iter()
         .map(|(name, text)| (name, text.into_bytes()))
         .collect();
-    let outcome = render_to_svg(&request.source, files);
+    let outcome = render_to_svg(&source, files);
     let response = BrowserRenderResponse {
         svg: outcome.svg.as_deref(),
         sidecar: outcome.sidecar.as_deref(),
@@ -378,7 +393,11 @@ pub unsafe extern "C" fn algraf_dealloc(ptr: *mut u8, len: usize) {
 /// Input shape:
 ///
 /// ```json
-/// { "source": "Chart(...)", "files": { "data.json": "[...]" } }
+/// {
+///   "source": "Chart(...)",
+///   "files": { "data.json": "[...]" },
+///   "variables": { "color": "#3366cc" }
+/// }
 /// ```
 ///
 /// The packed `u64` return value stores the output pointer in the low 32 bits
@@ -470,6 +489,41 @@ mod tests {
         assert!(
             !outcome.diagnostics.is_empty(),
             "missing data should report a diagnostic"
+        );
+    }
+
+    #[test]
+    fn browser_render_json_expands_invocation_variables() {
+        let request = serde_json::json!({
+            "source": "Chart(data: \"penguins.csv\", width: 760, height: 500) {\n    Space(flipper_length * body_mass) { Point(fill: \"$color\", size: $size) }\n}\n",
+            "files": { "penguins.csv": CSV },
+            "variables": {
+                "color": "#3366cc",
+                "size": "12"
+            }
+        });
+        let response = render_browser_json(request.to_string().as_bytes());
+        let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
+        assert!(parsed["error"].is_null(), "{parsed}");
+        let svg = parsed["svg"].as_str().expect("svg produced");
+        assert!(svg.contains("#3366cc"), "{svg}");
+    }
+
+    #[test]
+    fn browser_render_json_reports_variable_substitution_errors() {
+        let request = serde_json::json!({
+            "source": "Chart(data: \"penguins.csv\") {\n    Space(flipper_length * body_mass) { Point(size: $size) }\n}\n",
+            "files": { "penguins.csv": CSV }
+        });
+        let response = render_browser_json(request.to_string().as_bytes());
+        let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
+        assert!(parsed["svg"].is_null(), "{parsed}");
+        assert!(parsed["sidecar"].is_null(), "{parsed}");
+        assert_eq!(parsed["diagnostics"].as_array().unwrap().len(), 0);
+        let error = parsed["error"].as_str().expect("error");
+        assert!(
+            error.contains("variable substitution error: undefined variable \"size\""),
+            "{error}"
         );
     }
 

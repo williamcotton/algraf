@@ -79,7 +79,7 @@ interface AlgrafWasmExports extends WebAssembly.Exports {
 }
 
 export interface AlgrafRuntime {
-  render(source: string, files: Record<string, string>): AlgrafRenderResult;
+  render(source: string, files: Record<string, string>, variables?: Record<string, string>): AlgrafRenderResult;
   editorService<T = unknown>(
     source: string,
     files: Record<string, string>,
@@ -114,8 +114,8 @@ export async function loadAlgrafRuntime(options: LoadAlgrafRuntimeOptions | stri
   assertAlgrafExports(exports);
 
   return {
-    render(source, files) {
-      return renderWithExports(exports, source, files);
+    render(source, files, variables) {
+      return renderWithExports(exports, source, files, variables);
     },
     editorService<T = unknown>(source: string, files: Record<string, string>, request: AlgrafEditorFeatureRequest, uri = "inmemory://algraf/demo.ag") {
       return editorServiceWithExports<T>(exports, source, files, request, uri);
@@ -203,8 +203,9 @@ function renderWithExports(
   exports: AlgrafWasmExports,
   source: string,
   files: Record<string, string>,
+  variables: Record<string, string> = {},
 ): AlgrafRenderResult {
-  const inputBytes = encoder.encode(JSON.stringify({ source, files }));
+  const inputBytes = encoder.encode(JSON.stringify({ source, files, variables }));
   const inputPtr = exports.algraf_alloc(inputBytes.length);
 
   try {
