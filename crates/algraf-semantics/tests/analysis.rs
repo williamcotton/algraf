@@ -3089,3 +3089,58 @@ fn test_highlight_non_column_value_is_e1207() {
         "E1207"
     ));
 }
+
+#[test]
+fn test_on_event_emitter_lowers_onto_previous_geometry() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point(fill: species) On(event: \"click\", emit: species) } }",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.spaces[0].layers.len(), 1);
+    assert_eq!(ir.spaces[0].geometries.len(), 1);
+    let event = ir.spaces[0].geometries[0]
+        .interaction
+        .event
+        .as_ref()
+        .expect("event");
+    assert_eq!(event.event, "click");
+    assert_eq!(event.emit.name, "species");
+}
+
+#[test]
+fn test_on_without_previous_geometry_is_e1913() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { On(event: \"click\", emit: species) } }",
+        "E1913"
+    ));
+}
+
+#[test]
+fn test_on_unsupported_event_is_e1913() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point() On(event: \"hover\", emit: species) } }",
+        "E1913"
+    ));
+}
+
+#[test]
+fn test_on_unsupported_geometry_is_e1913() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Line() On(event: \"click\", emit: species) } }",
+        "E1913"
+    ));
+}
+
+#[test]
+fn test_on_unknown_emit_column_is_e1101() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point() On(event: \"click\", emit: missing) } }",
+        "E1101"
+    ));
+}

@@ -88,6 +88,9 @@ fn hover_for_ident(
                 }
             }
             CallNameContext::Geometry => {
+                if let Some(doc) = registry::event_emitter_doc(name) {
+                    return Some(declaration_hover(doc));
+                }
                 if let Some(def) = registry::geometry(name) {
                     return Some(geometry_hover(def));
                 }
@@ -111,6 +114,9 @@ fn hover_for_ident(
     }
     if let Some(def) = registry::geometry(name) {
         return Some(geometry_hover(def));
+    }
+    if let Some(doc) = registry::event_emitter_doc(name) {
+        return Some(declaration_hover(doc));
     }
     if let Some(doc) = registry::declaration_doc(name) {
         return Some(declaration_hover(doc));
@@ -1157,6 +1163,16 @@ mod tests {
         let offset = text.find("Point").unwrap() + 1;
         let md = markdown(hover_at(&state(text), offset).expect("hover"));
         assert!(md.contains("Geometry `Point`"));
+    }
+
+    #[test]
+    fn hovers_on_event_emitter_with_registry_doc() {
+        let text = "Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Point()\n    On(event: \"click\", emit: x)\n  }\n}";
+        let offset = text.find("On").unwrap() + 1;
+        let md = markdown(hover_at(&state(text), offset).expect("hover"));
+        assert!(md.contains("Interaction `On`"), "{md}");
+        assert!(md.contains("event"), "{md}");
+        assert!(md.contains("emit"), "{md}");
     }
 
     #[test]

@@ -1,0 +1,12 @@
+Chart(data: "event_emitter_zones.csv", width: 760, height: 420,
+      title: "Zone selector") {
+    Theme(name: "minimal")
+    Scale(fill: zone, palette: "accent")
+    Guide(axis: x, label: "Zone")
+    Guide(axis: y, label: "Revenue")
+
+    Space(zone * total_revenue) {
+        Bar(fill: zone, layout: "stack", tooltip: [zone, total_revenue, orders])
+        On(event: "click", emit: zone)
+    }
+}

@@ -252,6 +252,11 @@ pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Ve
                 .map(|name| function(name, registry::geometry_doc(name)))
                 .collect::<Vec<_>>();
             items.push(snippet(
+                "On",
+                "On(event: \"click\", emit: $1)",
+                "Attach click event metadata to the preceding mark",
+            ));
+            items.push(snippet(
                 "Inset",
                 "Inset(data: $1, match: [$2 => $3], size: 32) {\n    Space($4) {\n        $5\n    }\n}",
                 "Child plot anchored to each parent row",
@@ -282,6 +287,12 @@ pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Ve
         } => {
             if let Some(key) = active_key {
                 return property_value_items(state, geometry.as_deref(), &key);
+            }
+            if geometry.as_deref() == Some("On") {
+                return registry::EVENT_EMITTER_ARGS
+                    .iter()
+                    .map(|name| property(name, registry::property_doc(name)))
+                    .collect();
             }
             if let Some(geometry) = geometry.and_then(|name| registry::geometry(&name)) {
                 let mut items = geometry
@@ -406,6 +417,14 @@ fn property_value_items(
     geometry: Option<&str>,
     property_name: &str,
 ) -> Vec<CompletionItem> {
+    if geometry == Some("On") {
+        return match property_name {
+            "event" => vec![value_item("\"click\"", "Click event")],
+            "emit" => column_items_matching(state, |_| true),
+            _ => Vec::new(),
+        };
+    }
+
     let spec = geometry
         .and_then(registry::geometry)
         .and_then(|geometry| geometry.prop(property_name));
@@ -934,6 +953,36 @@ mod tests {
             },
         );
         assert!(!labels(&items).contains(&"transpose"));
+    }
+
+    #[test]
+    fn space_body_completion_offers_on_event_emitter() {
+        let items = completion_items(&empty_state(), CompletionContext::SpaceBody);
+        assert!(labels(&items).contains(&"On"));
+    }
+
+    #[test]
+    fn on_arg_completion_offers_event_and_emit() {
+        let items = completion_items(
+            &empty_state(),
+            CompletionContext::GeometryArgs {
+                geometry: Some("On".to_string()),
+                active_key: None,
+            },
+        );
+        assert_eq!(labels(&items), vec!["event", "emit"]);
+    }
+
+    #[test]
+    fn on_event_value_completion_offers_click() {
+        let items = completion_items(
+            &empty_state(),
+            CompletionContext::GeometryArgs {
+                geometry: Some("On".to_string()),
+                active_key: Some("event".to_string()),
+            },
+        );
+        assert_eq!(labels(&items), vec!["\"click\""]);
     }
 
     #[test]

@@ -2691,6 +2691,8 @@ const INTERACTION_CSV: &str = "x,y,g\n1,2,A\n3,4,B\n";
 
 const TOOLTIP_SRC: &str = "Chart(data: \"p.csv\", width: 200, height: 200) { Space(x * y) { Point(tooltip: [g, y], highlight: \"g\") } }";
 
+const EVENT_SRC: &str = "Chart(data: \"p.csv\", width: 200, height: 200) { Space(x * y) { Point(tooltip: [g], highlight: \"g\") On(event: \"click\", emit: g) } }";
+
 const PLAIN_SRC: &str =
     "Chart(data: \"p.csv\", width: 200, height: 200) { Space(x * y) { Point() } }";
 
@@ -2700,6 +2702,15 @@ fn tooltip_emits_accessible_title_and_highlight_group() {
     assert!(svg.contains("data-algraf-highlight=\"A\""), "{svg}");
     assert!(svg.contains("<title>g: A\ny: 2</title></circle>"), "{svg}");
     // Static SVG stays script-free without the opt-in.
+    assert!(!svg.contains("<script"), "{svg}");
+}
+
+#[test]
+fn event_emitter_emits_inert_svg_data_attributes() {
+    let svg = render_svg(EVENT_SRC, INTERACTION_CSV);
+    assert!(svg.contains("data-algraf-event=\"click\""), "{svg}");
+    assert!(svg.contains("data-algraf-emit-field=\"g\""), "{svg}");
+    assert!(svg.contains("data-algraf-emit-value=\"A\""), "{svg}");
     assert!(!svg.contains("<script"), "{svg}");
 }
 
@@ -2784,5 +2795,18 @@ fn interaction_metadata_records_plot_axes_marks_and_groups() {
     assert_eq!(first["tooltip"][0]["value"], "A");
     assert_eq!(first["tooltip"][1]["label"], "y");
     assert_eq!(first["tooltip"][1]["value"], "2");
+    assert_eq!(parsed["groups"]["g"], serde_json::json!(["A", "B"]));
+}
+
+#[test]
+fn interaction_metadata_records_event_emitters() {
+    let result = render_result(EVENT_SRC, INTERACTION_CSV);
+    let json = result.metadata.to_json();
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("metadata json");
+    let first = &parsed["marks"][0];
+
+    assert_eq!(first["interaction"]["event"], "click");
+    assert_eq!(first["interaction"]["emit_field"], "g");
+    assert_eq!(first["groups"]["g"], "A");
     assert_eq!(parsed["groups"]["g"], serde_json::json!(["A", "B"]));
 }

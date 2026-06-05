@@ -452,6 +452,18 @@ mod tests {
     }
 
     #[test]
+    fn render_sidecar_includes_event_emitter_metadata() {
+        let source = "Chart(data: \"penguins.csv\", width: 760, height: 500) {\n    Space(flipper_length * body_mass) {\n        Point(fill: species)\n        On(event: \"click\", emit: species)\n    }\n}\n";
+        let outcome = render_to_svg(source, files());
+        assert!(outcome.error.is_none(), "{:?}", outcome.error);
+        let sidecar = outcome.sidecar.expect("sidecar produced");
+        let parsed: serde_json::Value = serde_json::from_str(&sidecar).unwrap();
+        assert_eq!(parsed["marks"][0]["interaction"]["event"], "click");
+        assert_eq!(parsed["marks"][0]["interaction"]["emit_field"], "species");
+        assert_eq!(parsed["marks"][0]["groups"]["species"], "Adelie");
+    }
+
+    #[test]
     fn missing_data_source_is_a_diagnostic_not_a_panic() {
         let outcome = render_to_svg(SOURCE, HashMap::new());
         assert!(outcome.svg.is_none());

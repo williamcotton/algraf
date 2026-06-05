@@ -460,6 +460,22 @@ fn write_interaction_json(out: &mut String, interaction: &Option<crate::sink::Ma
             out.push(',');
         }
         let _ = write!(out, "\"highlight\":{}", json_string(highlight));
+        first = false;
+    }
+    if let Some(event) = &mark.event {
+        if !first {
+            out.push(',');
+        }
+        let _ = write!(
+            out,
+            "\"event\":{{\"event\":{},\"emit_field\":{}",
+            json_string(&event.event),
+            json_string(&event.emit_field),
+        );
+        if let Some(value) = &event.value {
+            let _ = write!(out, ",\"value\":{}", json_string(value));
+        }
+        out.push('}');
     }
     out.push('}');
 }

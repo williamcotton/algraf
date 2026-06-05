@@ -45,6 +45,28 @@ fn test_minimal_chart() {
 }
 
 #[test]
+fn test_space_parses_on_event_emitter_as_call_item() {
+    let source = r#"Chart(data: "p.csv") {
+    Space(x * y) {
+        Point(fill: group)
+        On(event: "click", emit: group)
+    }
+}"#;
+    no_errors(source);
+    let chart = root(source).chart().unwrap();
+    let ChartItem::Space(space) = &chart.items()[0] else {
+        panic!("expected a space block");
+    };
+    let items = space.items();
+    assert_eq!(items.len(), 2);
+    let SpaceItem::Geometry(on) = &items[1] else {
+        panic!("expected call item");
+    };
+    assert_eq!(on.name().as_deref(), Some("On"));
+    assert_eq!(on.args().len(), 2);
+}
+
+#[test]
 fn test_chart_args() {
     let source = r#"Chart(data: "p.csv", width: 800, height: 520) {
 }"#;

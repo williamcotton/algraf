@@ -65,6 +65,9 @@ pub const SCALE_TYPE_NAMES: &[&str] = &["linear", "log10", "sqrt"];
 /// Named categorical palettes accepted by `Scale(palette: ...)`.
 pub const PALETTE_NAMES: &[&str] = &["default", "accent"];
 
+/// Recognized `On(...)` event-emitter arguments (spec §14.25).
+pub const EVENT_EMITTER_ARGS: &[&str] = &["event", "emit"];
+
 /// Documentation for a single call argument or property.
 #[derive(Debug, Clone, Copy)]
 pub struct ArgDoc {
@@ -156,6 +159,21 @@ const CHART_DOC_ARGS: &[ArgDoc] = &[
         value: "number",
         default: Some("computed"),
         doc: "Minimum left plot margin in pixels.",
+    },
+];
+
+const EVENT_EMITTER_DOC_ARGS: &[ArgDoc] = &[
+    ArgDoc {
+        name: "event",
+        value: "\"click\"",
+        default: None,
+        doc: "Host-observable event name. v0.64 accepts only `\"click\"`.",
+    },
+    ArgDoc {
+        name: "emit",
+        value: "column",
+        default: None,
+        doc: "Column whose per-row value is emitted for the activated mark.",
     },
 ];
 
@@ -736,6 +754,21 @@ pub fn declaration_doc(name: &str) -> Option<CallDoc> {
             description: "Declares a chart-scoped named table loaded from its own source.",
             args: TABLE_DOC_ARGS,
             example: "Table cities = \"cities.csv\"",
+        }),
+        _ => None,
+    }
+}
+
+/// Human-facing documentation for declarative event-emitter calls.
+pub fn event_emitter_doc(name: &str) -> Option<CallDoc> {
+    match name {
+        "On" => Some(CallDoc {
+            name: "On",
+            kind: "Interaction",
+            description:
+                "Attaches inert host-side event metadata to the preceding mark in the same Space.",
+            args: EVENT_EMITTER_DOC_ARGS,
+            example: "Point(fill: zone)\nOn(event: \"click\", emit: zone)",
         }),
         _ => None,
     }
@@ -1571,6 +1604,8 @@ pub fn property_doc(name: &str) -> &'static str {
         "highlight" => {
             "Declarative highlight grouping key: a column whose value identifies marks that emphasize together on hover."
         }
+        "event" => "Declarative event name for an emitter. v0.64 accepts only `\"click\"`.",
+        "emit" => "Column whose row value is emitted by a declarative event emitter.",
         _ => "Algraf argument.",
     }
 }

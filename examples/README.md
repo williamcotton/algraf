@@ -109,6 +109,30 @@ Chart(data: "image_marks.csv", width: 760, height: 460,
 
 ![image_marks](image_marks.svg)
 
+## Host event emitters
+
+`On(event: "click", emit: zone)` attaches inert click metadata to the preceding
+mark. The sidecar records the emitted field name and the mark's row value; a
+host application decides whether that click updates UI state, PDL state, or
+nothing at all.
+
+```algraf
+Chart(data: "event_emitter_zones.csv", width: 760, height: 420,
+      title: "Zone selector") {
+    Theme(name: "minimal")
+    Scale(fill: zone, palette: "accent")
+    Guide(axis: x, label: "Zone")
+    Guide(axis: y, label: "Revenue")
+
+    Space(zone * total_revenue) {
+        Bar(fill: zone, layout: "stack", tooltip: [zone, total_revenue, orders])
+        On(event: "click", emit: zone)
+    }
+}
+```
+
+![event_emitter](event_emitter.svg)
+
 ## Scatterplot with inset sparklines
 
 `Inset(...)` places a bounded child chart at each parent row. Here each country

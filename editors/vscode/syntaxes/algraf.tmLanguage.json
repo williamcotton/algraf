@@ -22,6 +22,9 @@
       "include": "#declarations"
     },
     {
+      "include": "#interactions"
+    },
+    {
       "include": "#geometries"
     },
     {
@@ -129,6 +132,14 @@
         {
           "name": "entity.name.function.geometry.algraf",
           "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Density|ErrorBar|LineRange|PointRange|CrossBar|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Label|Image|Segment|Geo|Graticule)\\b(?=\\s*\\()"
+        }
+      ]
+    },
+    "interactions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.interaction.algraf",
+          "match": "\\bOn\\b(?=\\s*\\()"
         }
       ]
     },

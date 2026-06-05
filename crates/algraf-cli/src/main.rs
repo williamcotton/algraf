@@ -1385,6 +1385,10 @@ fn interaction_json(interaction: &algraf_semantics::InteractionIr) -> Value {
     json!({
         "tooltip": interaction.tooltip.iter().map(column_json).collect::<Vec<_>>(),
         "highlight": interaction.highlight.as_ref().map(column_json),
+        "event": interaction.event.as_ref().map(|event| json!({
+            "event": event.event.as_str(),
+            "emit": column_json(&event.emit),
+        })),
     })
 }
 

@@ -367,7 +367,7 @@ fn draw_list_records_terminal_labels_by_physical_x_endpoint() {
 #[test]
 fn draw_list_records_inert_interaction_metadata() {
     let list = draw_list(
-        "Chart(data: \"p.csv\", width: 200, height: 200) { Space(x * y) { Point(tooltip: [g], highlight: \"g\") } }",
+        "Chart(data: \"p.csv\", width: 200, height: 200) { Space(x * y) { Point(tooltip: [g], highlight: \"g\") On(event: \"click\", emit: g) } }",
         "x,y,g\n1,2,A\n3,4,B\n",
     );
     let marks: Vec<_> = list
@@ -386,10 +386,14 @@ fn draw_list_records_inert_interaction_metadata() {
     let first = marks[0].as_ref().expect("interaction");
     assert_eq!(first.tooltip.as_deref(), Some("g: A"));
     assert_eq!(first.highlight.as_deref(), Some("A"));
+    let event = first.event.as_ref().expect("event");
+    assert_eq!(event.event, "click");
+    assert_eq!(event.emit_field, "g");
+    assert_eq!(event.value.as_deref(), Some("A"));
     // The same metadata is serialized into the JSON, inert.
     let json = list.to_json();
     assert!(
-        json.contains("\"interaction\":{\"tooltip\":\"g: A\",\"highlight\":\"A\"}"),
+        json.contains("\"interaction\":{\"tooltip\":\"g: A\",\"highlight\":\"A\",\"event\":{\"event\":\"click\",\"emit_field\":\"g\",\"value\":\"A\"}}"),
         "{json}"
     );
     assert!(json.contains("\"interactions\":{\"version\":1"), "{json}");

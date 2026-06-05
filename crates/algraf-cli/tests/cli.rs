@@ -219,7 +219,7 @@ fn render_metadata_writes_interaction_sidecar() {
     fs::write(&data, "x,y,group\n1,2,a\n3,4,b\n").unwrap();
     fs::write(
         &chart,
-        "Chart(data: \"data.csv\") {\n  Space(x * y) {\n    Point(tooltip: [group, y], highlight: \"group\")\n  }\n}\n",
+        "Chart(data: \"data.csv\") {\n  Space(x * y) {\n    Point(tooltip: [group, y], highlight: \"group\")\n    On(event: \"click\", emit: group)\n  }\n}\n",
     )
     .unwrap();
 
@@ -242,6 +242,8 @@ fn render_metadata_writes_interaction_sidecar() {
     assert_eq!(parsed["version"], 1);
     assert_eq!(parsed["marks"][0]["tooltip"][0]["label"], "group");
     assert_eq!(parsed["marks"][0]["groups"]["group"], "a");
+    assert_eq!(parsed["marks"][0]["interaction"]["event"], "click");
+    assert_eq!(parsed["marks"][0]["interaction"]["emit_field"], "group");
     assert_eq!(parsed["groups"]["group"], serde_json::json!(["a", "b"]));
 }
 

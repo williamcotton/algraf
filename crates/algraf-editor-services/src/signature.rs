@@ -83,6 +83,7 @@ fn signature_params(name: &str) -> Option<Vec<&'static str>> {
         "Scale" | "Guide" | "Theme" | "Layout" | "Inset" | "Style" | "Stop" => {
             Some(registry::declaration_arg_names(name).to_vec())
         }
+        "On" => Some(registry::EVENT_EMITTER_ARGS.to_vec()),
         "Bin" | "Smooth" | "StepVertices" | "JitterPoints" | "VectorEndpoints" | "CurveSample"
         | "Bin2D" | "HexBin" | "ContourLines" | "ContourBands" | "Density2D"
         | "Density2DContours" | "Density2DBands" | "Distinct" | "Ecdf" | "Qq" | "Summary"
@@ -144,6 +145,14 @@ mod tests {
         assert!(info.label.starts_with("Point("));
         assert!(info.label.contains("fill"));
         // The first argument is active before any comma.
+        assert_eq!(sig.active_parameter, Some(0));
+    }
+
+    #[test]
+    fn on_signature_lists_event_emitter_arguments() {
+        let sig = help("Chart(data: \"p.csv\") {\n  Space(x * y) {\n    Point()\n    On(");
+        let info = &sig.signatures[0];
+        assert_eq!(info.label, "On(event, emit)");
         assert_eq!(sig.active_parameter, Some(0));
     }
 

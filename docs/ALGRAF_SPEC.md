@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.63.0
+Status: 0.64.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.63.0 specification.
+This working copy is the 0.64.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -225,9 +225,10 @@ Algraf SHOULD be easy to parse incrementally.
 Algraf SHOULD produce helpful errors for common grammar-of-graphics mistakes.
 
 Algraf supports declarative, opt-in interactive output (tooltips, hover
-highlighting, and Cartesian plot crosshairs with axis value readouts) through
-inert mark metadata, emitted plot/axis geometry, and a fixed, audited runtime;
-static SVG stays script-free by default (spec §14.25, §24.6, §29.3).
+highlighting, host-owned click emitters, and Cartesian plot crosshairs with
+axis value readouts) through inert mark metadata, emitted plot/axis geometry,
+and a fixed, audited runtime; static SVG stays script-free by default (spec
+§14.25, §24.6, §29.3).
 
 Algraf MAY support raster output through a separate backend in later versions.
 
@@ -270,12 +271,12 @@ Algraf does not initially support HTML canvas.
 Algraf does not initially support WebGL.
 
 Algraf supports *declarative* interactivity as opt-in metadata and emitted
-chart geometry (tooltips, hover highlighting, and Cartesian plot crosshairs;
-spec §14.25, §24.6, §29.3): a chart declares *what* data participates, and a
-viewer interprets inert metadata plus the rendered plot/axis elements. Algraf
-does not support event-handler source, an embedded scripting language, or
-user-authored runtime code; static SVG remains script-free unless interactive
-output is explicitly requested.
+chart geometry (tooltips, hover highlighting, host-owned click emitters, and
+Cartesian plot crosshairs; spec §14.25, §24.6, §29.3): a chart declares *what*
+data participates, and a viewer interprets inert metadata plus the rendered
+plot/axis elements. Algraf does not support event-handler source, an embedded
+scripting language, or user-authored runtime code; static SVG remains
+script-free unless interactive output is explicitly requested.
 
 Algraf does not initially support automatic statistical inference beyond explicitly specified statistics.
 
@@ -5684,7 +5685,7 @@ the renderer attaches that as inert metadata, and a viewer (a host runtime
 reading the JSON sidecar of §24.6, the opt-in interactive runtime of §29.3, or a
 Canvas/raster host reading the draw list of §24.6) interprets it.
 
-Two interaction properties are recognized:
+Two interaction properties and one adjacent event-emitter call are recognized:
 
 `tooltip` — a column, or an array of columns, whose per-row values describe a
 mark. The renderer formats a deterministic, locale-independent sequence of
@@ -5693,6 +5694,14 @@ mark. The renderer formats a deterministic, locale-independent sequence of
 `highlight` — a grouping column (written bare or as a quoted column name) whose
 per-row value identifies the marks that emphasize together on hover (for
 example, the categorical `fill` field also shown in the legend).
+
+`On(event: "click", emit: column)` — since version 0.64.0, an inert event
+emitter attached to the immediately preceding per-datum mark in the same
+`Space`. `event` MUST be the string literal `"click"` in this version. `emit`
+MUST name a column whose per-row value the host can read from the sidecar. `On`
+MUST NOT create a drawable layer, affect scale training, or contain callbacks,
+scripts, URLs, routing names, state references, or expressions. Algraf emits
+only metadata; the host decides what, if anything, to do with the emitted value.
 
 Interaction metadata MUST NOT affect scale training, layout, statistics, or the
 geometry's drawn coordinates: it rides the geometry IR and the render scene
@@ -5703,7 +5712,11 @@ Interaction properties are accepted only on the per-datum filled marks `Point`,
 `Image`, `Bar`, `Rect`, and `Tile`. Using them on any other geometry is `E1206`. A
 `tooltip` value that is neither a column nor an array of columns, or a
 `highlight` value that does not name a column, is `E1207`. A referenced column
-that does not exist is `E1101`.
+that does not exist is `E1101`. `On(...)` accepts the same per-datum filled mark
+set. If `On(...)` is not placed immediately after an eligible mark, uses an
+unsupported event name, omits `event` or `emit`, repeats an argument, targets an
+unsupported geometry, or uses a non-column `emit` value, the analyzer MUST emit
+`E1913`. An unknown `emit` column remains `E1101`.
 
 Example:
 
@@ -5713,6 +5726,7 @@ Point(
     tooltip: [species, flipper_length, body_mass],
     highlight: "species"
 )
+On(event: "click", emit: species)
 ```
 
 The static SVG affordance is described in §18.10, the host-runtime sidecar and
@@ -7566,8 +7580,12 @@ When a mark declares a `tooltip` (spec §14.25), the SVG backend MUST emit the
 tooltip as an accessible `<title>` child of that mark's shape element, with no
 script. When a mark declares a `highlight` grouping key, the backend MUST emit a
 stable `data-algraf-highlight="<group>"` attribute on the shape so a viewer can
-relate marks of the same group. Both the `<title>` text and the attribute value
-are escaped per §29.3. A chart that declares no interaction metadata MUST
+relate marks of the same group. When a mark declares `On(event: "click",
+emit: column)`, the backend MUST emit inert `data-algraf-event="click"` and
+`data-algraf-emit-field="<column>"` attributes, and SHOULD emit
+`data-algraf-emit-value="<value>"` when the row value exists. The `<title>` text
+and every interaction attribute value are escaped per §29.3. A chart that
+declares no interaction metadata MUST
 produce byte-for-byte unchanged SVG: shapes stay self-closing and carry no
 interaction attributes. These static affordances are present without any opt-in;
 the JSON sidecar (§24.6), draw-list backend (§24.6), and opt-in interactive
@@ -9396,15 +9414,20 @@ The renderer ships three backends over this seam:
   it inverts `time` the same way as `linear` and formats the resulting UTC
   microseconds; it inverts a band axis by selecting the nearest domain band.
   `marks[]` carries stable `id`, `plot`, `x_px`, `y_px`, optional `clipped:
-  true`, `groups`, and display-ready `tooltip` rows for each pickable per-datum
-  mark that survives layout. Top-level mark IDs use `p{panel}:g{geometry}:r{row}`;
+  true`, `groups`, optional `interaction`, and display-ready `tooltip` rows for
+  each pickable per-datum mark that survives layout. When present,
+  `interaction` carries `{ "event": "click", "emit_field": "<column>" }` for an
+  `On(...)` emitter. The emitted row value is resolved through
+  `mark.groups[mark.interaction.emit_field]`; hosts MUST NOT evaluate Algraf
+  source or scrape SVG attributes to recover it. Top-level mark IDs use
+  `p{panel}:g{geometry}:r{row}`;
   inset mark IDs prefix the hierarchical inset plot ID, e.g.
   `p0:i0[3]:s0:g0:r2`. `groups` maps each highlight key to its
-  first-appearance-ordered
-  values. Host runtimes MAY use the mark coordinates and group values to
-  implement host-owned legend selection or plot brushing; Algraf MUST NOT
-  serialize mutable selection state. The sidecar is inert data: it MUST NOT
-  contain scripts, callbacks, URLs, or host policy.
+  first-appearance-ordered values and also includes event-emitter fields when a
+  mark declares `On(...)`. Host runtimes MAY use the mark coordinates and group
+  values to implement host-owned legend selection, plot brushing, or click
+  routing; Algraf MUST NOT serialize mutable selection state. The sidecar is
+  inert data: it MUST NOT contain scripts, callbacks, URLs, or host policy.
 - The **draw-list backend** records a serializable, Canvas-drawable draw list of
   drawable primitives from the same scene. It is the proof that the seam supports
   more than one output format. The draw list MUST use the same locale-independent
@@ -9422,13 +9445,14 @@ The renderer ships three backends over this seam:
   an Algraf-generated embedded data href plus x/y/width/height and optional
   opacity. A shape or image op for a mark that declares interaction metadata
   (spec §14.25) also carries an inert `interaction` object with optional
-  `tooltip` and `highlight` fields, recorded through the same shared mark sink
-  that the SVG backend uses for its `<title>` and `data-algraf-highlight`
-  affordances (§18.10) — so the two backends carry the same interaction metadata
-  by construction. The top-level draw-list JSON also carries an `interactions`
-  object with the exact same sidecar shape described above, versioned together
-  with the sidecar. The draw list MUST NOT execute scripts or embed behavior; it
-  is inert data.
+  `tooltip`, `highlight`, and `event` fields, recorded through the same shared
+  mark sink that the SVG backend uses for its `<title>`,
+  `data-algraf-highlight`, `data-algraf-event`, `data-algraf-emit-field`, and
+  `data-algraf-emit-value` affordances (§18.10) — so the two backends carry the
+  same interaction metadata by construction. The top-level draw-list JSON also
+  carries an `interactions` object with the exact same sidecar shape described
+  above, versioned together with the sidecar. The draw list MUST NOT execute
+  scripts or embed behavior; it is inert data.
 - The **render-model raster backend** draws the draw list to a raster image with
   a CPU rasterizer (`tiny-skia`), not by rasterizing SVG bytes. It pulls in no
   browser runtime and no system fonts, and is deterministic for a given
@@ -9617,6 +9641,13 @@ tarballs into ignored package `dist/` or workspace `artifacts/` directories and
 install them with `file:` paths before npm publication. Generated
 `algraf.wasm` binaries and local package tarballs MUST NOT be checked into
 source.
+
+Version 0.64.0 adds declarative `On(event: "click", emit: column)` event
+emitters for host applications. Event emitters are inert metadata attached to
+the preceding per-datum mark, are serialized through the existing version-1
+interaction sidecar and draw-list interaction objects, and do not introduce
+selection state, callbacks, scripts, routing rules, or PDL references inside
+Algraf.
 
 The manual pointer/length ABI does not mean the shipped `.wasm` is free of
 `wasm-bindgen`-style imports. Dependencies compiled for
@@ -10053,7 +10084,7 @@ missing `=>`/stray separator in a map literal)
 
 `E1912 removed or unsupported frame operator`
 
-`E1913 reserved`
+`E1913 invalid event emitter declaration`
 
 `E2001 render mark budget exceeded`
 
@@ -10537,20 +10568,21 @@ All attribute values are escaped.
 Color values are validated before insertion.
 
 The renderer MUST NOT inject raw user strings into SVG (§18.9). This applies to
-interaction metadata too: tooltip text and highlight group values (spec §14.25)
-are escaped before insertion into `<title>` children and `data-algraf-highlight`
-attributes (§18.10).
+interaction metadata too: tooltip text, highlight group values, event names,
+emitted field names, and emitted row values (spec §14.25) are escaped before
+insertion into `<title>` children and `data-algraf-*` attributes (§18.10).
 
 **Static SVG is script-free by default.** A `<script>` element MAY appear in the
 output only when interactive output is explicitly requested (CLI `--interactive`,
 spec §22.3; the interactive LSP preview, §21.18; or an embedded host's
 interactive SVG render option, §29.2.1). When it does, the embedded script is a
 single, fixed, audited runtime shipped by Algraf and identical across all charts:
-it reads the inert per-mark metadata (`<title>` tooltips and
-`data-algraf-highlight` groups), plus the emitted plot rectangles and Cartesian
-axis tick labels, and implements tooltip-on-hover, highlight-on-hover, and
-crosshair value readouts. Chart source can never supply, extend, or parameterize
-this script — there is no path from `.ag` text to executable code. The script
+it reads the inert per-mark metadata (`<title>` tooltips,
+`data-algraf-highlight` groups, and event-emitter attributes), plus the emitted
+plot rectangles and Cartesian axis tick labels, and implements tooltip-on-hover,
+highlight-on-hover, and crosshair value readouts. Chart source can never supply,
+extend, or parameterize this script — there is no path from `.ag` text to
+executable code. The script
 performs no network access and is deterministic given the same SVG. Absent the
 opt-in, no `<script>` is emitted.
 
@@ -10723,6 +10755,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.61.0 | [`V0_61_PLAN.md`](V0_61_PLAN.md) | Story-chart expression: stacked/fill Area, categorical axis order, numeric Text format, and terminal Label geometry | Implemented |
 | 0.62.0 | [`V0_62_PLAN.md`](V0_62_PLAN.md) | Sparse stacked/fill Area continuity for story-chart tables | Implemented |
 | 0.63.0 | [`V0_63_PLAN.md`](V0_63_PLAN.md) | Shared editor assets and first-party Monaco integration | Implemented |
+| 0.64.0 | [`V0_64_PLAN.md`](V0_64_PLAN.md) | Declarative event emitters for host applications | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

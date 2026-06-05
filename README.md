@@ -357,13 +357,17 @@ Interactive hosts should render static SVG and consume the JSON sidecar rather
 than scraping axis ticks or re-running layout. The sidecar includes chart
 metadata (`title`, `subtitle`, `caption`, `alt`, `description`), legend position
 and rectangle metadata, `plot_rect`, invertible `axes`, pickable `marks[]` with
-`x_px`/`y_px`, tooltip rows, and highlight groups.
+`x_px`/`y_px`, tooltip rows, highlight groups, and optional
+`interaction` event emitters such as `On(event: "click", emit: zone)`.
 
 ```bash
 algraf render examples/highlight.ag \
   --output chart.svg \
   --metadata chart.meta.json
 ```
+
+See [`examples/event_emitter.ag`](examples/event_emitter.ag) for a small chart
+whose sidecar lets a host map a clicked bar to a `zone` value.
 
 The in-tree host reference lives in [`demo/src/AlgrafChart.tsx`](demo/src/AlgrafChart.tsx).
 It reads the sidecar, picks the nearest mark from `x_px`/`y_px`, inverts
@@ -389,7 +393,7 @@ The runtime returns `{ svg, sidecar, diagnostics, error }`. The demo fetches its
 sample data before calling WASM; browser networking stays host-owned, and the
 WASM runtime itself only sees the in-memory `files` map.
 
-Algraf v0.63 also provides local package-shaped browser integrations:
+Algraf v0.64 also provides local package-shaped browser integrations:
 `packages/wasm` (`algraf-wasm`) for runtime loading and ABI types, and
 `editors/monaco` (`algraf-editor`) for Monaco/React editor wiring. During
 development, hosts can install them with filesystem `file:` paths and pass a

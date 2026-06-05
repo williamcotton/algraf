@@ -1,6 +1,6 @@
 # algraf-wasm
 
-Browser runtime loader and structural TypeScript ABI types for Algraf `0.63.x`.
+Browser runtime loader and structural TypeScript ABI types for Algraf `0.64.x`.
 
 During local source-mode development, build or copy `algraf.wasm` into the host
 app's public assets and pass that URL explicitly:

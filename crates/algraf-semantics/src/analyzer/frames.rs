@@ -78,34 +78,68 @@ impl Analyzer<'_> {
         let mut guides = GuideOverridesIr::default();
         let mut scales = Vec::new();
         let mut saw_layer = false;
+        let mut last_geometry: Option<(usize, usize)> = None;
         for item in space.items() {
             match item {
                 SpaceItem::Geometry(call) => {
+                    if call.name().as_deref() == Some("On") {
+                        match last_geometry {
+                            Some((geometry_index, source_index)) => {
+                                self.lower_event_emitter(
+                                    &call,
+                                    &mut geometry_layers[geometry_index],
+                                    &table,
+                                );
+                                if let Some(SpaceLayerIr::Geometry(layer)) =
+                                    source_layers.get_mut(source_index)
+                                {
+                                    *layer = geometry_layers[geometry_index].clone();
+                                }
+                            }
+                            None => self.diag(Diagnostic::error(
+                                codes::E1913,
+                                "`On(...)` must directly follow a geometry mark in the same `Space`",
+                                node_span(call.syntax()),
+                            )),
+                        }
+                        continue;
+                    }
                     saw_layer = true;
                     if let Some(geo) = self.geometry(&call, &frame, &coords, &table) {
+                        let source_index = source_layers.len();
+                        let geometry_index = geometry_layers.len();
                         source_layers.push(SpaceLayerIr::Geometry(geo.clone()));
                         geometry_layers.push(geo);
+                        last_geometry = Some((geometry_index, source_index));
+                    } else {
+                        last_geometry = None;
                     }
                 }
                 SpaceItem::Inset(block) => {
                     saw_layer = true;
+                    last_geometry = None;
                     if let Some(inset) = self.inset(&block, &table, &mut inset_derived) {
                         source_layers.push(SpaceLayerIr::Inset(inset));
                     }
                 }
                 SpaceItem::Theme(decl) => {
+                    last_geometry = None;
                     if let Some(t) = self.theme_decl(&decl) {
                         theme = Some(t);
                     }
                 }
                 SpaceItem::Scale(decl) => {
+                    last_geometry = None;
                     if let Some(scale) = self.scale_decl(&decl, &table) {
                         scales.push(scale);
                     }
                 }
-                SpaceItem::Guide(decl) => self.guide_decl(&decl, &mut guides),
-                SpaceItem::Let(_) => {}
-                SpaceItem::Error(_) => {}
+                SpaceItem::Guide(decl) => {
+                    last_geometry = None;
+                    self.guide_decl(&decl, &mut guides);
+                }
+                SpaceItem::Let(_) => last_geometry = None,
+                SpaceItem::Error(_) => last_geometry = None,
             }
         }
         if !saw_layer {

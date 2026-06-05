@@ -3,7 +3,7 @@ use algraf_semantics::{GeometryIr, PropertyKey, SettingValue};
 
 use crate::aes::{bin_index_for_value, ColorSpec};
 use crate::scale::{cell_category, cell_f64, cell_micros};
-use crate::sink::{Dash, MarkInteraction, MarkSink, Stroke};
+use crate::sink::{Dash, MarkEventInteraction, MarkInteraction, MarkSink, Stroke};
 use crate::space::{AxisScale, ScaledSpace};
 
 pub(crate) const DEFAULT_FILL: &str = "#4E79A7";
@@ -37,7 +37,19 @@ pub(super) fn mark_interaction(geo: &GeometryIr, table: &dyn Table, row: usize) 
         .highlight
         .as_ref()
         .and_then(|col| cell_category(table, &col.name, row));
-    MarkInteraction { tooltip, highlight }
+    let event = interaction
+        .event
+        .as_ref()
+        .map(|event| MarkEventInteraction {
+            event: event.event.clone(),
+            emit_field: event.emit.name.clone(),
+            value: cell_category(table, &event.emit.name, row),
+        });
+    MarkInteraction {
+        tooltip,
+        highlight,
+        event,
+    }
 }
 
 pub(super) fn row_category(spec: &ColorSpec, table: &dyn Table, row: usize) -> Option<String> {

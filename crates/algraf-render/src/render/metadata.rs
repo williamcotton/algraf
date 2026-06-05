@@ -103,7 +103,15 @@ pub struct InteractionMark {
     pub y_px: f64,
     pub clipped: bool,
     pub groups: Vec<InteractionGroupValue>,
+    pub interaction: Option<InteractionEvent>,
     pub tooltip: Vec<TooltipRow>,
+}
+
+/// Optional host-side event emitter attached to a mark.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InteractionEvent {
+    pub event: String,
+    pub emit_field: String,
 }
 
 /// A top-level group domain, in first-appearance order.
@@ -321,12 +329,19 @@ fn collect_geometry_marks(
         if let Some(col) = &geo.interaction.highlight {
             if let Some(value) = cell_category(table, &col.name, row) {
                 append_group_value(groups, &col.name, &value);
-                mark_groups.push(InteractionGroupValue {
-                    key: col.name.clone(),
-                    value,
-                });
+                append_mark_group_value(&mut mark_groups, &col.name, value);
             }
         }
+        let interaction = geo.interaction.event.as_ref().map(|event| {
+            if let Some(value) = cell_category(table, &event.emit.name, row) {
+                append_group_value(groups, &event.emit.name, &value);
+                append_mark_group_value(&mut mark_groups, &event.emit.name, value);
+            }
+            InteractionEvent {
+                event: event.event.clone(),
+                emit_field: event.emit.name.clone(),
+            }
+        });
         marks.push(InteractionMark {
             id: format!("{mark_prefix}:g{geometry_index}:r{row}"),
             plot: plot_id.to_string(),
@@ -334,6 +349,7 @@ fn collect_geometry_marks(
             y_px,
             clipped: clip_rect.is_some_and(|rect| !rect_contains(rect, x_px, y_px)),
             groups: mark_groups,
+            interaction,
             tooltip,
         });
     }
@@ -411,6 +427,19 @@ fn append_group_value(groups: &mut Vec<InteractionGroup>, key: &str, value: &str
     groups.push(InteractionGroup {
         key: key.to_string(),
         values: vec![value.to_string()],
+    });
+}
+
+fn append_mark_group_value(groups: &mut Vec<InteractionGroupValue>, key: &str, value: String) {
+    if groups
+        .iter()
+        .any(|group| group.key == key && group.value == value)
+    {
+        return;
+    }
+    groups.push(InteractionGroupValue {
+        key: key.to_string(),
+        value,
     });
 }
 
@@ -666,6 +695,14 @@ fn write_mark_json(out: &mut String, mark: &InteractionMark) {
     }
     out.push_str(",\"groups\":");
     write_group_values_json(out, &mark.groups);
+    if let Some(interaction) = &mark.interaction {
+        let _ = write!(
+            out,
+            ",\"interaction\":{{\"event\":{},\"emit_field\":{}}}",
+            json_string(&interaction.event),
+            json_string(&interaction.emit_field),
+        );
+    }
     out.push_str(",\"tooltip\":[");
     for (index, row) in mark.tooltip.iter().enumerate() {
         if index > 0 {

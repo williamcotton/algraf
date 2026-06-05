@@ -176,6 +176,120 @@ impl Analyzer<'_> {
         }
     }
 
+    /// Lower a declarative event emitter attached to the preceding mark in a
+    /// `Space`: `On(event: "click", emit: column)`.
+    pub(super) fn lower_event_emitter(
+        &mut self,
+        call: &GeometryCall,
+        target: &mut GeometryIr,
+        table: &ActiveTable,
+    ) {
+        let span = node_span(call.syntax());
+        if !registry::supports_interaction(target.kind) {
+            self.diag(
+                Diagnostic::error(
+                    codes::E1913,
+                    format!(
+                        "`On(...)` is not supported on `{}`",
+                        target.kind.display_name()
+                    ),
+                    span,
+                )
+                .with_help("event metadata is supported on Point, Image, Bar, Rect, and Tile"),
+            );
+            return;
+        }
+        if target.interaction.event.is_some() {
+            self.diag(Diagnostic::error(
+                codes::E1913,
+                "`On(...)` event metadata is already declared for this geometry",
+                span,
+            ));
+            return;
+        }
+
+        let args = call.args();
+        let mut seen = HashSet::new();
+        let mut event = None;
+        let mut emit = None;
+
+        for arg in &args {
+            let key_span = node_span(arg.syntax());
+            let Some(key) = arg.key() else {
+                self.diag(Diagnostic::error(
+                    codes::E1913,
+                    "`On(...)` arguments must be named",
+                    key_span,
+                ));
+                continue;
+            };
+            if !seen.insert(key.clone()) {
+                self.diag(Diagnostic::error(
+                    codes::E1913,
+                    format!("duplicate `On` argument `{key}`"),
+                    key_span,
+                ));
+                continue;
+            }
+            match key.as_str() {
+                "event" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        let value = unescape_string_literal(&lit.text().unwrap_or_default());
+                        if value == "click" {
+                            event = Some(value);
+                        } else {
+                            self.diag(
+                                Diagnostic::error(
+                                    codes::E1913,
+                                    format!("unsupported `On` event {value:?}"),
+                                    node_span(lit.syntax()),
+                                )
+                                .with_help("v0.64 accepts only `event: \"click\"`"),
+                            );
+                        }
+                    }
+                    Some(value) => self.diag(
+                        Diagnostic::error(
+                            codes::E1913,
+                            "`On(event:)` expects the string literal \"click\"",
+                            node_span(value.syntax()),
+                        )
+                        .with_help("e.g. `On(event: \"click\", emit: zone)`"),
+                    ),
+                    None => {}
+                },
+                "emit" => {
+                    if let Some(value) = arg.value() {
+                        emit = self.event_emit_column(&value, table);
+                    }
+                }
+                other => self.diag(Diagnostic::error(
+                    codes::E1913,
+                    format!("unknown `On` argument `{other}`"),
+                    key_span,
+                )),
+            }
+        }
+
+        if !seen.contains("event") {
+            self.diag(Diagnostic::error(
+                codes::E1913,
+                "`On(...)` requires `event: \"click\"`",
+                span,
+            ));
+        }
+        if !seen.contains("emit") {
+            self.diag(Diagnostic::error(
+                codes::E1913,
+                "`On(...)` requires `emit: column`",
+                span,
+            ));
+        }
+        if let (Some(event), Some(emit)) = (event, emit) {
+            target.interaction.event = Some(EventEmitIr { event, emit, span });
+        }
+    }
+
     /// Resolve a `tooltip:` value to the ordered columns it names: a single
     /// column, or an array of columns. Each must reference an existing column.
     fn interaction_columns(&mut self, value: &ValueExpr, table: &ActiveTable) -> Vec<ColumnRef> {
@@ -250,6 +364,49 @@ impl Analyzer<'_> {
                         node_span(other.syntax()),
                     )
                     .with_help("e.g. `highlight: species` or `highlight: \"species\"`"),
+                );
+                None
+            }
+        }
+    }
+
+    fn event_emit_column(&mut self, value: &ValueExpr, table: &ActiveTable) -> Option<ColumnRef> {
+        match value {
+            ValueExpr::Algebra(AlgebraExpr::Name(name)) => Some(self.resolve_column(name, table)),
+            ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::String) => {
+                let name = unescape_string_literal(&lit.text().unwrap_or_default());
+                let span = node_span(lit.syntax());
+                match table.get(&name) {
+                    Some(dtype) => Some(ColumnRef { name, dtype, span }),
+                    None => {
+                        if table.has_unknown_columns() {
+                            return Some(ColumnRef {
+                                name,
+                                dtype: DataType::Unknown,
+                                span,
+                            });
+                        }
+                        self.diag(Diagnostic::error(
+                            codes::E1101,
+                            format!("unknown column `{name}`"),
+                            span,
+                        ));
+                        Some(ColumnRef {
+                            name,
+                            dtype: DataType::Unknown,
+                            span,
+                        })
+                    }
+                }
+            }
+            other => {
+                self.diag(
+                    Diagnostic::error(
+                        codes::E1913,
+                        "`On(emit:)` expects a column name",
+                        node_span(other.syntax()),
+                    )
+                    .with_help("e.g. `On(event: \"click\", emit: zone)`"),
                 );
                 None
             }

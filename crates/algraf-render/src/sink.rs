@@ -149,11 +149,21 @@ pub struct MarkInteraction {
     pub tooltip: Option<String>,
     /// The highlight group value this mark belongs to, if any.
     pub highlight: Option<String>,
+    /// Optional host-side event emitter metadata.
+    pub event: Option<MarkEventInteraction>,
+}
+
+/// Inert event metadata attached to one per-datum mark.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MarkEventInteraction {
+    pub event: String,
+    pub emit_field: String,
+    pub value: Option<String>,
 }
 
 impl MarkInteraction {
     pub(crate) fn is_empty(&self) -> bool {
-        self.tooltip.is_none() && self.highlight.is_none()
+        self.tooltip.is_none() && self.highlight.is_none() && self.event.is_none()
     }
 }
 
@@ -307,6 +317,18 @@ impl<'w> SvgSink<'w> {
             s.push_str(" data-algraf-highlight=\"");
             s.push_str(&escape_attr(group));
             s.push('"');
+        }
+        if let Some(event) = &mark.event {
+            s.push_str(" data-algraf-event=\"");
+            s.push_str(&escape_attr(&event.event));
+            s.push_str("\" data-algraf-emit-field=\"");
+            s.push_str(&escape_attr(&event.emit_field));
+            s.push('"');
+            if let Some(value) = &event.value {
+                s.push_str(" data-algraf-emit-value=\"");
+                s.push_str(&escape_attr(value));
+                s.push('"');
+            }
         }
         match &mark.tooltip {
             Some(tooltip) => {

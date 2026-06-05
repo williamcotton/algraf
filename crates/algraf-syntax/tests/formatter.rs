@@ -37,6 +37,13 @@ fn test_indentation_is_four_spaces() {
 }
 
 #[test]
+fn test_on_event_emitter_formats_as_space_item() {
+    let source = "Chart(data:\"d.csv\"){Space(a*b){Point(fill:g) On(event:\"click\",emit:g)}}";
+    let expected = "Chart(data: \"d.csv\") {\n    Space(a * b) {\n        Point(fill: g)\n        On(event: \"click\", emit: g)\n    }\n}\n";
+    assert_eq!(format(source), expected);
+}
+
+#[test]
 fn test_long_call_wraps_one_arg_per_line() {
     let source = r#"Chart(data: "distribution.csv") {
     Derive bins = Bin(value, bins: 25)

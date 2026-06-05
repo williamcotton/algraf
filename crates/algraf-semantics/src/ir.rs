@@ -1155,9 +1155,10 @@ pub struct GeometryIr {
 ///
 /// Interactions are *data*, never executable source: `tooltip` names the columns
 /// whose per-row values describe a mark, and `highlight` names a grouping column
-/// whose value identifies marks that emphasize together. Both ride the geometry
-/// IR without affecting scale training or layout, and both are emitted by the SVG
-/// and draw-list backends as inert metadata.
+/// whose value identifies marks that emphasize together. `event` names a stable
+/// click emitter whose payload is a column's per-row value. All three ride the
+/// geometry IR without affecting scale training or layout, and are emitted by
+/// the SVG and draw-list backends as inert metadata.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct InteractionIr {
     /// Columns whose per-row values appear in the mark's tooltip, in order.
@@ -1165,12 +1166,24 @@ pub struct InteractionIr {
     /// A grouping column whose per-row value identifies marks that highlight
     /// together (e.g. a categorical `fill` field shared with the legend).
     pub highlight: Option<ColumnRef>,
+    /// Optional click emitter metadata declared by `On(event: "click", emit: column)`.
+    pub event: Option<EventEmitIr>,
+}
+
+/// An inert event emitter attached to one mark layer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EventEmitIr {
+    /// The host-observable event. v0.64 accepts only `"click"`.
+    pub event: String,
+    /// Column whose row value is emitted when the mark is activated.
+    pub emit: ColumnRef,
+    pub span: Span,
 }
 
 impl InteractionIr {
     /// Whether this geometry declares any interaction metadata.
     pub fn is_empty(&self) -> bool {
-        self.tooltip.is_empty() && self.highlight.is_none()
+        self.tooltip.is_empty() && self.highlight.is_none() && self.event.is_none()
     }
 }
 
