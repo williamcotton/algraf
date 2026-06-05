@@ -194,7 +194,8 @@ pub(super) fn build_render_plan<'t>(
                     ));
                     continue;
                 };
-                let fixed_hints = train_space_domains(plane, table, &space.geometries);
+                let fixed_hints =
+                    train_space_domains(plane, table, &space.geometries, &space_scales);
                 for (index, facet) in layout.facets.iter().enumerate() {
                     let row_index = index / col_categories.len().max(1);
                     let col_index = index % col_categories.len().max(1);
@@ -211,7 +212,8 @@ pub(super) fn build_render_plan<'t>(
                     let rows =
                         facet_grid_rows(table, grid, row_value.as_deref(), col_value.as_deref());
                     let filtered = RowSubsetTable::new(table, &rows);
-                    let free_hints = train_space_domains(plane, &filtered, &space.geometries);
+                    let free_hints =
+                        train_space_domains(plane, &filtered, &space.geometries, &space_scales);
                     let (x_table, y_table, domain_hints) = facet_training(
                         ir.layout.facet_scales,
                         table,
@@ -265,7 +267,8 @@ pub(super) fn build_render_plan<'t>(
                 continue;
             }
             if let Some((plane, facet_col)) = facet_frame(&space.frame) {
-                let domain_hints = train_space_domains(plane, table, &space.geometries);
+                let domain_hints =
+                    train_space_domains(plane, table, &space.geometries, &space_scales);
                 for (index, category) in facet_categories(table, &facet_col.name).iter().enumerate()
                 {
                     let Some(facet) = layout.facets.get(index) else {
@@ -273,7 +276,8 @@ pub(super) fn build_render_plan<'t>(
                     };
                     let rows = facet_rows(table, &facet_col.name, category);
                     let filtered = RowSubsetTable::new(table, &rows);
-                    let free_hints = train_space_domains(plane, &filtered, &space.geometries);
+                    let free_hints =
+                        train_space_domains(plane, &filtered, &space.geometries, &space_scales);
                     let (x_table, y_table, domain_hints) = facet_training(
                         ir.layout.facet_scales,
                         table,
@@ -324,7 +328,8 @@ pub(super) fn build_render_plan<'t>(
                     }
                 }
             } else {
-                let mut domain_hints = train_space_domains(&space.frame, table, &space.geometries);
+                let mut domain_hints =
+                    train_space_domains(&space.frame, table, &space.geometries, &space_scales);
                 // Polar spaces are self-contained (one circular plot); Cartesian
                 // axis-sharing across overlaid spaces does not apply (spec §16.16).
                 if let CoordsIr::Polar {
@@ -757,7 +762,7 @@ fn x_label_bottom_extra(
             Some((plane, _)) => plane,
             None => &space.frame,
         };
-        let hints = train_space_domains(frame, table, &space.geometries);
+        let hints = train_space_domains(frame, table, &space.geometries, &space_scales);
         if let Some(scaled) = ScaledSpace::build(
             frame,
             table,
@@ -804,7 +809,7 @@ fn y_label_left_extra(
             Some((plane, _)) => plane,
             None => &space.frame,
         };
-        let hints = train_space_domains(frame, table, &space.geometries);
+        let hints = train_space_domains(frame, table, &space.geometries, &space_scales);
         if let Some(scaled) = ScaledSpace::build(
             frame,
             table,
@@ -936,7 +941,8 @@ fn shared_axis_extent(
         if let Some(axis_frame) = frame_axis(&space.frame, axis) {
             accumulate_axis_extent(axis_frame, table, &mut extent);
         }
-        let hints = train_space_domains(&space.frame, table, &space.geometries);
+        let space_scales = merged_scales(&ir.scales, &space.scales);
+        let hints = train_space_domains(&space.frame, table, &space.geometries, &space_scales);
         match axis {
             AxisSelectorIr::X => extent.add_hints(&hints.x),
             AxisSelectorIr::Y => extent.add_hints(&hints.y),

@@ -232,7 +232,7 @@ async fn geometry_property_completion_uses_column_schema() {
 }
 
 #[tokio::test]
-async fn scale_type_completion_offers_sqrt() {
+async fn scale_type_completion_offers_scale_types() {
     let dir = temp_project("scale-type-completion");
     let source_path = dir.join("chart.ag");
     let data_path = dir.join("data.csv");
@@ -267,6 +267,7 @@ async fn scale_type_completion_offers_sqrt() {
     let labels = labels(result);
     assert!(labels.iter().any(|(label, _)| label == "\"sqrt\""));
     assert!(labels.iter().any(|(label, _)| label == "\"log10\""));
+    assert!(labels.iter().any(|(label, _)| label == "\"categorical\""));
 }
 
 #[tokio::test]

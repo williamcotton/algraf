@@ -340,7 +340,7 @@ fn plan_child_panel<'t>(
     let panel_theme = resolve_space_theme(theme, space.theme.as_ref(), cli_theme_override);
     let space_guides = ir.guides.with_overrides(&space.guides);
     let space_scales = merged_scales(&ir.scales, &space.scales);
-    let hints = train_space_domains(&space.frame, &training, &space.geometries);
+    let hints = train_space_domains(&space.frame, &training, &space.geometries, &space_scales);
     validate_scale_configs(
         &space.frame,
         &training,

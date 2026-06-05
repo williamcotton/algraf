@@ -891,6 +891,9 @@ fn build_vector_axis(
     hints: Option<&AxisDomainHints>,
     config: &AxisScaleConfig,
 ) -> AxisScale {
+    if config.scale_type == Some(ScaleTypeIr::Categorical) && col.dtype != DataType::Geometry {
+        return band_axis(col, table, range, hints, config);
+    }
     match col.dtype {
         DataType::Integer | DataType::Float => {
             let (mut min, mut max) = numeric_domain(table, &col.name).unwrap_or((0.0, 1.0));
@@ -938,25 +941,33 @@ fn build_vector_axis(
                 scale,
             }
         }
-        _ => {
-            let cats = ordered_categorical_domain(table, &col.name, config);
-            let mut scale = BandScale::new(cats, range);
-            if let Some(hints) = hints {
-                if let Some(pad) = hints.band_pad_inner() {
-                    scale.pad_inner = pad;
-                }
-                if let Some(pad) = hints.band_pad_outer() {
-                    scale.pad_outer = pad;
-                }
-            }
-            if let Some(expansion) = config.expansion {
-                scale.pad_outer = expansion.mult;
-            }
-            AxisScale::Band {
-                col: col.name.clone(),
-                scale,
-            }
+        _ => band_axis(col, table, range, hints, config),
+    }
+}
+
+fn band_axis(
+    col: &ColumnRef,
+    table: &dyn Table,
+    range: (f64, f64),
+    hints: Option<&AxisDomainHints>,
+    config: &AxisScaleConfig,
+) -> AxisScale {
+    let cats = ordered_categorical_domain(table, &col.name, config);
+    let mut scale = BandScale::new(cats, range);
+    if let Some(hints) = hints {
+        if let Some(pad) = hints.band_pad_inner() {
+            scale.pad_inner = pad;
         }
+        if let Some(pad) = hints.band_pad_outer() {
+            scale.pad_outer = pad;
+        }
+    }
+    if let Some(expansion) = config.expansion {
+        scale.pad_outer = expansion.mult;
+    }
+    AxisScale::Band {
+        col: col.name.clone(),
+        scale,
     }
 }
 

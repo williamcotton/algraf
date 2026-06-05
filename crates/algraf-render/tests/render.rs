@@ -838,6 +838,54 @@ fn string_domain_on_continuous_axis_warns_at_render_time() {
 }
 
 #[test]
+fn categorical_axis_type_allows_numeric_bar_position() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Scale(axis: x, type: \"categorical\") Space(day * value) { Bar() } }",
+        "day,value\n1,18\n2,34\n3,48\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.svg.matches("opacity=").count(), 3);
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+    assert_eq!(
+        metadata["axes"]["x"]["domain"],
+        serde_json::json!(["1", "2", "3"])
+    );
+}
+
+#[test]
+fn categorical_axis_type_orders_numeric_categories_with_string_domain() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Scale(axis: x, type: \"categorical\", domain: [\"3\", \"1\"]) Space(day * value) { Bar() } }",
+        "day,value\n1,18\n2,34\n",
+    );
+    assert!(result.diagnostics.iter().any(|d| d.code == "R0004"));
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+    assert_eq!(
+        metadata["axes"]["x"]["domain"],
+        serde_json::json!(["3", "1", "2"])
+    );
+}
+
+#[test]
+fn horizontal_stacked_bar_uses_numeric_categorical_y_axis() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Scale(axis: y, type: \"categorical\") Space(value * day) { Bar(fill: group, layout: \"stack\") } }",
+        "day,group,value\n1,a,10\n1,b,20\n2,a,5\n2,b,5\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.svg.matches("opacity=").count(), 4);
+    assert!(result.svg.contains(">30</text>"), "{}", result.svg);
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+    assert_eq!(
+        metadata["axes"]["y"]["domain"],
+        serde_json::json!(["1", "2"])
+    );
+}
+
+#[test]
 fn area_stack_and_fill_train_domains_and_emit_group_paths() {
     let stack = render_result(
         "Chart(data: \"p.csv\") { Space(x * y) { Area(fill: series, layout: \"stack\") } }",

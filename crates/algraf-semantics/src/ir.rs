@@ -488,16 +488,18 @@ pub enum ScaleTypeIr {
     Linear,
     Log10,
     Sqrt,
+    Categorical,
 }
 
 impl ScaleTypeIr {
-    /// The authoritative source spelling (`"linear"` / `"log10"` / `"sqrt"`),
-    /// matching [`crate::registry::SCALE_TYPE_NAMES`].
+    /// The authoritative source spelling, matching
+    /// [`crate::registry::SCALE_TYPE_NAMES`].
     pub fn as_str(self) -> &'static str {
         match self {
             ScaleTypeIr::Linear => "linear",
             ScaleTypeIr::Log10 => "log10",
             ScaleTypeIr::Sqrt => "sqrt",
+            ScaleTypeIr::Categorical => "categorical",
         }
     }
 }

@@ -109,6 +109,7 @@ impl Analyzer<'_> {
                             "linear" => scale_type = Some(ScaleTypeIr::Linear),
                             "log10" => scale_type = Some(ScaleTypeIr::Log10),
                             "sqrt" => scale_type = Some(ScaleTypeIr::Sqrt),
+                            "categorical" => scale_type = Some(ScaleTypeIr::Categorical),
                             _ => self.diag(Diagnostic::error(
                                 codes::E1204,
                                 format!("unknown scale type `{value}`"),
@@ -327,6 +328,29 @@ impl Analyzer<'_> {
                         *s,
                     )),
                     None => {}
+                }
+                if scale_type == Some(ScaleTypeIr::Categorical) {
+                    if let Some(s) = domain_span.filter(|_| domain.is_some()) {
+                        self.diag(Diagnostic::error(
+                            codes::E1204,
+                            "`type: \"categorical\"` cannot use a numeric `domain`; use a string-array domain",
+                            s,
+                        ));
+                    }
+                    if let Some(s) = breaks_span {
+                        self.diag(Diagnostic::error(
+                            codes::E1204,
+                            "`breaks` applies only to continuous or temporal axis scales",
+                            s,
+                        ));
+                    }
+                    if integer.is_some() {
+                        self.diag(Diagnostic::error(
+                            codes::E1204,
+                            "`integer` applies only to continuous axis scales",
+                            span,
+                        ));
+                    }
                 }
             }
             ScaleTargetIr::Aesthetic { aesthetic, column } => {

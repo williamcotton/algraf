@@ -60,7 +60,7 @@ pub const THEME_OVERRIDE_KEYS: &[&str] = &[
 pub const SCALE_AESTHETIC_TARGETS: &[&str] = &["fill", "stroke", "size", "strokeWidth"];
 
 /// Named scale types accepted by `Scale(type: ...)`.
-pub const SCALE_TYPE_NAMES: &[&str] = &["linear", "log10", "sqrt"];
+pub const SCALE_TYPE_NAMES: &[&str] = &["linear", "log10", "sqrt", "categorical"];
 
 /// Named categorical palettes accepted by `Scale(palette: ...)`.
 pub const PALETTE_NAMES: &[&str] = &["default", "accent"];
@@ -414,9 +414,9 @@ const SCALE_DOC_ARGS: &[ArgDoc] = &[
     },
     ArgDoc {
         name: "type",
-        value: "\"linear\" | \"log10\" | \"sqrt\"",
+        value: "\"linear\" | \"log10\" | \"sqrt\" | \"categorical\"",
         default: Some("\"linear\""),
-        doc: "Continuous scale transform.",
+        doc: "Position scale transform or categorical axis override.",
     },
     ArgDoc {
         name: "domain",

@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="380" viewBox="0 0 620 380" role="img" aria-label="Day numbers as categories">
+<title>Day numbers as categories</title>
+<rect class="algraf-background" x="0" y="0" width="620" height="380" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Day numbers as categories</text>
+<rect class="algraf-plot-area" x="60" y="66" width="410" height="264" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="60" y1="297" x2="470" y2="297" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="231" x2="470" y2="231" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="165" x2="470" y2="165" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="99" x2="470" y2="99" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="330" x2="470" y2="330" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="264" x2="470" y2="264" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="198" x2="470" y2="198" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="132" x2="470" y2="132" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="66" x2="470" y2="66" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-bar">
+  <rect x="66.833" y="282.48" width="54.667" height="47.52" fill="#d8f3dc" opacity="1"><title>day_label: Day 1
+value: 18</title></rect>
+  <rect x="135.167" y="240.24" width="54.667" height="89.76" fill="#abd1bc" opacity="1"><title>day_label: Day 2
+value: 34</title></rect>
+  <rect x="203.5" y="203.28" width="54.667" height="126.72" fill="#84b4a1" opacity="1"><title>day_label: Day 3
+value: 48</title></rect>
+  <rect x="271.833" y="168.96" width="54.667" height="161.04" fill="#609887" opacity="1"><title>day_label: Day 4
+value: 61</title></rect>
+  <rect x="340.167" y="137.28" width="54.667" height="192.72" fill="#3e7f70" opacity="1"><title>day_label: Day 5
+value: 73</title></rect>
+  <rect x="408.5" y="97.68" width="54.667" height="232.32" fill="#145f52" opacity="1"><title>day_label: Day 6
+value: 88</title></rect>
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="94.167" y="274.48" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">18</text>
+  <text x="162.5" y="232.24" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">34</text>
+  <text x="230.833" y="195.28" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">48</text>
+  <text x="299.167" y="160.96" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">61</text>
+  <text x="367.5" y="129.28" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">73</text>
+  <text x="435.833" y="89.68" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">88</text>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="330" x2="470" y2="330" stroke="#333333" stroke-width="1" />
+  <line x1="94.167" y1="330" x2="94.167" y2="335" stroke="#333333" stroke-width="1" />
+  <text x="94.167" y="348" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="162.5" y1="330" x2="162.5" y2="335" stroke="#333333" stroke-width="1" />
+  <text x="162.5" y="348" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="230.833" y1="330" x2="230.833" y2="335" stroke="#333333" stroke-width="1" />
+  <text x="230.833" y="348" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <line x1="299.167" y1="330" x2="299.167" y2="335" stroke="#333333" stroke-width="1" />
+  <text x="299.167" y="348" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="367.5" y1="330" x2="367.5" y2="335" stroke="#333333" stroke-width="1" />
+  <text x="367.5" y="348" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <line x1="435.833" y1="330" x2="435.833" y2="335" stroke="#333333" stroke-width="1" />
+  <text x="435.833" y="348" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <text x="265" y="368" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Day</text>
+  <line x1="60" y1="66" x2="60" y2="330" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="330" x2="60" y2="330" stroke="#333333" stroke-width="1" />
+  <text x="52" y="334" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="264" x2="60" y2="264" stroke="#333333" stroke-width="1" />
+  <text x="52" y="268" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <line x1="55" y1="198" x2="60" y2="198" stroke="#333333" stroke-width="1" />
+  <text x="52" y="202" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
+  <line x1="55" y1="132" x2="60" y2="132" stroke="#333333" stroke-width="1" />
+  <text x="52" y="136" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">75</text>
+  <line x1="55" y1="66" x2="60" y2="66" stroke="#333333" stroke-width="1" />
+  <text x="52" y="70" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">100</text>
+  <text x="18.4" y="198" text-anchor="middle" transform="rotate(-90 18.4 198)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Value</text>
+</g>
+<g class="algraf-legends">
+  <text x="486" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Value</text>
+  <rect x="486" y="78" width="12" height="16" fill="#145f52" />
+  <text x="504" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">88</text>
+  <rect x="486" y="94" width="12" height="16" fill="#458475" />
+  <text x="504" y="104" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">70.5</text>
+  <rect x="486" y="110" width="12" height="16" fill="#76a997" />
+  <text x="504" y="120" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">53</text>
+  <rect x="486" y="126" width="12" height="16" fill="#a7ceba" />
+  <text x="504" y="136" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">35.5</text>
+  <rect x="486" y="142" width="12" height="16" fill="#d8f3dc" />
+  <text x="504" y="152" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">18</text>
+</g>
+</svg>

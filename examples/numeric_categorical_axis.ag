@@ -1,0 +1,13 @@
+Chart(data: "numeric_categorical_axis.csv", width: 620, height: 380, title: "Day numbers as categories") {
+    Theme(name: "minimal")
+    Scale(axis: x, type: "categorical", domain: ["1", "2", "3", "4", "5", "6"])
+    Scale(axis: y, domain: [0, 100], breaks: [0, 25, 50, 75, 100])
+    Scale(fill: value, gradient: ["#d8f3dc", "#145f52"], label: "Value")
+    Guide(axis: x, label: "Day")
+    Guide(axis: y, label: "Value")
+
+    Space(day * value) {
+        Bar(fill: value, layout: "stack", tooltip: [day_label, value])
+        Text(label: value, dy: -8, anchor: "middle", size: 10)
+    }
+}

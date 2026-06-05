@@ -2355,6 +2355,30 @@ Chart(data: "categorical_domain_order.csv", width: 720, height: 420, title: "Met
 
 ![categorical_domain_order](categorical_domain_order.svg)
 
+## Numeric categories on an axis
+
+Numeric identifiers such as day numbers often need a discrete band axis rather
+than a continuous scale. `type: "categorical"` keeps the source column numeric
+for the data model while training the selected position axis as categories.
+
+```algraf
+Chart(data: "numeric_categorical_axis.csv", width: 620, height: 380, title: "Day numbers as categories") {
+    Theme(name: "minimal")
+    Scale(axis: x, type: "categorical", domain: ["1", "2", "3", "4", "5", "6"])
+    Scale(axis: y, domain: [0, 100], breaks: [0, 25, 50, 75, 100])
+    Scale(fill: value, gradient: ["#d8f3dc", "#145f52"], label: "Value")
+    Guide(axis: x, label: "Day")
+    Guide(axis: y, label: "Value")
+
+    Space(day * value) {
+        Bar(fill: value, layout: "stack", tooltip: [day_label, value])
+        Text(label: value, dy: -8, anchor: "middle", size: 10)
+    }
+}
+```
+
+![numeric_categorical_axis](numeric_categorical_axis.svg)
+
 ## Visual coordinate zoom
 
 `zoomX` and `zoomY` are coordinate controls on `Space`. They limit the visible

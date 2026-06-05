@@ -986,6 +986,18 @@ mod tests {
     }
 
     #[test]
+    fn scale_type_completion_offers_categorical() {
+        let items = completion_items(
+            &empty_state(),
+            CompletionContext::DeclArgs {
+                decl: "Scale".to_string(),
+                active_key: Some("type".to_string()),
+            },
+        );
+        assert!(labels(&items).contains(&"\"categorical\""));
+    }
+
+    #[test]
     fn data_arg_completion_offers_source_constructors() {
         let items = completion_items(
             &empty_state(),

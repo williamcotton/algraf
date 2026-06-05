@@ -7,7 +7,10 @@
 use std::collections::HashMap;
 
 use algraf_data::{DataType, Table};
-use algraf_semantics::{FrameIr, GeometryIr, GeometryKind, PropertyKey};
+use algraf_semantics::{
+    AxisSelectorIr, FrameIr, GeometryIr, GeometryKind, PropertyKey, ScaleIr, ScaleTargetIr,
+    ScaleTypeIr,
+};
 
 use crate::helpers::{
     area_layout, bar_layout, frame_axis_index, number_setting_opt, vector_column_name, AreaLayout,
@@ -222,13 +225,14 @@ pub fn train_space_domains(
     frame: &FrameIr,
     table: &dyn Table,
     geometries: &[GeometryIr],
+    scales: &[ScaleIr],
 ) -> SpaceDomainHints {
     let mut hints = SpaceDomainHints::default();
     for geometry in geometries {
         match geometry.kind {
-            GeometryKind::Bar => train_bar(frame, table, geometry, &mut hints),
+            GeometryKind::Bar => train_bar(frame, table, geometry, scales, &mut hints),
             GeometryKind::Rect => train_rect(table, geometry, &mut hints),
-            GeometryKind::Violin => train_violin(frame, table, geometry, &mut hints),
+            GeometryKind::Violin => train_violin(frame, table, geometry, scales, &mut hints),
             // Area's baseline is a y-domain value: the polygon closes back to
             // it, so the trained y domain must reach the baseline or the
             // bottom edge will fall outside the plot rect. When the baseline
@@ -347,9 +351,10 @@ fn train_violin(
     frame: &FrameIr,
     table: &dyn Table,
     geometry: &GeometryIr,
+    scales: &[ScaleIr],
     hints: &mut SpaceDomainHints,
 ) {
-    let Some((orientation, group_axis, value_col)) = categorical_value_axes(frame) else {
+    let Some((orientation, group_axis, value_col)) = categorical_value_axes(frame, scales) else {
         return;
     };
     let mut groups: HashMap<String, Vec<f64>> = HashMap::new();
@@ -384,9 +389,10 @@ fn train_bar(
     frame: &FrameIr,
     table: &dyn Table,
     geometry: &GeometryIr,
+    scales: &[ScaleIr],
     hints: &mut SpaceDomainHints,
 ) {
-    let Some((orientation, group_axis, value_col)) = categorical_value_axes(frame) else {
+    let Some((orientation, group_axis, value_col)) = categorical_value_axes(frame, scales) else {
         hints.y.include_zero();
         return;
     };
@@ -491,15 +497,18 @@ enum DomainOrientation {
     Horizontal,
 }
 
-fn categorical_value_axes(frame: &FrameIr) -> Option<(DomainOrientation, &FrameIr, &str)> {
+fn categorical_value_axes<'a>(
+    frame: &'a FrameIr,
+    scales: &[ScaleIr],
+) -> Option<(DomainOrientation, &'a FrameIr, &'a str)> {
     let x_axis = frame_axis_index(frame, 0)?;
     let y_axis = frame_axis_index(frame, 1)?;
-    if frame_axis_is_band(x_axis) {
+    if frame_axis_is_band(x_axis, scales, AxisSelectorIr::X) {
         if let Some(value_col) = vector_column_name(y_axis) {
             return Some((DomainOrientation::Vertical, x_axis, value_col));
         }
     }
-    if frame_axis_is_band(y_axis) {
+    if frame_axis_is_band(y_axis, scales, AxisSelectorIr::Y) {
         if let Some(value_col) = vector_column_name(x_axis) {
             return Some((DomainOrientation::Horizontal, y_axis, value_col));
         }
@@ -507,14 +516,26 @@ fn categorical_value_axes(frame: &FrameIr) -> Option<(DomainOrientation, &FrameI
     None
 }
 
-fn frame_axis_is_band(frame: &FrameIr) -> bool {
+fn frame_axis_is_band(frame: &FrameIr, scales: &[ScaleIr], axis: AxisSelectorIr) -> bool {
     match frame {
         FrameIr::Vector(column) => {
-            column.dtype.is_categorical() || column.dtype == DataType::Unknown
+            column.dtype.is_categorical()
+                || column.dtype == DataType::Unknown
+                || (column.dtype != DataType::Geometry && categorical_axis_override(scales, axis))
         }
         FrameIr::Nested { .. } => true,
         FrameIr::Cartesian(_) | FrameIr::Union(_) | FrameIr::Invalid => false,
     }
+}
+
+fn categorical_axis_override(scales: &[ScaleIr], axis: AxisSelectorIr) -> bool {
+    let mut forced = false;
+    for scale in scales {
+        if scale.target == ScaleTargetIr::Axis(axis) && scale.scale_type.is_some() {
+            forced = scale.scale_type == Some(ScaleTypeIr::Categorical);
+        }
+    }
+    forced
 }
 
 fn axis_group_key(frame: &FrameIr, table: &dyn Table, row: usize) -> Option<String> {
@@ -590,7 +611,7 @@ mod tests {
         );
         let ir = analyze(&parsed.syntax(), frame.schema()).ir.expect("ir");
         let space = &ir.spaces[0];
-        let hints = train_space_domains(&space.frame, &frame, &space.geometries);
+        let hints = train_space_domains(&space.frame, &frame, &space.geometries, &space.scales);
 
         assert_eq!(hints.y.numeric_extent(), Some((0.0, 5.0)));
     }

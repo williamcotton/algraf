@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.64.0
+Status: 0.65.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.64.0 specification.
+This working copy is the 0.65.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -6768,6 +6768,7 @@ Syntax example:
 
 ```ag
 Scale(axis: x, type: "log10")
+Scale(axis: x, type: "categorical")
 Scale(axis: x, domain: [0, 100])
 Scale(axis: y, reverse: true)
 Scale(axis: y, integer: true)
@@ -6797,6 +6798,25 @@ A `"sqrt"` scale on a non-numeric axis MUST emit `R0004`, as MUST a `"sqrt"`
 scale whose declared `domain` contains a negative bound. When the trained domain
 or declared bound is negative the renderer falls back to a linear axis rather
 than producing `NaN` positions.
+
+Version 0.65.0 MUST support the position scale type `"categorical"`, which
+forces the targeted scalar position axis to train as a categorical band axis
+without changing the backing column's inferred data type. The override applies
+to non-geometry scalar axes, including numeric and temporal columns. Category
+keys MUST use the same deterministic formatting as ordinary categorical domain
+training: integers as decimal strings, floats through the float-category
+formatter, temporals as UTC RFC3339 strings, and strings/booleans/mixed values
+as their existing category text. Missing values produce no category and are
+skipped by marks as on ordinary band axes.
+
+`Scale(axis: x, type: "categorical")` and `Scale(axis: y, type:
+"categorical")` are axis-only declarations. Aesthetic scales MUST reject
+`type: "categorical"` with `E1204`. Numeric domain bounds, `breaks:`, and
+`integer:` are continuous-axis controls and MUST produce diagnostics when
+combined with `type: "categorical"`. String-array `domain:` values remain valid
+and order the formatted category keys. Geometry columns and blended/union axes
+MUST NOT be silently coerced to categorical axes; implementations MUST diagnose
+those unsupported combinations.
 
 Version 0.2.0 MUST support numeric position domains with `domain: [min, max]`.
 
@@ -10756,6 +10776,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.62.0 | [`V0_62_PLAN.md`](V0_62_PLAN.md) | Sparse stacked/fill Area continuity for story-chart tables | Implemented |
 | 0.63.0 | [`V0_63_PLAN.md`](V0_63_PLAN.md) | Shared editor assets and first-party Monaco integration | Implemented |
 | 0.64.0 | [`V0_64_PLAN.md`](V0_64_PLAN.md) | Declarative event emitters for host applications | Implemented |
+| 0.65.0 | [`V0_65_PLAN.md`](V0_65_PLAN.md) | Explicit categorical position axes for numeric source columns | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

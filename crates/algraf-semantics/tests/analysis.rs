@@ -31,6 +31,7 @@ fn schema() -> Vec<ColumnDef> {
         col("y", DataType::Float),
         col("z", DataType::Float),
         col("value", DataType::Float),
+        col("day", DataType::Integer),
         col("selection_age", DataType::Float),
         col("mission_age", DataType::Float),
         col("time", DataType::Temporal),
@@ -623,6 +624,45 @@ fn scale_string_domain_is_recorded_for_position_axes() {
         ir.scales[0].categorical_domain,
         Some(vec!["Revenue".to_string(), "Rides".to_string()])
     );
+}
+
+#[test]
+fn scale_categorical_type_is_recorded_for_position_axes() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, type: \"categorical\", domain: [\"1\", \"2\"])\n  Space(day * value) { Bar() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.scales[0].scale_type, Some(ScaleTypeIr::Categorical));
+    assert_eq!(
+        ir.scales[0].categorical_domain,
+        Some(vec!["1".to_string(), "2".to_string()])
+    );
+}
+
+#[test]
+fn scale_categorical_type_rejects_continuous_axis_controls() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, type: \"categorical\", domain: [0, 10])\n  Space(day * value) { Bar() }\n}",
+        "E1204"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, type: \"categorical\", breaks: [1, 2])\n  Space(day * value) { Bar() }\n}",
+        "E1204"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, type: \"categorical\", integer: false)\n  Space(day * value) { Bar() }\n}",
+        "E1204"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: value, type: \"categorical\")\n  Space(day * value) { Bar(fill: value) }\n}",
+        "E1204"
+    ));
 }
 
 #[test]

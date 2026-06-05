@@ -56,6 +56,44 @@ pub(super) fn validate_scale_configs(
         if let Some(declared) = &scale.categorical_domain {
             validate_categorical_domain(scale, axis_frame, table, declared, diagnostics);
         }
+        if scale.scale_type == Some(ScaleTypeIr::Categorical) {
+            let Some(column) = vector_column(axis_frame) else {
+                diagnostics.push(Diagnostic::warning(
+                    codes::R0004,
+                    "categorical scale requires a scalar position axis",
+                    scale.span,
+                ));
+                continue;
+            };
+            if column.dtype == DataType::Geometry {
+                diagnostics.push(Diagnostic::warning(
+                    codes::R0004,
+                    "categorical scale cannot be applied to a geometry axis",
+                    column.span,
+                ));
+            }
+            if scale.domain.is_some() {
+                diagnostics.push(Diagnostic::warning(
+                    codes::R0004,
+                    "categorical scale cannot use numeric domain bounds",
+                    scale.span,
+                ));
+            }
+            if scale.breaks.is_some() {
+                diagnostics.push(Diagnostic::warning(
+                    codes::R0004,
+                    "categorical scale cannot use numeric breaks",
+                    scale.span,
+                ));
+            }
+            if scale.integer.is_some() {
+                diagnostics.push(Diagnostic::warning(
+                    codes::R0004,
+                    "categorical scale cannot use integer tick constraint",
+                    scale.span,
+                ));
+            }
+        }
         if matches!(
             scale.scale_type,
             Some(ScaleTypeIr::Log10) | Some(ScaleTypeIr::Sqrt)
@@ -129,7 +167,10 @@ fn validate_categorical_domain(
     declared: &[String],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let Some(column) = categorical_axis_column(axis_frame) else {
+    let Some(column) = categorical_axis_column(
+        axis_frame,
+        scale.scale_type == Some(ScaleTypeIr::Categorical),
+    ) else {
         diagnostics.push(Diagnostic::warning(
             codes::R0004,
             "string-array domain applies only to categorical position axes",
@@ -154,14 +195,19 @@ fn validate_categorical_domain(
     }
 }
 
-fn categorical_axis_column(frame: &FrameIr) -> Option<&algraf_semantics::ColumnRef> {
+fn categorical_axis_column(
+    frame: &FrameIr,
+    force_categorical: bool,
+) -> Option<&algraf_semantics::ColumnRef> {
     match frame {
         FrameIr::Vector(column)
-            if column.dtype == DataType::Unknown || column.dtype.is_categorical() =>
+            if column.dtype == DataType::Unknown
+                || column.dtype.is_categorical()
+                || (force_categorical && column.dtype != DataType::Geometry) =>
         {
             Some(column)
         }
-        FrameIr::Nested { outer, .. } => categorical_axis_column(outer),
+        FrameIr::Nested { outer, .. } => categorical_axis_column(outer, force_categorical),
         _ => None,
     }
 }
