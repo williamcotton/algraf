@@ -1,7 +1,6 @@
 /target
-/benchdata
-/benchdata/generated/million-row.csv
-/bench-output
+/bench/data
+/bench/runs
 /.antigravitycli
 /.claude
 /editors/vscode/node_modules

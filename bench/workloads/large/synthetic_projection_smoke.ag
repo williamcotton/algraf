@@ -1,4 +1,4 @@
-Chart(data: Parquet("../../../target/algraf-large-fixtures/smoke/wide_metrics.parquet"),
+Chart(data: Parquet("../../data/generated/algraf-large-fixtures/current/wide_metrics.parquet"),
       width: 820, height: 460,
       title: "Wide Parquet smoke: referenced metrics only") {
     Theme(name: "minimal")

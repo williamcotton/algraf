@@ -1,0 +1,42 @@
+repo: algraf
+baseline: full-baseline-20260606
+run_label: full-baseline-20260606
+snapshot_timestamp_utc: 2026-06-06T14:05:04Z
+source_report: bench/runs/full-baseline-20260606/report.csv
+git_ref: v0.68.0-dirty
+git_status_short:
+   M .gitignore
+   M Cargo.lock
+   M Cargo.toml
+   M README.md
+  RM bench/examples/large/million_row_summary_bin.ag -> bench/workloads/large/million_row_summary_bin.ag
+  RM bench/examples/large/sfo_airline_counts.ag -> bench/workloads/large/sfo_airline_counts.ag
+  RM bench/examples/large/sfo_daily_flights.ag -> bench/workloads/large/sfo_daily_flights.ag
+  RM bench/examples/large/sfo_event_counts.ag -> bench/workloads/large/sfo_event_counts.ag
+  RM bench/examples/large/sfo_route_density.ag -> bench/workloads/large/sfo_route_density.ag
+  RM bench/examples/large/synthetic_bin2d_density.ag -> bench/workloads/large/synthetic_bin2d_density.ag
+  RM bench/examples/large/synthetic_nullable_histogram.ag -> bench/workloads/large/synthetic_nullable_histogram.ag
+  RM bench/examples/large/synthetic_projection_smoke.ag -> bench/workloads/large/synthetic_projection_smoke.ag
+  RM bench/examples/large/synthetic_raw_mark_budget.ag -> bench/workloads/large/synthetic_raw_mark_budget.ag
+  RM bench/examples/large/tlc_fare_distance_density.ag -> bench/workloads/large/tlc_fare_distance_density.ag
+  RM bench/examples/large/tlc_payment_type_counts.ag -> bench/workloads/large/tlc_payment_type_counts.ag
+  RM bench/examples/large/tlc_pickup_time_bins.ag -> bench/workloads/large/tlc_pickup_time_bins.ag
+  RM bench/examples/large/tlc_trip_distance_histogram.ag -> bench/workloads/large/tlc_trip_distance_histogram.ag
+  R  bench/examples/local/weather_alias.ag -> bench/workloads/local/weather_alias.ag
+  R  bench/examples/local/weather_hourly.json -> bench/workloads/local/weather_hourly.json
+   M crates/algraf-data/Cargo.toml
+   D crates/algraf-data/examples/generate_large_fixtures.rs
+   D crates/algraf-data/examples/prepare_large_fixtures.rs
+   M docs/V0_68_PLAN.md
+   M scripts/download-large-fixtures.sh
+   M scripts/generate-large-fixtures.sh
+   M scripts/generate-million-row-csv.sh
+   M scripts/prepare-large-fixtures.sh
+   M scripts/render-large-demos.sh
+   M scripts/render-timing.sh
+  ?? bench/README.md
+  ?? crates/algraf-bench/
+system: Darwin administrators-MacBook-Pro.local 23.6.0 Darwin Kernel Version 23.6.0: Tue Apr 21 20:18:56 PDT 2026; root:xnu-10063.141.1.712.16~1/RELEASE_ARM64_T6030 arm64
+rustc: rustc 1.95.0 (59807616e 2026-04-14) (Homebrew)
+cargo: cargo 1.95.0 (f2d3ce0bd 2026-03-21) (Homebrew)
+run_command: cargo run -p algraf-bench -- run --suite large --run-label full-baseline-20260606

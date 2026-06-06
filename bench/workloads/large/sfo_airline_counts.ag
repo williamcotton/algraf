@@ -1,4 +1,4 @@
-Chart(data: Parquet("../../../benchdata/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet"),
+Chart(data: Parquet("../../data/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet"),
       width: 860, height: 460,
       title: "SFO flights by top airline") {
     Theme(name: "minimal")

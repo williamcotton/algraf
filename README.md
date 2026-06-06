@@ -333,21 +333,20 @@ Large demo inputs and benchmark outputs are generated locally instead of being
 checked into git. Use:
 
 ```bash
-scripts/generate-large-fixtures.sh --tier smoke
-scripts/render-large-demos.sh
+cargo run -p algraf-bench -- generate --tier smoke
+cargo run -p algraf-bench -- run --suite large --tier smoke --run-label smoke
 ```
 
-The smoke suite writes deterministic Parquet fixtures under
-`target/algraf-large-fixtures/` and bounded SVG/PNG outputs under
-`bench-output/large-demos/`. The suite also generates
-`benchdata/generated/million-row.csv` and renders it through `SummaryBin`, so the
-input is one million CSV rows but the SVG stays bounded. TLC and SFO Museum demos
-are opt-in:
+The smoke suite writes deterministic fixtures under `bench/data/generated/` and
+bounded SVG outputs plus `report.csv` under `bench/runs/<run-label>/`. The suite
+also generates `bench/data/generated/million-row.csv` and renders it through
+`SummaryBin`, so the input can be large while the SVG stays bounded. TLC and SFO
+Museum sources are opt-in:
 
 ```bash
-scripts/download-large-fixtures.sh
-scripts/prepare-large-fixtures.sh
-scripts/render-large-demos.sh
+cargo run -p algraf-bench -- download --dataset all
+cargo run -p algraf-bench -- prepare --dataset all
+cargo run -p algraf-bench -- run --suite large --run-label with-external
 ```
 
 Large raw SVG is guarded by a mark budget. Prefer `Bin`, `Bin2D`, `SummaryBin`,

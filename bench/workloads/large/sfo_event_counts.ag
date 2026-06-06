@@ -1,4 +1,4 @@
-Chart(data: Parquet("../../../benchdata/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet"),
+Chart(data: Parquet("../../data/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet"),
       width: 720, height: 420,
       title: "SFO arrivals and departures") {
     Theme(name: "minimal")

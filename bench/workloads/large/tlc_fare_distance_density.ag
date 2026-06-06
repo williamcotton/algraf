@@ -1,4 +1,4 @@
-Chart(data: Parquet("../../../benchdata/prepared/tlc/yellow_tripdata_2024-01_chart.parquet"),
+Chart(data: Parquet("../../data/prepared/tlc/yellow_tripdata_2024-01_chart.parquet"),
       width: 820, height: 520,
       title: "NYC TLC fare by trip distance density") {
     Theme(name: "minimal")

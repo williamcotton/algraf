@@ -31,13 +31,3 @@ default = ["sql"]
 sql = ["dep:libsqlite3-sys"]
 parquet = ["dep:parquet", "dep:arrow-array", "dep:arrow-schema", "dep:bytes"]
 arrow-stream = ["dep:arrow-ipc", "dep:arrow-array", "dep:arrow-schema"]
-
-[[example]]
-name = "generate_large_fixtures"
-path = "examples/generate_large_fixtures.rs"
-required-features = ["parquet"]
-
-[[example]]
-name = "prepare_large_fixtures"
-path = "examples/prepare_large_fixtures.rs"
-required-features = ["parquet"]

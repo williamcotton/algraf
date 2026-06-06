@@ -1,4 +1,4 @@
-Chart(data: Parquet("../../../target/algraf-large-fixtures/smoke/dense_points.parquet"),
+Chart(data: Parquet("../../data/generated/algraf-large-fixtures/current/dense_points.parquet"),
       width: 780, height: 500,
       title: "Raw dense points should require an explicit budget") {
     Theme(name: "minimal")

@@ -1,0 +1,20 @@
+[package]
+name = "algraf-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "algraf-bench"
+path = "src/main.rs"
+
+[dependencies]
+algraf-data = { workspace = true, features = ["parquet", "arrow-stream"] }
+arrow-array = { workspace = true }
+arrow-schema = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+csv = { workspace = true }
+parquet = { workspace = true, features = ["arrow"] }

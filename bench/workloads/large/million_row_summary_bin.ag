@@ -1,4 +1,4 @@
-Chart(data: "../../../benchdata/generated/million-row.csv",
+Chart(data: "../../data/generated/million-row.csv",
       width: 820, height: 500, marginRight: 100,
       title: "Million-row CSV summarized before rendering") {
     Theme(name: "minimal")

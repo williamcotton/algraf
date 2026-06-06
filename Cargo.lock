@@ -23,6 +23,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "algraf-bench"
+version = "0.68.0"
+dependencies = [
+ "algraf-data",
+ "arrow-array",
+ "arrow-schema",
+ "chrono",
+ "clap",
+ "csv",
+ "parquet",
+]
+
+[[package]]
 name = "algraf-cli"
 version = "0.68.0"
 dependencies = [

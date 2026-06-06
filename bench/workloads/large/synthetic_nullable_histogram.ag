@@ -1,4 +1,4 @@
-Chart(data: Parquet("../../../target/algraf-large-fixtures/smoke/sparse_nullable.parquet"),
+Chart(data: Parquet("../../data/generated/algraf-large-fixtures/current/sparse_nullable.parquet"),
       width: 780, height: 460,
       title: "Sparse nullable values binned without missing cells") {
     Theme(name: "minimal")

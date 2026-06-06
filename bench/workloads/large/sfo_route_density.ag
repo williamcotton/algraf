@@ -1,4 +1,4 @@
-Chart(data: Parquet("../../../benchdata/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet"),
+Chart(data: Parquet("../../data/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet"),
       width: 820, height: 520,
       title: "SFO flight coordinate density") {
     Theme(name: "minimal")

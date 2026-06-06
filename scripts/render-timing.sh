@@ -18,14 +18,14 @@ run_case() {
 
 run_case \
     "weather alias embedded JSON" \
-    bench/examples/local/weather_alias.ag \
-    --input bench/examples/local/weather_hourly.json \
+    bench/workloads/local/weather_alias.ag \
+    --input bench/workloads/local/weather_hourly.json \
     --data-format json
 
 run_case \
     "weather alias embedded JSON interactive" \
-    bench/examples/local/weather_alias.ag \
-    --input bench/examples/local/weather_hourly.json \
+    bench/workloads/local/weather_alias.ag \
+    --input bench/workloads/local/weather_hourly.json \
     --data-format json \
     --interactive
 

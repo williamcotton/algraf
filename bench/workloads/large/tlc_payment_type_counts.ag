@@ -1,4 +1,4 @@
-Chart(data: Parquet("../../../benchdata/prepared/tlc/yellow_tripdata_2024-01_chart.parquet"),
+Chart(data: Parquet("../../data/prepared/tlc/yellow_tripdata_2024-01_chart.parquet"),
       width: 760, height: 430,
       title: "NYC TLC payment type counts") {
     Theme(name: "minimal")

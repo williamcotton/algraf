@@ -1,4 +1,4 @@
-Chart(data: Parquet("../../../target/algraf-large-fixtures/smoke/dense_points.parquet"),
+Chart(data: Parquet("../../data/generated/algraf-large-fixtures/current/dense_points.parquet"),
       width: 820, height: 520,
       title: "Synthetic dense points as bounded 2D bins") {
     Theme(name: "minimal")

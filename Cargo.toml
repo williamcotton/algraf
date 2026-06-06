@@ -10,6 +10,7 @@ members = [
     "crates/algraf-editor-services",
     "crates/algraf-lsp",
     "crates/algraf-cli",
+    "crates/algraf-bench",
     "crates/algraf-wasm",
 ]
 

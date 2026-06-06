@@ -9681,15 +9681,19 @@ assets. `prepack` MUST build the publishable surface, and release validation
 MUST inspect `npm pack --dry-run` output to prove ignored generated `dist/`
 files are included by the npm `files` whitelist.
 
-Version 0.68.0 is the active planning target for Arrow-stream and large-data
+Version 0.68.0 establishes the benchmark process for Arrow-stream and
+large-data aggregate performance work. The implemented benchmark-infrastructure
+scope is recorded in [`V0_68_PLAN.md`](V0_68_PLAN.md).
+
+Version 0.69.0 is the active planning target for Arrow-stream and large-data
 aggregate performance. Planned work is recorded in
-[`V0_68_PLAN.md`](V0_68_PLAN.md) and remains non-normative until individual
+[`V0_69_PLAN.md`](V0_69_PLAN.md) and remains non-normative until individual
 items are promoted into the relevant specification sections alongside
-implementation. The release direction is to improve reader-oriented
-caller-data loading, Arrow IPC stream ingest, typed column scans, stat/domain
-execution, aggregate-first large-data rendering UX, and the PDL-to-Algraf Arrow
-stream handoff without adding PDL syntax or exposing concrete dataframe engines
-above `algraf-data`.
+implementation. The release direction is to improve reader-oriented caller-data
+loading, Arrow IPC stream ingest, typed column scans, stat/domain execution,
+aggregate-first large-data rendering UX, and the PDL-to-Algraf Arrow stream
+handoff without adding PDL syntax or exposing concrete dataframe engines above
+`algraf-data`.
 
 Version 0.64.0 adds declarative `On(event: "click", emit: column)` event
 emitters for host applications. Event emitters are inert metadata attached to
@@ -10530,10 +10534,11 @@ materialize bounded scene sizes.
 
 Future versions MAY stream data and aggregate stats without materializing rows.
 
-Current large-data performance notes, the million-row aggregate baseline, and
-the v0.68 benchmark strategy live in [`V0_68_PLAN.md`](V0_68_PLAN.md) while that
-plan is active. Machine-specific timing thresholds MUST NOT be made mandatory
-without recording the reference hardware and variance policy.
+Current large-data benchmark strategy and baseline snapshots live in
+[`V0_68_PLAN.md`](V0_68_PLAN.md). The follow-on performance implementation
+plan lives in [`V0_69_PLAN.md`](V0_69_PLAN.md). Machine-specific timing
+thresholds MUST NOT be made mandatory without recording the reference hardware
+and variance policy.
 
 ### 28.4 Memory
 
@@ -10809,7 +10814,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.65.0 | [`V0_65_PLAN.md`](V0_65_PLAN.md) | Explicit categorical position axes for numeric source columns | Implemented |
 | 0.66.0 | [`V0_66_PLAN.md`](V0_66_PLAN.md) | Browser runtime invocation-variable parity | Implemented |
 | 0.67.0 | [`V0_67_PLAN.md`](V0_67_PLAN.md) | npm-ready browser package build outputs | Implemented |
-| 0.68.0 | [`V0_68_PLAN.md`](V0_68_PLAN.md) | Arrow-stream and large-data aggregate performance | Planned |
+| 0.68.0 | [`V0_68_PLAN.md`](V0_68_PLAN.md) | Benchmark infrastructure and cross-repo baseline alignment | Implemented |
+| 0.69.0 | [`V0_69_PLAN.md`](V0_69_PLAN.md) | Arrow-stream and large-data aggregate performance | Planned |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
