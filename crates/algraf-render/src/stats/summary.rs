@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use algraf_data::geo_types::Geometry;
 use algraf_data::{
@@ -6,7 +6,7 @@ use algraf_data::{
     Table,
 };
 
-use crate::scale::{categorical_domain, cell_category, cell_f64};
+use crate::scale::cell_f64;
 use crate::svg::num;
 
 use super::bin::{bin_index, bin_layout};
@@ -46,68 +46,176 @@ pub fn count_by(table: &dyn Table, group_columns: &[&str]) -> DataFrame {
         !group_columns.is_empty(),
         "count_by requires a group column"
     );
-    let outer = group_columns[0];
-    let inner = group_columns.get(1).copied();
-    let outer_cats = categorical_domain(table, outer);
-    let outer_view = table.column(outer);
-
-    let mut rows: Vec<(String, Option<String>, i64)> = Vec::new();
-    if let Some(inner_col) = inner {
-        let inner_cats = categorical_domain(table, inner_col);
-        let inner_view = table.column(inner_col);
-        let mut counts: BTreeMap<(String, String), i64> = BTreeMap::new();
-        for row in 0..table.row_count() {
-            let (Some(outer_key), Some(inner_key)) = (
-                category_cell(outer_view, table, outer, row),
-                category_cell(inner_view, table, inner_col, row),
-            ) else {
-                continue;
-            };
-            *counts.entry((outer_key, inner_key)).or_insert(0) += 1;
+    let group_columns = &group_columns[..group_columns.len().min(2)];
+    if group_columns.len() == 1 {
+        if let Some(frame) = count_by_single_column(table, group_columns[0]) {
+            return frame;
         }
-        for o in &outer_cats {
-            for i in &inner_cats {
-                let count = *counts.get(&(o.clone(), i.clone())).unwrap_or(&0);
-                rows.push((o.clone(), Some(i.clone()), count));
+    }
+    let group_views = column_views(table, group_columns);
+    let mut key_order = Vec::new();
+    let mut seen_keys = HashSet::new();
+    let mut outer_order = Vec::new();
+    let mut seen_outer = HashSet::new();
+    let mut inner_order = Vec::new();
+    let mut seen_inner = HashSet::new();
+    let mut counts: HashMap<Vec<CountKey>, i64> = HashMap::new();
+
+    for row in 0..table.row_count() {
+        let Some(key) = count_key(table, group_columns, &group_views, row) else {
+            continue;
+        };
+        if group_columns.len() == 1 {
+            if seen_keys.insert(key.clone()) {
+                key_order.push(key.clone());
             }
+        } else {
+            record_unique_value(&mut outer_order, &mut seen_outer, &key[0]);
+            record_unique_value(&mut inner_order, &mut seen_inner, &key[1]);
+        }
+        *counts.entry(key).or_insert(0) += 1;
+    }
+
+    let mut schema = group_schema(table, group_columns);
+    schema.push(col_def("count", DataType::Integer));
+    let mut builders = builders_for_schema(&schema);
+    if group_columns.len() == 1 {
+        for key in &key_order {
+            push_count_key(key, &mut builders);
+            builders[1].push_value(Some(DataValue::Int(*counts.get(key).unwrap_or(&0))));
         }
     } else {
-        let mut counts: BTreeMap<String, i64> = BTreeMap::new();
-        for row in 0..table.row_count() {
-            let Some(outer_key) = category_cell(outer_view, table, outer, row) else {
-                continue;
-            };
-            *counts.entry(outer_key).or_insert(0) += 1;
-        }
-        for o in &outer_cats {
-            let count = *counts.get(o).unwrap_or(&0);
-            rows.push((o.clone(), None, count));
+        for outer in &outer_order {
+            for inner in &inner_order {
+                let key = vec![outer.clone(), inner.clone()];
+                push_count_key(&key, &mut builders);
+                builders[2].push_value(Some(DataValue::Int(*counts.get(&key).unwrap_or(&0))));
+            }
         }
     }
-
-    let mut schema = vec![col_def(outer, DataType::String)];
-    let outer_col = Column::String(rows.iter().map(|r| Some(r.0.clone())).collect());
-    let mut columns = vec![outer_col];
-    if let Some(inner_col) = inner {
-        schema.push(col_def(inner_col, DataType::String));
-        columns.push(Column::String(rows.iter().map(|r| r.1.clone()).collect()));
-    }
-    schema.push(col_def("count", DataType::Integer));
-    columns.push(Column::from_int_options(
-        rows.iter().map(|r| Some(r.2)).collect(),
-    ));
-    deterministic_frame(schema, columns)
+    deterministic_frame(schema, finish_builders(builders))
 }
 
-fn category_cell(
-    view: Option<ColumnView<'_>>,
-    table: &dyn Table,
-    column: &str,
-    row: usize,
-) -> Option<String> {
+fn count_by_single_column(table: &dyn Table, column: &str) -> Option<DataFrame> {
+    let view = table.column(column)?;
+    let mut schema = group_schema(table, &[column]);
+    schema.push(col_def("count", DataType::Integer));
     match view {
-        Some(view) => view.category_at(row),
-        None => cell_category(table, column, row),
+        ColumnView::Bool(values) => Some(single_count_frame(
+            schema,
+            values.present_values(),
+            |value| DataValue::Bool(*value),
+        )),
+        ColumnView::Int(values) => Some(single_count_frame(
+            schema,
+            values.present_values(),
+            |value| DataValue::Int(*value),
+        )),
+        ColumnView::Float(values) => Some(single_count_frame(
+            schema,
+            values
+                .present_values()
+                .filter(|value| value.is_finite())
+                .map(f64::to_bits),
+            |value| DataValue::Float(f64::from_bits(*value)),
+        )),
+        ColumnView::Temporal(values) => Some(single_count_frame(
+            schema,
+            values.present_values(),
+            |value| DataValue::Temporal(*value),
+        )),
+        ColumnView::String(values) => Some(single_count_frame(
+            schema,
+            values.iter().filter_map(|value| value.clone()),
+            |value| DataValue::String(value.clone()),
+        )),
+        ColumnView::Geometry(_) => Some(single_count_frame(
+            schema,
+            std::iter::empty::<i64>(),
+            |value| DataValue::Int(*value),
+        )),
+    }
+}
+
+fn single_count_frame<K>(
+    schema: Vec<ColumnDef>,
+    values: impl IntoIterator<Item = K>,
+    to_value: impl Fn(&K) -> DataValue,
+) -> DataFrame
+where
+    K: Clone + Eq + std::hash::Hash,
+{
+    let mut order = Vec::new();
+    let mut seen = HashSet::new();
+    let mut counts = HashMap::new();
+    for value in values {
+        if seen.insert(value.clone()) {
+            order.push(value.clone());
+        }
+        *counts.entry(value).or_insert(0) += 1;
+    }
+
+    let mut builders = builders_for_schema(&schema);
+    for value in &order {
+        builders[0].push_value(Some(to_value(value)));
+        builders[1].push_value(Some(DataValue::Int(*counts.get(value).unwrap_or(&0))));
+    }
+    deterministic_frame(schema, finish_builders(builders))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum CountKey {
+    Bool(bool),
+    Int(i64),
+    Float(u64),
+    Temporal(DateTimeValue),
+    String(String),
+}
+
+impl CountKey {
+    fn from_ref(value: DataValueRef<'_>) -> Option<Self> {
+        match value {
+            DataValueRef::Null | DataValueRef::Geometry(_) => None,
+            DataValueRef::Bool(value) => Some(CountKey::Bool(value)),
+            DataValueRef::Int(value) => Some(CountKey::Int(value)),
+            DataValueRef::Float(value) => Some(CountKey::Float(value.to_bits())),
+            DataValueRef::Temporal(value) => Some(CountKey::Temporal(value)),
+            DataValueRef::String(value) => Some(CountKey::String(value.to_string())),
+        }
+    }
+
+    fn to_value(&self) -> DataValue {
+        match self {
+            CountKey::Bool(value) => DataValue::Bool(*value),
+            CountKey::Int(value) => DataValue::Int(*value),
+            CountKey::Float(value) => DataValue::Float(f64::from_bits(*value)),
+            CountKey::Temporal(value) => DataValue::Temporal(*value),
+            CountKey::String(value) => DataValue::String(value.clone()),
+        }
+    }
+}
+
+fn count_key(
+    table: &dyn Table,
+    by_columns: &[&str],
+    views: &[Option<ColumnView<'_>>],
+    row: usize,
+) -> Option<Vec<CountKey>> {
+    let mut key = Vec::with_capacity(by_columns.len());
+    for (index, column) in by_columns.iter().enumerate() {
+        key.push(CountKey::from_ref(value_cell(
+            views.get(index).copied().flatten(),
+            table,
+            column,
+            row,
+        )?)?);
+    }
+    Some(key)
+}
+
+fn record_unique_value(order: &mut Vec<CountKey>, seen: &mut HashSet<CountKey>, value: &CountKey) {
+    if seen.insert(value.clone()) {
+        order.push(value.clone());
     }
 }
 
@@ -140,8 +248,9 @@ pub fn distinct(table: &dyn Table, key_columns: &[&str]) -> DataFrame {
 /// emits a vertical jump from the previous cumulative share to the new share.
 pub fn ecdf(table: &dyn Table, input_column: &str) -> DataFrame {
     let schema = vec![col_def("x", DataType::Float), col_def("y", DataType::Float)];
+    let value_view = table.column(input_column);
     let mut values: Vec<f64> = (0..table.row_count())
-        .filter_map(|row| cell_f64(table, input_column, row))
+        .filter_map(|row| f64_cell(value_view, table, input_column, row))
         .collect();
     values.sort_by(f64::total_cmp);
     if values.is_empty() {
@@ -185,8 +294,9 @@ pub fn ecdf(table: &dyn Table, input_column: &str) -> DataFrame {
 /// carry `theoretical`/`sample`; the reference row carries `line_*` columns.
 pub fn qq(table: &dyn Table, input_column: &str, options: QqOptions) -> DataFrame {
     let schema = qq_schema();
+    let value_view = table.column(input_column);
     let mut values: Vec<f64> = (0..table.row_count())
-        .filter_map(|row| cell_f64(table, input_column, row))
+        .filter_map(|row| f64_cell(value_view, table, input_column, row))
         .collect();
     values.sort_by(f64::total_cmp);
     if values.is_empty() {
@@ -276,18 +386,27 @@ pub fn summary_bin(
     let (start, width, bin_count) = bin_layout(min, max, bins, options);
     let group_keys = group_key_domain(table, by_columns, x_column, Some(value_column));
     let group_count = group_keys.len().max(1);
+    let group_index: BTreeMap<Vec<DataValue>, usize> = group_keys
+        .iter()
+        .cloned()
+        .enumerate()
+        .map(|(index, key)| (key, index))
+        .collect();
+    let x_view = table.column(x_column);
+    let value_view = table.column(value_column);
+    let by_views = column_views(table, by_columns);
     let mut cells = vec![Vec::new(); bin_count * group_count];
     for row in 0..table.row_count() {
-        let Some(x) = cell_f64(table, x_column, row) else {
+        let Some(x) = f64_cell(x_view, table, x_column, row) else {
             continue;
         };
-        let Some(value) = summary_value(table, value_column, row, reducer) else {
+        let Some(value) = summary_value(value_view, table, value_column, row, reducer) else {
             continue;
         };
-        let Some(key) = group_key(table, by_columns, row) else {
+        let Some(key) = group_key(table, by_columns, &by_views, row) else {
             continue;
         };
-        let Some(gi) = group_keys.iter().position(|existing| existing == &key) else {
+        let Some(&gi) = group_index.get(&key) else {
             continue;
         };
         let bi = bin_index(x, start, width, bin_count, options.closed);
@@ -333,6 +452,7 @@ pub fn cut(
     let mut schema = table.schema().to_vec();
     schema.push(col_def(output_column, DataType::String));
     let mut builders = builders_for_schema(&schema);
+    let value_view = table.column(input_column);
     for row in 0..table.row_count() {
         push_passthrough(
             table,
@@ -340,7 +460,7 @@ pub fn cut(
             table.schema(),
             &mut builders[..table.schema().len()],
         );
-        let class = cell_f64(table, input_column, row)
+        let class = f64_cell(value_view, table, input_column, row)
             .and_then(|value| cut_index(value, breaks))
             .map(|index| cut_label(index, breaks, labels));
         builders[table.schema().len()].push_value(class.map(DataValue::String));
@@ -361,11 +481,13 @@ fn grouped_values(
     reducer: SummaryReducer,
 ) -> Vec<GroupValues> {
     let mut groups: BTreeMap<Vec<DataValue>, Vec<f64>> = BTreeMap::new();
+    let value_view = table.column(value_column);
+    let by_views = column_views(table, by_columns);
     for row in 0..table.row_count() {
-        let Some(value) = summary_value(table, value_column, row, reducer) else {
+        let Some(value) = summary_value(value_view, table, value_column, row, reducer) else {
             continue;
         };
-        let Some(key) = group_key(table, by_columns, row) else {
+        let Some(key) = group_key(table, by_columns, &by_views, row) else {
             continue;
         };
         groups.entry(key).or_default().push(value);
@@ -380,31 +502,33 @@ fn grouped_values(
 }
 
 fn summary_value(
+    view: Option<ColumnView<'_>>,
     table: &dyn Table,
     value_column: &str,
     row: usize,
     reducer: SummaryReducer,
 ) -> Option<f64> {
     match reducer {
-        SummaryReducer::Count => {
-            table.value(value_column, row).and_then(
-                |value| {
-                    if value.is_null() {
-                        None
-                    } else {
-                        Some(1.0)
-                    }
-                },
-            )
-        }
-        _ => cell_f64(table, value_column, row),
+        SummaryReducer::Count => value_cell(view, table, value_column, row).and_then(|value| {
+            if value.is_null() {
+                None
+            } else {
+                Some(1.0)
+            }
+        }),
+        _ => f64_cell(view, table, value_column, row),
     }
 }
 
-fn group_key(table: &dyn Table, by_columns: &[&str], row: usize) -> Option<Vec<DataValue>> {
+fn group_key(
+    table: &dyn Table,
+    by_columns: &[&str],
+    views: &[Option<ColumnView<'_>>],
+    row: usize,
+) -> Option<Vec<DataValue>> {
     let mut key = Vec::with_capacity(by_columns.len());
-    for column in by_columns {
-        match table.value(column, row)? {
+    for (index, column) in by_columns.iter().enumerate() {
+        match value_cell(views.get(index).copied().flatten(), table, column, row)? {
             DataValueRef::Null | DataValueRef::Geometry(_) => return None,
             value => key.push(value.to_owned()),
         }
@@ -422,13 +546,17 @@ fn group_key_domain(
         return vec![Vec::new()];
     }
     let mut keys = BTreeMap::new();
+    let x_view = table.column(x_column);
+    let value_view = value_column.and_then(|column| table.column(column));
+    let by_views = column_views(table, by_columns);
     for row in 0..table.row_count() {
-        if cell_f64(table, x_column, row).is_none()
-            || value_column.is_some_and(|column| table.value(column, row).is_none())
+        if f64_cell(x_view, table, x_column, row).is_none()
+            || value_column
+                .is_some_and(|column| value_cell(value_view, table, column, row).is_none())
         {
             continue;
         }
-        let Some(key) = group_key(table, by_columns, row) else {
+        let Some(key) = group_key(table, by_columns, &by_views, row) else {
             continue;
         };
         keys.insert(key, ());
@@ -436,9 +564,43 @@ fn group_key_domain(
     keys.into_keys().collect()
 }
 
+fn column_views<'a>(table: &'a dyn Table, columns: &[&str]) -> Vec<Option<ColumnView<'a>>> {
+    columns.iter().map(|column| table.column(column)).collect()
+}
+
+fn f64_cell(
+    view: Option<ColumnView<'_>>,
+    table: &dyn Table,
+    column: &str,
+    row: usize,
+) -> Option<f64> {
+    match view {
+        Some(view) => view.f64_at(row),
+        None => cell_f64(table, column, row),
+    }
+}
+
+fn value_cell<'a>(
+    view: Option<ColumnView<'a>>,
+    table: &'a dyn Table,
+    column: &str,
+    row: usize,
+) -> Option<DataValueRef<'a>> {
+    match view {
+        Some(view) => view.get(row),
+        None => table.value(column, row),
+    }
+}
+
 fn push_group_key(key: &[DataValue], builders: &mut [ColumnBuilder]) {
     for (value, builder) in key.iter().cloned().zip(builders.iter_mut()) {
         builder.push_value(Some(value));
+    }
+}
+
+fn push_count_key(key: &[CountKey], builders: &mut [ColumnBuilder]) {
+    for (value, builder) in key.iter().zip(builders.iter_mut()) {
+        builder.push_value(Some(value.to_value()));
     }
 }
 
@@ -730,5 +892,154 @@ fn value_to_string(value: DataValue) -> Option<String> {
         DataValue::Float(_) => None,
         DataValue::Temporal(value) => Some(value.instant.and_utc().to_rfc3339()),
         DataValue::String(value) => Some(value),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct ColumnOnlyTable {
+        frame: DataFrame,
+    }
+
+    impl Table for ColumnOnlyTable {
+        fn schema(&self) -> &[ColumnDef] {
+            self.frame.schema()
+        }
+
+        fn row_count(&self) -> usize {
+            self.frame.row_count()
+        }
+
+        fn value(&self, _column: &str, _row: usize) -> Option<DataValueRef<'_>> {
+            panic!("summary execution fell back to scalar value access")
+        }
+
+        fn column(&self, column: &str) -> Option<ColumnView<'_>> {
+            Table::column(&self.frame, column)
+        }
+    }
+
+    #[test]
+    fn summary_uses_column_views_without_scalar_fallback() {
+        let table = ColumnOnlyTable {
+            frame: DataFrame::new(
+                vec![
+                    col_def("value", DataType::Float),
+                    col_def("group", DataType::String),
+                ],
+                vec![
+                    Column::from_float_options(vec![Some(2.0), Some(4.0), None, Some(8.0)]),
+                    Column::String(vec![
+                        Some("a".into()),
+                        Some("a".into()),
+                        Some("b".into()),
+                        Some("b".into()),
+                    ]),
+                ],
+            ),
+        };
+
+        let out = summary(&table, "value", &["group"], SummaryReducer::Mean);
+
+        assert_eq!(out.row_count(), 2);
+        assert_eq!(out.value("group", 0), Some(DataValueRef::String("a")));
+        assert_eq!(out.value("value", 0), Some(DataValueRef::Float(3.0)));
+        assert_eq!(out.value("group", 1), Some(DataValueRef::String("b")));
+        assert_eq!(out.value("value", 1), Some(DataValueRef::Float(8.0)));
+    }
+
+    #[test]
+    fn count_by_preserves_group_dtype() {
+        let table = DataFrame::new(
+            vec![col_def("payment_type", DataType::Integer)],
+            vec![Column::from_int_options(vec![
+                Some(2),
+                Some(1),
+                Some(2),
+                None,
+                Some(1),
+            ])],
+        );
+
+        let out = count_by(&table, &["payment_type"]);
+
+        assert_eq!(out.schema()[0].dtype, DataType::Integer);
+        assert_eq!(out.row_count(), 2);
+        assert_eq!(out.value("payment_type", 0), Some(DataValueRef::Int(2)));
+        assert_eq!(out.value("count", 0), Some(DataValueRef::Int(2)));
+        assert_eq!(out.value("payment_type", 1), Some(DataValueRef::Int(1)));
+        assert_eq!(out.value("count", 1), Some(DataValueRef::Int(2)));
+    }
+
+    #[test]
+    fn count_by_nested_keeps_zero_combinations() {
+        let table = DataFrame::new(
+            vec![
+                col_def("outer", DataType::String),
+                col_def("inner", DataType::String),
+            ],
+            vec![
+                Column::String(vec![Some("a".into()), Some("b".into())]),
+                Column::String(vec![Some("x".into()), Some("y".into())]),
+            ],
+        );
+
+        let out = count_by(&table, &["outer", "inner"]);
+
+        assert_eq!(out.row_count(), 4);
+        assert_eq!(out.value("outer", 0), Some(DataValueRef::String("a")));
+        assert_eq!(out.value("inner", 0), Some(DataValueRef::String("x")));
+        assert_eq!(out.value("count", 0), Some(DataValueRef::Int(1)));
+        assert_eq!(out.value("outer", 1), Some(DataValueRef::String("a")));
+        assert_eq!(out.value("inner", 1), Some(DataValueRef::String("y")));
+        assert_eq!(out.value("count", 1), Some(DataValueRef::Int(0)));
+        assert_eq!(out.value("outer", 2), Some(DataValueRef::String("b")));
+        assert_eq!(out.value("inner", 2), Some(DataValueRef::String("x")));
+        assert_eq!(out.value("count", 2), Some(DataValueRef::Int(0)));
+        assert_eq!(out.value("outer", 3), Some(DataValueRef::String("b")));
+        assert_eq!(out.value("inner", 3), Some(DataValueRef::String("y")));
+        assert_eq!(out.value("count", 3), Some(DataValueRef::Int(1)));
+    }
+
+    #[test]
+    fn summary_bin_uses_column_views_without_scalar_fallback() {
+        let table = ColumnOnlyTable {
+            frame: DataFrame::new(
+                vec![
+                    col_def("x", DataType::Float),
+                    col_def("value", DataType::Float),
+                    col_def("group", DataType::String),
+                ],
+                vec![
+                    Column::from_float_options(vec![Some(0.0), Some(0.5), Some(1.5), Some(2.0)]),
+                    Column::from_float_options(vec![Some(2.0), Some(4.0), Some(6.0), Some(8.0)]),
+                    Column::String(vec![
+                        Some("a".into()),
+                        Some("b".into()),
+                        Some("a".into()),
+                        Some("b".into()),
+                    ]),
+                ],
+            ),
+        };
+
+        let out = summary_bin(
+            &table,
+            "x",
+            "value",
+            &["group"],
+            BinOptions {
+                bins: 2,
+                bin_width: None,
+                boundary: None,
+                closed: super::super::BinClosed::Left,
+                interval: None,
+            },
+            SummaryReducer::Mean,
+        );
+
+        assert_eq!(out.row_count(), 4);
     }
 }

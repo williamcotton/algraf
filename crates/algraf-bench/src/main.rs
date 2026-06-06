@@ -38,7 +38,7 @@ const SFO_COLUMNS: [&str; 6] = [
 const JAN_2024_START_MICROS: i64 = 1_704_067_200_000_000;
 const FEB_2024_START_MICROS: i64 = 1_706_745_600_000_000;
 
-const REPORT_HEADER: [&str; 21] = [
+const REPORT_HEADER: [&str; 25] = [
     "repo",
     "tool",
     "run_label",
@@ -57,6 +57,10 @@ const REPORT_HEADER: [&str; 21] = [
     "marks",
     "output_bytes",
     "elapsed_ms",
+    "parse_ms",
+    "prepare_ms",
+    "render_ms",
+    "timing_total_ms",
     "run_timestamp_utc",
     "git_ref",
     "notes",
@@ -115,6 +119,13 @@ enum Commands {
         /// Do not prepare downloaded external sources even if raw files exist.
         #[arg(long)]
         no_prepare: bool,
+    },
+    /// Compare elapsed times for two run reports.
+    Compare {
+        #[arg(long)]
+        before: String,
+        #[arg(long)]
+        after: String,
     },
     /// Copy an ignored run report into a tracked baseline directory.
     Snapshot {
@@ -209,6 +220,14 @@ struct RunMetadata {
     label: String,
 }
 
+#[derive(Debug, Clone, Default)]
+struct TimingPhases {
+    parse_ms: String,
+    prepare_ms: String,
+    render_ms: String,
+    total_ms: String,
+}
+
 #[derive(Debug)]
 struct SfoRow {
     date_micros: i64,
@@ -242,6 +261,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             no_generate,
             no_prepare,
         )?,
+        Commands::Compare { before, after } => compare_runs(&root, &before, &after)?,
         Commands::Snapshot {
             run_label,
             baseline,
@@ -250,6 +270,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     Ok(())
+}
+
+#[derive(Debug)]
+struct ReportRow {
+    status: String,
+    elapsed_ms: Option<f64>,
+    marks: String,
+    output_bytes: String,
 }
 
 fn repo_root() -> PathBuf {
@@ -477,6 +505,113 @@ fn snapshot_run(
     println!("wrote {}", relative(root, &baseline_report));
     println!("wrote {}", relative(root, &environment));
     Ok(())
+}
+
+fn compare_runs(root: &Path, before: &str, after: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let before = sanitize_label(before);
+    let after = sanitize_label(after);
+    let before_report = read_run_report(root, &before)?;
+    let after_report = read_run_report(root, &after)?;
+    let mut workloads: Vec<_> = before_report.keys().chain(after_report.keys()).collect();
+    workloads.sort();
+    workloads.dedup();
+
+    let mut writer = csv::Writer::from_writer(std::io::stdout());
+    writer.write_record([
+        "workload",
+        "before_ms",
+        "after_ms",
+        "delta_ms",
+        "improvement_pct",
+        "before_status",
+        "after_status",
+        "before_marks",
+        "after_marks",
+        "before_output_bytes",
+        "after_output_bytes",
+    ])?;
+    for workload in workloads {
+        let before_row = before_report.get(workload);
+        let after_row = after_report.get(workload);
+        let before_ms = before_row.and_then(|row| row.elapsed_ms);
+        let after_ms = after_row.and_then(|row| row.elapsed_ms);
+        let delta = before_ms
+            .zip(after_ms)
+            .map(|(before, after)| after - before);
+        let improvement = before_ms.zip(after_ms).and_then(|(before, after)| {
+            (before.abs() > f64::EPSILON).then_some((before - after) * 100.0 / before)
+        });
+        writer.write_record([
+            workload.as_str(),
+            &format_optional_ms(before_ms),
+            &format_optional_ms(after_ms),
+            &format_optional_ms(delta),
+            &format_optional_percent(improvement),
+            before_row.map_or("", |row| row.status.as_str()),
+            after_row.map_or("", |row| row.status.as_str()),
+            before_row.map_or("", |row| row.marks.as_str()),
+            after_row.map_or("", |row| row.marks.as_str()),
+            before_row.map_or("", |row| row.output_bytes.as_str()),
+            after_row.map_or("", |row| row.output_bytes.as_str()),
+        ])?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+fn read_run_report(
+    root: &Path,
+    label: &str,
+) -> Result<HashMap<String, ReportRow>, Box<dyn std::error::Error>> {
+    let path = root.join("bench/runs").join(label).join("report.csv");
+    if !path.exists() {
+        return Err(format!("missing run report: {}", relative(root, &path)).into());
+    }
+    let mut reader = csv::Reader::from_path(&path)?;
+    let headers = reader.headers()?.clone();
+    let workload_index = required_report_column(&headers, "workload")?;
+    let status_index = required_report_column(&headers, "status")?;
+    let elapsed_index = required_report_column(&headers, "elapsed_ms")?;
+    let marks_index = required_report_column(&headers, "marks")?;
+    let bytes_index = required_report_column(&headers, "output_bytes")?;
+    let mut rows = HashMap::new();
+    for record in reader.records() {
+        let record = record?;
+        let Some(workload) = record.get(workload_index).filter(|value| !value.is_empty()) else {
+            continue;
+        };
+        rows.insert(
+            workload.to_string(),
+            ReportRow {
+                status: record.get(status_index).unwrap_or_default().to_string(),
+                elapsed_ms: record
+                    .get(elapsed_index)
+                    .filter(|value| !value.is_empty())
+                    .and_then(|value| value.parse::<f64>().ok()),
+                marks: record.get(marks_index).unwrap_or_default().to_string(),
+                output_bytes: record.get(bytes_index).unwrap_or_default().to_string(),
+            },
+        );
+    }
+    Ok(rows)
+}
+
+fn required_report_column(
+    headers: &csv::StringRecord,
+    name: &str,
+) -> Result<usize, Box<dyn std::error::Error>> {
+    headers
+        .iter()
+        .position(|header| header == name)
+        .ok_or_else(|| format!("missing `{name}` column").into())
+}
+
+fn format_optional_ms(value: Option<f64>) -> String {
+    value.map_or_else(String::new, |value| format!("{value:.0}"))
+}
+
+fn format_optional_percent(value: Option<f64>) -> String {
+    value.map_or_else(String::new, |value| format!("{value:.1}"))
 }
 
 fn write_environment(
@@ -752,6 +887,14 @@ fn run_workload(
     if failed {
         return Err(format!("{status_text}: {}", workload.name).into());
     }
+    let (timing, notes) = if matches!(workload.expected, Expected::Success) {
+        match run_timing(root, workload, profile) {
+            Ok(timing) => (timing, String::new()),
+            Err(err) => (TimingPhases::default(), format!("timing failed: {err}")),
+        }
+    } else {
+        (TimingPhases::default(), String::new())
+    };
 
     Ok(vec![
         "algraf".to_string(),
@@ -772,9 +915,13 @@ fn run_workload(
         marks,
         output_bytes.to_string(),
         elapsed_ms.to_string(),
+        timing.parse_ms,
+        timing.prepare_ms,
+        timing.render_ms,
+        timing.total_ms,
         run.timestamp_utc.clone(),
         run.git_ref.clone(),
-        String::new(),
+        notes,
     ])
 }
 
@@ -804,6 +951,10 @@ fn skip_record(
         String::new(),
         "0".to_string(),
         "0".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
         run.timestamp_utc.clone(),
         run.git_ref.clone(),
         notes.to_string(),
@@ -838,10 +989,65 @@ fn failure_record(
         String::new(),
         "0".to_string(),
         "0".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
         run.timestamp_utc.clone(),
         run.git_ref.clone(),
         notes.to_string(),
     ]
+}
+
+fn run_timing(
+    root: &Path,
+    workload: &Workload,
+    profile: BuildProfile,
+) -> Result<TimingPhases, Box<dyn std::error::Error>> {
+    let bin = root
+        .join("target")
+        .join(profile.dir())
+        .join("render-timing");
+    let output = Command::new(&bin)
+        .current_dir(root)
+        .arg(workload.chart)
+        .arg("--warmup")
+        .arg("0")
+        .arg("--iterations")
+        .arg("1")
+        .output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(stderr.trim().to_string().into());
+    }
+    parse_timing_stdout(&String::from_utf8_lossy(&output.stdout))
+}
+
+fn parse_timing_stdout(stdout: &str) -> Result<TimingPhases, Box<dyn std::error::Error>> {
+    let mut timing = TimingPhases::default();
+    for line in stdout.lines() {
+        let mut fields = line.split('\t');
+        let Some(phase) = fields.next() else {
+            continue;
+        };
+        let Some(_min) = fields.next() else {
+            continue;
+        };
+        let Some(median) = fields.next() else {
+            continue;
+        };
+        match phase {
+            "parse" => timing.parse_ms = median.to_string(),
+            "prepare" => timing.prepare_ms = median.to_string(),
+            "render" => timing.render_ms = median.to_string(),
+            "total" => timing.total_ms = median.to_string(),
+            _ => {}
+        }
+    }
+    if timing.total_ms.is_empty() {
+        return Err("missing total phase in render-timing output".into());
+    }
+    Ok(timing)
 }
 
 fn input_rows_for(root: &Path, workload: &Workload, tier: Tier) -> String {
@@ -1444,18 +1650,22 @@ fn write_sfo_parquet(
 }
 
 fn build_cli(root: &Path, profile: BuildProfile) -> Result<(), Box<dyn std::error::Error>> {
-    let mut command = Command::new("cargo");
-    command
-        .current_dir(root)
-        .arg("build")
-        .arg("-p")
-        .arg("algraf-cli");
-    if matches!(profile, BuildProfile::Release) {
-        command.arg("--release");
-    }
-    let status = command.status()?;
-    if !status.success() {
-        return Err("cargo build -p algraf-cli failed".into());
+    for args in [
+        ["-p", "algraf-cli", "", ""],
+        ["-p", "algraf-render", "--bin", "render-timing"],
+    ] {
+        let mut command = Command::new("cargo");
+        command.current_dir(root).arg("build");
+        for arg in args.into_iter().filter(|arg| !arg.is_empty()) {
+            command.arg(arg);
+        }
+        if matches!(profile, BuildProfile::Release) {
+            command.arg("--release");
+        }
+        let status = command.status()?;
+        if !status.success() {
+            return Err(format!("cargo build {} failed", args.join(" ")).into());
+        }
     }
     Ok(())
 }

@@ -10,9 +10,10 @@ description = "Browser/WASM runtime for Algraf: parse + analyze + render to SVG 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-# The WASM runtime excludes the native SQLite backend: it does not enable the
-# `sql` feature on any dependency, and the workspace defaults it off, so the
-# browser build never links `libsqlite3-sys` (which needs a C linker).
+# The WASM runtime excludes native data backends: it does not enable `sql`,
+# `parquet`, `arrow-stream`, or similar features on any dependency, and the
+# workspace defaults are disabled, so the browser build never links native
+# format stacks such as `libsqlite3-sys`, Arrow, or Parquet.
 [dependencies]
 algraf-core = { workspace = true }
 algraf-syntax = { workspace = true }

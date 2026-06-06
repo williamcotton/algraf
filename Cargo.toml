@@ -15,7 +15,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.68.5"
+version = "0.69.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/williamcotton/algraf"
@@ -25,8 +25,9 @@ rust-version = "1.80"
 # Internal crates
 algraf-core = { path = "crates/algraf-core" }
 algraf-syntax = { path = "crates/algraf-syntax" }
-# The four feature-bearing crates default `sql` off here so consumers (notably
-# the WASM runtime) opt in explicitly; native binaries (cli, lsp) re-enable it.
+# Feature-bearing crates have defaults disabled here so consumers (notably the
+# WASM runtime) opt in explicitly; native binaries re-enable their needed
+# backends directly.
 algraf-data = { path = "crates/algraf-data", default-features = false }
 algraf-semantics = { path = "crates/algraf-semantics", default-features = false }
 algraf-driver = { path = "crates/algraf-driver", default-features = false }

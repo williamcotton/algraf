@@ -1,10 +1,10 @@
+use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 
 use algraf_data::{
-    read_bytes_as_with_temporal_policy, read_format_with_temporal_policy,
-    read_schema_bytes_as_with_temporal_policy, read_schema_format_with_temporal_policy,
-    read_topojson, sniff_caller_input_format, ColumnDef, DataError, DataFrame, DataWarning, Format,
-    LoadResult, SniffedFormat, Table, TemporalParsePolicy,
+    read_format_with_temporal_policy, read_schema_format_with_temporal_policy, read_topojson,
+    sniff_caller_input_format, ColumnDef, DataError, DataFrame, DataWarning, Format, LoadResult,
+    SniffedFormat, Table, TemporalParsePolicy,
 };
 use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::SourceExpr;
@@ -12,6 +12,8 @@ use algraf_syntax::SourceExpr;
 use crate::error::{DriverError, LoadContext};
 use crate::io::{DriverIo, OsDriverIo};
 use crate::resolution::{DataLocation, DriverEnv, ResolvedTableSource, SourceInput};
+
+const CALLER_INPUT_SNIFF_LIMIT: usize = 64 * 1024;
 
 /// One loaded chart-scoped named table.
 #[derive(Debug, Clone)]
@@ -464,11 +466,11 @@ fn read_input(
     format: Option<Format>,
     temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<LoadResult, DriverError> {
-    let bytes = io.read_stdin().map_err(|e| {
+    let reader = io.open_stdin().map_err(|e| {
         DriverError::StdinRead(format!("failed to read caller-provided input: {e}"))
     })?;
-    let format = resolve_input_format(format, bytes.as_slice())?;
-    read_bytes_as_with_temporal_policy(bytes.as_slice(), format, temporal_policy)
+    let (format, reader) = input_format_and_reader(format, reader)?;
+    read_format_with_temporal_policy(reader, format, temporal_policy)
         .map_err(|source| DriverError::StdinData { source })
 }
 
@@ -478,29 +480,36 @@ fn read_input_schema(
     format: Option<Format>,
     temporal_policy: Option<&TemporalParsePolicy>,
 ) -> Result<Vec<ColumnDef>, DriverError> {
-    let bytes = io.read_stdin().map_err(|e| {
+    let reader = io.open_stdin().map_err(|e| {
         DriverError::StdinRead(format!("failed to read caller-provided input: {e}"))
     })?;
-    let format = resolve_input_format(format, bytes.as_slice())?;
-    read_schema_bytes_as_with_temporal_policy(
-        bytes.as_slice(),
-        format,
-        sample_size,
-        temporal_policy,
-    )
-    .map_err(|source| DriverError::StdinData { source })
+    let (format, reader) = input_format_and_reader(format, reader)?;
+    read_schema_format_with_temporal_policy(reader, format, sample_size, temporal_policy)
+        .map_err(|source| DriverError::StdinData { source })
 }
 
-fn resolve_input_format(format: Option<Format>, bytes: &[u8]) -> Result<Format, DriverError> {
+fn input_format_and_reader<'a>(
+    format: Option<Format>,
+    mut reader: Box<dyn Read + 'a>,
+) -> Result<(Format, Box<dyn Read + 'a>), DriverError> {
     if let Some(format) = format {
-        return Ok(format);
+        return Ok((format, reader));
     }
-    match sniff_caller_input_format(bytes) {
-        SniffedFormat::Supported(format) => Ok(format),
+    let mut prefix = Vec::with_capacity(CALLER_INPUT_SNIFF_LIMIT);
+    reader
+        .by_ref()
+        .take(CALLER_INPUT_SNIFF_LIMIT as u64)
+        .read_to_end(&mut prefix)
+        .map_err(|e| {
+            DriverError::StdinRead(format!("failed to read caller-provided input: {e}"))
+        })?;
+    let format = match sniff_caller_input_format(&prefix) {
+        SniffedFormat::Supported(format) => format,
         SniffedFormat::Unsupported(name) => Err(DriverError::StdinData {
             source: DataError::UnsupportedStreamFormat(format!(
                 "{name} is not supported at the caller-data boundary; use arrow-stream, parquet, or an explicit text format"
             )),
-        }),
-    }
+        })?,
+    };
+    Ok((format, Box::new(Cursor::new(prefix).chain(reader))))
 }

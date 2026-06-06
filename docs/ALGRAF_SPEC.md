@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.68.5
+Status: 0.69.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.68.5 specification.
+This working copy is the 0.69.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -5988,7 +5988,10 @@ Chart(data: "demographics.csv") {
 }
 ```
 
-This produces a derived frame `gender * count`.
+This produces a derived frame `gender * count`. The group columns in a count
+derived frame MUST preserve the source columns' logical data types; count
+aggregation MUST NOT stringify numeric, boolean, temporal, or string keys as an
+implementation shortcut.
 
 The y label defaults to `count`.
 
@@ -9704,15 +9707,18 @@ Version 0.68.5 expands continuous gradient color literals to accept alpha hex,
 `rgb(...)`, and `rgba(...)` strings. The implemented patch scope is recorded in
 [`V0_68_5_PLAN.md`](V0_68_5_PLAN.md).
 
-Version 0.69.0 is the active planning target for Arrow-stream and large-data
-aggregate performance. Planned work is recorded in
-[`V0_69_PLAN.md`](V0_69_PLAN.md) and remains non-normative until individual
-items are promoted into the relevant specification sections alongside
-implementation. The release direction is to improve reader-oriented caller-data
-loading, Arrow IPC stream ingest, typed column scans, stat/domain execution,
-aggregate-first large-data rendering UX, and the PDL-to-Algraf Arrow stream
-handoff without adding PDL syntax or exposing concrete dataframe engines above
-`algraf-data`.
+Version 0.69.0 is the active implementation target for Arrow-stream and
+large-data aggregate performance. Planned work is recorded in
+[`V0_69_PLAN.md`](V0_69_PLAN.md). The implementation keeps the existing `Table`
+boundary and moves `Summary`, `SummaryBin`, `Ecdf`, `Qq`, `Cut`, categorical
+domain collection, and single-column `Count` execution onto borrowed typed
+column views where available, avoiding repeated scalar column-name lookup and
+unnecessary category stringification in row-heavy stat loops. Native caller
+stdin also has a reader-oriented path for explicit and sniffed data formats.
+The broader release direction is to improve Arrow IPC stream ingest, typed
+column scans, stat/domain execution, aggregate-first large-data rendering UX,
+and the PDL-to-Algraf Arrow stream handoff without adding PDL syntax or
+exposing concrete dataframe engines above `algraf-data`.
 
 Version 0.64.0 adds declarative `On(event: "click", emit: column)` event
 emitters for host applications. Event emitters are inert metadata attached to
@@ -10836,7 +10842,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.68.0 | [`V0_68_PLAN.md`](V0_68_PLAN.md) | Benchmark infrastructure and cross-repo baseline alignment | Implemented |
 | 0.68.1 | [`V0_68_1_PLAN.md`](V0_68_1_PLAN.md) | Browser editor package asset contract patch | Implemented |
 | 0.68.5 | [`V0_68_5_PLAN.md`](V0_68_5_PLAN.md) | Gradient color literal compatibility for alpha hex, rgb, and rgba | Implemented |
-| 0.69.0 | [`V0_69_PLAN.md`](V0_69_PLAN.md) | Arrow-stream and large-data aggregate performance | Planned |
+| 0.69.0 | [`V0_69_PLAN.md`](V0_69_PLAN.md) | Arrow-stream and large-data aggregate performance | In progress |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

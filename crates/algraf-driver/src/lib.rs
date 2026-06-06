@@ -158,6 +158,43 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
+    struct ReaderOnlyStdinIo {
+        stdin: Vec<u8>,
+    }
+
+    impl ReaderOnlyStdinIo {
+        fn new(stdin: impl Into<Vec<u8>>) -> Self {
+            Self {
+                stdin: stdin.into(),
+            }
+        }
+    }
+
+    impl DriverIo for ReaderOnlyStdinIo {
+        fn read_path(&self, _path: &Path) -> io::Result<Vec<u8>> {
+            Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "path reads are not available in this test",
+            ))
+        }
+
+        fn read_stdin(&self) -> io::Result<Vec<u8>> {
+            panic!("caller stdin should be streamed through open_stdin")
+        }
+
+        fn open_stdin(&self) -> io::Result<Box<dyn io::Read + '_>> {
+            Ok(Box::new(io::Cursor::new(self.stdin.clone())))
+        }
+
+        fn metadata(&self, _path: &Path) -> io::Result<DriverPathMetadata> {
+            Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "metadata is not available in this test",
+            ))
+        }
+    }
+
     /// Wraps a [`MemoryIo`] and counts `read_path` calls so cache tests can
     /// distinguish a cache hit (no read) from a reload (one read).
     #[derive(Debug)]
@@ -744,6 +781,32 @@ mod tests {
             .unwrap();
 
             assert_eq!(prepared.primary.unwrap().frame.row_count(), rows);
+        }
+    }
+
+    #[test]
+    fn caller_input_uses_reader_path_for_explicit_and_sniffed_stdin() {
+        let source = SourceInput::Inline {
+            label: "<eval>".to_string(),
+        };
+        let chart = parse_chart(r#"Chart(data: input) { Space(x * y) { Point() } }"#);
+
+        for format in [Some(Format::Csv), None] {
+            let io = ReaderOnlyStdinIo::new("x,y\n1,2\n3,4\n");
+            let prepared = prepare_chart_with_io(
+                &chart,
+                PrepareOptions {
+                    source_input: &source,
+                    base_dir: None,
+                    data_override: None,
+                    data_format_override: format,
+                    multi_chart: false,
+                },
+                &io,
+            )
+            .unwrap();
+
+            assert_eq!(prepared.primary.unwrap().frame.row_count(), 2);
         }
     }
 

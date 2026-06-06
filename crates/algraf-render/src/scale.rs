@@ -1,5 +1,7 @@
 //! Scales and nice ticks (spec §16).
 
+use std::collections::HashSet;
+
 use algraf_data::{format_f64_category, ColumnView, DataValueRef, Table, TemporalPrecision};
 
 /// A linear continuous scale mapping a numeric domain to a pixel range
@@ -333,21 +335,30 @@ pub fn temporal_domain(table: &dyn Table, column: &str) -> Option<(i64, i64, Tem
 /// Unique categories in first-appearance order (deterministic).
 pub fn categorical_domain(table: &dyn Table, column: &str) -> Vec<String> {
     let mut seen = Vec::new();
+    let mut membership = HashSet::new();
     if let Some(view) = table.column(column) {
         for row in 0..table.row_count() {
-            push_unique_category(&mut seen, view.category_at(row));
+            push_unique_category(&mut seen, &mut membership, view.category_at(row));
         }
     } else {
         for row in 0..table.row_count() {
-            push_unique_category(&mut seen, cell_category(table, column, row));
+            push_unique_category(
+                &mut seen,
+                &mut membership,
+                cell_category(table, column, row),
+            );
         }
     }
     seen
 }
 
-fn push_unique_category(seen: &mut Vec<String>, category: Option<String>) {
+fn push_unique_category(
+    seen: &mut Vec<String>,
+    membership: &mut HashSet<String>,
+    category: Option<String>,
+) {
     if let Some(category) = category {
-        if !seen.contains(&category) {
+        if membership.insert(category.clone()) {
             seen.push(category);
         }
     }

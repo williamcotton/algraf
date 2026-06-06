@@ -268,6 +268,7 @@ impl ColumnBuilder {
     }
 
     fn append_array(&mut self, array: &dyn Array) -> Result<(), DataError> {
+        self.reserve(array.len());
         match self {
             ColumnBuilder::Bool {
                 examples, values, ..
@@ -284,6 +285,16 @@ impl ColumnBuilder {
             ColumnBuilder::String {
                 examples, values, ..
             } => append_string(array, examples, values),
+        }
+    }
+
+    fn reserve(&mut self, additional: usize) {
+        match self {
+            ColumnBuilder::Bool { values, .. } => values.reserve(additional),
+            ColumnBuilder::Int { values, .. } => values.reserve(additional),
+            ColumnBuilder::Float { values, .. } => values.reserve(additional),
+            ColumnBuilder::Temporal { values, .. } => values.reserve(additional),
+            ColumnBuilder::String { values, .. } => values.reserve(additional),
         }
     }
 

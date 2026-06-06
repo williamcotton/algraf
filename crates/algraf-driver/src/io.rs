@@ -55,6 +55,13 @@ pub trait DriverIo {
     /// Read all bytes from standard input.
     fn read_stdin(&self) -> io::Result<Vec<u8>>;
 
+    /// Open standard input as a reader. Native providers should stream from the
+    /// OS handle; byte-backed providers use the default compatibility path.
+    fn open_stdin(&self) -> io::Result<Box<dyn Read + '_>> {
+        self.read_stdin()
+            .map(|bytes| Box::new(Cursor::new(bytes)) as Box<dyn Read + '_>)
+    }
+
     /// Return metadata for a resolved data path.
     fn metadata(&self, path: &Path) -> io::Result<DriverPathMetadata>;
 
@@ -135,6 +142,10 @@ impl<T: DriverIo + ?Sized> DriverIo for &T {
         (**self).read_stdin()
     }
 
+    fn open_stdin(&self) -> io::Result<Box<dyn Read + '_>> {
+        (**self).open_stdin()
+    }
+
     fn metadata(&self, path: &Path) -> io::Result<DriverPathMetadata> {
         (**self).metadata(path)
     }
@@ -194,6 +205,10 @@ impl DriverIo for OsDriverIo {
         let mut bytes = Vec::new();
         std::io::stdin().read_to_end(&mut bytes)?;
         Ok(bytes)
+    }
+
+    fn open_stdin(&self) -> io::Result<Box<dyn Read + '_>> {
+        Ok(Box::new(std::io::stdin()))
     }
 
     fn metadata(&self, path: &Path) -> io::Result<DriverPathMetadata> {

@@ -10,6 +10,30 @@ data, trains scales, and emits deterministic SVG. The whole system — parser,
 language server, runtime, and renderer — ships as one Rust binary named
 `algraf`.
 
+## General DSL and API approach
+
+Keep Algraf's language surface declarative and visualization-focused. The DSL
+may name data sources, columns, stats, scales, guides, marks, and rendering
+options; it must not grow awareness of producer languages such as PDL, concrete
+data engines such as Polars, or storage details such as Arrow arrays and
+Parquet row groups.
+
+Use strict crate boundaries when adding performance work:
+
+- `algraf-data` owns concrete loaders and conversion details for native formats.
+- `algraf-driver` owns caller-data source resolution, format selection,
+  sniffing, reader construction, and unsupported-format diagnostics.
+- `algraf-render` owns visual semantics and consumes `Table`, typed column
+  views, scan helpers, handles, or aggregate APIs. It must not import Arrow,
+  Parquet, Polars, SQLite, or other native data-engine symbols.
+- Parser, syntax, semantics, editor services, ordinary LSP surfaces, and public
+  browser/WASM APIs must stay independent of concrete native data engines.
+
+Native performance features are CLI/native concerns unless a plan explicitly
+says otherwise. Do not enable Arrow stream, Parquet, Polars, SQLite, native
+filesystem, or similar data-engine support in `algraf-wasm`; browser callers
+should receive stable unsupported-format diagnostics for native-only formats.
+
 ## Spec and versioned plans
 
 Three artifacts govern behavior, and they must stay in sync:

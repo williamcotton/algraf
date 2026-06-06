@@ -7,6 +7,7 @@ cargo run -p algraf-bench -- generate --tier smoke
 cargo run -p algraf-bench -- download --dataset all
 cargo run -p algraf-bench -- prepare --dataset all
 cargo run -p algraf-bench -- run --suite large --tier smoke --run-label before-v0.69
+cargo run -p algraf-bench -- compare --before before-v0.69 --after after-v0.69
 cargo run -p algraf-bench -- snapshot --run-label before-v0.69 --baseline v0.68.0-before-v0.69
 ```
 
@@ -23,6 +24,9 @@ cargo run -p algraf-bench -- snapshot --run-label before-v0.69 --baseline v0.68.
 Every run writes `bench/runs/<run-label>/report.csv`. Reports use the same
 column contract as `pdl-bench` and include `git describe --tags --always
 --dirty` so before/after runs can be compared by tag or commit.
+
+Use `compare` to print per-workload elapsed-time deltas and improvement
+percentages for two ignored run reports.
 
 Use `snapshot` to promote an ignored run report into `bench/baselines/`.
 Snapshots copy `report.csv` and write `environment.txt` with the git ref,
