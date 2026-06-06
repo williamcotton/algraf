@@ -75,6 +75,31 @@ Three artifacts govern behavior, and they must stay in sync:
 If you find the spec, a plan, and the code disagreeing, treat it as drift to
 fix — reconcile all three rather than picking one.
 
+### NPM package version checks
+
+Algraf browser packages are not guaranteed to be published for every Rust/CLI
+version bump. Treat local package version stamps and published npm dependency
+pins as separate concerns.
+
+Before changing any npm package `version` field or npm-consumer version for
+internal Algraf packages, verify that the target version actually exists on npm:
+
+```bash
+npm view algraf-wasm versions --json
+npm view algraf-editor versions --json
+```
+
+This applies to package manifests for `algraf-wasm` and `algraf-editor`, demo
+dependencies, downstream install instructions, peer dependency ranges,
+package-lock `node_modules/algraf-*` entries, and package docs. Do not point a
+package version, consumer dependency, or install command at
+`algraf-wasm@<version>` or `algraf-editor@<version>` unless npm confirms that
+exact version exists, or the user explicitly says the change is preparing an
+unpublished local package release. If a package is not published for the new
+workspace version, keep package and consumer pins on the latest verified
+published version and document that browser package publication is independent
+from the Rust/CLI release.
+
 ## Workspace layout
 
 Cargo workspace with ten crates under `crates/` (see spec §23):

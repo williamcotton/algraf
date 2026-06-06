@@ -4,8 +4,9 @@ Chart(data: "heatmap.csv", width: 700, height: 460, title: "Custom continuous gr
     Scale(
         fill: value,
         gradient: [
-            Stop(value: 3, color: "#3366cc"),
-            Stop(value: 10, color: "#cc3333"),
+            Stop(value: 3, color: "rgba(51, 102, 204, 1)"),
+            Stop(value: 7, color: "rgb(80, 120, 160)"),
+            Stop(value: 10, color: "#cc3333ff"),
         ],
         label: "Intensity",
     )

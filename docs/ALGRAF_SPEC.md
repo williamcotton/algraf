@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.68.0
+Status: 0.68.5
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.68.0 specification.
+This working copy is the 0.68.5 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -6886,6 +6886,13 @@ Version 0.3.0 MUST support continuous `fill` and `stroke` gradient selection
 with `gradient: [...]`.
 
 `gradient` MUST accept an ordered array of two or more color string literals.
+Version 0.68.5 MUST accept gradient color literals written as hex colors
+(`#rgb` or `#rrggbb`), alpha hex colors (`#rgba` or `#rrggbbaa`), safe
+enumerated color names, `rgb(r, g, b)`, or `rgba(r, g, b, a)`. `rgb`/`rgba`
+channels MUST be numeric bytes in `[0, 255]`; `rgba` alpha MUST be a finite
+number in `[0, 1]`. Renderers MUST respect color alpha when interpolating
+gradient stops and MUST continue to emit `E1601` for invalid gradient color
+literals.
 
 Gradient stops MUST be interpolated evenly across the trained continuous
 domain.
@@ -6901,7 +6908,7 @@ Scale(fill: value, gradient: [
 
 String stops and `Stop(...)` values MUST NOT be mixed in one gradient. Stop
 values are domain values and MUST be strictly increasing. Colors use the
-existing color validation rules.
+gradient color validation rules above.
 
 `gradient` MUST be valid only for continuous color mappings. Invalid gradient
 arrays MUST emit `E1601`; using `gradient` with a categorical mapping MUST emit
@@ -9693,6 +9700,10 @@ workers or Onigasm WASM assets. Browser hosts that want package-provided Monaco
 worker setup MUST pass a `createEditorWorker` setup option, and hosts MUST pass
 an `onigasmWasmUrl` setup option when using TextMate grammar loading.
 
+Version 0.68.5 expands continuous gradient color literals to accept alpha hex,
+`rgb(...)`, and `rgba(...)` strings. The implemented patch scope is recorded in
+[`V0_68_5_PLAN.md`](V0_68_5_PLAN.md).
+
 Version 0.69.0 is the active planning target for Arrow-stream and large-data
 aggregate performance. Planned work is recorded in
 [`V0_69_PLAN.md`](V0_69_PLAN.md) and remains non-normative until individual
@@ -10823,6 +10834,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.66.0 | [`V0_66_PLAN.md`](V0_66_PLAN.md) | Browser runtime invocation-variable parity | Implemented |
 | 0.67.0 | [`V0_67_PLAN.md`](V0_67_PLAN.md) | npm-ready browser package build outputs | Implemented |
 | 0.68.0 | [`V0_68_PLAN.md`](V0_68_PLAN.md) | Benchmark infrastructure and cross-repo baseline alignment | Implemented |
+| 0.68.1 | [`V0_68_1_PLAN.md`](V0_68_1_PLAN.md) | Browser editor package asset contract patch | Implemented |
+| 0.68.5 | [`V0_68_5_PLAN.md`](V0_68_5_PLAN.md) | Gradient color literal compatibility for alpha hex, rgb, and rgba | Implemented |
 | 0.69.0 | [`V0_69_PLAN.md`](V0_69_PLAN.md) | Arrow-stream and large-data aggregate performance | Planned |
 
 The earliest unreleased plan is the active implementation target; later

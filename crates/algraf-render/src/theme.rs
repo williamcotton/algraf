@@ -4,6 +4,8 @@ use algraf_semantics::{
     LegendPositionIr, ThemeIr, ThemeLineIr, ThemeOverrides, ThemeRectIr, ThemeTextIr,
 };
 
+use crate::svg::num;
+
 /// Concrete text style for a theme element.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextStyle {
@@ -469,7 +471,8 @@ pub fn categorical_color_from(name: Option<&str>, index: usize) -> &'static str 
     palette[index % palette.len()]
 }
 
-/// Interpolate the continuous gradient at `t` in `[0, 1]`, returning a hex color.
+/// Interpolate the continuous gradient at `t` in `[0, 1]`, returning an SVG
+/// color string.
 pub fn gradient_color(t: f64) -> String {
     gradient_color_from(CONTINUOUS_GRADIENT, t)
 }
@@ -480,50 +483,174 @@ pub fn gradient_color_from(stops: &[&str], t: f64) -> String {
         return "#000000".to_string();
     }
     if stops.len() == 1 {
-        let (r, g, b) = parse_color(stops[0]);
-        return format!("#{r:02x}{g:02x}{b:02x}");
+        return parse_svg_color(stops[0])
+            .unwrap_or_else(RgbaColor::black)
+            .to_svg_string();
     }
     let segments = stops.len() - 1;
     let scaled = t * segments as f64;
     let i = (scaled.floor() as usize).min(segments - 1);
     let local = scaled - i as f64;
-    let (r1, g1, b1) = parse_color(stops[i]);
-    let (r2, g2, b2) = parse_color(stops[i + 1]);
+    let c1 = parse_svg_color(stops[i]).unwrap_or_else(RgbaColor::black);
+    let c2 = parse_svg_color(stops[i + 1]).unwrap_or_else(RgbaColor::black);
     let lerp = |a: u8, b: u8| (a as f64 + (b as f64 - a as f64) * local).round() as u8;
-    format!(
-        "#{:02x}{:02x}{:02x}",
-        lerp(r1, r2),
-        lerp(g1, g2),
-        lerp(b1, b2)
-    )
+    RgbaColor {
+        r: lerp(c1.r, c2.r),
+        g: lerp(c1.g, c2.g),
+        b: lerp(c1.b, c2.b),
+        a: c1.a + (c2.a - c1.a) * local,
+    }
+    .to_svg_string()
 }
 
-fn parse_color(color: &str) -> (u8, u8, u8) {
-    match color.to_ascii_lowercase().as_str() {
-        "black" => return (0, 0, 0),
-        "white" => return (255, 255, 255),
-        "red" => return (255, 0, 0),
-        "green" => return (0, 128, 0),
-        "blue" => return (0, 0, 255),
-        "steelblue" => return (70, 130, 180),
-        "orange" => return (255, 165, 0),
-        "purple" => return (128, 0, 128),
-        _ => {}
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RgbaColor {
+    pub(crate) r: u8,
+    pub(crate) g: u8,
+    pub(crate) b: u8,
+    pub(crate) a: f64,
+}
+
+impl RgbaColor {
+    fn new(r: u8, g: u8, b: u8) -> Self {
+        Self { r, g, b, a: 1.0 }
     }
-    let h = color.trim_start_matches('#');
-    if h.len() == 3 {
-        let expand = |i: usize| {
-            u8::from_str_radix(&h[i..=i], 16)
-                .map(|v| v * 17)
-                .unwrap_or(0)
-        };
-        return (expand(0), expand(1), expand(2));
+
+    fn with_alpha(r: u8, g: u8, b: u8, a: f64) -> Self {
+        Self {
+            r,
+            g,
+            b,
+            a: a.clamp(0.0, 1.0),
+        }
     }
-    if h.len() == 6 {
-        let r = u8::from_str_radix(&h[0..2], 16).unwrap_or(0);
-        let g = u8::from_str_radix(&h[2..4], 16).unwrap_or(0);
-        let b = u8::from_str_radix(&h[4..6], 16).unwrap_or(0);
-        return (r, g, b);
+
+    fn black() -> Self {
+        Self::new(0, 0, 0)
     }
-    (0, 0, 0)
+
+    fn to_svg_string(self) -> String {
+        if self.a >= 0.9995 {
+            format!("#{:02x}{:02x}{:02x}", self.r, self.g, self.b)
+        } else {
+            format!(
+                "rgba({}, {}, {}, {})",
+                self.r,
+                self.g,
+                self.b,
+                num(self.a.clamp(0.0, 1.0))
+            )
+        }
+    }
+}
+
+pub(crate) fn parse_svg_color(color: &str) -> Option<RgbaColor> {
+    let color = color.trim();
+    parse_named_color(color)
+        .or_else(|| color.strip_prefix('#').and_then(parse_hex_color))
+        .or_else(|| parse_rgb_color_function(color))
+}
+
+fn parse_named_color(color: &str) -> Option<RgbaColor> {
+    let (r, g, b) = match color.to_ascii_lowercase().as_str() {
+        "black" => (0, 0, 0),
+        "white" => (255, 255, 255),
+        "red" => (255, 0, 0),
+        "green" => (0, 128, 0),
+        "blue" => (0, 0, 255),
+        "yellow" => (255, 255, 0),
+        "gray" | "grey" => (128, 128, 128),
+        "orange" => (255, 165, 0),
+        "purple" => (128, 0, 128),
+        "pink" => (255, 192, 203),
+        "brown" => (165, 42, 42),
+        "cyan" => (0, 255, 255),
+        "magenta" => (255, 0, 255),
+        "lime" => (0, 255, 0),
+        "navy" => (0, 0, 128),
+        "teal" => (0, 128, 128),
+        "maroon" => (128, 0, 0),
+        "olive" => (128, 128, 0),
+        "silver" => (192, 192, 192),
+        "gold" => (255, 215, 0),
+        "steelblue" => (70, 130, 180),
+        "tomato" => (255, 99, 71),
+        "salmon" => (250, 128, 114),
+        "indigo" => (75, 0, 130),
+        "violet" => (238, 130, 238),
+        "turquoise" => (64, 224, 208),
+        "coral" => (255, 127, 80),
+        "crimson" => (220, 20, 60),
+        "khaki" => (240, 230, 140),
+        "plum" => (221, 160, 221),
+        "burlywood" => (222, 184, 135),
+        "lightgray" | "lightgrey" => (211, 211, 211),
+        _ => return None,
+    };
+    Some(RgbaColor::new(r, g, b))
+}
+
+fn parse_hex_color(hex: &str) -> Option<RgbaColor> {
+    match hex.len() {
+        3 => Some(RgbaColor::new(
+            hex_digit(hex.as_bytes()[0])? * 17,
+            hex_digit(hex.as_bytes()[1])? * 17,
+            hex_digit(hex.as_bytes()[2])? * 17,
+        )),
+        4 => Some(RgbaColor::with_alpha(
+            hex_digit(hex.as_bytes()[0])? * 17,
+            hex_digit(hex.as_bytes()[1])? * 17,
+            hex_digit(hex.as_bytes()[2])? * 17,
+            f64::from(hex_digit(hex.as_bytes()[3])? * 17) / 255.0,
+        )),
+        6 => Some(RgbaColor::new(
+            u8::from_str_radix(&hex[0..2], 16).ok()?,
+            u8::from_str_radix(&hex[2..4], 16).ok()?,
+            u8::from_str_radix(&hex[4..6], 16).ok()?,
+        )),
+        8 => Some(RgbaColor::with_alpha(
+            u8::from_str_radix(&hex[0..2], 16).ok()?,
+            u8::from_str_radix(&hex[2..4], 16).ok()?,
+            u8::from_str_radix(&hex[4..6], 16).ok()?,
+            f64::from(u8::from_str_radix(&hex[6..8], 16).ok()?) / 255.0,
+        )),
+        _ => None,
+    }
+}
+
+fn hex_digit(byte: u8) -> Option<u8> {
+    (byte as char).to_digit(16).map(|digit| digit as u8)
+}
+
+fn parse_rgb_color_function(color: &str) -> Option<RgbaColor> {
+    let lower = color.to_ascii_lowercase();
+    let (body, expects_alpha) = if lower.starts_with("rgb(") && color.ends_with(')') {
+        (&color[4..color.len() - 1], false)
+    } else if lower.starts_with("rgba(") && color.ends_with(')') {
+        (&color[5..color.len() - 1], true)
+    } else {
+        return None;
+    };
+    let parts: Vec<&str> = body.split(',').map(str::trim).collect();
+    if (!expects_alpha && parts.len() != 3) || (expects_alpha && parts.len() != 4) {
+        return None;
+    }
+    let r = parse_rgb_channel(parts[0])?;
+    let g = parse_rgb_channel(parts[1])?;
+    let b = parse_rgb_channel(parts[2])?;
+    let a = if expects_alpha {
+        parse_alpha_channel(parts[3])?
+    } else {
+        1.0
+    };
+    Some(RgbaColor::with_alpha(r, g, b, a))
+}
+
+fn parse_rgb_channel(value: &str) -> Option<u8> {
+    value.parse::<u8>().ok()
+}
+
+fn parse_alpha_channel(value: &str) -> Option<f64> {
+    let alpha = value.parse::<f64>().ok()?;
+    (alpha.is_finite() && (0.0..=1.0).contains(&alpha)).then_some(alpha)
 }

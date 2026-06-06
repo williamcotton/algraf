@@ -2,7 +2,7 @@
   "name": "algraf-vscode",
   "displayName": "Algraf",
   "description": "VS Code language support for Algraf charts.",
-  "version": "0.68.2",
+  "version": "0.68.5",
   "publisher": "algraf",
   "license": "MIT OR Apache-2.0",
   "repository": {

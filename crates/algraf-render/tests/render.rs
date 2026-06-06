@@ -1418,6 +1418,17 @@ fn test_source_gradient_controls_numeric_fill_colors() {
 }
 
 #[test]
+fn test_source_gradient_supports_rgb_rgba_and_alpha_hex_colors() {
+    let svg = render_svg(
+        "Chart(data: \"h.csv\") { Scale(fill: value, gradient: [\"rgba(20, 95, 82, 0.5)\", \"rgb(80, 120, 160)\", \"#7bce8780\"]) Space(day * hour) { Tile(fill: value) } }",
+        "day,hour,value\nMon,9am,0\nMon,10am,5\nTue,9am,10\n",
+    );
+    assert!(svg.contains("fill=\"rgba(20, 95, 82, 0.5)\""));
+    assert!(svg.contains("fill=\"#5078a0\""));
+    assert!(svg.contains("fill=\"rgba(123, 206, 135, 0.502)\""));
+}
+
+#[test]
 fn test_positioned_gradient_controls_numeric_fill_colors() {
     let svg = render_svg(
         "Chart(data: \"h.csv\") { Scale(fill: value, gradient: [Stop(value: 0, color: \"#3366cc\"), Stop(value: 10, color: \"#cc3333\")]) Space(day * hour) { Tile(fill: value) } }",

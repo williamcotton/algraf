@@ -1036,7 +1036,7 @@ fn is_css_color_name(name: &str) -> bool {
 }
 
 pub(super) fn is_color_literal(value: &str) -> bool {
-    is_hex_color(value) || is_css_color_name(value)
+    is_hex_color(value) || is_rgb_color_function(value) || is_css_color_name(value)
 }
 
 pub(crate) fn is_url_like(value: &str) -> bool {
@@ -1058,5 +1058,44 @@ fn is_hex_color(value: &str) -> bool {
     let Some(hex) = value.strip_prefix('#') else {
         return false;
     };
-    matches!(hex.len(), 3 | 6) && hex.chars().all(|ch| ch.is_ascii_hexdigit())
+    matches!(hex.len(), 3 | 4 | 6 | 8) && hex.chars().all(|ch| ch.is_ascii_hexdigit())
+}
+
+fn is_rgb_color_function(value: &str) -> bool {
+    let value = value.trim();
+    let lower = value.to_ascii_lowercase();
+    let (body, expects_alpha) = if let Some(body) = lower
+        .strip_prefix("rgb(")
+        .and_then(|rest| rest.strip_suffix(')'))
+    {
+        (body, false)
+    } else if let Some(body) = lower
+        .strip_prefix("rgba(")
+        .and_then(|rest| rest.strip_suffix(')'))
+    {
+        (body, true)
+    } else {
+        return false;
+    };
+
+    let parts: Vec<&str> = body.split(',').map(str::trim).collect();
+    if (!expects_alpha && parts.len() != 3) || (expects_alpha && parts.len() != 4) {
+        return false;
+    }
+    if !parts[..3]
+        .iter()
+        .all(|part| parse_rgb_channel(part).is_some())
+    {
+        return false;
+    }
+    !expects_alpha || parse_alpha_channel(parts[3]).is_some()
+}
+
+fn parse_rgb_channel(value: &str) -> Option<u8> {
+    value.parse::<u8>().ok()
+}
+
+fn parse_alpha_channel(value: &str) -> Option<f64> {
+    let alpha = value.parse::<f64>().ok()?;
+    (alpha.is_finite() && (0.0..=1.0).contains(&alpha)).then_some(alpha)
 }

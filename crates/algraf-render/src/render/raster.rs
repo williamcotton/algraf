@@ -27,6 +27,7 @@ use tiny_skia::{
 };
 
 use crate::sink::{Dash, Fill, Stroke};
+use crate::theme::parse_svg_color;
 
 use super::backend::{RenderBackend, RenderScene};
 use super::draw_list::{DrawListBackend, DrawOp};
@@ -466,53 +467,14 @@ fn append_arc(
     }
 }
 
-/// Parse a color string (hex or a common CSS name) at the given opacity.
+/// Parse a color string at the given opacity.
 fn parse_color(s: &str, opacity: f64) -> Color {
-    let a = (opacity.clamp(0.0, 1.0) * 255.0).round() as u8;
-    if let Some(hex) = s.strip_prefix('#') {
-        if let Some((r, g, b)) = parse_hex(hex) {
-            return Color::from_rgba8(r, g, b, a);
-        }
-    }
-    let (r, g, b) = named_color(s).unwrap_or((0x88, 0x88, 0x88));
-    Color::from_rgba8(r, g, b, a)
-}
-
-fn parse_hex(hex: &str) -> Option<(u8, u8, u8)> {
-    match hex.len() {
-        3 => {
-            let v = |c: u8| {
-                let d = (c as char).to_digit(16)? as u8;
-                Some(d * 17)
-            };
-            let b = hex.as_bytes();
-            Some((v(b[0])?, v(b[1])?, v(b[2])?))
-        }
-        6 => {
-            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
-            Some((r, g, b))
-        }
-        _ => None,
-    }
-}
-
-fn named_color(name: &str) -> Option<(u8, u8, u8)> {
-    Some(match name.to_ascii_lowercase().as_str() {
-        "black" => (0, 0, 0),
-        "white" => (255, 255, 255),
-        "red" => (255, 0, 0),
-        "green" => (0, 128, 0),
-        "blue" => (0, 0, 255),
-        "gray" | "grey" => (128, 128, 128),
-        "lightgray" | "lightgrey" => (211, 211, 211),
-        "orange" => (255, 165, 0),
-        "steelblue" => (70, 130, 180),
-        "tomato" => (255, 99, 71),
-        "transparent" => return None,
-        _ => return None,
-    })
+    let Some(color) = parse_svg_color(s) else {
+        let a = (opacity.clamp(0.0, 1.0) * 255.0).round() as u8;
+        return Color::from_rgba8(0x88, 0x88, 0x88, a);
+    };
+    let a = (color.a * opacity.clamp(0.0, 1.0) * 255.0).round() as u8;
+    Color::from_rgba8(color.r, color.g, color.b, a)
 }
 
 fn unrepresentable(diagnostics: &mut Vec<Diagnostic>, what: &str) {

@@ -761,6 +761,30 @@ fn test_scale_gradient_is_recorded_for_continuous_fill() {
 }
 
 #[test]
+fn test_scale_gradient_accepts_alpha_hex_rgb_and_rgba_colors() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: value, gradient: [\"#7bce87\", \"#7bce87ff\", \"rgb(20, 95, 82)\", \"rgba(20, 95, 82, 1)\"])\n  Space(flipper_length * body_mass) { Point(fill: value) }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert!(matches!(
+        ir.scales[0].gradient,
+        Some(GradientIr::Even(ref stops))
+            if stops == &vec![
+                "#7bce87".to_string(),
+                "#7bce87ff".to_string(),
+                "rgb(20, 95, 82)".to_string(),
+                "rgba(20, 95, 82, 1)".to_string(),
+            ]
+    ));
+}
+
+#[test]
 fn test_scale_gradient_rejects_bad_arrays_and_categorical_columns() {
     assert!(has(
         "Chart(data: \"p.csv\") {\n  Scale(fill: value, gradient: [\"#3366cc\", \"not-a-color\"])\n  Space(flipper_length * body_mass) { Point(fill: value) }\n}",
@@ -1272,6 +1296,25 @@ fn test_positioned_gradient_is_typed() {
     assert!(matches!(
         ir.scales[0].gradient,
         Some(GradientIr::Positioned(ref stops)) if stops.len() == 2 && stops[1].value == 100.0
+    ));
+}
+
+#[test]
+fn test_positioned_gradient_accepts_alpha_hex_and_rgba_colors() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: value, gradient: [Stop(value: 0, color: \"rgba(20, 95, 82, 1)\"), Stop(value: 100, color: \"#7bce87ff\")])\n  Space(value * amount) { Point(fill: value) }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert!(matches!(
+        ir.scales[0].gradient,
+        Some(GradientIr::Positioned(ref stops))
+            if stops[0].color == "rgba(20, 95, 82, 1)" && stops[1].color == "#7bce87ff"
     ));
 }
 

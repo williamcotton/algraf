@@ -1083,9 +1083,10 @@ Chart(data: "heatmap.csv", width: 700, height: 460) {
 
 ## Custom continuous gradients
 
-`Scale(fill: ..., gradient: [...])` sets evenly spaced color stops for a
-continuous fill or stroke mapping. Use `Stop(value: ..., color: ...)` when the
-colors should land at explicit domain values.
+`Scale(fill: ..., gradient: [...])` sets color stops for a continuous fill or
+stroke mapping. Use `Stop(value: ..., color: ...)` when the colors should land
+at explicit domain values; stops accept hex, alpha hex, `rgb(...)`, and
+`rgba(...)` color strings.
 
 ```algraf
 Algraf(version: "0.20")
@@ -1094,8 +1095,9 @@ Chart(data: "heatmap.csv", width: 700, height: 460, title: "Custom continuous gr
     Scale(
         fill: value,
         gradient: [
-            Stop(value: 3, color: "#3366cc"),
-            Stop(value: 10, color: "#cc3333"),
+            Stop(value: 3, color: "rgba(51, 102, 204, 1)"),
+            Stop(value: 7, color: "rgb(80, 120, 160)"),
+            Stop(value: 10, color: "#cc3333ff"),
         ],
         label: "Intensity",
     )
