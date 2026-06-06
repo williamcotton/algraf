@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.67.0
+Status: 0.68.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.67.0 specification.
+This working copy is the 0.68.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9681,6 +9681,16 @@ assets. `prepack` MUST build the publishable surface, and release validation
 MUST inspect `npm pack --dry-run` output to prove ignored generated `dist/`
 files are included by the npm `files` whitelist.
 
+Version 0.68.0 is the active planning target for Arrow-stream and large-data
+aggregate performance. Planned work is recorded in
+[`V0_68_PLAN.md`](V0_68_PLAN.md) and remains non-normative until individual
+items are promoted into the relevant specification sections alongside
+implementation. The release direction is to improve reader-oriented
+caller-data loading, Arrow IPC stream ingest, typed column scans, stat/domain
+execution, aggregate-first large-data rendering UX, and the PDL-to-Algraf Arrow
+stream handoff without adding PDL syntax or exposing concrete dataframe engines
+above `algraf-data`.
+
 Version 0.64.0 adds declarative `On(event: "click", emit: column)` event
 emitters for host applications. Event emitters are inert metadata attached to
 the preceding per-datum mark, are serialized through the existing version-1
@@ -10520,9 +10530,10 @@ materialize bounded scene sizes.
 
 Future versions MAY stream data and aggregate stats without materializing rows.
 
-Performance notes and reference environment details live in
-`docs/PERFORMANCE_BASELINE.md`. Machine-specific timing thresholds MUST NOT be
-made mandatory without recording the reference hardware and variance policy.
+Current large-data performance notes, the million-row aggregate baseline, and
+the v0.68 benchmark strategy live in [`V0_68_PLAN.md`](V0_68_PLAN.md) while that
+plan is active. Machine-specific timing thresholds MUST NOT be made mandatory
+without recording the reference hardware and variance policy.
 
 ### 28.4 Memory
 
@@ -10798,6 +10809,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.65.0 | [`V0_65_PLAN.md`](V0_65_PLAN.md) | Explicit categorical position axes for numeric source columns | Implemented |
 | 0.66.0 | [`V0_66_PLAN.md`](V0_66_PLAN.md) | Browser runtime invocation-variable parity | Implemented |
 | 0.67.0 | [`V0_67_PLAN.md`](V0_67_PLAN.md) | npm-ready browser package build outputs | Implemented |
+| 0.68.0 | [`V0_68_PLAN.md`](V0_68_PLAN.md) | Arrow-stream and large-data aggregate performance | Planned |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

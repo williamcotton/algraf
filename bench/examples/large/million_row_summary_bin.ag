@@ -1,0 +1,18 @@
+Chart(data: "../../../benchdata/generated/million-row.csv",
+      width: 820, height: 500, marginRight: 100,
+      title: "Million-row CSV summarized before rendering") {
+    Theme(name: "minimal")
+    Scale(stroke: segment, palette: "accent")
+    Scale(fill: segment, palette: "accent")
+    Guide(axis: x, label: "Input metric")
+    Guide(axis: y, label: "Mean score")
+    Guide(legend: false)
+
+    Derive bins = SummaryBin(x, score, by: [segment], bins: 64, reducer: "mean")
+
+    Space(bin_center * value, data: bins) {
+        Line(group: segment, stroke: segment, strokeWidth: 2.5)
+        Point(fill: segment, stroke: "#ffffff", size: 2.4)
+        Label(label: segment, group: segment, at: "end", dx: 8, anchor: "start", fill: segment, size: 11)
+    }
+}

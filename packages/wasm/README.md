@@ -1,6 +1,6 @@
 # algraf-wasm
 
-Browser runtime loader and structural TypeScript ABI types for Algraf `0.67.x`.
+Browser runtime loader and structural TypeScript ABI types for Algraf `0.68.x`.
 
 Published packages expose `dist/index.mjs`, `dist/index.cjs`, and
 `dist/index.d.ts`, and package tarballs include `dist/algraf.wasm`. During

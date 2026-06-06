@@ -339,7 +339,10 @@ scripts/render-large-demos.sh
 
 The smoke suite writes deterministic Parquet fixtures under
 `target/algraf-large-fixtures/` and bounded SVG/PNG outputs under
-`bench-output/large-demos/`. TLC and SFO Museum demos are opt-in:
+`bench-output/large-demos/`. The suite also generates
+`benchdata/generated/million-row.csv` and renders it through `SummaryBin`, so the
+input is one million CSV rows but the SVG stays bounded. TLC and SFO Museum demos
+are opt-in:
 
 ```bash
 scripts/download-large-fixtures.sh

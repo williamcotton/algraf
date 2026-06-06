@@ -5,11 +5,17 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$ROOT/target/debug/algraf"
 OUT="$ROOT/bench-output/large-demos"
 REPORT="$OUT/report.tsv"
+REPORT_HEADER=$'chart\tstatus\tsvg\tpng\tmarks\telapsed_ms\trun_timestamp_utc\tgit_ref'
+RUN_TIMESTAMP_UTC="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+RUN_GIT_REF="$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || printf 'unknown')"
 
 mkdir -p "$OUT"
 
 if [[ ! -f "$ROOT/target/algraf-large-fixtures/smoke/manifest.json" ]]; then
     "$ROOT/scripts/generate-large-fixtures.sh" --tier smoke
+fi
+if [[ ! -f "$ROOT/benchdata/generated/million-row.csv" ]]; then
+    "$ROOT/scripts/generate-million-row-csv.sh"
 fi
 
 needs_tlc_prepare=false
@@ -27,7 +33,21 @@ fi
 cd "$ROOT"
 cargo build -p algraf-cli
 
-printf 'chart\tstatus\tsvg\tpng\tmarks\telapsed_seconds\n' > "$REPORT"
+if [[ ! -s "$REPORT" ]]; then
+    printf '%s\n' "$REPORT_HEADER" > "$REPORT"
+elif ! head -n 1 "$REPORT" | grep -qx "$REPORT_HEADER"; then
+    printf 'warning: %s already exists with a different header; appending rows with current schema\n' "$REPORT" >&2
+fi
+
+now_ms() {
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c 'import time; print(time.time_ns() // 1000000)'
+    elif command -v perl >/dev/null 2>&1; then
+        perl -MTime::HiRes=time -e 'printf "%.0f\n", time() * 1000'
+    else
+        printf '%s000\n' "$(date +%s)"
+    fi
+}
 
 mark_count() {
     local svg="$1"
@@ -45,18 +65,18 @@ render_success() {
     local out="$OUT/$name.svg"
     local png="$OUT/$name.png"
     local log="$OUT/$name.log"
-    local start end elapsed marks
-    start="$(date +%s)"
+    local start_ms end_ms elapsed_ms marks
+    start_ms="$(now_ms)"
     if "$BIN" render "$chart" --output "$out" >"$log" 2>&1; then
         "$BIN" render "$chart" --output "$png" >>"$log" 2>&1
-        end="$(date +%s)"
-        elapsed=$((end - start))
+        end_ms="$(now_ms)"
+        elapsed_ms=$((end_ms - start_ms))
         marks="$(mark_count "$out")"
-        printf '%s\tok\t%s\t%s\t%s\t%s\n' "$name" "$out" "$png" "$marks" "$elapsed" | tee -a "$REPORT"
+        printf '%s\tok\t%s\t%s\t%s\t%s\t%s\t%s\n' "$name" "$out" "$png" "$marks" "$elapsed_ms" "$RUN_TIMESTAMP_UTC" "$RUN_GIT_REF" | tee -a "$REPORT"
     else
-        end="$(date +%s)"
-        elapsed=$((end - start))
-        printf '%s\tfailed\t%s\t-\t0\t%s\n' "$name" "$log" "$elapsed" | tee -a "$REPORT"
+        end_ms="$(now_ms)"
+        elapsed_ms=$((end_ms - start_ms))
+        printf '%s\tfailed\t%s\t-\t0\t%s\t%s\t%s\n' "$name" "$log" "$elapsed_ms" "$RUN_TIMESTAMP_UTC" "$RUN_GIT_REF" | tee -a "$REPORT"
         return 1
     fi
 }
@@ -67,23 +87,24 @@ render_expected_budget_failure() {
     name="$(basename "$chart" .ag)"
     local out="$OUT/$name.svg"
     local log="$OUT/$name.log"
-    local start end elapsed
-    start="$(date +%s)"
+    local start_ms end_ms elapsed_ms
+    start_ms="$(now_ms)"
     if "$BIN" render "$chart" --mark-budget 500 --output "$out" >"$log" 2>&1; then
-        printf '%s\tunexpected-success\t%s\t-\t%s\t0\n' "$name" "$out" "$(mark_count "$out")" | tee -a "$REPORT"
+        printf '%s\tunexpected-success\t%s\t-\t%s\t0\t%s\t%s\n' "$name" "$out" "$(mark_count "$out")" "$RUN_TIMESTAMP_UTC" "$RUN_GIT_REF" | tee -a "$REPORT"
         return 1
     fi
-    end="$(date +%s)"
-    elapsed=$((end - start))
+    end_ms="$(now_ms)"
+    elapsed_ms=$((end_ms - start_ms))
     if grep -q 'E2001' "$log"; then
-        printf '%s\texpected-E2001\t%s\t-\t0\t%s\n' "$name" "$log" "$elapsed" | tee -a "$REPORT"
+        printf '%s\texpected-E2001\t%s\t-\t0\t%s\t%s\t%s\n' "$name" "$log" "$elapsed_ms" "$RUN_TIMESTAMP_UTC" "$RUN_GIT_REF" | tee -a "$REPORT"
     else
-        printf '%s\tfailed-without-E2001\t%s\t-\t0\t%s\n' "$name" "$log" "$elapsed" | tee -a "$REPORT"
+        printf '%s\tfailed-without-E2001\t%s\t-\t0\t%s\t%s\t%s\n' "$name" "$log" "$elapsed_ms" "$RUN_TIMESTAMP_UTC" "$RUN_GIT_REF" | tee -a "$REPORT"
         return 1
     fi
 }
 
 for chart in \
+    bench/examples/large/million_row_summary_bin.ag \
     bench/examples/large/synthetic_bin2d_density.ag \
     bench/examples/large/synthetic_nullable_histogram.ag \
     bench/examples/large/synthetic_projection_smoke.ag
@@ -103,7 +124,7 @@ if [[ -f benchdata/prepared/tlc/yellow_tripdata_2024-01_chart.parquet ]]; then
         render_success "$chart"
     done
 else
-    printf 'skip\ttlc-missing\tbenchdata/prepared/tlc/yellow_tripdata_2024-01_chart.parquet\t-\t0\t0\n' | tee -a "$REPORT"
+    printf 'skip\ttlc-missing\tbenchdata/prepared/tlc/yellow_tripdata_2024-01_chart.parquet\t-\t0\t0\t%s\t%s\n' "$RUN_TIMESTAMP_UTC" "$RUN_GIT_REF" | tee -a "$REPORT"
 fi
 
 if [[ -f benchdata/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet ]]; then
@@ -116,7 +137,7 @@ if [[ -f benchdata/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet ]];
         render_success "$chart"
     done
 else
-    printf 'skip\tsfo-missing\tbenchdata/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet\t-\t0\t0\n' | tee -a "$REPORT"
+    printf 'skip\tsfo-missing\tbenchdata/prepared/sfo/sfomuseum-data-flights-2026-03_chart.parquet\t-\t0\t0\t%s\t%s\n' "$RUN_TIMESTAMP_UTC" "$RUN_GIT_REF" | tee -a "$REPORT"
 fi
 
 printf '\nLarge demo report: %s\n' "$REPORT"

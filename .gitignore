@@ -1,5 +1,6 @@
 /target
 /benchdata
+/benchdata/generated/million-row.csv
 /bench-output
 /.antigravitycli
 /.claude
