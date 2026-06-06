@@ -11,6 +11,7 @@ name = "algraf-bench"
 path = "src/main.rs"
 
 [dependencies]
+algraf-core = { workspace = true }
 algraf-data = { workspace = true, features = ["parquet", "arrow-stream"] }
 arrow-array = { workspace = true }
 arrow-schema = { workspace = true }

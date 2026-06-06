@@ -6,6 +6,7 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Instant;
 
+use algraf_core::{codes, DiagnosticCode};
 use algraf_data::{read_parquet_path_projected, DataValueRef, Table};
 use arrow_array::{
     ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray, TimestampMicrosecondArray,
@@ -187,7 +188,7 @@ impl BuildProfile {
 #[derive(Clone, Copy)]
 enum Expected {
     Success,
-    Diagnostic(&'static str),
+    Diagnostic(DiagnosticCode),
 }
 
 struct Workload {
@@ -200,6 +201,12 @@ struct Workload {
     required_path: Option<&'static str>,
     expected: Expected,
     extra_args: &'static [&'static str],
+}
+
+struct RunMetadata {
+    timestamp_utc: String,
+    git_ref: String,
+    label: String,
 }
 
 #[derive(Debug)]
@@ -392,7 +399,11 @@ fn run_suite(
     let report_path = run_dir.join("report.csv");
     let mut report = csv::Writer::from_path(&report_path)?;
     report.write_record(REPORT_HEADER)?;
-    let git_ref = git_ref(root);
+    let run = RunMetadata {
+        timestamp_utc: run_timestamp,
+        git_ref: git_ref(root),
+        label: run_label,
+    };
 
     let mut failures = 0usize;
     for workload in large_workloads() {
@@ -403,24 +414,13 @@ fn run_suite(
                     root,
                     workload,
                     tier,
-                    &run_timestamp,
-                    &git_ref,
-                    &run_label,
+                    &run,
                     &format!("missing {}", relative(root, &required)),
                 ))?;
                 continue;
             }
         }
-        let row = run_workload(
-            root,
-            &run_dir,
-            workload,
-            tier,
-            profile,
-            &run_timestamp,
-            &git_ref,
-            &run_label,
-        );
+        let row = run_workload(root, &run_dir, workload, tier, profile, &run);
         match row {
             Ok(record) => report.write_record(record)?,
             Err(err) => {
@@ -430,9 +430,7 @@ fn run_suite(
                     &run_dir,
                     workload,
                     tier,
-                    &run_timestamp,
-                    &git_ref,
-                    &run_label,
+                    &run,
                     &err.to_string(),
                 ))?;
             }
@@ -593,7 +591,7 @@ fn large_workloads() -> &'static [Workload] {
             required_path: Some(
                 "bench/data/generated/algraf-large-fixtures/current/dense_points.parquet",
             ),
-            expected: Expected::Diagnostic("E2001"),
+            expected: Expected::Diagnostic(codes::E2001),
             extra_args: &["--mark-budget", "500"],
         },
         Workload {
@@ -701,9 +699,7 @@ fn run_workload(
     workload: &Workload,
     tier: Tier,
     profile: BuildProfile,
-    run_timestamp: &str,
-    git_ref: &str,
-    run_label: &str,
+    run: &RunMetadata,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let output_path = run_dir.join(format!("{}.svg", workload.name));
     let log_path = run_dir.join(format!("{}.log", workload.name));
@@ -740,7 +736,7 @@ fn run_workload(
     let status_text = match workload.expected {
         Expected::Success if status.success() => "ok",
         Expected::Success => "failed",
-        Expected::Diagnostic(code) if !status.success() && log.contains(code) => {
+        Expected::Diagnostic(code) if !status.success() && log.contains(code.as_str()) => {
             "expected-diagnostic"
         }
         Expected::Diagnostic(_) if status.success() => "unexpected-success",
@@ -760,7 +756,7 @@ fn run_workload(
     Ok(vec![
         "algraf".to_string(),
         "algraf-bench".to_string(),
-        run_label.to_string(),
+        run.label.clone(),
         "large".to_string(),
         workload.name.to_string(),
         workload.dataset.to_string(),
@@ -776,8 +772,8 @@ fn run_workload(
         marks,
         output_bytes.to_string(),
         elapsed_ms.to_string(),
-        run_timestamp.to_string(),
-        git_ref.to_string(),
+        run.timestamp_utc.clone(),
+        run.git_ref.clone(),
         String::new(),
     ])
 }
@@ -786,15 +782,13 @@ fn skip_record(
     root: &Path,
     workload: &Workload,
     tier: Tier,
-    run_timestamp: &str,
-    git_ref: &str,
-    run_label: &str,
+    run: &RunMetadata,
     notes: &str,
 ) -> Vec<String> {
     vec![
         "algraf".to_string(),
         "algraf-bench".to_string(),
-        run_label.to_string(),
+        run.label.clone(),
         "large".to_string(),
         workload.name.to_string(),
         workload.dataset.to_string(),
@@ -810,8 +804,8 @@ fn skip_record(
         String::new(),
         "0".to_string(),
         "0".to_string(),
-        run_timestamp.to_string(),
-        git_ref.to_string(),
+        run.timestamp_utc.clone(),
+        run.git_ref.clone(),
         notes.to_string(),
     ]
 }
@@ -821,16 +815,14 @@ fn failure_record(
     run_dir: &Path,
     workload: &Workload,
     tier: Tier,
-    run_timestamp: &str,
-    git_ref: &str,
-    run_label: &str,
+    run: &RunMetadata,
     notes: &str,
 ) -> Vec<String> {
     let log_path = run_dir.join(format!("{}.log", workload.name));
     vec![
         "algraf".to_string(),
         "algraf-bench".to_string(),
-        run_label.to_string(),
+        run.label.clone(),
         "large".to_string(),
         workload.name.to_string(),
         workload.dataset.to_string(),
@@ -846,8 +838,8 @@ fn failure_record(
         String::new(),
         "0".to_string(),
         "0".to_string(),
-        run_timestamp.to_string(),
-        git_ref.to_string(),
+        run.timestamp_utc.clone(),
+        run.git_ref.clone(),
         notes.to_string(),
     ]
 }
@@ -1476,7 +1468,7 @@ fn parquet_rows(path: &Path) -> Option<usize> {
 fn csv_data_rows(path: &Path) -> Option<usize> {
     let file = File::open(path).ok()?;
     let reader = BufReader::new(file);
-    let lines = reader.lines().filter_map(Result::ok).count();
+    let lines = reader.lines().map_while(Result::ok).count();
     Some(lines.saturating_sub(1))
 }
 
