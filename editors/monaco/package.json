@@ -1,6 +1,6 @@
 {
   "name": "algraf-editor",
-  "version": "0.68.0",
+  "version": "0.68.1",
   "description": "Monaco and React editor integration for Algraf browser hosts.",
   "license": "MIT OR Apache-2.0",
   "type": "module",

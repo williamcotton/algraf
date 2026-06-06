@@ -15,6 +15,7 @@ import {
   loadAlgrafRuntime,
 } from "algraf-wasm";
 import { AlgrafChart } from "../AlgrafChart";
+import { algrafEditorSetupOptions } from "../editorSetup";
 import { publicAssetUrl } from "../publicAssets";
 
 interface DemoDataFile {
@@ -485,6 +486,7 @@ export function DemoPage(): React.ReactElement {
             files={dataFiles}
             onChange={setSource}
             runtime={runtime}
+            setupOptions={algrafEditorSetupOptions}
             value={source}
           />
         </div>

@@ -2,11 +2,9 @@ import React from "react";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import "monaco-editor/min/vs/editor/editor.main.css";
 import "monaco-editor/esm/vs/editor/contrib/hover/browser/hoverContribution";
-import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { wireTmGrammars } from "monaco-editor-textmate";
 import { Registry } from "monaco-textmate";
 import { loadWASM as loadOnigasm } from "onigasm";
-import onigasmWasmUrl from "onigasm/lib/onigasm.wasm?url";
 
 import algrafGrammar from "../assets/algraf.tmLanguage.json";
 import algrafLanguageConfiguration from "../assets/language-configuration.json";
@@ -132,6 +130,7 @@ export interface SetupAlgrafMonacoOptions {
   grammar?: unknown;
   languageConfiguration?: monaco.languages.LanguageConfiguration;
   onigasmWasmUrl?: string;
+  createEditorWorker?: () => Worker | Promise<Worker>;
   configureWorker?: boolean;
 }
 
@@ -309,12 +308,12 @@ export function registerAlgrafLanguage(options: SetupAlgrafMonacoOptions = {}): 
 
 async function setupAlgrafMonacoOnce(options: SetupAlgrafMonacoOptions): Promise<void> {
   if (options.configureWorker !== false) {
-    configureMonacoWorker();
+    configureMonacoWorker(options);
   }
   registerAlgrafLanguage(options);
   defineAlgrafTheme(options.themeName ?? ALGRAF_THEME_NAME, options.theme ?? defaultAlgrafTheme());
 
-  await loadOnigasmOnce(options.onigasmWasmUrl ?? onigasmWasmUrl);
+  await loadOnigasmOnce(resolveOnigasmWasmUrl(options));
   const registry = new Registry({
     getGrammarDefinition: async () => ({
       format: "json",
@@ -328,14 +327,33 @@ async function setupAlgrafMonacoOnce(options: SetupAlgrafMonacoOptions): Promise
   );
 }
 
-function configureMonacoWorker(): void {
+function configureMonacoWorker(options: SetupAlgrafMonacoOptions): void {
   const target = globalThis as typeof globalThis & {
     MonacoEnvironment?: monaco.Environment;
   };
 
-  target.MonacoEnvironment ??= {
-    getWorker: () => new EditorWorker(),
+  if (target.MonacoEnvironment?.getWorker) {
+    return;
+  }
+
+  const createEditorWorker = options.createEditorWorker;
+  if (!createEditorWorker) {
+    throw new Error(
+      "algraf-editor requires setupAlgrafMonaco({ createEditorWorker }) unless configureWorker is false.",
+    );
+  }
+
+  target.MonacoEnvironment = {
+    ...target.MonacoEnvironment,
+    getWorker: () => createEditorWorker(),
   };
+}
+
+function resolveOnigasmWasmUrl(options: SetupAlgrafMonacoOptions): string {
+  if (options.onigasmWasmUrl) {
+    return options.onigasmWasmUrl;
+  }
+  throw new Error("algraf-editor requires setupAlgrafMonaco({ onigasmWasmUrl }) for TextMate grammar loading.");
 }
 
 function loadOnigasmOnce(url: string): Promise<void> {

@@ -9,10 +9,12 @@ Use published packages for demo, Studio, and downstream package-surface checks:
 1. Install the published browser packages:
 
    ```bash
-   npm install algraf-wasm@0.67.0 algraf-editor@0.67.0
+   npm install algraf-wasm@0.68.0 algraf-editor@0.68.1
    ```
 
-2. Use the package-local WASM asset or pass an explicit host URL:
+2. Use the package-local WASM asset or pass an explicit host URL. Vite hosts
+   should also import Monaco's editor worker and Onigasm's WASM asset from app
+   source and pass them to `algraf-editor` through `setupOptions`.
 
 ```ts
 import { loadAlgrafRuntime } from "algraf-wasm";

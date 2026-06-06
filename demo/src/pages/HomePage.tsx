@@ -9,6 +9,7 @@ import {
 } from "algraf-wasm";
 
 import { AlgrafChart } from "../AlgrafChart";
+import { algrafEditorSetupOptions } from "../editorSetup";
 import { publicAssetUrl } from "../publicAssets";
 
 type LoadState = "loading" | "ready" | "error";
@@ -164,6 +165,7 @@ export function HomePage({ navigate, routeHref }: RoutedPageProps): React.ReactE
                 files={files}
                 onChange={setSource}
                 runtime={runtime}
+                setupOptions={algrafEditorSetupOptions}
                 value={source}
               />
             </div>

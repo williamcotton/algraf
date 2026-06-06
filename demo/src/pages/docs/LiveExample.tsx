@@ -4,6 +4,7 @@ import { AlgrafEditor } from "algraf-editor";
 import { type AlgrafDiagnostic, type AlgrafRenderResult } from "algraf-wasm";
 
 import { AlgrafChart } from "../../AlgrafChart";
+import { algrafEditorSetupOptions } from "../../editorSetup";
 import { publicAssetUrl } from "../../publicAssets";
 import { type RuntimeState, useAlgrafRuntime } from "./useAlgrafRuntime";
 
@@ -112,6 +113,7 @@ export function LiveExample({ id, source, files, assets }: LiveExampleProps): Re
             modelUri={`inmemory://algraf/docs/${id}.ag`}
             onChange={setValue}
             runtime={runtime}
+            setupOptions={algrafEditorSetupOptions}
             value={value}
           />
         </div>
