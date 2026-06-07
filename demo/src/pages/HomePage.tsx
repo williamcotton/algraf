@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowRight, CheckCircle2, Code2, LoaderCircle, Play } from "lucide-react";
+import { ArrowRight, CheckCircle2, Code2, LoaderCircle, Play, Terminal } from "lucide-react";
 import { AlgrafEditor } from "algraf-editor";
 import {
   type AlgrafDiagnostic,
@@ -228,6 +228,69 @@ export function HomePage({ navigate, routeHref }: RoutedPageProps): React.ReactE
           <h2>Deterministic output</h2>
           <p>Algraf trains scales and emits SVG predictably, so examples, tests, docs, and embedded previews stay comparable.</p>
         </article>
+      </section>
+
+      <section className="cli-section" aria-label="Native CLI">
+        <header className="cli-section-head">
+          <p className="eyebrow">
+            <Terminal size={15} aria-hidden="true" />
+            On the command line
+          </p>
+          <h2>Render targets, data in, scriptable.</h2>
+          <p>
+            The <code>algraf</code> binary renders the same source files into SVG, PNG, JSON draw-lists,
+            and interactive SVG &mdash; reading CSV, Parquet, Arrow streams, SQLite, or piped stdin from
+            tools like PDL.
+          </p>
+        </header>
+
+        <div className="cli-subgroup">
+          <p className="cli-subgroup-label">Render targets</p>
+          <div className="cli-chip-row">
+            <span className="cli-chip"><code>--output chart.svg</code><small>deterministic SVG</small></span>
+            <span className="cli-chip"><code>--output chart.png</code><small>resvg-rasterized PNG</small></span>
+            <span className="cli-chip"><code>--format svg+json</code><small>SVG + pickable-marks sidecar</small></span>
+            <span className="cli-chip"><code>--format draw-list</code><small>JSON primitives</small></span>
+            <span className="cli-chip"><code>--interactive</code><small>tooltip + highlight runtime</small></span>
+          </div>
+        </div>
+
+        <div className="cli-subgroup">
+          <p className="cli-subgroup-label">Subcommands</p>
+          <div className="cli-chip-row">
+            <span className="cli-chip"><code>algraf render</code><small>SVG/PNG/JSON</small></span>
+            <span className="cli-chip"><code>algraf check</code><small>parse + analyze</small></span>
+            <span className="cli-chip"><code>algraf format</code><small>canonical format</small></span>
+            <span className="cli-chip"><code>algraf schema</code><small>resolved schema</small></span>
+            <span className="cli-chip"><code>algraf ast</code><small>parse tree</small></span>
+            <span className="cli-chip"><code>algraf ir</code><small>semantic IR</small></span>
+            <span className="cli-chip"><code>algraf lsp</code><small>language server</small></span>
+          </div>
+        </div>
+
+        <div className="cli-subgroup">
+          <p className="cli-subgroup-label">Data formats accepted</p>
+          <div className="cli-chip-row">
+            <span className="cli-chip"><code>csv</code></span>
+            <span className="cli-chip"><code>tsv</code></span>
+            <span className="cli-chip"><code>json</code></span>
+            <span className="cli-chip"><code>ndjson</code></span>
+            <span className="cli-chip"><code>geojson</code></span>
+            <span className="cli-chip"><code>parquet</code></span>
+            <span className="cli-chip"><code>arrow-stream</code></span>
+            <span className="cli-chip"><code>sqlite</code></span>
+          </div>
+        </div>
+
+        <div className="cli-subgroup">
+          <p className="cli-subgroup-label">
+            Compose with{" "}
+            <a className="cli-inline-link" href="https://williamcotton.github.io/pdl/">PDL</a>
+          </p>
+          <pre className="cli-snippet"><code>{`pdl run prep.pdl --stdout-format arrow-stream \\
+  | algraf render chart.ag --data - --data-format arrow-stream \\
+  --output chart.svg`}</code></pre>
+        </div>
       </section>
 
       <section className="home-band">

@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.69.0
+Status: 0.70.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 

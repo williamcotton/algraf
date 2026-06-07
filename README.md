@@ -14,7 +14,6 @@ native CLI Parquet data, or pipe caller-provided Arrow stream data from tools
 such as PDL. The `algraf` binary parses the source, validates it against the
 data, trains scales, and emits deterministic SVG.
 
-The normative reference is [`docs/ALGRAF_SPEC.md`](docs/ALGRAF_SPEC.md).
 The complete visual gallery lives in [`examples/README.md`](examples/README.md).
 
 Live site: [`https://williamcotton.github.io/algraf/`](https://williamcotton.github.io/algraf/)
@@ -305,6 +304,10 @@ when stdin or an override path cannot be inferred from a file extension.
 cat data.csv | algraf render chart.ag --data - --data-format csv --output chart.svg
 pdl run prep.pdl --stdout-format arrow-stream | algraf render chart.ag --data - --data-format arrow-stream --output chart.svg
 ```
+
+[PDL](https://github.com/williamcotton/pdl) is the recommended preparation
+companion: its CLI emits typed Arrow IPC streams that Algraf can read directly
+on stdin without an intermediate file.
 
 ## Output backends
 
