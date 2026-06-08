@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="380" viewBox="0 0 720 380" role="img" aria-label="MLB Division Standings">
+<title>MLB Division Standings</title>
+<rect class="algraf-background" x="0" y="0" width="720" height="380" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">MLB Division Standings</text>
+<rect class="algraf-plot-area algraf-facet-panel" x="60" y="90" width="279" height="240" fill="#ffffff" />
+<rect class="algraf-plot-area algraf-facet-panel" x="411" y="90" width="279" height="240" fill="#ffffff" />
+<g class="algraf-facet-strip">
+  <rect x="60" y="66" width="279" height="18" fill="#ffffff" />
+  <text x="199.5" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222"></text>
+</g>
+<g class="algraf-facet-strip">
+  <rect x="411" y="66" width="279" height="18" fill="#ffffff" />
+  <text x="550.5" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222"></text>
+</g>
+<g class="algraf-grid">
+  <line x1="60" y1="120" x2="339" y2="120" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="180" x2="339" y2="180" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="240" x2="339" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="300" x2="339" y2="300" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="90" x2="339" y2="90" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="150" x2="339" y2="150" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="210" x2="339" y2="210" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="270" x2="339" y2="270" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="330" x2="339" y2="330" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-grid">
+  <line x1="411" y1="120" x2="690" y2="120" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="411" y1="180" x2="690" y2="180" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="411" y1="240" x2="690" y2="240" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="411" y1="300" x2="690" y2="300" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="411" y1="90" x2="690" y2="90" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="411" y1="150" x2="690" y2="150" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="411" y1="210" x2="690" y2="210" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="411" y1="270" x2="690" y2="270" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="411" y1="330" x2="690" y2="330" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="69.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Yankees</text>
+  <text x="69.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Red Sox</text>
+  <text x="69.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Blue Jays</text>
+  <text x="69.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Orioles</text>
+  <text x="69.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Rays</text>
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="139.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">95</text>
+  <text x="139.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">93</text>
+  <text x="139.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">83</text>
+  <text x="139.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">74</text>
+  <text x="139.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">64</text>
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="164.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">67</text>
+  <text x="164.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">69</text>
+  <text x="164.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">79</text>
+  <text x="164.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">88</text>
+  <text x="164.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">98</text>
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="199.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.586</text>
+  <text x="199.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.574</text>
+  <text x="199.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.512</text>
+  <text x="199.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.457</text>
+  <text x="199.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.395</text>
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="420.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Guardians</text>
+  <text x="420.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Tigers</text>
+  <text x="420.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Royals</text>
+  <text x="420.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">White Sox</text>
+  <text x="420.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Twins</text>
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="490.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">63</text>
+  <text x="490.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">59</text>
+  <text x="490.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">58</text>
+  <text x="490.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">51</text>
+  <text x="490.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">46</text>
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="515.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">99</text>
+  <text x="515.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">103</text>
+  <text x="515.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">104</text>
+  <text x="515.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">111</text>
+  <text x="515.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">116</text>
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="550.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.389</text>
+  <text x="550.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.364</text>
+  <text x="550.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.358</text>
+  <text x="550.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.315</text>
+  <text x="550.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.284</text>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="330" x2="339" y2="330" stroke="#333333" stroke-width="1" />
+  <line x1="199.5" y1="330" x2="199.5" y2="335" stroke="#333333" stroke-width="1" />
+  <text x="199.5" y="348" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">AL East</text>
+  <line x1="60" y1="90" x2="60" y2="330" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="90" x2="60" y2="90" stroke="#333333" stroke-width="1" />
+  <text x="52" y="94" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="55" y1="150" x2="60" y2="150" stroke="#333333" stroke-width="1" />
+  <text x="52" y="154" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="55" y1="210" x2="60" y2="210" stroke="#333333" stroke-width="1" />
+  <text x="52" y="214" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <line x1="55" y1="270" x2="60" y2="270" stroke="#333333" stroke-width="1" />
+  <text x="52" y="274" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="55" y1="330" x2="60" y2="330" stroke="#333333" stroke-width="1" />
+  <text x="52" y="334" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <text x="32.8" y="210" text-anchor="middle" transform="rotate(-90 32.8 210)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Rank</text>
+</g>
+<g class="algraf-axes">
+  <line x1="411" y1="330" x2="690" y2="330" stroke="#333333" stroke-width="1" />
+  <line x1="550.5" y1="330" x2="550.5" y2="335" stroke="#333333" stroke-width="1" />
+  <text x="550.5" y="348" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">AL Central</text>
+  <line x1="411" y1="90" x2="411" y2="330" stroke="#333333" stroke-width="1" />
+  <line x1="406" y1="90" x2="411" y2="90" stroke="#333333" stroke-width="1" />
+  <text x="403" y="94" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">1</text>
+  <line x1="406" y1="150" x2="411" y2="150" stroke="#333333" stroke-width="1" />
+  <text x="403" y="154" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="406" y1="210" x2="411" y2="210" stroke="#333333" stroke-width="1" />
+  <text x="403" y="214" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">3</text>
+  <line x1="406" y1="270" x2="411" y2="270" stroke="#333333" stroke-width="1" />
+  <text x="403" y="274" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="406" y1="330" x2="411" y2="330" stroke="#333333" stroke-width="1" />
+  <text x="403" y="334" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5</text>
+  <text x="383.8" y="210" text-anchor="middle" transform="rotate(-90 383.8 210)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Rank</text>
+</g>
+</svg>

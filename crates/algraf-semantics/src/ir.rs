@@ -223,6 +223,7 @@ pub enum FacetLabelModeIr {
     #[default]
     Value,
     NameValue,
+    Null,
 }
 
 impl FacetLabelModeIr {
@@ -230,6 +231,7 @@ impl FacetLabelModeIr {
         match self {
             FacetLabelModeIr::Value => "value",
             FacetLabelModeIr::NameValue => "name-value",
+            FacetLabelModeIr::Null => "null",
         }
     }
 }

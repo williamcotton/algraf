@@ -2835,6 +2835,32 @@ Chart(
 
 ![events_ndjson](events_ndjson.svg)
 
+## Baseball division standings
+
+A faceted chart with free scales and no labels, showing the division standings for each division.
+
+```algraf
+Chart(data: "baseball.csv", width: 720, height: 380, title: "MLB Division Standings") {
+    Theme(name: "minimal")
+    
+    Layout(facetCols: division, facetScales: "free", facetLabel: "null")
+    
+    Scale(axis: y, reverse: true, integer: true, domain: [1, 5])
+    
+    Guide(axis: x, label: null)
+    Guide(axis: y, label: "Rank", grid: true)
+    
+    Space((division * division_wins_rank) / division) {
+        Text(label: team, dx: -130, dy: -9, anchor: "start", size: 12, fill: "#111827")
+        Text(label: wins, dx: -60, dy: -9, anchor: "start", size: 9.5, fill: "#4b5563")
+        Text(label: losses, dx: -35, dy: -9, anchor: "start", size: 9.5, fill: "#4b5563")
+        Text(label: win_loss_ratio, dx: 0, dy: -9, anchor: "start", size: 9.5, fill: "#4b5563")
+    }
+}
+```
+
+![baseball](baseball.svg)
+
 ---
 
 ## Maps: a county population choropleth

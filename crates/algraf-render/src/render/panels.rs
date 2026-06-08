@@ -709,6 +709,7 @@ fn facet_value_label(
     match mode {
         FacetLabelModeIr::Value => label.to_string(),
         FacetLabelModeIr::NameValue => format!("{column}: {label}"),
+        FacetLabelModeIr::Null => String::new(),
     }
 }
 

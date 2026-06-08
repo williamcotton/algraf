@@ -474,6 +474,7 @@ impl Analyzer<'_> {
                     Some("name-value") | Some("name_value") => {
                         layout.facet_label = FacetLabelModeIr::NameValue
                     }
+                    Some("null") => layout.facet_label = FacetLabelModeIr::Null,
                     Some(other) => self.diag(Diagnostic::error(
                         codes::E1204,
                         format!("unknown facet label mode `{other}`"),

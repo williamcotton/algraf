@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.72.0
+Status: 0.73.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.72.0 specification.
+This working copy is the 0.73.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -11048,6 +11048,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.70.0 | [`V0_70_PLAN.md`](V0_70_PLAN.md) | Demo site and README CLI documentation alignment | Implemented |
 | 0.71.0 | [`V0_71_PLAN.md`](V0_71_PLAN.md) | Replace the Inset block with a chart-valued glyph mark | Implemented |
 | 0.72.0 | [`V0_72_PLAN.md`](V0_72_PLAN.md) | Glyph-body Scale(size:, …) precedence and size-legend pipeline | Implemented |
+| 0.73.0 | [`V0_73_PLAN.md`](V0_73_PLAN.md) | Add another example to the README | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

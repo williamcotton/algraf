@@ -157,6 +157,7 @@ charts=(
     flight_routes_map
     tooltips
     highlight
+    baseball
 )
 
 cd "$repo_root"

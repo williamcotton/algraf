@@ -594,7 +594,7 @@ const LAYOUT_DOC_ARGS: &[ArgDoc] = &[
     },
     ArgDoc {
         name: "facetLabel",
-        value: "\"value\" | \"name-value\"",
+        value: "\"value\" | \"name-value\" | null",
         default: Some("\"value\""),
         doc: "Facet strip label format.",
     },
