@@ -2585,6 +2585,104 @@ fn test_glyph_name_shadowing_geometry_is_rejected() {
 }
 
 #[test]
+fn test_glyph_body_size_scale_is_stored_on_call_ir() {
+    // The call-site `size:` argument resolves against the host table
+    // (frames.rs:980), so `weight` must be present in both the host primary
+    // (where the call sits) and the glyph's `data:` table (where the
+    // body-scope `Scale(size: weight)` resolves).
+    let primary = vec![
+        col("id", DataType::String),
+        col("x", DataType::Float),
+        col("y", DataType::Float),
+        col("weight", DataType::Float),
+    ];
+    let child = vec![
+        col("id", DataType::String),
+        col("weight", DataType::Float),
+        col("value", DataType::Float),
+    ];
+    let analysis = analyze_tables(
+        r##"Chart(data: "parents.csv") {
+  Table child = "child.csv"
+  Glyph mark(data: child, key: [id]) {
+    Scale(size: weight, range: [10, 40], label: "Weight")
+    Space(value) { Bar() }
+  }
+  Space(x * y) { mark(size: weight) }
+}"##,
+        &primary,
+        &[("child", child)],
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let algraf_semantics::SpaceLayerIr::Glyph(glyph) = &ir.spaces[0].layers[0] else {
+        panic!("expected glyph layer");
+    };
+    assert_eq!(
+        glyph.body_scales.len(),
+        1,
+        "body_scales should carry the glyph-body Scale"
+    );
+    let scale = &glyph.body_scales[0];
+    let ScaleTargetIr::Aesthetic { aesthetic, column } = &scale.target else {
+        panic!("expected aesthetic target");
+    };
+    assert_eq!(aesthetic, "size");
+    assert_eq!(column.as_ref().map(|c| c.name.as_str()), Some("weight"));
+    assert_eq!(scale.range, Some([Some(10.0), Some(40.0)]));
+    assert_eq!(scale.label.as_deref(), Some("Weight"));
+}
+
+#[test]
+fn test_glyph_body_size_scale_rejects_unknown_column_e1101() {
+    let primary = vec![col("x", DataType::Float), col("y", DataType::Float)];
+    let child = vec![col("id", DataType::String), col("value", DataType::Float)];
+    let analysis = analyze_tables(
+        r##"Chart(data: "parents.csv") {
+  Table child = "child.csv"
+  Glyph mark(data: child, key: [id]) {
+    Scale(size: missing, range: [10, 40])
+    Space(value) { Bar() }
+  }
+  Space(x * y) { mark() }
+}"##,
+        &primary,
+        &[("child", child)],
+    );
+    assert!(
+        analysis.diagnostics.iter().any(|d| d.code == "E1101"),
+        "expected E1101 for unknown body-scope size column: {:?}",
+        analysis.diagnostics
+    );
+}
+
+#[test]
+fn test_chart_scope_size_scale_still_emits_e1101_for_unknown_column() {
+    // Strict chart-scope column resolution (spec §13.17) is preserved by v0.72.
+    let primary = vec![col("x", DataType::Float), col("y", DataType::Float)];
+    let child = vec![col("id", DataType::String), col("weight", DataType::Float)];
+    let analysis = analyze_tables(
+        r##"Chart(data: "parents.csv") {
+  Table child = "child.csv"
+  Glyph mark(data: child, key: [id]) { Space(weight) { Bar() } }
+  Scale(size: weight, range: [10, 40])
+  Space(x * y) { mark() }
+}"##,
+        &primary,
+        &[("child", child)],
+    );
+    assert!(
+        analysis.diagnostics.iter().any(|d| d.code == "E1101"),
+        "chart-scope Scale(size: weight) must still emit E1101 when weight is absent from chart primary: {:?}",
+        analysis.diagnostics
+    );
+}
+
+#[test]
 fn test_duplicate_table_name_e1105() {
     let primary = vec![col("x", DataType::Float)];
     let analysis = analyze_tables(

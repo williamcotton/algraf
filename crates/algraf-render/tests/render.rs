@@ -265,6 +265,131 @@ fn render_nested_glyph_with_composite_host_key() {
 }
 
 #[test]
+fn render_glyph_body_size_scale_emits_legend_swatch() {
+    // A glyph-body `Scale(size: col, range:, label:)` (spec §14.27) is the
+    // canonical home for the glyph's size aesthetic. v0.72 wires the scale
+    // into the legend pipeline (spec §16.13).
+    let source = r##"Chart(data: "parents.csv", width: 360, height: 260) {
+  Table mix = "mix.csv"
+  Glyph pie(data: mix, key: [id], scales: "shared") {
+    Scale(size: weight, range: [20, 40], label: "Weight")
+    Space(value, coords: "polar", theta: "y") {
+      Bar(fill: category, layout: "fill")
+    }
+  }
+  Space(x * y) {
+    pie(size: weight, clip: "circle")
+  }
+}"##;
+    let result = render_result_with_tables(
+        source,
+        "id,x,y,weight\nA,1,1,5\nB,2,2,9\n",
+        &[(
+            "mix",
+            "id,category,value,weight\nA,one,3,5\nA,two,2,5\nB,one,1,9\nB,two,4,9\n",
+        )],
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.svg.contains("Weight"),
+        "expected size-legend title 'Weight' in SVG; got: {}",
+        &result.svg[..result.svg.len().min(2000)]
+    );
+    assert!(
+        result.svg.contains("algraf-legends"),
+        "expected legend group to render"
+    );
+}
+
+#[test]
+fn render_glyph_size_without_scale_still_emits_legend() {
+    // A glyph call with `size:` mapped but no matching `Scale(size: …)`
+    // anywhere produces a size legend using the GlyphSizeIr default diameter
+    // range (12, 48), titled by the column name. This mirrors how
+    // `Point(size: col)` produces a legend with `DEFAULT_SIZE_RANGE` when no
+    // `Scale(size: …)` is declared.
+    let source = r##"Chart(data: "parents.csv", width: 360, height: 260) {
+  Table mix = "mix.csv"
+  Glyph pie(data: mix, key: [id], scales: "shared") {
+    Space(value, coords: "polar", theta: "y") {
+      Bar(fill: category, layout: "fill")
+    }
+  }
+  Space(x * y) {
+    pie(size: weight, clip: "circle")
+  }
+}"##;
+    let result = render_result_with_tables(
+        source,
+        "id,x,y,weight\nA,1,1,5\nB,2,2,9\n",
+        &[(
+            "mix",
+            "id,category,value\nA,one,3\nA,two,2\nB,one,1\nB,two,4\n",
+        )],
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.svg.contains(">weight<"),
+        "expected size legend titled by the column name when no Scale exists"
+    );
+}
+
+#[test]
+fn render_size_and_fill_legends_with_same_title_both_render() {
+    // A `Scale(fill:)` and a `Scale(size:)` over the same column with the
+    // same label produce TWO distinct legends (one color, one size); the
+    // legend-merge title dedup is scoped to color-family legends so it does
+    // not drop the size swatch (spec §16.13).
+    let source = r##"Chart(data: "p.csv") {
+  Space(x * y) {
+    Scale(fill: w, gradient: ["#fee08b", "#f03b20"], label: "W")
+    Scale(size: w, range: [4, 20], label: "W")
+    Point(size: w, fill: w)
+  }
+}"##;
+    let result = render_result(source, "x,y,w\n1,1,3\n2,2,9\n3,3,5\n");
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let title_count = result.svg.matches(">W<").count();
+    assert!(
+        title_count >= 2,
+        "expected two legends (color + size) sharing the title 'W'; svg title hits: {}",
+        title_count
+    );
+}
+
+#[test]
+fn render_chart_scope_size_scale_consumed_by_glyph_call_emits_legend() {
+    // The chart-scope `Scale(size:, range:, label:)` whose only consumer is a
+    // glyph call's `size:` argument was the v0.71 legend gap; v0.72 closes it
+    // through the same pipeline as glyph-body scales (spec §16.13).
+    let source = r##"Chart(data: "parents.csv", width: 360, height: 260) {
+  Table mix = "mix.csv"
+  Glyph pie(data: mix, key: [id], scales: "shared") {
+    Space(value, coords: "polar", theta: "y") {
+      Bar(fill: category, layout: "fill")
+    }
+  }
+  Scale(size: weight, range: [20, 40], label: "Weight")
+  Space(x * y) {
+    pie(size: weight, clip: "circle")
+  }
+}"##;
+    let result = render_result_with_tables(
+        source,
+        "id,x,y,weight\nA,1,1,5\nB,2,2,9\n",
+        &[(
+            "mix",
+            "id,category,value\nA,one,3\nA,two,2\nB,one,1\nB,two,4\n",
+        )],
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.svg.contains("Weight"),
+        "expected chart-scope size legend title 'Weight' in SVG"
+    );
+}
+
+#[test]
 fn render_nested_glyph_mark_center_changes_slice_anchor() {
     let mark_center = r##"Chart(data: "parents.csv", width: 360, height: 260) {
   Table mix = "mix.csv"

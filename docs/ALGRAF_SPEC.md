@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.71.0
+Status: 0.72.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.71.0 specification.
+This working copy is the 0.72.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -5877,6 +5877,26 @@ legend collection exactly like any other mark's scales, deduplicated by
 domain (e.g. a categorical color `range:` map) always merge regardless of
 `train:`. Child position guides default off.
 
+#### Glyph-body aesthetic scales
+
+> Since version 0.72.
+
+A `Glyph` body MAY contain a `Scale(size: col, range: [min, max], label: "…")`
+declaration. Column resolution for such a scale uses the glyph's `data:` table
+— the same row context the glyph body's inner `Space` sees — so a column that
+lives in the glyph data (and not in the chart primary) resolves cleanly here.
+When the call-site `size:` argument's column matches the glyph-body scale's
+column, the scale's `range:` drives the call's viewport pixel range and the
+scale produces a size legend through the normal pipeline (§16.13). A glyph-body
+`Scale(size:)` takes precedence over a same-aesthetic, same-column chart-scope
+`Scale(size:)`; the chart-scope form remains valid as a fallback and fires
+only when its column genuinely resolves against the chart primary (§13.17
+phase 6). Placing the size scale in the glyph body is RECOMMENDED, since the
+chart-scope form only resolves when the column happens to exist in the chart
+primary. Glyph-body `Scale(strokeWidth: …)` is deferred to a later version;
+the glyph mark call surface today exposes only `size:` as a per-instance
+numeric aesthetic.
+
 #### Limits
 
 Glyph marks MAY nest. A nested-glyph depth limit emits `E2209` and skips the
@@ -7132,6 +7152,14 @@ their key sets MUST match, otherwise `E1604`. Map keys and values MUST be string
 literals (`E1604` otherwise). A map `range:`/`labels:` on a non-categorical or
 non-color scale MUST emit `E1606`; a numeric `range:` on a categorical color
 scale MUST emit `E1603`.
+
+A `size` scale (`Scale(size: col, range:, label:)`) whose only downstream
+consumer is a `Glyph` call's `size:` argument MUST produce a size-legend
+candidate, with the scale's `label:` — or the default column display name when
+`label:` is omitted — as the swatch title (since version 0.72). The candidate
+dedupes against any same-aesthetic, same-title chart-scope scale via the
+normal legend-merge rules. Glyph-body scales take precedence over chart-scope
+scales for the same `(aesthetic, column)` pair (§14.27).
 
 ### 16.14 Projection
 
@@ -11019,6 +11047,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.69.0 | [`V0_69_PLAN.md`](V0_69_PLAN.md) | Arrow-stream and large-data aggregate performance | In progress |
 | 0.70.0 | [`V0_70_PLAN.md`](V0_70_PLAN.md) | Demo site and README CLI documentation alignment | Implemented |
 | 0.71.0 | [`V0_71_PLAN.md`](V0_71_PLAN.md) | Replace the Inset block with a chart-valued glyph mark | Implemented |
+| 0.72.0 | [`V0_72_PLAN.md`](V0_72_PLAN.md) | Glyph-body Scale(size:, …) precedence and size-legend pipeline | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

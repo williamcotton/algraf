@@ -992,6 +992,12 @@ pub struct GlyphCallIr {
     /// Whether this glyph call contributes chart-level legends (`legend: false`
     /// suppresses them, spec §17.7).
     pub legend: bool,
+    /// Scales declared inside the glyph declaration body (spec §14.27).
+    /// Column resolution uses the glyph's `data:` table. These take precedence
+    /// over chart-scope scales for the glyph call's aesthetics (e.g. `size:`,
+    /// `strokeWidth:`) and produce a legend through the normal pipeline
+    /// (spec §16.13).
+    pub body_scales: Vec<ScaleIr>,
     pub child_spaces: Vec<SpaceIr>,
     pub span: Span,
 }

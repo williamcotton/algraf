@@ -3229,5 +3229,16 @@
   <text x="764" y="92" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25-64</text>
   <rect x="746" y="100" width="12" height="12" fill="#59A14F" />
   <text x="764" y="110" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">65+</text>
+  <text x="746" y="148" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Population</text>
+  <circle cx="770" cy="167" r="10" fill="#222222" />
+  <text x="802" y="171" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">470000</text>
+  <circle cx="770" cy="196.5" r="13.5" fill="#222222" />
+  <text x="802" y="200.5" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2452500</text>
+  <circle cx="770" cy="233" r="17" fill="#222222" />
+  <text x="802" y="237" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4435000</text>
+  <circle cx="770" cy="276.5" r="20.5" fill="#222222" />
+  <text x="802" y="280.5" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6417500</text>
+  <circle cx="770" cy="327" r="24" fill="#222222" />
+  <text x="802" y="331" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8400000</text>
 </g>
 </svg>

@@ -7,11 +7,13 @@ use algraf_semantics::{
     GlyphScalePolicyIr, GlyphSizeIr, ScaleIr, ScaleTargetIr, SpaceIr,
 };
 
+use crate::aes::{Legend, LegendKind, NumberSpec};
 use crate::domains::train_space_domains;
 use crate::geo_stats::centroid_point;
 use crate::layout::Rect;
-use crate::scale::cell_f64;
+use crate::scale::{cell_f64, numeric_domain};
 use crate::space::ScaledSpace;
+use crate::svg::display_label;
 use crate::theme::Theme;
 
 use super::common::{merged_scales, resolve_space_theme, validate_scale_configs};
@@ -32,6 +34,11 @@ pub(super) struct PlannedGlyph<'t> {
     pub(super) clip: GlyphClipIr,
     pub(super) scale_policy: GlyphScalePolicyIr,
     pub(super) legend: bool,
+    /// Pre-computed size-legend swatch for the glyph call's `size:` aesthetic
+    /// when a `Scale(size: col, range:, label:)` matches — declared either in
+    /// the glyph body (spec §14.27, preferred) or at chart scope. `None` for
+    /// unmapped or unscaled sizes (spec §16.13).
+    pub(super) size_legend: Option<Legend>,
     pub(super) instances: Vec<PlannedGlyphInstance<'t>>,
 }
 
@@ -225,7 +232,7 @@ pub(super) fn plan_glyph<'t>(
     }
 
     let size_domain = mapped_size_domain(glyph, host_table, &host_row_list);
-    let size_range = mapped_size_pixel_range(glyph, &ir.scales);
+    let size_range = mapped_size_pixel_range(glyph, &glyph.body_scales, &ir.scales);
     let mut instances = Vec::new();
     for (instance_index, host_row) in host_row_list.iter().copied().enumerate() {
         let child_rows = &matches[instance_index];
@@ -295,10 +302,13 @@ pub(super) fn plan_glyph<'t>(
         });
     }
 
+    let size_legend = build_size_legend(glyph, &ir.scales, host_table, child_table);
+
     PlannedGlyph {
         clip: glyph.clip,
         scale_policy: glyph.scale_policy,
         legend: glyph.legend,
+        size_legend,
         instances,
     }
 }
@@ -422,8 +432,73 @@ fn empty_glyph(glyph: &GlyphCallIr) -> PlannedGlyph<'_> {
         clip: glyph.clip,
         scale_policy: glyph.scale_policy,
         legend: glyph.legend,
+        size_legend: None,
         instances: Vec::new(),
     }
+}
+
+/// Build the size-legend swatch for a glyph call's `size:` aesthetic
+/// (spec §16.13). A glyph-body `Scale(size: col, range:, label:)` takes
+/// precedence over a same-column chart-scope `Scale(size:)` (spec §14.27).
+/// Returns `None` when the size is fixed. When no matching `Scale` exists the
+/// legend still fires using the glyph's default diameter range (matching the
+/// `Point(size:)` behavior with no chart-scope size scale).
+fn build_size_legend(
+    glyph: &GlyphCallIr,
+    chart_scales: &[ScaleIr],
+    host_table: &dyn Table,
+    child_table: &dyn Table,
+) -> Option<Legend> {
+    let GlyphSizeIr::Mapped {
+        column,
+        min: default_min,
+        max: default_max,
+    } = &glyph.size
+    else {
+        return None;
+    };
+    let scale = glyph
+        .body_scales
+        .iter()
+        .chain(chart_scales.iter())
+        .find(|scale| match &scale.target {
+            ScaleTargetIr::Aesthetic {
+                aesthetic,
+                column: Some(scale_col),
+            } => aesthetic == "size" && scale_col.name == column.name,
+            _ => false,
+        });
+    // The glyph's `range:` (and the GlyphSizeIr defaults) declare viewport
+    // diameter (spec §14.27); `LegendKind::Radius` treats swatch magnitude as
+    // a radius (`guide/emit.rs` legend layout). Halve so swatches match the
+    // rendered pie radii.
+    let (range_lo, range_hi) = match scale.and_then(|s| s.range) {
+        Some([Some(lo), Some(hi)]) => (lo, hi),
+        _ => (*default_min, *default_max),
+    };
+    let range = (range_lo / 2.0, range_hi / 2.0);
+    // Data values for the size column live in either the host's table
+    // (chart-scope case where the column duplicates into the chart primary)
+    // or the glyph's `data:` child table (glyph-body case). Try both so the
+    // legend domain reflects the actual values either way.
+    let data_domain = numeric_domain(host_table, &column.name)
+        .or_else(|| numeric_domain(child_table, &column.name))
+        .unwrap_or((0.0, 1.0));
+    let domain = match scale.and_then(|s| s.domain) {
+        Some([lo, hi]) => (lo.unwrap_or(data_domain.0), hi.unwrap_or(data_domain.1)),
+        None => data_domain,
+    };
+    let title = scale
+        .and_then(|s| s.label.clone())
+        .unwrap_or_else(|| display_label(&column.name));
+    let spec = NumberSpec::Scaled {
+        col: column.name.clone(),
+        domain,
+        range,
+        breaks: scale.and_then(|s| s.breaks.clone()),
+        labels: scale.and_then(|s| s.break_labels.clone()),
+    };
+    spec.legend(&title, LegendKind::Radius)
 }
 
 pub(super) fn glyph_anchor(
@@ -524,35 +599,41 @@ pub(super) fn glyph_size(
     }
 }
 
-/// If a chart-scoped `Scale(size: column, range: [min, max])` matches the
-/// mapped column, use its `range:` as the glyph's pixel min/max (spec §14.27).
+/// If a `Scale(size: column, range: [min, max])` matches the glyph's mapped
+/// column, use its `range:` as the glyph's pixel min/max. Glyph-body scales
+/// (spec §14.27) take precedence over chart-scope scales for the same
+/// aesthetic-column pair.
 pub(super) fn mapped_size_pixel_range(
     glyph: &GlyphCallIr,
-    scales: &[ScaleIr],
+    body_scales: &[ScaleIr],
+    chart_scales: &[ScaleIr],
 ) -> Option<(f64, f64)> {
     let GlyphSizeIr::Mapped { column, .. } = &glyph.size else {
         return None;
     };
-    scales.iter().find_map(|scale| {
-        let ScaleTargetIr::Aesthetic {
-            aesthetic,
-            column: scale_col,
-        } = &scale.target
-        else {
-            return None;
-        };
-        if aesthetic != "size" {
-            return None;
-        }
-        match scale_col.as_ref() {
-            Some(c) if c.name == column.name => {}
-            _ => return None,
-        }
-        match scale.range {
-            Some([Some(lo), Some(hi)]) => Some((lo, hi)),
-            _ => None,
-        }
-    })
+    body_scales
+        .iter()
+        .chain(chart_scales.iter())
+        .find_map(|scale| {
+            let ScaleTargetIr::Aesthetic {
+                aesthetic,
+                column: scale_col,
+            } = &scale.target
+            else {
+                return None;
+            };
+            if aesthetic != "size" {
+                return None;
+            }
+            match scale_col.as_ref() {
+                Some(c) if c.name == column.name => {}
+                _ => return None,
+            }
+            match scale.range {
+                Some([Some(lo), Some(hi)]) => Some((lo, hi)),
+                _ => None,
+            }
+        })
 }
 
 pub(super) fn mapped_size_domain(
@@ -690,9 +771,83 @@ mod tests {
             dx: 0.0,
             dy: 0.0,
             legend: true,
+            body_scales: Vec::new(),
             child_spaces: Vec::new(),
             span: Span::empty(0),
         }
+    }
+
+    fn size_scale_for(column: &ColumnRef, lo: f64, hi: f64) -> ScaleIr {
+        ScaleIr {
+            target: ScaleTargetIr::Aesthetic {
+                aesthetic: "size".into(),
+                column: Some(column.clone()),
+            },
+            scale_type: None,
+            mode: None,
+            domain: None,
+            categorical_domain: None,
+            breaks: None,
+            break_labels: None,
+            expansion: None,
+            range: Some([Some(lo), Some(hi)]),
+            color_range: None,
+            reverse: None,
+            integer: None,
+            palette: None,
+            gradient: None,
+            color_map: None,
+            label_map: None,
+            label: None,
+            train: None,
+            span: Span::empty(0),
+        }
+    }
+
+    fn glyph_with_mapped_size(column: ColumnRef) -> GlyphCallIr {
+        GlyphCallIr {
+            glyph_name: "test".into(),
+            data: SpaceDataRef::Primary,
+            key: Vec::new(),
+            size: GlyphSizeIr::Mapped {
+                column,
+                min: 0.0,
+                max: 1.0,
+            },
+            scale_policy: GlyphScalePolicyIr::Shared,
+            guides: false,
+            clip: GlyphClipIr::Rect,
+            padding: 0.0,
+            placement: GlyphPlacementIr::Position,
+            dx: 0.0,
+            dy: 0.0,
+            legend: true,
+            body_scales: Vec::new(),
+            child_spaces: Vec::new(),
+            span: Span::empty(0),
+        }
+    }
+
+    #[test]
+    fn body_scale_takes_precedence_over_chart_scale_in_pixel_range() {
+        let column = col_ref("weight", DataType::Float);
+        let glyph = glyph_with_mapped_size(column.clone());
+        let body = vec![size_scale_for(&column, 10.0, 20.0)];
+        let chart = vec![size_scale_for(&column, 100.0, 200.0)];
+
+        assert_eq!(
+            mapped_size_pixel_range(&glyph, &body, &[]),
+            Some((10.0, 20.0))
+        );
+        assert_eq!(
+            mapped_size_pixel_range(&glyph, &[], &chart),
+            Some((100.0, 200.0))
+        );
+        assert_eq!(
+            mapped_size_pixel_range(&glyph, &body, &chart),
+            Some((10.0, 20.0)),
+            "body wins over chart"
+        );
     }
 
     fn matched_rows(

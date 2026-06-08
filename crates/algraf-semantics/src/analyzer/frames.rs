@@ -1161,6 +1161,7 @@ impl Analyzer<'_> {
             dx,
             dy,
             legend,
+            body_scales: glyph_scales,
             child_spaces,
             span,
         })

@@ -192,5 +192,16 @@
   <text x="444" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">software</text>
   <rect x="426" y="114" width="12" height="12" fill="#59A14F" />
   <text x="444" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">services</text>
+  <text x="426" y="162" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">size</text>
+  <circle cx="457" cy="190" r="19" fill="#222222" />
+  <text x="496" y="194" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">44</text>
+  <circle cx="457" cy="237" r="22" fill="#222222" />
+  <text x="496" y="241" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">47</text>
+  <circle cx="457" cy="290" r="25" fill="#222222" />
+  <text x="496" y="294" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
+  <circle cx="457" cy="349" r="28" fill="#222222" />
+  <text x="496" y="353" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">53</text>
+  <circle cx="457" cy="414" r="31" fill="#222222" />
+  <text x="496" y="418" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">56</text>
 </g>
 </svg>

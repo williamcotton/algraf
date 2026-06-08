@@ -79,10 +79,18 @@ fn collect_glyph_legend_candidates(
     if glyph.scale_policy != GlyphScalePolicyIr::Shared {
         return;
     }
+    // Child-panel color legends first so the resulting candidate order
+    // matches the geometry collector (fill/stroke before size).
     for instance in &glyph.instances {
         for child_panel in &instance.child_panels {
             collect_panel_legend_candidates(candidates, child_panel, theme, assets);
         }
+    }
+    // A glyph call's `size:` aesthetic (spec §14.27) backed by a glyph-body or
+    // chart-scope `Scale(size: col, range:, label:)` produces a size-legend
+    // swatch (spec §16.13). Glyph-body wins precedence over chart-scope.
+    if let Some(legend) = glyph.size_legend.clone() {
+        push_candidate(candidates, PropertyKey::Size, legend);
     }
 }
 
@@ -320,8 +328,9 @@ fn scale_label(scales: &[ScaleIr], aesthetic: &str) -> Option<String> {
 /// legend share a title and compatible discrete domains into a single legend
 /// whose swatches show both colors (spec §19.7), and a `shape` legend folds its
 /// marker glyphs onto a matching color legend so the swatches become those
-/// shapes (spec §19.5). Non-mergeable candidates pass through unchanged,
-/// deduplicated by title with the first occurrence winning.
+/// shapes (spec §19.5). Size legends (`Radius`/`Width`) are visually distinct
+/// from color legends and pass through as their own legend even when they
+/// share a title (spec §16.13).
 fn merge_legends(candidates: Vec<(PropertyKey, Legend)>) -> Vec<Legend> {
     let mut out: Vec<Legend> = Vec::new();
     for (aesthetic, legend) in candidates {
@@ -335,10 +344,16 @@ fn merge_legends(candidates: Vec<(PropertyKey, Legend)>) -> Vec<Legend> {
             continue;
         }
 
-        let Some(existing) = out
-            .iter_mut()
-            .find(|l| l.kind != LegendKind::Image && l.title == legend.title)
-        else {
+        // Only the color-legend family (Discrete/Continuous) participates in
+        // title-based merging. Size legends (Radius/Width) render circle or
+        // line swatches and stay separate even when their title collides with
+        // a color legend over the same column.
+        let merge_eligible = matches!(legend.kind, LegendKind::Discrete | LegendKind::Continuous);
+        let Some(existing) = out.iter_mut().find(|l| {
+            l.title == legend.title
+                && matches!(l.kind, LegendKind::Discrete | LegendKind::Continuous)
+                && merge_eligible
+        }) else {
             out.push(legend);
             continue;
         };
@@ -378,7 +393,7 @@ fn merge_legends(candidates: Vec<(PropertyKey, Legend)>) -> Vec<Legend> {
                 }
             }
         }
-        // Otherwise the title already has a legend: keep the first.
+        // Otherwise the title already has a color legend: keep the first.
     }
     out
 }
