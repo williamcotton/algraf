@@ -184,15 +184,16 @@ fn raster_matches_svg_baseline_within_tolerance() {
 }
 
 #[test]
-fn raster_matches_svg_baseline_for_circle_clipped_insets() {
+fn raster_matches_svg_baseline_for_circle_clipped_glyphs() {
     let source = r##"Chart(data: "parents.csv", width: 260, height: 220) {
   Table child = "child.csv"
-  Space(x * y) {
-    Inset(data: child, match: [id => id], width: 48, height: 48, clip: "circle", guides: false) {
-      Space(t * value) {
-        Point(fill: "#d94801", size: 5)
-      }
+  Glyph mark(data: child, key: [id]) {
+    Space(t * value) {
+      Point(fill: "#d94801", size: 5)
     }
+  }
+  Space(x * y) {
+    mark(width: 48, height: 48, clip: "circle")
   }
 }"##;
     let primary = "id,x,y\nA,1,1\nB,2,2\n";

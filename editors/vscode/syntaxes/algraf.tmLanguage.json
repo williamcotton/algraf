@@ -119,7 +119,7 @@
       "patterns": [
         {
           "name": "keyword.declaration.algraf",
-          "match": "\\b(?:Algraf|Chart|Space|Inset|Derive|from|Table|Parse|Scale|Guide|Theme|Layout)\\b"
+          "match": "\\b(?:Algraf|Chart|Space|Glyph|Derive|from|Table|Parse|Scale|Guide|Theme|Layout)\\b"
         },
         {
           "name": "keyword.declaration.let.algraf",

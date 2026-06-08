@@ -421,15 +421,16 @@ fn draw_list_interactions_match_svg_sidecar_metadata() {
 }
 
 #[test]
-fn draw_list_records_inset_clip_and_nested_metadata() {
+fn draw_list_records_glyph_clip_and_nested_metadata() {
     let source = r##"Chart(data: "parents.csv", width: 260, height: 220) {
   Table child = "child.csv"
-  Space(x * y) {
-    Inset(data: child, match: [id => id], width: 44, height: 44, clip: "circle", guides: false) {
-      Space(t * value) {
-        Point(tooltip: [label], highlight: "label")
-      }
+  Glyph mark(data: child, key: [id]) {
+    Space(t * value) {
+      Point(tooltip: [label], highlight: "label")
     }
+  }
+  Space(x * y) {
+    mark(width: 44, height: 44, clip: "circle")
   }
 }"##;
     let list = draw_list_with_tables(

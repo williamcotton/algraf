@@ -1,31 +1,27 @@
 Chart(data: GeoJson("us_counties.geojson"), width: 860, height: 520,
       title: "Major cities with population mix pies",
-      subtitle: "Inset pie charts are projected onto the same county basemap") {
+      subtitle: "Glyph pie charts are projected onto the same county basemap") {
     Theme(name: "void")
     Table cities = "inset_cities.csv"
     Table city_mix = "city_population_mix.csv"
+
+    Glyph pie(data: city_mix, key: [city], scales: "shared") {
+        Space(count, coords: "polar", theta: "y") {
+            Scale(fill: age_group,
+                  range: ["under 25" => "#4E79A7", "25-64" => "#F28E2B", "65+" => "#59A14F"],
+                  label: "Age group")
+            Bar(fill: age_group, layout: "fill")
+        }
+    }
+
+    Scale(size: population, range: [20, 48], label: "Population")
 
     Space(geom, projection: "albers_usa") {
         Geo(fill: "#f3f4f6", stroke: "#d1d5db", strokeWidth: 0.25)
     }
 
     Space(long * lat, projection: "albers_usa", data: cities) {
-        Inset(data: city_mix,
-              match: [city => city],
-              size: population,
-              minSize: 20,
-              maxSize: 48,
-              scales: "shared",
-              guides: false,
-              clip: "circle",
-              padding: 1) {
-            Space(count, coords: "polar", theta: "y") {
-                Scale(fill: age_group,
-                      range: ["under 25" => "#4E79A7", "25-64" => "#F28E2B", "65+" => "#59A14F"],
-                      label: "Age group")
-                Bar(fill: age_group, layout: "fill")
-            }
-        }
+        pie(size: population, clip: "circle", padding: 1)
         Text(label: city, dy: -25, size: 7, fill: "#1f2937", anchor: "middle")
     }
 }

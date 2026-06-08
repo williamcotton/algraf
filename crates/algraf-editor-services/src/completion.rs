@@ -22,7 +22,7 @@ pub enum CompletionContext {
         last_kind: LastTokenKind,
     },
     SpaceBody,
-    InsetBody,
+    GlyphBody,
     GeometryArgs {
         geometry: Option<String>,
         active_key: Option<String>,
@@ -72,7 +72,7 @@ pub fn completion_context(text: &str, offset: usize) -> CompletionContext {
             }
             TokenKind::RParen => {
                 if let Some(Some(name)) = calls.pop() {
-                    if matches!(name.as_str(), "Chart" | "Space" | "Inset") {
+                    if matches!(name.as_str(), "Chart" | "Space" | "Glyph") {
                         pending_block = Some(name);
                     }
                 }
@@ -114,7 +114,7 @@ pub fn completion_context(text: &str, offset: usize) -> CompletionContext {
         },
         Some(
             "Algraf" | "Scale" | "Guide" | "Theme" | "Layout" | "Parse" | "Style" | "Stop" | "Bin"
-            | "Inset" | "Smooth" | "StepVertices" | "JitterPoints" | "VectorEndpoints"
+            | "Glyph" | "Smooth" | "StepVertices" | "JitterPoints" | "VectorEndpoints"
             | "CurveSample" | "Bin2D" | "HexBin" | "ContourLines" | "ContourBands" | "Density2D"
             | "Density2DContours" | "Density2DBands" | "Distinct" | "Ecdf" | "Qq" | "Summary"
             | "SummaryBin" | "Cut" | "Summary2D" | "SummaryHex" | "IntervalSegments"
@@ -137,7 +137,7 @@ pub fn completion_context(text: &str, offset: usize) -> CompletionContext {
         None => match blocks.last().map(String::as_str) {
             Some("Chart") => CompletionContext::ChartBody,
             Some("Space") => CompletionContext::SpaceBody,
-            Some("Inset") => CompletionContext::InsetBody,
+            Some("Glyph") => CompletionContext::GlyphBody,
             None => CompletionContext::TopLevel,
             Some(_) => CompletionContext::Unknown,
         },
@@ -256,11 +256,6 @@ pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Ve
                 "On(event: \"click\", emit: $1)",
                 "Attach click event metadata to the preceding mark",
             ));
-            items.push(snippet(
-                "Inset",
-                "Inset(data: $1, match: [$2 => $3], size: 32) {\n    Space($4) {\n        $5\n    }\n}",
-                "Child plot anchored to each parent row",
-            ));
             items.extend(
                 ["let", "Scale", "Guide", "Theme"]
                     .iter()
@@ -268,16 +263,16 @@ pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Ve
             );
             items
         }
-        CompletionContext::InsetBody => {
+        CompletionContext::GlyphBody => {
             let mut items = vec![snippet(
                 "Space",
                 "Space($1) {\n    $2\n}",
-                "Child space rendered inside the inset viewport",
+                "Child space rendered by the glyph",
             )];
             items.extend(
                 ["let", "Scale", "Guide", "Theme"]
                     .iter()
-                    .map(|name| keyword(name, "Inset-scoped declaration")),
+                    .map(|name| keyword(name, "Glyph-scoped declaration")),
             );
             items
         }
@@ -622,31 +617,16 @@ fn declaration_value_items(
         ("Stop", "value") => vec![value_item("0", "Domain value")],
         ("Stop", "color") => vec![color("\"#3366cc\"", "Gradient stop color")],
         ("Style", _) => property_value_items(state, None, active_key),
-        ("Inset", "data") => derived_table_items(state),
-        ("Inset", "match") => vec![value_item("[child_key => parent_key]", "Inset match map")],
-        ("Inset", "scales") => ["shared", "local"]
+        ("Glyph", "data") => derived_table_items(state),
+        ("Glyph", "key") => vec![value_item("[column]", "Glyph key columns")],
+        ("Glyph", "scales") => ["shared", "local"]
             .iter()
-            .map(|value| value_item(&format!("\"{value}\""), "Inset scale policy"))
+            .map(|value| value_item(&format!("\"{value}\""), "Glyph scale training default"))
             .collect(),
-        ("Inset", "guides") => vec![
-            value_item("false", "Hide child guides"),
-            value_item("true", "Show child guides"),
-        ],
-        ("Inset", "clip") => vec![
-            value_item("\"rect\"", "Rectangular clip"),
-            value_item("\"circle\"", "Circular clip"),
-            value_item("false", "No clipping"),
-        ],
-        ("Inset", "anchor") => ["position", "centroid"]
+        ("Scale", "train") => ["shared", "local"]
             .iter()
-            .map(|value| value_item(&format!("\"{value}\""), "Inset anchor"))
+            .map(|value| value_item(&format!("\"{value}\""), "Scale training scope"))
             .collect(),
-        (
-            "Inset",
-            "size" | "width" | "height" | "minSize" | "maxSize" | "padding" | "dx" | "dy",
-        ) => {
-            vec![value_item("32", "Pixels")]
-        }
         ("Bin", "interval") => ["minute", "hour", "day", "week", "month", "quarter", "year"]
             .iter()
             .map(|value| value_item(&format!("\"{value}\""), "Temporal bin interval"))
@@ -763,7 +743,7 @@ fn dedupe_by_label(items: Vec<CompletionItem>) -> Vec<CompletionItem> {
 }
 
 const CHART_BODY_ITEMS: &[&str] = &[
-    "let", "Derive", "Table", "Parse", "Space", "Scale", "Guide", "Theme", "Layout",
+    "let", "Derive", "Table", "Parse", "Space", "Scale", "Guide", "Theme", "Layout", "Glyph",
 ];
 
 /// Variable-name completions for every in-document `let` binding (spec §9.6).

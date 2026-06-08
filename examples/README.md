@@ -133,10 +133,11 @@ Chart(data: "event_emitter_zones.csv", width: 760, height: 420,
 
 ![event_emitter](event_emitter.svg)
 
-## Scatterplot with inset sparklines
+## Scatterplot with glyph sparklines
 
-`Inset(...)` places a bounded child chart at each parent row. Here each country
-keeps its scatterplot position, and the child table contributes the GDP trend
+A `Glyph` declares a chart-valued mark template. The mark renders once per
+matched host row, anchored at the row position. Here each country keeps its
+scatterplot position, and the glyph's child table contributes the GDP trend
 that is matched by `country`.
 
 ```algraf
@@ -144,19 +145,14 @@ Chart(data: "inset_country_summary.csv", width: 760, height: 500,
       title: "Life expectancy, income, and GDP trend") {
     Table yearly = "inset_country_yearly.csv"
 
-    Space(income * life_expectancy) {
-        Inset(data: yearly,
-              match: [country => country],
-              width: 58,
-              height: 24,
-              scales: "shared",
-              guides: false,
-              clip: "rect",
-              padding: 2) {
-            Space(year * gdp_per_capita) {
-                Line(stroke: "#1f77b4", strokeWidth: 1.2)
-            }
+    Glyph spark(data: yearly, key: [country], scales: "shared") {
+        Space(year * gdp_per_capita) {
+            Line(stroke: "#1f77b4", strokeWidth: 1.2)
         }
+    }
+
+    Space(income * life_expectancy) {
+        spark(width: 58, height: 24, clip: "rect", padding: 2)
         Text(label: country, dy: -22, size: 8, anchor: "middle")
     }
 }
@@ -2933,41 +2929,38 @@ Chart(data: GeoJson("us_counties.geojson"), width: 800, height: 500,
 
 ![us_city_bubbles](us_city_bubbles.svg)
 
-## Maps: inset pies on projected city anchors
+## Maps: glyph pies on projected city anchors
 
-An inset can also contain a polar child space. This replaces a city point with a
-small pie chart whose rows come from a second table and whose size is mapped
-from the parent city population.
+A glyph can wrap a polar child space, replacing a city point with a small pie
+chart whose rows come from a second table. Map the host-row size through the
+ordinary `Scale(size:, range:)` so each pie's footprint reflects city
+population.
 
 ```algraf
 Chart(data: GeoJson("us_counties.geojson"), width: 860, height: 520,
       title: "Major cities with population mix pies",
-      subtitle: "Inset pie charts are projected onto the same county basemap") {
+      subtitle: "Glyph pie charts are projected onto the same county basemap") {
     Theme(name: "void")
     Table cities = "inset_cities.csv"
     Table city_mix = "city_population_mix.csv"
+
+    Glyph pie(data: city_mix, key: [city], scales: "shared") {
+        Space(count, coords: "polar", theta: "y") {
+            Scale(fill: age_group,
+                  range: ["under 25" => "#4E79A7", "25-64" => "#F28E2B", "65+" => "#59A14F"],
+                  label: "Age group")
+            Bar(fill: age_group, layout: "fill")
+        }
+    }
+
+    Scale(size: population, range: [20, 48], label: "Population")
 
     Space(geom, projection: "albers_usa") {
         Geo(fill: "#f3f4f6", stroke: "#d1d5db", strokeWidth: 0.25)
     }
 
     Space(long * lat, projection: "albers_usa", data: cities) {
-        Inset(data: city_mix,
-              match: [city => city],
-              size: population,
-              minSize: 20,
-              maxSize: 48,
-              scales: "shared",
-              guides: false,
-              clip: "circle",
-              padding: 1) {
-            Space(count, coords: "polar", theta: "y") {
-                Scale(fill: age_group,
-                      range: ["under 25" => "#4E79A7", "25-64" => "#F28E2B", "65+" => "#59A14F"],
-                      label: "Age group")
-                Bar(fill: age_group, layout: "fill")
-            }
-        }
+        pie(size: population, clip: "circle", padding: 1)
         Text(label: city, dy: -25, size: 7, fill: "#1f2937", anchor: "middle")
     }
 }
@@ -3382,49 +3375,39 @@ Chart(data: "coxcomb_deaths.csv", width: 440, height: 440, title: "Deaths by mon
 
 ![polar_start_angle](polar_start_angle.svg)
 
-## Nested inset glyphs
+## Nested glyph marks
 
-Insets can contain ordinary spaces, and those spaces can contain another inset.
-The nested example below draws one composition pie per parent node, then places
-tiny trend lines inside the slices by matching both the ancestor `id` and the
-current slice `category`.
+Glyph marks can nest: a glyph's child space can itself invoke another glyph.
+The nested example below draws one composition pie per host node, then places
+tiny trend lines inside the slices by correlating the outer glyph's host `id`
+(`outer.id`) with the trend table's `id`, plus the current slice `category`.
 
 ```algraf
 Chart(data: "inset_nodes.csv", width: 560, height: 380,
-      title: "Nested inset glyphs") {
+      title: "Nested glyph marks") {
     Table mix = "inset_node_mix.csv"
     Table trends = "inset_node_trends.csv"
 
-    Space(x * y) {
-        Inset(data: mix,
-              match: [id => id],
-              size: size,
-              minSize: 38,
-              maxSize: 62,
-              scales: "shared",
-              guides: false,
-              clip: "circle",
-              padding: 1) {
-            Space(value, coords: "polar", theta: "y") {
-                Scale(fill: category,
-                      range: ["hardware" => "#4E79A7", "software" => "#F28E2B", "services" => "#59A14F"],
-                      label: "Category")
-                Bar(fill: category, layout: "fill")
-                Inset(data: trends,
-                      match: [id => parent.id, category => category],
-                      width: 18,
-                      height: 8,
-                      placement: "mark-center",
-                      scales: "local",
-                      guides: false,
-                      clip: "rect",
-                      padding: 1) {
-                    Space(t * value) {
-                        Line(stroke: "#111827", strokeWidth: 0.7)
-                    }
-                }
-            }
+    Glyph trendline(data: trends, key: [id => outer.id, category => category], scales: "local") {
+        Space(t * value) {
+            Line(stroke: "#111827", strokeWidth: 0.7)
         }
+    }
+
+    Glyph nodepie(data: mix, key: [id], scales: "shared") {
+        Space(value, coords: "polar", theta: "y") {
+            Scale(fill: category,
+                  range: ["hardware" => "#4E79A7", "software" => "#F28E2B", "services" => "#59A14F"],
+                  label: "Category")
+            Bar(fill: category, layout: "fill")
+            trendline(width: 18, height: 8, at: "mark-center", clip: "rect", padding: 1)
+        }
+    }
+
+    Scale(size: size, range: [38, 62])
+
+    Space(x * y) {
+        nodepie(size: size, clip: "circle", padding: 1)
         Text(label: id, dy: -38, size: 10, anchor: "middle")
     }
 }

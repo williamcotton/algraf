@@ -627,72 +627,81 @@ const TABLE_DOC_ARGS: &[ArgDoc] = &[
     },
 ];
 
-const INSET_DOC_ARGS: &[ArgDoc] = &[
+const GLYPH_DOC_ARGS: &[ArgDoc] = &[
     ArgDoc {
         name: "data",
         value: "table name",
         default: None,
-        doc: "Child table rendered inside each inset instance.",
+        doc: "Child table the glyph renders, one instance per matched host row.",
     },
     ArgDoc {
-        name: "match",
-        value: "map",
+        name: "key",
+        value: "column | list",
         default: None,
-        doc: "Explicit child-to-parent equi-match rules.",
-    },
-    ArgDoc {
-        name: "size",
-        value: "number | column",
-        default: Some("32"),
-        doc: "Square inset size or mapped parent column.",
-    },
-    ArgDoc {
-        name: "width",
-        value: "number",
-        default: None,
-        doc: "Fixed rectangular inset width.",
-    },
-    ArgDoc {
-        name: "height",
-        value: "number",
-        default: None,
-        doc: "Fixed rectangular inset height.",
+        doc: "Correlation columns resolved against the host row context.",
     },
     ArgDoc {
         name: "scales",
         value: "\"shared\" | \"local\"",
         default: Some("\"shared\""),
-        doc: "Child scale training policy across inset instances.",
+        doc: "Default scale training scope; per-`Scale` `train:` overrides it.",
+    },
+];
+
+const GLYPH_CALL_DOC_ARGS: &[ArgDoc] = &[
+    ArgDoc {
+        name: "size",
+        value: "column",
+        default: None,
+        doc: "Host column mapped through `Scale(size:)` to the glyph footprint.",
     },
     ArgDoc {
-        name: "guides",
-        value: "boolean",
-        default: Some("false"),
-        doc: "Whether to draw child position guides inside each inset.",
+        name: "width",
+        value: "number",
+        default: None,
+        doc: "Fixed rectangular footprint width (mutually exclusive with `size`).",
+    },
+    ArgDoc {
+        name: "height",
+        value: "number",
+        default: None,
+        doc: "Fixed rectangular footprint height (mutually exclusive with `size`).",
     },
     ArgDoc {
         name: "clip",
         value: "\"rect\" | \"circle\" | false",
         default: Some("\"rect\""),
-        doc: "Clip shape for child marks.",
+        doc: "Clip shape for the glyph viewport.",
     },
     ArgDoc {
-        name: "anchor",
-        value: "\"position\" | \"centroid\"",
+        name: "padding",
+        value: "number",
+        default: Some("2"),
+        doc: "Inner padding between the viewport edge and child marks.",
+    },
+    ArgDoc {
+        name: "at",
+        value: "\"position\" | \"mark-center\" | \"centroid\"",
         default: Some("\"position\""),
-        doc: "Parent-row anchor used for inset placement.",
+        doc: "Host-row placement strategy for the glyph viewport.",
     },
     ArgDoc {
         name: "dx",
         value: "number",
         default: Some("0"),
-        doc: "Horizontal pixel offset after anchor resolution.",
+        doc: "Horizontal pixel offset after placement resolution.",
     },
     ArgDoc {
         name: "dy",
         value: "number",
         default: Some("0"),
-        doc: "Vertical pixel offset after anchor resolution.",
+        doc: "Vertical pixel offset after placement resolution.",
+    },
+    ArgDoc {
+        name: "legend",
+        value: "boolean",
+        default: Some("true"),
+        doc: "Whether the glyph's scales contribute chart-level legends.",
     },
 ];
 
@@ -713,12 +722,12 @@ pub fn declaration_doc(name: &str) -> Option<CallDoc> {
             args: SPACE_DOC_ARGS,
             example: "Space(x * y, data: binned) {\n    Rect(xmin: x_min, xmax: x_max, ymin: y_min, ymax: y_max)\n}",
         }),
-        "Inset" => Some(CallDoc {
-            name: "Inset",
+        "Glyph" => Some(CallDoc {
+            name: "Glyph",
             kind: "Declaration",
-            description: "Mark-anchored child plot with explicit row matching and local viewport.",
-            args: INSET_DOC_ARGS,
-            example: "Inset(data: child, match: [id => id], size: 32) {\n    Space(value) { Bar(fill: group, layout: \"fill\") }\n}",
+            description: "Chart-scoped, chart-valued mark template invoked like a geometry.",
+            args: GLYPH_DOC_ARGS,
+            example: "Glyph pie(data: mix, key: store) {\n    Space(share, coords: polar, theta: y) { Bar(fill: category, layout: \"fill\") }\n}",
         }),
         "Theme" => Some(CallDoc {
             name: "Theme",
@@ -847,6 +856,20 @@ pub fn stat_example(name: &str) -> &'static str {
 }
 
 /// The ordered argument names for a declaration keyword.
+/// Documentation for the call-site arguments accepted by any glyph mark
+/// (spec §14.27). Glyph names are user-defined, so this is keyed by construct
+/// kind rather than name.
+pub fn glyph_call_doc_args() -> &'static [ArgDoc] {
+    GLYPH_CALL_DOC_ARGS
+}
+
+/// Call-site argument names accepted by a glyph mark invocation (spec §14.27).
+pub fn glyph_call_arg_names() -> &'static [&'static str] {
+    &[
+        "size", "width", "height", "clip", "padding", "at", "dx", "dy", "legend",
+    ]
+}
+
 pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
     match decl {
         "Algraf" => &["version", "features"],
@@ -912,24 +935,9 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
             "range",
             "labels",
             "label",
+            "train",
         ],
-        "Inset" => &[
-            "data",
-            "match",
-            "size",
-            "width",
-            "height",
-            "minSize",
-            "maxSize",
-            "scales",
-            "guides",
-            "clip",
-            "padding",
-            "placement",
-            "dx",
-            "dy",
-            "anchor",
-        ],
+        "Glyph" => &["data", "key", "scales"],
         "Style" => &[
             "fill",
             "stroke",

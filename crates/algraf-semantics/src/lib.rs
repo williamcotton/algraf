@@ -18,14 +18,14 @@ pub use analyzer::{
 pub use ir::{
     AestheticMapping, AxisSelectorIr, AxisViewDomainIr, BinClosedIr, BinIntervalIr, ChartIr,
     ColumnRef, CoordinateViewIr, CoordsIr, DataSourceIr, DeriveIr, FacetGridIr, FacetLabelModeIr,
-    FacetScaleModeIr, FrameIr, GeometryIr, GeometryKind, GradientIr, GradientStopIr, GridBinsIr,
-    GridShapeIr, GuideIr, GuideOverridesIr, InsetAnchorIr, InsetClipIr, InsetIr, InsetMatchIr,
-    InsetParentRefIr, InsetPlacementIr, InsetScalePolicyIr, InsetSizeIr, InteractionIr,
-    IntervalOrientationIr, LegendPositionIr, LevelSpecIr, PanelSpacingIr, PolarDirectionIr,
-    PolarThetaIr, PropertyKey, QqDistributionIr, ScaleExpansionIr, ScaleIr, ScaleModeIr,
-    ScaleTargetIr, ScaleTypeIr, SettingValue, SmoothMethodIr, SpaceDataRef, SpaceIr, SpaceLayerIr,
-    SpatialPredicateIr, StatCallIr, StatKind, StatOptionsIr, StepDirectionIr, SummaryReducerIr,
-    TableDeclIr, TemporalFormatIr, ThemeIr, ThemeLineIr, ThemeOverrides, ThemeRectIr, ThemeTextIr,
+    FacetScaleModeIr, FrameIr, GeometryIr, GeometryKind, GlyphCallIr, GlyphClipIr, GlyphHostRefIr,
+    GlyphKeyIr, GlyphPlacementIr, GlyphScalePolicyIr, GlyphSizeIr, GradientIr, GradientStopIr,
+    GridBinsIr, GridShapeIr, GuideIr, GuideOverridesIr, InteractionIr, IntervalOrientationIr,
+    LegendPositionIr, LevelSpecIr, PanelSpacingIr, PolarDirectionIr, PolarThetaIr, PropertyKey,
+    QqDistributionIr, ScaleExpansionIr, ScaleIr, ScaleModeIr, ScaleTargetIr, ScaleTypeIr,
+    SettingValue, SmoothMethodIr, SpaceDataRef, SpaceIr, SpaceLayerIr, SpatialPredicateIr,
+    StatCallIr, StatKind, StatOptionsIr, StepDirectionIr, SummaryReducerIr, TableDeclIr,
+    TemporalFormatIr, ThemeIr, ThemeLineIr, ThemeOverrides, ThemeRectIr, ThemeTextIr,
     PROPERTY_KEYS,
 };
 pub use planning::{geometry_column_name, spatial_join_appended_columns};

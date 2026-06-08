@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::{ColumnDef, DataType};
 use algraf_syntax::ast::{
-    AlgebraExpr, AlgebraName, Arg, CallValue, LetDecl, LiteralKind, ValueExpr,
+    AlgebraExpr, AlgebraName, Arg, CallValue, GlyphDecl, LetDecl, LiteralKind, ValueExpr,
 };
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
@@ -129,9 +129,14 @@ pub(super) struct Analyzer<'a> {
     /// Space-scope `let` bindings for the space under analysis; these shadow
     /// chart-scope bindings of the same name (spec §9.6).
     pub(super) space_vars: HashMap<String, LetVar>,
-    /// Row-context tables for inset match validation. Index 0 is the current
-    /// space's active table; index 1 is the immediate parent row context.
+    /// Row-context tables for glyph key resolution (spec §14.27). Index 0 is the
+    /// current space's active table; later entries are enclosing row contexts.
     pub(super) row_context_tables: Vec<ActiveTable>,
+    /// Chart-scoped `Glyph` declarations, keyed by name (spec §7.11, §13.8).
+    pub(super) glyphs: HashMap<String, GlyphDecl>,
+    /// Stack of glyph names currently being expanded, used to detect recursive
+    /// glyph marks (spec §14.27, `E2210`).
+    pub(super) glyph_stack: Vec<String>,
     pub(super) synthetic_counter: usize,
     pub(super) diagnostics: Vec<Diagnostic>,
 }
@@ -152,6 +157,8 @@ impl<'a> Analyzer<'a> {
             chart_vars: HashMap::new(),
             space_vars: HashMap::new(),
             row_context_tables: Vec::new(),
+            glyphs: HashMap::new(),
+            glyph_stack: Vec::new(),
             synthetic_counter: 0,
             diagnostics: Vec::new(),
         }

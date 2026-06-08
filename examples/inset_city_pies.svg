@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="860" height="520" viewBox="0 0 860 520" role="img" aria-label="Major cities with population mix pies">
 <title>Major cities with population mix pies</title>
-<desc>Inset pie charts are projected onto the same county basemap</desc>
+<desc>Glyph pie charts are projected onto the same county basemap</desc>
 <rect class="algraf-background" x="0" y="0" width="860" height="520" fill="#ffffff" />
 <text class="algraf-title" x="10" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Major cities with population mix pies</text>
-<text class="algraf-subtitle" x="10" y="50" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Inset pie charts are projected onto the same county basemap</text>
+<text class="algraf-subtitle" x="10" y="50" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Glyph pie charts are projected onto the same county basemap</text>
 <rect class="algraf-plot-area" x="10" y="52" width="720" height="458" fill="#ffffff" />
 <g class="algraf-layer algraf-geom-geo">
   <path d="M618.35 323.079L620.15 325.343L619.906 329.013L620.516 329.296L623.067 328.857L626.175 329.762L627.756 329.641L628.751 328.885L629.65 327.545L628.406 327.013L628.276 326.239L626.127 324.031L625.751 323.381L625.743 323.237L623.953 321.676L623.688 321.909L619.727 322.551L618.35 323.079Z" fill="#f3f4f6" fill-rule="evenodd" stroke="#d1d5db" stroke-width="0.25"/>
@@ -3115,7 +3115,7 @@
   <path d="M572.988 310.675L573.689 311.923L572.777 313.407L574.628 314.676L575.63 317.08L576.51 316.266L577.448 316.718L579.235 316.83L579.63 316.664L579.65 316.592L580.778 314.48L581.492 312.778L578.811 313.02L576.431 311.659L574.859 310.359L573.482 309.896L572.988 310.675Z" fill="#f3f4f6" fill-rule="evenodd" stroke="#d1d5db" stroke-width="0.25"/>
   <path d="M546.703 381.557L546.871 383.15L546.871 384.455L548.302 385.72L548.61 385.886L548.52 385.151L554.592 384.502L554.589 384.196L553.761 382.489L552.443 380.51L552.489 380.186L550.903 380.138L550.124 379.459L550.25 380.691L546.65 380.999L546.703 381.557Z" fill="#f3f4f6" fill-rule="evenodd" stroke="#d1d5db" stroke-width="0.25"/>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-0"><circle cx="662.615" cy="208.923" r="24" /></clipPath>
   </defs>
@@ -3127,7 +3127,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-1"><circle cx="62.495" cy="321.403" r="16.055" /></clipPath>
   </defs>
@@ -3139,7 +3139,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-2"><circle cx="485.136" cy="216.956" r="13.937" /></clipPath>
   </defs>
@@ -3151,7 +3151,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-3"><circle cx="387.148" cy="433.012" r="13.231" /></clipPath>
   </defs>
@@ -3163,7 +3163,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-4"><circle cx="147.137" cy="349.44" r="11.995" /></clipPath>
   </defs>
@@ -3175,7 +3175,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-5"><circle cx="70.561" cy="79.412" r="10.494" /></clipPath>
   </defs>
@@ -3187,7 +3187,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-6"><circle cx="626.379" cy="481.153" r="10" /></clipPath>
   </defs>
@@ -3199,7 +3199,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-7"><circle cx="258.678" cy="253.436" r="10.433" /></clipPath>
   </defs>

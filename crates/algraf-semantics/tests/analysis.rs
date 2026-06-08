@@ -2424,7 +2424,7 @@ fn test_derive_from_named_table_uses_that_schema() {
 }
 
 #[test]
-fn test_inset_ir_preserves_source_order_and_composite_match() {
+fn test_glyph_ir_preserves_source_order_and_composite_key() {
     let primary = vec![
         col("id", DataType::String),
         col("category", DataType::String),
@@ -2440,11 +2440,12 @@ fn test_inset_ir_preserves_source_order_and_composite_match() {
     let analysis = analyze_tables(
         r#"Chart(data: "parents.csv") {
   Table child = "child.csv"
+  Glyph mark(data: child, key: [id, category], scales: "local") {
+    Space(t * value) { Point() }
+  }
   Space(x * y) {
     Point()
-    Inset(data: child, match: [id => id, category => category], width: 40, height: 20, scales: "local") {
-      Space(t * value) { Point() }
-    }
+    mark(width: 40, height: 20)
     Text(label: id)
   }
 }"#,
@@ -2462,11 +2463,15 @@ fn test_inset_ir_preserves_source_order_and_composite_match() {
         &layers[0],
         algraf_semantics::SpaceLayerIr::Geometry(geo) if geo.kind == GeometryKind::Point
     ));
-    let algraf_semantics::SpaceLayerIr::Inset(inset) = &layers[1] else {
-        panic!("expected inset layer");
+    let algraf_semantics::SpaceLayerIr::Glyph(glyph) = &layers[1] else {
+        panic!("expected glyph layer");
     };
-    assert_eq!(inset.match_rules.len(), 2);
-    assert_eq!(inset.child_spaces.len(), 1);
+    assert_eq!(glyph.key.len(), 2);
+    assert_eq!(glyph.child_spaces.len(), 1);
+    assert_eq!(
+        glyph.scale_policy,
+        algraf_semantics::GlyphScalePolicyIr::Local
+    );
     assert!(matches!(
         &layers[2],
         algraf_semantics::SpaceLayerIr::Geometry(geo) if geo.kind == GeometryKind::Text
@@ -2474,7 +2479,7 @@ fn test_inset_ir_preserves_source_order_and_composite_match() {
 }
 
 #[test]
-fn test_inset_body_declarations_apply_and_outer_let_scope_survives() {
+fn test_glyph_body_declarations_apply_to_child_spaces() {
     let primary = vec![
         col("id", DataType::String),
         col("x", DataType::Float),
@@ -2489,19 +2494,19 @@ fn test_inset_body_declarations_apply_and_outer_let_scope_survives() {
     let analysis = analyze_tables(
         r##"Chart(data: "parents.csv") {
   Table child = "child.csv"
-  Space(x * y) {
-    let outerColor = "#3366cc"
-    Inset(data: child, match: [id => id], width: 40, height: 20) {
-      let lineColor = "#111827"
-      Guide(grid: false)
-      Theme(name: "void")
-      Scale(fill: category, range: ["a" => "#4E79A7", "b" => "#F28E2B"])
-      Space(t * value) {
-        Line(stroke: lineColor)
-        Point(fill: category)
-      }
+  Glyph mark(data: child, key: [id]) {
+    let lineColor = "#111827"
+    Guide(grid: false)
+    Theme(name: "void")
+    Scale(fill: category, range: ["a" => "#4E79A7", "b" => "#F28E2B"])
+    Space(t * value) {
+      Line(stroke: lineColor)
+      Point(fill: category)
     }
-    Point(fill: outerColor)
+  }
+  Space(x * y) {
+    mark(width: 40, height: 20)
+    Point()
   }
 }"##,
         &primary,
@@ -2513,57 +2518,70 @@ fn test_inset_body_declarations_apply_and_outer_let_scope_survives() {
         analysis.diagnostics
     );
     let ir = analysis.ir.expect("ir");
-    let algraf_semantics::SpaceLayerIr::Inset(inset) = &ir.spaces[0].layers[0] else {
-        panic!("expected inset layer");
+    let algraf_semantics::SpaceLayerIr::Glyph(glyph) = &ir.spaces[0].layers[0] else {
+        panic!("expected glyph layer");
     };
-    let child_space = &inset.child_spaces[0];
+    let child_space = &glyph.child_spaces[0];
     assert!(child_space.theme.is_some());
     assert_eq!(child_space.guides.grid, Some(false));
     assert_eq!(child_space.scales.len(), 1);
 }
 
 #[test]
-fn test_inset_semantic_diagnostics() {
+fn test_glyph_semantic_diagnostics() {
     let primary = vec![
         col("id", DataType::String),
         col("x", DataType::Float),
         col("y", DataType::Float),
     ];
     let child = vec![col("id", DataType::Integer), col("value", DataType::Float)];
-    let missing_match = analyze_tables(
+    let missing_key = analyze_tables(
         r#"Chart(data: "parents.csv") {
   Table child = "child.csv"
-  Space(x * y) {
-    Inset(data: child) { Space(value) { Point() } }
-  }
+  Glyph mark(data: child) { Space(value) { Point() } }
+  Space(x * y) { mark() }
 }"#,
         &primary,
         &[("child", child.clone())],
     );
-    assert!(missing_match.diagnostics.iter().any(|d| d.code == "E2103"));
+    assert!(missing_key.diagnostics.iter().any(|d| d.code == "E2203"));
 
     let unknown_table = analyze_tables(
         r#"Chart(data: "parents.csv") {
-  Space(x * y) {
-    Inset(data: missing, match: [id => id]) { Space(value) { Point() } }
-  }
+  Glyph mark(data: missing, key: [id]) { Space(value) { Point() } }
+  Space(x * y) { mark() }
 }"#,
         &primary,
         &[],
     );
-    assert!(unknown_table.diagnostics.iter().any(|d| d.code == "E2102"));
+    assert!(unknown_table.diagnostics.iter().any(|d| d.code == "E2202"));
 
     let type_mismatch = analyze_tables(
         r#"Chart(data: "parents.csv") {
   Table child = "child.csv"
-  Space(x * y) {
-    Inset(data: child, match: [id => id]) { Space(value) { Point() } }
-  }
+  Glyph mark(data: child, key: [id]) { Space(value) { Point() } }
+  Space(x * y) { mark() }
 }"#,
         &primary,
         &[("child", child)],
     );
-    assert!(type_mismatch.diagnostics.iter().any(|d| d.code == "E2105"));
+    assert!(type_mismatch.diagnostics.iter().any(|d| d.code == "E2205"));
+}
+
+#[test]
+fn test_glyph_name_shadowing_geometry_is_rejected() {
+    let primary = vec![col("x", DataType::Float), col("y", DataType::Float)];
+    let child = vec![col("x", DataType::Float), col("value", DataType::Float)];
+    let analysis = analyze_tables(
+        r#"Chart(data: "parents.csv") {
+  Table child = "child.csv"
+  Glyph Point(data: child, key: [x]) { Space(value) { Bar() } }
+  Space(x * y) { Point() }
+}"#,
+        &primary,
+        &[("child", child)],
+    );
+    assert!(analysis.diagnostics.iter().any(|d| d.code == "E2201"));
 }
 
 #[test]

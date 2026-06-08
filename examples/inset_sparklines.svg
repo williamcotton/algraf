@@ -23,7 +23,7 @@
   <line x1="60" y1="165.505" x2="730" y2="165.505" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="84.369" x2="730" y2="84.369" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-0"><rect x="539.276" y="80.483" width="58" height="24" /></clipPath>
   </defs>
@@ -33,7 +33,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-1"><rect x="654.793" y="134.032" width="58" height="24" /></clipPath>
   </defs>
@@ -43,7 +43,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-2"><rect x="179.889" y="220.037" width="58" height="24" /></clipPath>
   </defs>
@@ -53,7 +53,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-3"><rect x="160.636" y="411.517" width="58" height="24" /></clipPath>
   </defs>
@@ -63,7 +63,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-4"><rect x="77.207" y="312.531" width="58" height="24" /></clipPath>
   </defs>
@@ -73,7 +73,7 @@
     </g>
   </g>
 </g>
-<g class="algraf-inset">
+<g class="algraf-glyph">
   <defs>
   <clipPath id="algraf-clip-5"><rect x="231.23" y="233.018" width="58" height="24" /></clipPath>
   </defs>

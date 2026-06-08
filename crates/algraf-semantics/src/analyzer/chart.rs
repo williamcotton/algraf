@@ -74,6 +74,10 @@ impl Analyzer<'_> {
             .collect();
         self.chart_vars = self.collect_let_decls(&chart_lets);
 
+        // Register chart-scoped `Glyph` declarations up front so call sites in
+        // any space resolve regardless of declaration order (spec §7.11, §13.8).
+        self.register_glyphs(chart);
+
         let mut derived_tables = self.resolve_chart_derives(chart);
         for ir in &derived_tables {
             self.derived
@@ -116,6 +120,7 @@ impl Analyzer<'_> {
                         scales.push(scale);
                     }
                 }
+                ChartItem::Glyph(_) => {}
                 ChartItem::Error(_) => {}
             }
         }
@@ -141,6 +146,46 @@ impl Analyzer<'_> {
             margin_left,
             spaces,
         })
+    }
+
+    /// Collect chart-scoped `Glyph` declarations into the analyzer registry.
+    /// A glyph name that shadows a built-in geometry is rejected (`E2201`,
+    /// spec §13.8); a later duplicate keeps the first declaration.
+    fn register_glyphs(&mut self, chart: &ChartBlock) {
+        for item in chart.items() {
+            let ChartItem::Glyph(glyph) = item else {
+                continue;
+            };
+            let Some(name) = glyph.name() else { continue };
+            let name_span = glyph
+                .name_span()
+                .unwrap_or_else(|| node_span(glyph.syntax()));
+            if registry::geometry(&name).is_some() {
+                self.diag(Diagnostic::error(
+                    codes::E2201,
+                    format!("glyph `{name}` shadows a built-in geometry name"),
+                    name_span,
+                ));
+                continue;
+            }
+            if let Some(existing) = self.glyphs.get(&name) {
+                self.diag(
+                    Diagnostic::error(
+                        codes::E2201,
+                        format!("duplicate glyph declaration `{name}`"),
+                        name_span,
+                    )
+                    .with_related(
+                        existing
+                            .name_span()
+                            .unwrap_or_else(|| node_span(existing.syntax())),
+                        "first declared here",
+                    ),
+                );
+                continue;
+            }
+            self.glyphs.insert(name, glyph);
+        }
     }
 
     fn chart_args(&mut self, chart: &ChartBlock) -> ChartArgs {

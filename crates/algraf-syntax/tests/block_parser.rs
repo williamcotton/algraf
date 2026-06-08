@@ -136,96 +136,89 @@ fn test_bare_identifier_value_is_algebra() {
 }
 
 #[test]
-fn test_inset_block_contains_child_space_and_match_map() {
+fn test_glyph_decl_contains_child_space_and_key() {
     let source = r#"Chart(data: "p.csv") {
     Table mix = "mix.csv"
-    Space(x * y) {
-        Inset(data: mix, match: [id => parent.id], size: 32) {
-            Space(value, coords: "polar", theta: "y") {
-                Bar(fill: category, layout: "fill")
-            }
+    Glyph pie(data: mix, key: [id], size: 32) {
+        Space(value, coords: "polar", theta: "y") {
+            Bar(fill: category, layout: "fill")
         }
+    }
+    Space(x * y) {
+        pie(clip: "circle")
     }
 }"#;
     no_errors(source);
     let chart = root(source).chart().unwrap();
-    let ChartItem::Space(space) = &chart.items()[1] else {
-        panic!("expected space");
+    let ChartItem::Glyph(glyph) = &chart.items()[1] else {
+        panic!("expected glyph declaration");
     };
-    let SpaceItem::Inset(inset) = &space.items()[0] else {
-        panic!("expected inset");
-    };
-    assert_eq!(inset.args().len(), 3);
+    assert_eq!(glyph.name().as_deref(), Some("pie"));
+    assert_eq!(glyph.args().len(), 3);
     assert!(matches!(
-        inset.args()[1].value().unwrap(),
-        ValueExpr::Map(_)
+        glyph.args()[1].value().unwrap(),
+        ValueExpr::Array(_)
     ));
-    assert_eq!(inset.items().len(), 1);
+    assert_eq!(glyph.items().len(), 1);
 }
 
 #[test]
-fn test_malformed_inset_body_recovers_following_geometry() {
+fn test_malformed_glyph_body_recovers_following_item() {
     let source = r#"Chart(data: "p.csv") {
     Table child = "child.csv"
+    Glyph spark(data: child, key: [id], size: 32) {
+        12345
+        Space(value) { Point() }
+    }
     Space(x * y) {
-        Inset(data: child, match: [id => id], size: 32) {
-            12345
-            Space(value) { Point() }
-        }
         Text(label: id)
     }
 }"#;
     assert!(has_diagnostics(source));
     let chart = root(source).chart().unwrap();
-    let ChartItem::Space(space) = &chart.items()[1] else {
-        panic!("expected space");
-    };
-    assert!(space
+    assert!(chart
         .items()
         .iter()
-        .any(|item| matches!(item, SpaceItem::Inset(_))));
+        .any(|item| matches!(item, ChartItem::Glyph(_))));
+    let ChartItem::Space(space) = &chart.items()[2] else {
+        panic!("expected space");
+    };
     assert!(space.items().iter().any(
         |item| matches!(item, SpaceItem::Geometry(geo) if geo.name().as_deref() == Some("Text"))
     ));
 }
 
 #[test]
-fn test_missing_inset_closing_brace_recovers_without_panic() {
+fn test_missing_glyph_closing_brace_recovers_without_panic() {
     let source = r#"Chart(data: "p.csv") {
     Table child = "child.csv"
-    Space(x * y) {
-        Inset(data: child, match: [id => id]) {
-            Space(value) { Point() }
-    }
+    Glyph spark(data: child, key: [id]) {
+        Space(value) { Point() }
 }"#;
     assert!(has_diagnostics(source));
     parses_without_panic(source);
 }
 
 #[test]
-fn test_deeply_nested_inset_parse_tree_is_bounded_and_navigable() {
+fn test_deeply_nested_glyph_decls_are_bounded_and_navigable() {
     let source = r#"Chart(data: "p.csv") {
     Table child = "child.csv"
-    Space(x * y) {
-        Inset(data: child, match: [id => id], size: 40) {
-            Space(value) {
-                Inset(data: child, match: [id => parent.id], size: 20) {
-                    Space(value) {
-                        Inset(data: child, match: [id => parent.id], size: 10) {
-                            Space(value) { Point() }
-                        }
-                    }
-                }
-            }
+    Glyph outer_glyph(data: child, key: [id], size: 40) {
+        Space(value) {
+            inner_glyph(size: 20)
         }
+    }
+    Glyph inner_glyph(data: child, key: [id], size: 20) {
+        Space(value) { Point() }
+    }
+    Space(x * y) {
+        outer_glyph(size: 10)
     }
 }"#;
     no_errors(source);
     let chart = root(source).chart().unwrap();
-    let ChartItem::Space(space) = &chart.items()[1] else {
-        panic!("expected space");
-    };
-    assert!(matches!(space.items().first(), Some(SpaceItem::Inset(_))));
+    assert!(matches!(chart.items().get(1), Some(ChartItem::Glyph(_))));
+    assert!(matches!(chart.items().get(2), Some(ChartItem::Glyph(_))));
 }
 
 #[test]

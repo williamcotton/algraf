@@ -17,7 +17,7 @@ use crate::theme::Theme;
 
 use super::common::{merged_scales, resolve_space_theme, validate_scale_configs};
 use super::derived::active_table;
-use super::inset_plan::{plan_inset, PlannedInset, RowContext};
+use super::glyph_plan::{plan_glyph, PlannedGlyph, RowContext};
 use super::legend::collect_legends;
 use super::panel_space::{build_cartesian_scaled, compute_layout};
 use super::row_table::RowSubsetTable;
@@ -43,7 +43,7 @@ pub(super) struct Panel<'t> {
 
 pub(super) enum PlannedLayer<'t> {
     Geometry(&'t GeometryIr),
-    Inset(PlannedInset<'t>),
+    Glyph(PlannedGlyph<'t>),
 }
 
 pub(super) struct RenderPlan<'t> {
@@ -582,14 +582,14 @@ fn plan_layers<'t>(
         .iter()
         .map(|layer| match layer {
             SpaceLayerIr::Geometry(geo) => PlannedLayer::Geometry(geo),
-            SpaceLayerIr::Inset(inset) => PlannedLayer::Inset(plan_inset(
+            SpaceLayerIr::Glyph(glyph) => PlannedLayer::Glyph(plan_glyph(
                 ir,
                 primary,
                 derived,
                 theme,
                 cli_theme_override,
                 limits,
-                inset,
+                glyph,
                 parent_table,
                 parent_scaled,
                 parent_rows,

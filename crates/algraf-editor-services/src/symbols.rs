@@ -80,15 +80,6 @@ pub fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol
                                 Vec::new(),
                             ));
                         }
-                        SpaceItem::Inset(inset) => {
-                            space_children.push(symbol(
-                                source,
-                                "Inset",
-                                SymbolKind::OBJECT,
-                                inset.syntax(),
-                                Vec::new(),
-                            ));
-                        }
                         SpaceItem::Scale(decl)
                         | SpaceItem::Guide(decl)
                         | SpaceItem::Theme(decl) => {
@@ -131,6 +122,19 @@ pub fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol
                     decl.keyword(),
                     SymbolKind::PROPERTY,
                     decl.syntax(),
+                    Vec::new(),
+                ));
+            }
+            ChartItem::Glyph(glyph) => {
+                let name = glyph
+                    .name()
+                    .map(|n| format!("Glyph {n}"))
+                    .unwrap_or_else(|| "Glyph".to_string());
+                children.push(symbol(
+                    source,
+                    &name,
+                    SymbolKind::FUNCTION,
+                    glyph.syntax(),
                     Vec::new(),
                 ));
             }

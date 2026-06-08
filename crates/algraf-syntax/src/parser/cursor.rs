@@ -74,6 +74,7 @@ impl Parser {
             Some(
                 "Chart"
                     | "Space"
+                    | "Glyph"
                     | "Derive"
                     | "Scale"
                     | "Guide"

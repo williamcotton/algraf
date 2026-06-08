@@ -126,6 +126,7 @@ impl Parser {
             let current = self.current_ident_text().map(str::to_string);
             match current.as_deref() {
                 Some("Space") => self.space_block(),
+                Some("Glyph") => self.glyph_decl(),
                 Some("Derive") => self.derive_decl(),
                 Some("Table") => self.table_decl(),
                 Some("Parse") => self.decl(SyntaxKind::PARSE_DECL, SyntaxKind::PARSE_KW),
@@ -164,6 +165,11 @@ impl Parser {
         if self.at_misspelled_kw("Derive") {
             self.error(codes::E0011, "unexpected token in chart body", span);
             self.derive_decl();
+            return true;
+        }
+        if self.at_misspelled_kw("Glyph") && self.nth_kind(1) == SyntaxKind::IDENT {
+            self.error(codes::E0011, "unexpected token in chart body", span);
+            self.glyph_decl();
             return true;
         }
 
@@ -218,6 +224,7 @@ impl Parser {
             // A chart-only keyword inside a space body signals a missing `}`;
             // stop so the chart body can parse it as a sibling (spec §12.17).
             if self.at_kw("Space")
+                || self.at_kw("Glyph")
                 || self.at_kw("Derive")
                 || self.at_kw("Table")
                 || self.at_kw("Parse")
@@ -232,7 +239,6 @@ impl Parser {
                 Some("Scale") => self.decl(SyntaxKind::SCALE_DECL, SyntaxKind::SCALE_KW),
                 Some("Guide") => self.decl(SyntaxKind::GUIDE_DECL, SyntaxKind::GUIDE_KW),
                 Some("Theme") => self.decl(SyntaxKind::THEME_DECL, SyntaxKind::THEME_KW),
-                Some("Inset") => self.inset_block(),
                 Some(_) if self.nth_kind(1) == SyntaxKind::L_PAREN => self.geometry_call(),
                 _ => {
                     let span = self.current_span();
@@ -246,28 +252,32 @@ impl Parser {
         }
     }
 
-    pub(super) fn inset_block(&mut self) {
-        self.builder.start_node(SyntaxKind::INSET_BLOCK.into());
-        self.bump_as(SyntaxKind::INSET_KW);
+    // --- Glyph declarations (spec §7.11, §12.8) ---
+
+    pub(super) fn glyph_decl(&mut self) {
+        self.builder.start_node(SyntaxKind::GLYPH_DECL.into());
+        self.bump_as(SyntaxKind::GLYPH_KW);
+        self.expect(SyntaxKind::IDENT, codes::E0010, "expected glyph name");
         self.expect(
             SyntaxKind::L_PAREN,
             codes::E0002,
-            "expected '(' after Inset",
+            "expected '(' after glyph name",
         );
         self.arg_list();
         self.expect(SyntaxKind::R_PAREN, codes::E0006, "expected ')'");
         self.expect(SyntaxKind::L_BRACE, codes::E0007, "expected '{'");
-        self.inset_body();
+        self.glyph_body();
         self.expect(SyntaxKind::R_BRACE, codes::E0008, "expected '}'");
         self.builder.finish_node();
     }
 
-    pub(super) fn inset_body(&mut self) {
+    pub(super) fn glyph_body(&mut self) {
         loop {
             if self.at(SyntaxKind::R_BRACE) || self.at_eof() {
                 break;
             }
-            if self.at_kw("Derive")
+            if self.at_kw("Glyph")
+                || self.at_kw("Derive")
                 || self.at_kw("Table")
                 || self.at_kw("Parse")
                 || self.at_kw("Layout")
@@ -284,7 +294,7 @@ impl Parser {
                 Some("Theme") => self.decl(SyntaxKind::THEME_DECL, SyntaxKind::THEME_KW),
                 _ => {
                     let span = self.current_span();
-                    self.error(codes::E0007, "unexpected token in inset body", span);
+                    self.error(codes::E0007, "unexpected token in glyph body", span);
                     self.recover_item(/* in_space */ true);
                 }
             }

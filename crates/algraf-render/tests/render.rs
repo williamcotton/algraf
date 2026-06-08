@@ -139,15 +139,16 @@ fn render_mark_budget_rejects_pathological_raw_points() {
 }
 
 #[test]
-fn render_inset_pies_inside_parent_points() {
+fn render_glyph_pies_inside_host_points() {
     let source = r##"Chart(data: "parents.csv", width: 360, height: 260) {
   Table mix = "mix.csv"
-  Space(x * y) {
-    Inset(data: mix, match: [id => id], size: 46, scales: "shared", guides: false, clip: "circle") {
-      Space(value, coords: "polar", theta: "y") {
-        Bar(fill: category, layout: "fill")
-      }
+  Glyph pie(data: mix, key: [id], scales: "shared") {
+    Space(value, coords: "polar", theta: "y") {
+      Bar(fill: category, layout: "fill")
     }
+  }
+  Space(x * y) {
+    pie(width: 46, height: 46, clip: "circle")
   }
 }"##;
     let result = render_result_with_tables(
@@ -159,22 +160,23 @@ fn render_inset_pies_inside_parent_points() {
         )],
     );
 
-    assert!(result.svg.contains("algraf-inset"));
+    assert!(result.svg.contains("algraf-glyph"));
     assert!(result.svg.contains("<clipPath"));
     assert!(result.svg.contains("<circle"));
     assert!(result.svg.contains("algraf-geom-bar"));
 }
 
 #[test]
-fn render_inset_interaction_metadata_has_nested_paths() {
+fn render_glyph_interaction_metadata_has_nested_paths() {
     let source = r##"Chart(data: "parents.csv", width: 360, height: 260) {
   Table child = "child.csv"
-  Space(x * y) {
-    Inset(data: child, match: [id => id], width: 58, height: 32, scales: "shared", guides: false) {
-      Space(t * value) {
-        Point(tooltip: [label], highlight: "label")
-      }
+  Glyph mark(data: child, key: [id], scales: "shared") {
+    Space(t * value) {
+      Point(tooltip: [label], highlight: "label")
     }
+  }
+  Space(x * y) {
+    mark(width: 58, height: 32)
   }
 }"##;
     let result = render_result_with_tables(
@@ -205,13 +207,14 @@ fn render_inset_interaction_metadata_has_nested_paths() {
 }
 
 #[test]
-fn render_inset_shared_and_local_scales_differ() {
+fn render_glyph_shared_and_local_scales_differ() {
     let shared = r##"Chart(data: "parents.csv", width: 360, height: 260) {
   Table trend = "trend.csv"
+  Glyph mark(data: trend, key: [id], scales: "shared") {
+    Space(t * value) { Line() }
+  }
   Space(x * y) {
-    Inset(data: trend, match: [id => id], width: 60, height: 30, scales: "shared", guides: false) {
-      Space(t * value) { Line() }
-    }
+    mark(width: 60, height: 30)
   }
 }"##;
     let local = shared.replace("scales: \"shared\"", "scales: \"local\"");
@@ -225,19 +228,21 @@ fn render_inset_shared_and_local_scales_differ() {
 }
 
 #[test]
-fn render_nested_inset_with_composite_parent_match() {
+fn render_nested_glyph_with_composite_host_key() {
     let source = r##"Chart(data: "parents.csv", width: 360, height: 260) {
   Table mix = "mix.csv"
   Table trend = "trend.csv"
-  Space(x * y) {
-    Inset(data: mix, match: [id => id], size: 58, guides: false, clip: "circle") {
-      Space(value, coords: "polar", theta: "y") {
-        Bar(fill: category, layout: "fill")
-        Inset(data: trend, match: [id => parent.id, category => category], width: 16, height: 8, scales: "local", guides: false) {
-          Space(t * value) { Line(stroke: "#222222", strokeWidth: 0.7) }
-        }
-      }
+  Glyph trendline(data: trend, key: [id => outer.id, category => category], scales: "local") {
+    Space(t * value) { Line(stroke: "#222222", strokeWidth: 0.7) }
+  }
+  Glyph pie(data: mix, key: [id]) {
+    Space(value, coords: "polar", theta: "y") {
+      Bar(fill: category, layout: "fill")
+      trendline(width: 16, height: 8)
     }
+  }
+  Space(x * y) {
+    pie(width: 58, height: 58, clip: "circle")
   }
 }"##;
     let result = render_result_with_tables(
@@ -255,27 +260,29 @@ fn render_nested_inset_with_composite_parent_match() {
         ],
     );
 
-    assert!(result.svg.matches("algraf-inset").count() >= 3);
+    assert!(result.svg.matches("algraf-glyph").count() >= 3);
     assert!(result.svg.contains("algraf-geom-line"));
 }
 
 #[test]
-fn render_nested_inset_mark_center_changes_slice_anchor() {
+fn render_nested_glyph_mark_center_changes_slice_anchor() {
     let mark_center = r##"Chart(data: "parents.csv", width: 360, height: 260) {
   Table mix = "mix.csv"
   Table trend = "trend.csv"
-  Space(x * y) {
-    Inset(data: mix, match: [id => id], size: 58, guides: false, clip: "circle") {
-      Space(value, coords: "polar", theta: "y") {
-        Bar(fill: category, layout: "fill")
-        Inset(data: trend, match: [id => parent.id, category => category], width: 16, height: 8, placement: "mark-center", scales: "local", guides: false) {
-          Space(t * value) { Line(stroke: "#222222", strokeWidth: 0.7) }
-        }
-      }
+  Glyph trendline(data: trend, key: [id => outer.id, category => category], scales: "local") {
+    Space(t * value) { Line(stroke: "#222222", strokeWidth: 0.7) }
+  }
+  Glyph pie(data: mix, key: [id]) {
+    Space(value, coords: "polar", theta: "y") {
+      Bar(fill: category, layout: "fill")
+      trendline(width: 16, height: 8, at: "mark-center")
     }
   }
+  Space(x * y) {
+    pie(width: 58, height: 58, clip: "circle")
+  }
 }"##;
-    let center = mark_center.replace("placement: \"mark-center\"", "placement: \"center\"");
+    let center = mark_center.replace("at: \"mark-center\"", "at: \"position\"");
     let primary = "id,x,y\nA,1,1\n";
     let mix = "id,category,value\nA,one,3\nA,two,2\n";
     let trend = "id,category,t,value\nA,one,1,1\nA,one,2,2\nA,two,1,3\nA,two,2,1\n";
@@ -289,13 +296,14 @@ fn render_nested_inset_mark_center_changes_slice_anchor() {
 }
 
 #[test]
-fn render_inset_coalesces_sparse_match_warnings() {
+fn render_glyph_coalesces_sparse_match_warnings() {
     let source = r##"Chart(data: "parents.csv", width: 360, height: 260) {
   Table trend = "trend.csv"
+  Glyph mark(data: trend, key: [id]) {
+    Space(t * value) { Point() }
+  }
   Space(x * y) {
-    Inset(data: trend, match: [id => id], width: 60, height: 30, guides: false) {
-      Space(t * value) { Point() }
-    }
+    mark(width: 60, height: 30)
   }
 }"##;
     let result = render_result_with_tables(
@@ -312,12 +320,12 @@ fn render_inset_coalesces_sparse_match_warnings() {
     assert_eq!(warnings.len(), 1, "{:?}", result.diagnostics);
     assert_eq!(
         warnings[0].message,
-        "Inset matched no child rows for 2 of 3 parent rows"
+        "glyph `mark` matched no child rows for 2 of 3 host rows"
     );
 }
 
 #[test]
-fn render_inset_budget_rejects_recursive_expansion() {
+fn render_glyph_budget_rejects_recursive_expansion() {
     let frame = read_csv_str("id,x,y\nA,1,1\nB,2,2\n")
         .expect("primary csv")
         .frame;
@@ -326,10 +334,11 @@ fn render_inset_budget_rejects_recursive_expansion() {
         .frame;
     let source = r##"Chart(data: "parents.csv") {
   Table mix = "mix.csv"
+  Glyph pie(data: mix, key: [id]) {
+    Space(value, coords: "polar", theta: "y") { Bar(fill: category, layout: "fill") }
+  }
   Space(x * y) {
-    Inset(data: mix, match: [id => id], size: 40) {
-      Space(value, coords: "polar", theta: "y") { Bar(fill: category, layout: "fill") }
-    }
+    pie(width: 40, height: 40)
   }
 }"##;
     let parsed = parse(source);
@@ -351,7 +360,7 @@ fn render_inset_budget_rejects_recursive_expansion() {
     )
     .expect("render");
 
-    assert!(result.diagnostics.iter().any(|d| d.code == "E2110"));
+    assert!(result.diagnostics.iter().any(|d| d.code == "E2210"));
 }
 
 fn svg_num(value: f64) -> String {

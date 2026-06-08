@@ -12,8 +12,8 @@
 use std::collections::HashMap;
 
 use crate::ast::{
-    AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, DeriveDecl, InsetBlock, InsetItem, LetDecl,
-    Root, SourceHeader, SpaceBlock, SpaceItem, StatCall, TableDecl, ValueExpr,
+    AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, DeriveDecl, GlyphDecl, GlyphItem, LetDecl, Root,
+    SourceHeader, SpaceBlock, SpaceItem, StatCall, TableDecl, ValueExpr,
 };
 use crate::parser::parse;
 use crate::syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken};
@@ -200,6 +200,7 @@ impl Printer {
         match item {
             ChartItem::Space(space) => self.space(space),
             ChartItem::Derive(derive) => self.derive(derive),
+            ChartItem::Glyph(glyph) => self.glyph(glyph),
             ChartItem::Table(decl) => self.table_binding(decl),
             ChartItem::Let(decl) => self.let_binding(decl),
             ChartItem::Scale(decl)
@@ -236,7 +237,6 @@ impl Printer {
                 let name = call.name().unwrap_or_default();
                 self.call_item(call.syntax(), &name, &call.args());
             }
-            SpaceItem::Inset(inset) => self.inset(inset),
             SpaceItem::Let(decl) => self.let_binding(decl),
             SpaceItem::Scale(decl) | SpaceItem::Guide(decl) | SpaceItem::Theme(decl) => {
                 self.decl(decl)
@@ -245,15 +245,16 @@ impl Printer {
         }
     }
 
-    fn inset(&mut self, inset: &InsetBlock) {
-        let node = inset.syntax();
+    fn glyph(&mut self, glyph: &GlyphDecl) {
+        let node = glyph.syntax();
         self.emit_standalone(first_code(node));
-        self.block_header("Inset", None, &inset.args());
+        let name = glyph.name().unwrap_or_default();
+        self.block_header(&format!("Glyph {name}"), None, &glyph.args());
         self.append_trailing(brace(node, SyntaxKind::L_BRACE));
 
         self.indent += 1;
-        for item in inset.items() {
-            self.inset_item(&item);
+        for item in glyph.items() {
+            self.glyph_item(&item);
         }
         self.indent -= 1;
 
@@ -262,14 +263,14 @@ impl Printer {
         self.append_trailing(brace(node, SyntaxKind::R_BRACE));
     }
 
-    fn inset_item(&mut self, item: &InsetItem) {
+    fn glyph_item(&mut self, item: &GlyphItem) {
         match item {
-            InsetItem::Space(space) => self.space(space),
-            InsetItem::Let(decl) => self.let_binding(decl),
-            InsetItem::Scale(decl) | InsetItem::Guide(decl) | InsetItem::Theme(decl) => {
+            GlyphItem::Space(space) => self.space(space),
+            GlyphItem::Let(decl) => self.let_binding(decl),
+            GlyphItem::Scale(decl) | GlyphItem::Guide(decl) | GlyphItem::Theme(decl) => {
                 self.decl(decl)
             }
-            InsetItem::Error(err) => self.raw(err.syntax()),
+            GlyphItem::Error(err) => self.raw(err.syntax()),
         }
     }
 

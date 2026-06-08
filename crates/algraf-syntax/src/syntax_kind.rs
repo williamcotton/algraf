@@ -51,7 +51,7 @@ pub enum SyntaxKind {
     // the parser so typed accessors can tell a keyword apart from a user name.
     CHART_KW,
     SPACE_KW,
-    INSET_KW,
+    GLYPH_KW,
     DERIVE_KW,
     FROM_KW,
     SCALE_KW,
@@ -87,8 +87,8 @@ pub enum SyntaxKind {
     SOURCE_HEADER,
     /// A space block.
     SPACE_BLOCK,
-    /// An `Inset(...) { ... }` block inside a space.
-    INSET_BLOCK,
+    /// A `Glyph name(...) { ... }` chart-scoped glyph declaration.
+    GLYPH_DECL,
     /// A `Derive` declaration.
     DERIVE_DECL,
     /// A statistical transform call on the right of a `Derive`.

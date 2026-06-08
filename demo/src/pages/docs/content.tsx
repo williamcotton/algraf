@@ -110,7 +110,7 @@ export const DOC_TOPICS: DocTopic[] = [
               The <strong>Algebra</strong> page is the core idea: the operators <Code>*</Code>,{" "}
               <Code>/</Code>, and <Code>+</Code> are how you build scatter plots, dodged bars, facets, and
               ribbons from the same three rules. From there, the <strong>Bars</strong>,{" "}
-              <strong>Facets</strong>, <strong>Insets</strong>, and <strong>Statistics</strong> pages each
+              <strong>Facets</strong>, <strong>Glyphs</strong>, and <strong>Statistics</strong> pages each
               focus on one family of charts. <strong>Theming &amp; guides</strong> covers presentation, and{" "}
               <strong>Tooling</strong> shows the CLI, editor, and browser runtime.
             </p>
@@ -489,14 +489,15 @@ export const DOC_TOPICS: DocTopic[] = [
   },
 
   {
-    slug: "insets",
-    nav: "Insets",
-    title: "Insets",
+    slug: "glyphs",
+    nav: "Glyphs",
+    title: "Glyphs",
     lede: (
       <>
-        An <Code>Inset(...)</Code> places a complete, bounded child chart at every parent mark. Each parent
-        row keeps its position in the outer space while a matched child table draws a miniature chart — a
-        pie, sparkline, or glyph — right at that point. They are at their best as map glyphs.
+        A <Code>Glyph</Code> declares a chart-valued mark: a reusable, chart-scoped template that renders
+        once per matched host row. Each host row keeps its position in the outer space while a matched child
+        table draws a miniature chart — a pie, sparkline, or composite glyph — right at that point. They
+        are at their best as map marks.
       </>
     ),
     sections: [
@@ -507,48 +508,47 @@ export const DOC_TOPICS: DocTopic[] = [
           <>
             <p>
               Here a county basemap (<Code>Geo</Code> over a projected <Code>geom</Code> space) sits under a
-              second space of city anchors. At each city, an <Code>Inset</Code> draws a population-mix pie:
-              the child rows come from <Code>city_population_mix.csv</Code> joined by{" "}
-              <Code>match: [city =&gt; city]</Code>, and the glyph&apos;s diameter is mapped from the parent
-              city&apos;s <Code>population</Code> via <Code>size</Code> / <Code>minSize</Code> /{" "}
-              <Code>maxSize</Code>.
+              second space of city anchors. At each city, the <Code>pie</Code> glyph draws a population-mix
+              chart: the child rows come from <Code>city_population_mix.csv</Code> correlated by{" "}
+              <Code>key: [city]</Code>, and the glyph&apos;s diameter is mapped from the host city&apos;s
+              <Code>population</Code> through the ordinary <Code>Scale(size:, range:)</Code>.
             </p>
             <p>
               The pie itself is just a polar child space: <Code>Space(count, coords: "polar", theta: "y")</Code>{" "}
-              with a fill-layout <Code>Bar</Code>. Because the inset is a real chart, the same projection and
-              basemap anchor every glyph in place. (First render fetches a 1.3&nbsp;MB counties basemap, so it
-              takes a moment.)
+              with a fill-layout <Code>Bar</Code>. Because the glyph is a real chart, the same projection and
+              basemap anchor every instance in place. (First render fetches a 1.3&nbsp;MB counties basemap, so
+              it takes a moment.)
             </p>
           </>
         ),
         example: {
-          id: "insets-city-pies",
+          id: "glyphs-city-pies",
           files: INSET_PIE_FILES,
           assets: INSET_PIE_ASSETS,
           source: `Chart(data: GeoJson("us_counties.geojson"), width: 820, height: 520,
        title: "Major cities with population mix pies",
-       subtitle: "Inset pie charts projected onto the county basemap") {
+       subtitle: "Glyph pie charts projected onto the county basemap") {
     Theme(name: "void")
     Table cities = "inset_cities.csv"
     Table city_mix = "city_population_mix.csv"
+
+    Glyph pie(data: city_mix, key: [city], scales: "shared") {
+        Space(count, coords: "polar", theta: "y") {
+            Scale(fill: age_group,
+                  range: ["under 25" => "#4E79A7", "25-64" => "#F28E2B", "65+" => "#59A14F"],
+                  label: "Age group")
+            Bar(fill: age_group, layout: "fill")
+        }
+    }
+
+    Scale(size: population, range: [20, 48], label: "Population")
 
     Space(geom, projection: "albers_usa") {
         Geo(fill: "#f3f4f6", stroke: "#d1d5db", strokeWidth: 0.25)
     }
 
     Space(long * lat, projection: "albers_usa", data: cities) {
-        Inset(data: city_mix,
-              match: [city => city],
-              size: population,
-              minSize: 20, maxSize: 48,
-              scales: "shared", guides: false, clip: "circle", padding: 1) {
-            Space(count, coords: "polar", theta: "y") {
-                Scale(fill: age_group,
-                      range: ["under 25" => "#4E79A7", "25-64" => "#F28E2B", "65+" => "#59A14F"],
-                      label: "Age group")
-                Bar(fill: age_group, layout: "fill")
-            }
-        }
+        pie(size: population, clip: "circle", padding: 1)
         Text(label: city, dy: -25, size: 7, fill: "#1f2937", anchor: "middle")
     }
 }
@@ -561,12 +561,12 @@ export const DOC_TOPICS: DocTopic[] = [
         body: (
           <>
             <p>
-              Two ideas make insets composable. First, <Code>match</Code> joins the child table to the parent
-              row on shared keys; a child <Code>match</Code> can also reference{" "}
-              <Code>parent.&lt;column&gt;</Code> to reach the enclosing row. Second, insets can{" "}
-              <strong>nest</strong> — a child inset may itself contain another inset — so you can build
-              composite glyphs such as a category pie with a trend sparkline inside each slice. Start simple
-              and add depth only where it earns its keep.
+              Two ideas make glyphs composable. First, <Code>key</Code> correlates the child table to the
+              host row: each child column resolves up the host row-context chain by name, and an
+              <Code>outer.&lt;column&gt;</Code> qualifier forces the nearest enclosing glyph host when names
+              shadow. Second, glyph marks can <strong>nest</strong> — a glyph&apos;s child space can invoke
+              another glyph — so you can build composite marks such as a category pie with a trend sparkline
+              inside each slice. Start simple and add depth only where it earns its keep.
             </p>
           </>
         ),

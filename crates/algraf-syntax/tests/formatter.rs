@@ -99,10 +99,10 @@ fn test_derive_from_formatting() {
 }
 
 #[test]
-fn test_inset_formatting() {
-    let source = "Chart(data:\"p.csv\"){Table mix=\"mix.csv\" Space(x*y){Inset(data:mix,match:[id=>parent.id],size:32){Space(value,coords:\"polar\",theta:\"y\"){Bar(fill:category,layout:\"fill\")}}}}";
+fn test_glyph_formatting() {
+    let source = "Chart(data:\"p.csv\"){Table mix=\"mix.csv\" Glyph pie(data:mix,key:[id],size:32){Space(value,coords:\"polar\",theta:\"y\"){Bar(fill:category,layout:\"fill\")}} Space(x*y){pie(clip:\"circle\")}}";
     let formatted = format(source);
-    assert!(formatted.contains("Inset(data: mix, match: [id => parent.id], size: 32) {"));
+    assert!(formatted.contains("Glyph pie(data: mix, key: [id], size: 32) {"));
     assert!(formatted.contains("Space(value, coords: \"polar\", theta: \"y\") {"));
 }
 

@@ -56,6 +56,7 @@ impl Analyzer<'_> {
         let mut label_map: Option<Vec<(String, String)>> = None;
         let mut labels_span: Option<Span> = None;
         let mut label = None;
+        let mut train = None;
 
         for arg in decl.args() {
             let Some(key) = arg.key() else { continue };
@@ -265,6 +266,25 @@ impl Analyzer<'_> {
                     Some(value) => self.diag(Diagnostic::error(
                         codes::E1204,
                         "`label` expects a string literal",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
+                "train" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        match string_value(&lit.text().unwrap_or_default()).as_str() {
+                            "shared" => train = Some(GlyphScalePolicyIr::Shared),
+                            "local" => train = Some(GlyphScalePolicyIr::Local),
+                            _ => self.diag(Diagnostic::error(
+                                codes::E1606,
+                                "`train` must be \"shared\" or \"local\"",
+                                node_span(lit.syntax()),
+                            )),
+                        }
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        codes::E1606,
+                        "`train` must be \"shared\" or \"local\"",
                         node_span(value.syntax()),
                     )),
                     None => {}
@@ -605,6 +625,7 @@ impl Analyzer<'_> {
             color_map,
             label_map,
             label,
+            train,
             span,
         })
     }

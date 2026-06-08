@@ -1,38 +1,28 @@
 Chart(data: "inset_nodes.csv", width: 560, height: 380,
-      title: "Nested inset glyphs") {
+      title: "Nested glyph marks") {
     Table mix = "inset_node_mix.csv"
     Table trends = "inset_node_trends.csv"
 
-    Space(x * y) {
-        Inset(data: mix,
-              match: [id => id],
-              size: size,
-              minSize: 38,
-              maxSize: 62,
-              scales: "shared",
-              guides: false,
-              clip: "circle",
-              padding: 1) {
-            Space(value, coords: "polar", theta: "y") {
-                Scale(fill: category,
-                      range: ["hardware" => "#4E79A7", "software" => "#F28E2B", "services" => "#59A14F"],
-                      label: "Category")
-                Bar(fill: category, layout: "fill")
-                Inset(data: trends,
-                      match: [id => parent.id, category => category],
-                      width: 18,
-                      height: 8,
-                      placement: "mark-center",
-                      scales: "local",
-                      guides: false,
-                      clip: "rect",
-                      padding: 1) {
-                    Space(t * value) {
-                        Line(stroke: "#111827", strokeWidth: 0.7)
-                    }
-                }
-            }
+    Glyph trendline(data: trends, key: [id => outer.id, category => category], scales: "local") {
+        Space(t * value) {
+            Line(stroke: "#111827", strokeWidth: 0.7)
         }
+    }
+
+    Glyph nodepie(data: mix, key: [id], scales: "shared") {
+        Space(value, coords: "polar", theta: "y") {
+            Scale(fill: category,
+                  range: ["hardware" => "#4E79A7", "software" => "#F28E2B", "services" => "#59A14F"],
+                  label: "Category")
+            Bar(fill: category, layout: "fill")
+            trendline(width: 18, height: 8, at: "mark-center", clip: "rect", padding: 1)
+        }
+    }
+
+    Scale(size: size, range: [38, 62])
+
+    Space(x * y) {
+        nodepie(size: size, clip: "circle", padding: 1)
         Text(label: id, dy: -38, size: 10, anchor: "middle")
     }
 }

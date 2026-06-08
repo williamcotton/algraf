@@ -9,7 +9,7 @@ use std::fmt::Write as _;
 
 use algraf_data::Table;
 use algraf_semantics::{
-    GeometryIr, GeometryKind, GuideIr, InsetClipIr, LegendPositionIr, TemporalFormatIr,
+    GeometryIr, GeometryKind, GlyphClipIr, GuideIr, LegendPositionIr, TemporalFormatIr,
 };
 
 use crate::layout::Rect;
@@ -19,7 +19,7 @@ use crate::space::{AxisScale, ScaledSpace};
 use crate::svg::num;
 
 use super::backend::RenderScene;
-use super::inset_plan::PlannedInset;
+use super::glyph_plan::PlannedGlyph;
 use super::panels::{panel_slots, Panel, PlannedLayer};
 
 /// Versioned interaction metadata emitted as a JSON sidecar and carried by the
@@ -265,7 +265,7 @@ fn collect_layer_metadata(
     mark_prefix: &str,
 ) {
     let mut geometry_index = 0;
-    let mut inset_index = 0;
+    let mut glyph_index = 0;
     for layer in layers {
         match layer {
             PlannedLayer::Geometry(geo) => {
@@ -285,9 +285,9 @@ fn collect_layer_metadata(
                 }
                 geometry_index += 1;
             }
-            PlannedLayer::Inset(inset) => {
-                collect_inset_metadata(marks, groups, plots, inset, mark_prefix, inset_index);
-                inset_index += 1;
+            PlannedLayer::Glyph(glyph) => {
+                collect_glyph_metadata(marks, groups, plots, glyph, mark_prefix, glyph_index);
+                glyph_index += 1;
             }
         }
     }
@@ -355,20 +355,20 @@ fn collect_geometry_marks(
     }
 }
 
-fn collect_inset_metadata(
+fn collect_glyph_metadata(
     marks: &mut Vec<InteractionMark>,
     groups: &mut Vec<InteractionGroup>,
     plots: &mut Vec<InteractionPlot>,
-    inset: &PlannedInset<'_>,
+    glyph: &PlannedGlyph<'_>,
     mark_prefix: &str,
-    inset_index: usize,
+    glyph_index: usize,
 ) {
-    for instance in &inset.instances {
-        let clip_rect = (!matches!(inset.clip, InsetClipIr::None)).then_some(instance.viewport);
+    for instance in &glyph.instances {
+        let clip_rect = (!matches!(glyph.clip, GlyphClipIr::None)).then_some(instance.viewport);
         for (space_index, child_panel) in instance.child_panels.iter().enumerate() {
             let child_plot_id = format!(
-                "{mark_prefix}:i{inset_index}[{}]:s{space_index}",
-                instance.parent_row
+                "{mark_prefix}:i{glyph_index}[{}]:s{space_index}",
+                instance.host_row
             );
             plots.push(InteractionPlot {
                 id: child_plot_id.clone(),

@@ -114,15 +114,16 @@ fn draw_op_counts(list: &DrawList) -> BTreeMap<&'static str, usize> {
 }
 
 #[test]
-fn svg_and_draw_list_have_matching_inset_primitive_counts() {
+fn svg_and_draw_list_have_matching_glyph_primitive_counts() {
     let source = r##"Chart(data: "parents.csv", width: 280, height: 220) {
   Table child = "child.csv"
-  Space(x * y) {
-    Inset(data: child, match: [id => id], width: 46, height: 46, clip: "circle", guides: false) {
-      Space(t * value) {
-        Point(fill: "#2b8cbe")
-      }
+  Glyph mark(data: child, key: [id]) {
+    Space(t * value) {
+      Point(fill: "#2b8cbe")
     }
+  }
+  Space(x * y) {
+    mark(width: 46, height: 46, clip: "circle")
   }
 }"##;
     let primary = "id,x,y\nA,1,1\nB,2,2\n";

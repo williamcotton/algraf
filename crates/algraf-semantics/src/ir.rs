@@ -440,6 +440,9 @@ pub struct ScaleIr {
     /// An explicit legend title that overrides the column-derived default for a
     /// `fill`/`stroke` aesthetic scale (spec §16.13).
     pub label: Option<String>,
+    /// Scale training scope across repeated glyph-mark instances (spec §16.18).
+    /// `None` defers to the enclosing glyph's `scales:` default.
+    pub train: Option<GlyphScalePolicyIr>,
     pub span: Span,
 }
 
@@ -938,7 +941,7 @@ pub struct SpaceIr {
     pub data: SpaceDataRef,
     pub frame: FrameIr,
     /// Source-ordered layers in this space. This is the rendering order for
-    /// ordinary geometries and recursive inset blocks.
+    /// ordinary geometries and chart-valued glyph marks.
     pub layers: Vec<SpaceLayerIr>,
     /// Flat geometry subset retained for scale training, legends, and existing
     /// callers that do not need recursive layer structure.
@@ -966,49 +969,56 @@ pub struct SpaceIr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SpaceLayerIr {
     Geometry(GeometryIr),
-    Inset(InsetIr),
+    Glyph(GlyphCallIr),
 }
 
+/// A resolved glyph mark at a call site (spec §14.27). The referenced glyph
+/// declaration's child spaces are inlined here so render can plan each layer
+/// self-contained.
 #[derive(Debug, Clone, PartialEq)]
-pub struct InsetIr {
+pub struct GlyphCallIr {
+    /// The declared glyph name, retained for diagnostics and plot IDs.
+    pub glyph_name: String,
     pub data: SpaceDataRef,
-    pub match_rules: Vec<InsetMatchIr>,
-    pub size: InsetSizeIr,
-    pub scale_policy: InsetScalePolicyIr,
+    pub key: Vec<GlyphKeyIr>,
+    pub size: GlyphSizeIr,
+    pub scale_policy: GlyphScalePolicyIr,
     pub guides: bool,
-    pub clip: InsetClipIr,
+    pub clip: GlyphClipIr,
     pub padding: f64,
-    pub placement: InsetPlacementIr,
+    pub placement: GlyphPlacementIr,
     pub dx: f64,
     pub dy: f64,
-    pub anchor: InsetAnchorIr,
+    /// Whether this glyph call contributes chart-level legends (`legend: false`
+    /// suppresses them, spec §17.7).
+    pub legend: bool,
     pub child_spaces: Vec<SpaceIr>,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct InsetMatchIr {
+pub struct GlyphKeyIr {
     pub child: ColumnRef,
-    pub parent: InsetParentRefIr,
+    pub host: GlyphHostRefIr,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum InsetParentRefIr {
+pub enum GlyphHostRefIr {
     Current(ColumnRef),
-    Parent(ColumnRef),
+    Outer(ColumnRef),
 }
 
-impl InsetParentRefIr {
+impl GlyphHostRefIr {
     pub fn column(&self) -> &ColumnRef {
         match self {
-            InsetParentRefIr::Current(column) | InsetParentRefIr::Parent(column) => column,
+            GlyphHostRefIr::Current(column) | GlyphHostRefIr::Outer(column) => column,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum InsetSizeIr {
+pub enum GlyphSizeIr {
     Fixed {
         width: f64,
         height: f64,
@@ -1021,31 +1031,27 @@ pub enum InsetSizeIr {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum InsetScalePolicyIr {
+pub enum GlyphScalePolicyIr {
     #[default]
     Shared,
     Local,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum InsetClipIr {
+pub enum GlyphClipIr {
     #[default]
     Rect,
     Circle,
     None,
 }
 
+/// The glyph viewport placement strategy (the `at:` argument, spec §14.27),
+/// collapsing the removed inset `placement`/`anchor` pair into one enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum InsetPlacementIr {
-    #[default]
-    Center,
-    MarkCenter,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum InsetAnchorIr {
+pub enum GlyphPlacementIr {
     #[default]
     Position,
+    MarkCenter,
     Centroid,
 }
 

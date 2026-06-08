@@ -1,11 +1,11 @@
 use algraf_core::Diagnostic;
 use algraf_data::Table;
-use algraf_semantics::{InsetClipIr, ScaleIr};
+use algraf_semantics::{GlyphClipIr, ScaleIr};
 
 use crate::guide;
 use crate::layout::Rect;
 use crate::render::backend::RenderScene;
-use crate::render::inset_plan::PlannedInset;
+use crate::render::glyph_plan::PlannedGlyph;
 use crate::render::panels::{Panel, PlannedLayer};
 use crate::sink::MarkSink;
 use crate::space::ScaledSpace;
@@ -76,29 +76,29 @@ fn paint_layers(
                 },
                 diagnostics,
             ),
-            PlannedLayer::Inset(inset) => paint_inset(sink, scene, inset, diagnostics),
+            PlannedLayer::Glyph(glyph) => paint_glyph(sink, scene, glyph, diagnostics),
         }
     }
 }
 
-fn paint_inset(
+fn paint_glyph(
     sink: &mut dyn MarkSink,
     scene: &RenderScene<'_>,
-    inset: &PlannedInset<'_>,
+    glyph: &PlannedGlyph<'_>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    for instance in &inset.instances {
-        sink.open_layer("algraf-inset");
-        match inset.clip {
-            InsetClipIr::Rect => sink.open_clip(instance.viewport),
-            InsetClipIr::Circle => {
+    for instance in &glyph.instances {
+        sink.open_layer("algraf-glyph");
+        match glyph.clip {
+            GlyphClipIr::Rect => sink.open_clip(instance.viewport),
+            GlyphClipIr::Circle => {
                 sink.open_circle_clip(
                     instance.viewport.x + instance.viewport.width / 2.0,
                     instance.viewport.y + instance.viewport.height / 2.0,
                     instance.viewport.width.min(instance.viewport.height) / 2.0,
                 );
             }
-            InsetClipIr::None => {}
+            GlyphClipIr::None => {}
         }
 
         for child_panel in &instance.child_panels {
@@ -107,7 +107,7 @@ fn paint_inset(
             paint_child_guides_after(sink, child_panel);
         }
 
-        if !matches!(inset.clip, InsetClipIr::None) {
+        if !matches!(glyph.clip, GlyphClipIr::None) {
             sink.close_clip();
         }
         sink.close_layer();

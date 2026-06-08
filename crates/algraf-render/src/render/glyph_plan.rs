@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use algraf_core::{codes, Diagnostic};
 use algraf_data::{DataFrame, DataValueRef, DateTimeValue, Table};
 use algraf_semantics::{
-    ChartIr, CoordsIr, InsetAnchorIr, InsetClipIr, InsetIr, InsetParentRefIr, InsetPlacementIr,
-    InsetScalePolicyIr, InsetSizeIr, SpaceIr,
+    ChartIr, CoordsIr, GlyphCallIr, GlyphClipIr, GlyphHostRefIr, GlyphPlacementIr,
+    GlyphScalePolicyIr, GlyphSizeIr, ScaleIr, ScaleTargetIr, SpaceIr,
 };
 
 use crate::domains::train_space_domains;
@@ -20,7 +20,7 @@ use super::panels::{planned_panel, Panel};
 use super::row_table::RowSubsetTable;
 use super::RenderLimits;
 
-pub(super) const MAX_INSET_DEPTH: usize = 8;
+pub(super) const MAX_GLYPH_DEPTH: usize = 8;
 
 #[derive(Clone, Copy)]
 pub(super) struct RowContext<'a> {
@@ -28,14 +28,15 @@ pub(super) struct RowContext<'a> {
     pub(super) row: usize,
 }
 
-pub(super) struct PlannedInset<'t> {
-    pub(super) clip: InsetClipIr,
-    pub(super) scale_policy: InsetScalePolicyIr,
-    pub(super) instances: Vec<PlannedInsetInstance<'t>>,
+pub(super) struct PlannedGlyph<'t> {
+    pub(super) clip: GlyphClipIr,
+    pub(super) scale_policy: GlyphScalePolicyIr,
+    pub(super) legend: bool,
+    pub(super) instances: Vec<PlannedGlyphInstance<'t>>,
 }
 
-pub(super) struct PlannedInsetInstance<'t> {
-    pub(super) parent_row: usize,
+pub(super) struct PlannedGlyphInstance<'t> {
+    pub(super) host_row: usize,
     pub(super) viewport: Rect,
     pub(super) child_panels: Vec<Panel<'t>>,
 }
@@ -49,50 +50,50 @@ enum MatchValue {
 }
 
 #[derive(Default)]
-pub(super) struct InsetMatchIndex {
+pub(super) struct GlyphMatchIndex {
     buckets: HashMap<Vec<MatchValue>, Vec<usize>>,
 }
 
-impl InsetMatchIndex {
-    pub(super) fn build(inset: &InsetIr, child_table: &dyn Table) -> InsetMatchIndex {
+impl GlyphMatchIndex {
+    pub(super) fn build(glyph: &GlyphCallIr, child_table: &dyn Table) -> GlyphMatchIndex {
         let mut buckets: HashMap<Vec<MatchValue>, Vec<usize>> = HashMap::new();
         for row in 0..child_table.row_count() {
-            if let Some(key) = child_match_key(inset, child_table, row) {
+            if let Some(key) = child_match_key(glyph, child_table, row) {
                 buckets.entry(key).or_default().push(row);
             }
         }
-        InsetMatchIndex { buckets }
+        GlyphMatchIndex { buckets }
     }
 
     pub(super) fn matched_rows(
         &self,
-        inset: &InsetIr,
+        glyph: &GlyphCallIr,
         child_table: &dyn Table,
-        current_table: &dyn Table,
-        current_row: usize,
+        host_table: &dyn Table,
+        host_row: usize,
         ancestors: &[RowContext<'_>],
     ) -> Vec<usize> {
-        let Some(key) = parent_match_key(inset, current_table, current_row, ancestors) else {
+        let Some(key) = host_match_key(glyph, host_table, host_row, ancestors) else {
             return Vec::new();
         };
         self.buckets.get(&key).map_or_else(Vec::new, |rows| {
             rows.iter()
                 .copied()
                 .filter(|&child_row| {
-                    inset.match_rules.iter().all(|rule| {
+                    glyph.key.iter().all(|rule| {
                         let Some(child_value) = child_table.value(&rule.child.name, child_row)
                         else {
                             return false;
                         };
-                        let context_value = match &rule.parent {
-                            InsetParentRefIr::Current(column) => {
-                                current_table.value(&column.name, current_row)
+                        let host_value = match &rule.host {
+                            GlyphHostRefIr::Current(column) => {
+                                host_table.value(&column.name, host_row)
                             }
-                            InsetParentRefIr::Parent(column) => ancestors
+                            GlyphHostRefIr::Outer(column) => ancestors
                                 .first()
                                 .and_then(|ctx| ctx.table.value(&column.name, ctx.row)),
                         };
-                        context_value.is_some_and(|value| data_values_match(child_value, value))
+                        host_value.is_some_and(|value| data_values_match(child_value, value))
                     })
                 })
                 .collect()
@@ -101,28 +102,28 @@ impl InsetMatchIndex {
 }
 
 fn child_match_key(
-    inset: &InsetIr,
+    glyph: &GlyphCallIr,
     child_table: &dyn Table,
     row: usize,
 ) -> Option<Vec<MatchValue>> {
-    let mut key = Vec::with_capacity(inset.match_rules.len());
-    for rule in &inset.match_rules {
+    let mut key = Vec::with_capacity(glyph.key.len());
+    for rule in &glyph.key {
         key.push(match_value(child_table.value(&rule.child.name, row)?)?);
     }
     Some(key)
 }
 
-fn parent_match_key(
-    inset: &InsetIr,
-    current_table: &dyn Table,
-    current_row: usize,
+fn host_match_key(
+    glyph: &GlyphCallIr,
+    host_table: &dyn Table,
+    host_row: usize,
     ancestors: &[RowContext<'_>],
 ) -> Option<Vec<MatchValue>> {
-    let mut key = Vec::with_capacity(inset.match_rules.len());
-    for rule in &inset.match_rules {
-        let value = match &rule.parent {
-            InsetParentRefIr::Current(column) => current_table.value(&column.name, current_row),
-            InsetParentRefIr::Parent(column) => ancestors
+    let mut key = Vec::with_capacity(glyph.key.len());
+    for rule in &glyph.key {
+        let value = match &rule.host {
+            GlyphHostRefIr::Current(column) => host_table.value(&column.name, host_row),
+            GlyphHostRefIr::Outer(column) => ancestors
                 .first()
                 .and_then(|ctx| ctx.table.value(&column.name, ctx.row)),
         };
@@ -165,48 +166,48 @@ fn data_values_match(left: DataValueRef<'_>, right: DataValueRef<'_>) -> bool {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(super) fn plan_inset<'t>(
+pub(super) fn plan_glyph<'t>(
     ir: &'t ChartIr,
     primary: &'t dyn Table,
     derived: &'t HashMap<String, DataFrame>,
     theme: &Theme,
     cli_theme_override: Option<&str>,
     limits: &RenderLimits,
-    inset: &'t InsetIr,
-    parent_table: &'t dyn Table,
-    parent_scaled: &ScaledSpace,
-    parent_rows: Option<&[usize]>,
+    glyph: &'t GlyphCallIr,
+    host_table: &'t dyn Table,
+    host_scaled: &ScaledSpace,
+    host_rows: Option<&[usize]>,
     ancestors: &[RowContext<'t>],
     depth: usize,
     diagnostics: &mut Vec<Diagnostic>,
-) -> PlannedInset<'t> {
-    if depth >= MAX_INSET_DEPTH {
+) -> PlannedGlyph<'t> {
+    if depth >= MAX_GLYPH_DEPTH {
         diagnostics.push(Diagnostic::error(
-            codes::E2109,
-            format!("nested Inset depth exceeds the limit of {MAX_INSET_DEPTH}"),
-            inset.span,
+            codes::E2209,
+            format!("nested glyph depth exceeds the limit of {MAX_GLYPH_DEPTH}"),
+            glyph.span,
         ));
-        return empty_inset(inset);
+        return empty_glyph(glyph);
     }
 
-    let parent_row_list = render_rows(parent_table, parent_rows);
-    let child_table = active_table(&inset.data, primary, derived);
-    let index = InsetMatchIndex::build(inset, child_table);
-    let matches = parent_row_list
+    let host_row_list = render_rows(host_table, host_rows);
+    let child_table = active_table(&glyph.data, primary, derived);
+    let index = GlyphMatchIndex::build(glyph, child_table);
+    let matches = host_row_list
         .iter()
-        .map(|&row| index.matched_rows(inset, child_table, parent_table, row, ancestors))
+        .map(|&row| index.matched_rows(glyph, child_table, host_table, row, ancestors))
         .collect::<Vec<_>>();
     let shared_rows = union_rows(&matches);
 
-    if let Some(diagnostic) = inset_budget_diagnostic(
-        inset,
-        parent_row_list.len(),
+    if let Some(diagnostic) = glyph_budget_diagnostic(
+        glyph,
+        host_row_list.len(),
         &matches,
         child_table,
         limits.mark_budget,
     ) {
         diagnostics.push(diagnostic);
-        return empty_inset(inset);
+        return empty_glyph(glyph);
     }
 
     let unmatched_count = matches.iter().filter(|rows| rows.is_empty()).count();
@@ -215,56 +216,56 @@ pub(super) fn plan_inset<'t>(
         diagnostics.push(Diagnostic::warning(
             codes::W2002,
             format!(
-                "Inset matched no child rows for {unmatched_count} of {} parent rows",
-                parent_row_list.len()
+                "glyph `{}` matched no child rows for {unmatched_count} of {} host rows",
+                glyph.glyph_name,
+                host_row_list.len()
             ),
-            inset.span,
+            glyph.span,
         ));
     }
 
-    let size_domain = mapped_size_domain(inset, parent_table, &parent_row_list);
+    let size_domain = mapped_size_domain(glyph, host_table, &host_row_list);
+    let size_range = mapped_size_pixel_range(glyph, &ir.scales);
     let mut instances = Vec::new();
-    for (instance_index, parent_row) in parent_row_list.iter().copied().enumerate() {
+    for (instance_index, host_row) in host_row_list.iter().copied().enumerate() {
         let child_rows = &matches[instance_index];
         if child_rows.is_empty() {
             if !summarize_unmatched {
                 diagnostics.push(Diagnostic::warning(
                     codes::W2002,
-                    "Inset matched no child rows",
-                    inset.span,
+                    format!("glyph `{}` matched no child rows", glyph.glyph_name),
+                    glyph.span,
                 ));
             }
             continue;
         }
-        let Some((x, y)) =
-            inset_anchor(inset, parent_scaled, parent_table, parent_row, parent_rows)
-        else {
+        let Some((x, y)) = glyph_anchor(glyph, host_scaled, host_table, host_row, host_rows) else {
             diagnostics.push(Diagnostic::warning(
                 codes::W2002,
-                "Inset anchor could not be resolved",
-                inset.span,
+                format!("glyph `{}` anchor could not be resolved", glyph.glyph_name),
+                glyph.span,
             ));
             continue;
         };
-        let (width, height) = inset_size(inset, parent_table, parent_row, size_domain);
+        let (width, height) = glyph_size(glyph, host_table, host_row, size_domain, size_range);
         if width <= 0.0 || height <= 0.0 {
             continue;
         }
         let viewport = Rect {
-            x: x + inset.dx - width / 2.0,
-            y: y + inset.dy - height / 2.0,
+            x: x + glyph.dx - width / 2.0,
+            y: y + glyph.dy - height / 2.0,
             width,
             height,
         };
-        let plot = inset_plot(viewport, inset.padding);
+        let plot = glyph_plot(viewport, glyph.padding);
         let mut contexts = Vec::with_capacity(ancestors.len() + 1);
         contexts.push(RowContext {
-            table: parent_table,
-            row: parent_row,
+            table: host_table,
+            row: host_row,
         });
         contexts.extend_from_slice(ancestors);
 
-        let child_panels = inset
+        let child_panels = glyph
             .child_spaces
             .iter()
             .filter_map(|child_space| {
@@ -275,7 +276,7 @@ pub(super) fn plan_inset<'t>(
                     theme,
                     cli_theme_override,
                     limits,
-                    inset,
+                    glyph,
                     child_space,
                     child_table,
                     child_rows,
@@ -287,16 +288,17 @@ pub(super) fn plan_inset<'t>(
                 )
             })
             .collect::<Vec<_>>();
-        instances.push(PlannedInsetInstance {
-            parent_row,
+        instances.push(PlannedGlyphInstance {
+            host_row,
             viewport,
             child_panels,
         });
     }
 
-    PlannedInset {
-        clip: inset.clip,
-        scale_policy: inset.scale_policy,
+    PlannedGlyph {
+        clip: glyph.clip,
+        scale_policy: glyph.scale_policy,
+        legend: glyph.legend,
         instances,
     }
 }
@@ -309,9 +311,9 @@ fn plan_child_panel<'t>(
     theme: &Theme,
     cli_theme_override: Option<&str>,
     limits: &RenderLimits,
-    inset: &InsetIr,
+    glyph: &GlyphCallIr,
     space: &'t SpaceIr,
-    inset_table: &'t dyn Table,
+    glyph_table: &'t dyn Table,
     child_rows: &[usize],
     shared_rows: &[usize],
     plot: Rect,
@@ -320,19 +322,19 @@ fn plan_child_panel<'t>(
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Option<Panel<'t>> {
     let table = active_table(&space.data, primary, derived);
-    let rows = if space.data == inset.data {
+    let rows = if space.data == glyph.data {
         child_rows.to_vec()
     } else {
         render_rows(table, None)
     };
-    let training_rows = match inset.scale_policy {
-        InsetScalePolicyIr::Shared if space.data == inset.data => shared_rows,
+    let training_rows = match glyph.scale_policy {
+        GlyphScalePolicyIr::Shared if space.data == glyph.data => shared_rows,
         _ => &rows,
     };
     let legend_rows =
-        (inset.scale_policy == InsetScalePolicyIr::Shared).then(|| training_rows.to_vec());
-    let training_table_ref = if space.data == inset.data {
-        inset_table
+        (glyph.scale_policy == GlyphScalePolicyIr::Shared).then(|| training_rows.to_vec());
+    let training_table_ref = if space.data == glyph.data {
+        glyph_table
     } else {
         table
     };
@@ -379,13 +381,13 @@ fn plan_child_panel<'t>(
     let Some(scaled) = scaled else {
         diagnostics.push(Diagnostic::warning(
             codes::R0003,
-            "inset child space could not be laid out",
+            "glyph child space could not be laid out",
             space.span,
         ));
         return None;
     };
-    let render_table = if space.data == inset.data {
-        inset_table
+    let render_table = if space.data == glyph.data {
+        glyph_table
     } else {
         table
     };
@@ -408,29 +410,30 @@ fn plan_child_panel<'t>(
         panel_theme,
         space_guides,
         space_scales,
-        inset.guides,
+        glyph.guides,
         ancestors,
         depth,
         diagnostics,
     ))
 }
 
-fn empty_inset(inset: &InsetIr) -> PlannedInset<'_> {
-    PlannedInset {
-        clip: inset.clip,
-        scale_policy: inset.scale_policy,
+fn empty_glyph(glyph: &GlyphCallIr) -> PlannedGlyph<'_> {
+    PlannedGlyph {
+        clip: glyph.clip,
+        scale_policy: glyph.scale_policy,
+        legend: glyph.legend,
         instances: Vec::new(),
     }
 }
 
-pub(super) fn inset_anchor(
-    inset: &InsetIr,
+pub(super) fn glyph_anchor(
+    glyph: &GlyphCallIr,
     scaled: &ScaledSpace,
     table: &dyn Table,
     row: usize,
     rows: Option<&[usize]>,
 ) -> Option<(f64, f64)> {
-    if matches!(inset.anchor, InsetAnchorIr::Centroid) {
+    if matches!(glyph.placement, GlyphPlacementIr::Centroid) {
         if let Some(spatial) = &scaled.spatial {
             if let Some(geom_col) = spatial.geom_col.as_deref() {
                 if let Some(DataValueRef::Geometry(geometry)) = table.value(geom_col, row) {
@@ -440,7 +443,7 @@ pub(super) fn inset_anchor(
             }
         }
     }
-    if matches!(inset.placement, InsetPlacementIr::MarkCenter) {
+    if matches!(glyph.placement, GlyphPlacementIr::MarkCenter) {
         if let Some(anchor) = mark_center_anchor(scaled, table, row, rows) {
             return Some(anchor);
         }
@@ -497,15 +500,16 @@ fn mark_center_anchor(
     Some(polar.point(theta, (r0 + r1) / 2.0))
 }
 
-pub(super) fn inset_size(
-    inset: &InsetIr,
+pub(super) fn glyph_size(
+    glyph: &GlyphCallIr,
     table: &dyn Table,
     row: usize,
     mapped_domain: Option<(f64, f64)>,
+    pixel_range: Option<(f64, f64)>,
 ) -> (f64, f64) {
-    match &inset.size {
-        InsetSizeIr::Fixed { width, height } => (*width, *height),
-        InsetSizeIr::Mapped { column, min, max } => {
+    match &glyph.size {
+        GlyphSizeIr::Fixed { width, height } => (*width, *height),
+        GlyphSizeIr::Mapped { column, min, max } => {
             let value = cell_f64(table, &column.name, row).unwrap_or(0.0);
             let (lo, hi) = mapped_domain.unwrap_or((value, value));
             let t = if (hi - lo).abs() <= f64::EPSILON {
@@ -513,18 +517,50 @@ pub(super) fn inset_size(
             } else {
                 ((value - lo) / (hi - lo)).clamp(0.0, 1.0)
             };
-            let size = min + (max - min) * t;
+            let (out_min, out_max) = pixel_range.unwrap_or((*min, *max));
+            let size = out_min + (out_max - out_min) * t;
             (size, size)
         }
     }
 }
 
+/// If a chart-scoped `Scale(size: column, range: [min, max])` matches the
+/// mapped column, use its `range:` as the glyph's pixel min/max (spec §14.27).
+pub(super) fn mapped_size_pixel_range(
+    glyph: &GlyphCallIr,
+    scales: &[ScaleIr],
+) -> Option<(f64, f64)> {
+    let GlyphSizeIr::Mapped { column, .. } = &glyph.size else {
+        return None;
+    };
+    scales.iter().find_map(|scale| {
+        let ScaleTargetIr::Aesthetic {
+            aesthetic,
+            column: scale_col,
+        } = &scale.target
+        else {
+            return None;
+        };
+        if aesthetic != "size" {
+            return None;
+        }
+        match scale_col.as_ref() {
+            Some(c) if c.name == column.name => {}
+            _ => return None,
+        }
+        match scale.range {
+            Some([Some(lo), Some(hi)]) => Some((lo, hi)),
+            _ => None,
+        }
+    })
+}
+
 pub(super) fn mapped_size_domain(
-    inset: &InsetIr,
+    glyph: &GlyphCallIr,
     table: &dyn Table,
     rows: &[usize],
 ) -> Option<(f64, f64)> {
-    let InsetSizeIr::Mapped { column, .. } = &inset.size else {
+    let GlyphSizeIr::Mapped { column, .. } = &glyph.size else {
         return None;
     };
     let mut min = f64::INFINITY;
@@ -538,7 +574,7 @@ pub(super) fn mapped_size_domain(
     min.is_finite().then_some((min, max))
 }
 
-pub(super) fn inset_plot(viewport: Rect, padding: f64) -> Rect {
+pub(super) fn glyph_plot(viewport: Rect, padding: f64) -> Rect {
     let pad = padding
         .max(0.0)
         .min(viewport.width.min(viewport.height) / 2.0);
@@ -564,15 +600,15 @@ pub(super) fn union_rows(matches: &[Vec<usize>]) -> Vec<usize> {
     rows
 }
 
-pub(super) fn inset_budget_diagnostic(
-    inset: &InsetIr,
-    parent_count: usize,
+pub(super) fn glyph_budget_diagnostic(
+    glyph: &GlyphCallIr,
+    host_count: usize,
     matches: &[Vec<usize>],
     child_table: &dyn Table,
     mark_budget: Option<usize>,
 ) -> Option<Diagnostic> {
     let budget = mark_budget?;
-    let child_layers = inset
+    let child_layers = glyph
         .child_spaces
         .iter()
         .map(|space| space.layers.len().max(space.geometries.len()).max(1))
@@ -585,14 +621,15 @@ pub(super) fn inset_budget_diagnostic(
     }
     Some(
         Diagnostic::error(
-            codes::E2110,
+            codes::E2210,
             format!(
-                "Inset would render about {estimated} child mark(s) from {parent_count} parent row(s) and {} child row(s), above the mark budget of {budget}",
+                "glyph `{}` would render about {estimated} child mark(s) from {host_count} host row(s) and {} child row(s), above the mark budget of {budget}",
+                glyph.glyph_name,
                 child_table.row_count()
             ),
-            inset.span,
+            glyph.span,
         )
-        .with_help("filter, aggregate, reduce nested inset depth, or raise --mark-budget"),
+        .with_help("filter, aggregate, reduce nested glyph depth, or raise --mark-budget"),
     )
 }
 
@@ -601,9 +638,7 @@ mod tests {
     use super::*;
     use algraf_core::Span;
     use algraf_data::{Column, ColumnDef, DataFrame, DataType, DateTimeValue};
-    use algraf_semantics::{
-        ColumnRef, InsetClipIr, InsetMatchIr, InsetScalePolicyIr, SpaceDataRef,
-    };
+    use algraf_semantics::{ColumnRef, GlyphClipIr, GlyphKeyIr, GlyphScalePolicyIr, SpaceDataRef};
 
     fn col(name: &str, dtype: DataType) -> ColumnDef {
         ColumnDef {
@@ -631,81 +666,82 @@ mod tests {
         DataFrame::new(schema, columns)
     }
 
-    fn match_inset(rules: Vec<(&str, DataType, &str, DataType)>) -> InsetIr {
-        InsetIr {
+    fn match_glyph(rules: Vec<(&str, DataType, &str, DataType)>) -> GlyphCallIr {
+        GlyphCallIr {
+            glyph_name: "test".to_string(),
             data: SpaceDataRef::Primary,
-            match_rules: rules
+            key: rules
                 .into_iter()
-                .map(|(child, child_dtype, parent, parent_dtype)| InsetMatchIr {
+                .map(|(child, child_dtype, host, host_dtype)| GlyphKeyIr {
                     child: col_ref(child, child_dtype),
-                    parent: InsetParentRefIr::Current(col_ref(parent, parent_dtype)),
+                    host: GlyphHostRefIr::Current(col_ref(host, host_dtype)),
                     span: Span::empty(0),
                 })
                 .collect(),
-            size: InsetSizeIr::Fixed {
+            size: GlyphSizeIr::Fixed {
                 width: 10.0,
                 height: 10.0,
             },
-            scale_policy: InsetScalePolicyIr::Shared,
+            scale_policy: GlyphScalePolicyIr::Shared,
             guides: false,
-            clip: InsetClipIr::Rect,
+            clip: GlyphClipIr::Rect,
             padding: 0.0,
-            placement: InsetPlacementIr::Center,
+            placement: GlyphPlacementIr::Position,
             dx: 0.0,
             dy: 0.0,
-            anchor: InsetAnchorIr::Position,
+            legend: true,
             child_spaces: Vec::new(),
             span: Span::empty(0),
         }
     }
 
     fn matched_rows(
-        inset: &InsetIr,
+        glyph: &GlyphCallIr,
         child: &DataFrame,
-        parent: &DataFrame,
-        parent_row: usize,
+        host: &DataFrame,
+        host_row: usize,
     ) -> Vec<usize> {
-        InsetMatchIndex::build(inset, child).matched_rows(inset, child, parent, parent_row, &[])
+        GlyphMatchIndex::build(glyph, child).matched_rows(glyph, child, host, host_row, &[])
     }
 
     #[test]
     fn match_index_excludes_nan_keys() {
-        let inset = match_inset(vec![("k", DataType::Float, "k", DataType::Float)]);
+        let glyph = match_glyph(vec![("k", DataType::Float, "k", DataType::Float)]);
         let child = frame(vec![(
             "k",
             DataType::Float,
             Column::from_float_options(vec![Some(f64::NAN), Some(1.0)]),
         )]);
-        let parent = frame(vec![(
+        let host = frame(vec![(
             "k",
             DataType::Float,
             Column::from_float_options(vec![Some(f64::NAN), Some(1.0)]),
         )]);
 
-        assert!(matched_rows(&inset, &child, &parent, 0).is_empty());
-        assert_eq!(matched_rows(&inset, &child, &parent, 1), vec![1]);
+        assert!(matched_rows(&glyph, &child, &host, 0).is_empty());
+        assert_eq!(matched_rows(&glyph, &child, &host, 1), vec![1]);
     }
 
     #[test]
     fn match_index_normalizes_positive_and_negative_zero() {
-        let inset = match_inset(vec![("k", DataType::Float, "k", DataType::Float)]);
+        let glyph = match_glyph(vec![("k", DataType::Float, "k", DataType::Float)]);
         let child = frame(vec![(
             "k",
             DataType::Float,
             Column::from_float_options(vec![Some(-0.0)]),
         )]);
-        let parent = frame(vec![(
+        let host = frame(vec![(
             "k",
             DataType::Float,
             Column::from_float_options(vec![Some(0.0)]),
         )]);
 
-        assert_eq!(matched_rows(&inset, &child, &parent, 0), vec![0]);
+        assert_eq!(matched_rows(&glyph, &child, &host, 0), vec![0]);
     }
 
     #[test]
     fn match_index_filters_large_i64_bucket_collisions() {
-        let inset = match_inset(vec![("k", DataType::Integer, "k", DataType::Integer)]);
+        let glyph = match_glyph(vec![("k", DataType::Integer, "k", DataType::Integer)]);
         let child = frame(vec![(
             "k",
             DataType::Integer,
@@ -714,48 +750,48 @@ mod tests {
                 Some(9_007_199_254_740_993),
             ]),
         )]);
-        let parent = frame(vec![(
+        let host = frame(vec![(
             "k",
             DataType::Integer,
             Column::from_int_options(vec![Some(9_007_199_254_740_993)]),
         )]);
 
-        assert_eq!(matched_rows(&inset, &child, &parent, 0), vec![1]);
+        assert_eq!(matched_rows(&glyph, &child, &host, 0), vec![1]);
     }
 
     #[test]
     fn match_index_preserves_int_float_comparison_semantics() {
-        let int_child = match_inset(vec![("k", DataType::Integer, "k", DataType::Float)]);
+        let int_child = match_glyph(vec![("k", DataType::Integer, "k", DataType::Float)]);
         let child = frame(vec![(
             "k",
             DataType::Integer,
             Column::from_int_options(vec![Some(2), Some(3)]),
         )]);
-        let parent = frame(vec![(
+        let host = frame(vec![(
             "k",
             DataType::Float,
             Column::from_float_options(vec![Some(2.0), Some(2.5)]),
         )]);
-        assert_eq!(matched_rows(&int_child, &child, &parent, 0), vec![0]);
-        assert!(matched_rows(&int_child, &child, &parent, 1).is_empty());
+        assert_eq!(matched_rows(&int_child, &child, &host, 0), vec![0]);
+        assert!(matched_rows(&int_child, &child, &host, 1).is_empty());
 
-        let float_child = match_inset(vec![("k", DataType::Float, "k", DataType::Integer)]);
+        let float_child = match_glyph(vec![("k", DataType::Float, "k", DataType::Integer)]);
         let child = frame(vec![(
             "k",
             DataType::Float,
             Column::from_float_options(vec![Some(3.0)]),
         )]);
-        let parent = frame(vec![(
+        let host = frame(vec![(
             "k",
             DataType::Integer,
             Column::from_int_options(vec![Some(3)]),
         )]);
-        assert_eq!(matched_rows(&float_child, &child, &parent, 0), vec![0]);
+        assert_eq!(matched_rows(&float_child, &child, &host, 0), vec![0]);
     }
 
     #[test]
     fn match_index_handles_temporal_and_string_composite_keys() {
-        let inset = match_inset(vec![
+        let glyph = match_glyph(vec![
             ("t", DataType::Temporal, "t", DataType::Temporal),
             ("name", DataType::String, "name", DataType::String),
         ]);
@@ -772,7 +808,7 @@ mod tests {
                 Column::String(vec![Some("a".to_string()), Some("b".to_string())]),
             ),
         ]);
-        let parent = frame(vec![
+        let host = frame(vec![
             (
                 "t",
                 DataType::Temporal,
@@ -785,12 +821,12 @@ mod tests {
             ),
         ]);
 
-        assert_eq!(matched_rows(&inset, &child, &parent, 0), vec![1]);
+        assert_eq!(matched_rows(&glyph, &child, &host, 0), vec![1]);
     }
 
     #[test]
     fn match_index_requires_all_composite_components() {
-        let inset = match_inset(vec![
+        let glyph = match_glyph(vec![
             ("city", DataType::String, "city", DataType::String),
             ("category", DataType::String, "category", DataType::String),
         ]);
@@ -806,7 +842,7 @@ mod tests {
                 Column::String(vec![Some("x".to_string()), Some("y".to_string())]),
             ),
         ]);
-        let parent = frame(vec![
+        let host = frame(vec![
             (
                 "city",
                 DataType::String,
@@ -819,24 +855,24 @@ mod tests {
             ),
         ]);
 
-        assert_eq!(matched_rows(&inset, &child, &parent, 0), vec![1]);
+        assert_eq!(matched_rows(&glyph, &child, &host, 0), vec![1]);
     }
 
     #[test]
     fn match_index_handles_empty_inputs() {
-        let inset = match_inset(vec![("k", DataType::String, "k", DataType::String)]);
+        let glyph = match_glyph(vec![("k", DataType::String, "k", DataType::String)]);
         let child = frame(vec![("k", DataType::String, Column::String(Vec::new()))]);
-        let parent = frame(vec![(
+        let host = frame(vec![(
             "k",
             DataType::String,
             Column::String(vec![Some("a".to_string())]),
         )]);
-        assert!(matched_rows(&inset, &child, &parent, 0).is_empty());
+        assert!(matched_rows(&glyph, &child, &host, 0).is_empty());
 
-        let parent_rows = render_rows(&parent, Some(&[]));
-        let matches = parent_rows
+        let host_rows = render_rows(&host, Some(&[]));
+        let matches = host_rows
             .iter()
-            .map(|&row| matched_rows(&inset, &child, &parent, row))
+            .map(|&row| matched_rows(&glyph, &child, &host, row))
             .collect::<Vec<_>>();
         assert!(matches.is_empty());
         assert!(union_rows(&matches).is_empty());

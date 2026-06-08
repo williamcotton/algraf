@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.70.0
+Status: 0.71.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.69.0 specification.
+This working copy is the 0.71.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -355,9 +355,9 @@ path. It MUST emit `E1912`; when the operand is a valid two-dimensional
 Cartesian frame, diagnostics SHOULD include the physical-order replacement
 (`b * a`) as help text.
 
-Nested spaces are legal only as children of an `Inset` block (§7.3). A `Space`
-nested directly in another `Space` outside `Inset` is reserved for later
-versions and SHOULD produce a diagnostic.
+Nested spaces are legal only as children of a `Glyph` declaration (§7.11). A
+`Space` nested directly in another `Space` is reserved for later versions and
+SHOULD produce a diagnostic.
 
 ### 4.3 Algebra
 
@@ -1080,6 +1080,7 @@ ChartBody      ::= ChartItem*
 ChartItem      ::= SpaceBlock
                  | DeriveDecl
                  | TableDecl
+                 | GlyphDecl
                  | LetDecl
                  | ScaleDecl
                  | GuideDecl
@@ -1158,21 +1159,17 @@ SpaceBlock     ::= "Space" "(" Algebra SpaceArgs? ")" BlockStart SpaceBody Block
 SpaceArgs      ::= "," Arg ("," Arg)* ","?
 SpaceBody      ::= SpaceItem*
 SpaceItem      ::= GeometryCall
-                 | InsetBlock
-                 | LetDecl
-                 | ScaleDecl
-                 | GuideDecl
-                 | ThemeDecl
-                 | ErrorItem
-InsetBlock     ::= "Inset" "(" ArgList? ")" BlockStart InsetBody BlockEnd
-InsetBody      ::= InsetItem*
-InsetItem      ::= SpaceBlock
                  | LetDecl
                  | ScaleDecl
                  | GuideDecl
                  | ThemeDecl
                  | ErrorItem
 ```
+
+A `GeometryCall` head names either a built-in geometry or a chart-scoped `Glyph`
+(spec §7.11, §13.8); the two share call syntax and are distinguished during
+semantic analysis. A `Space` MUST NOT be nested directly inside another `Space`;
+subordinate charts are expressed as glyph marks (§14.27), not nested spaces.
 
 `Space` MUST include exactly one algebra expression.
 
@@ -1213,65 +1210,12 @@ Space-local themes override chart-level theme values for that space only.
 
 Space-local themes MUST NOT mutate chart-level theme state.
 
-`Inset(...) { ... }` is a first-class `Space` item. It MUST occur inside a
-`Space` body, and its body MUST contain zero or more child `Space` blocks plus
-ordinary local declarations. A `Space` nested directly in another `Space`
-outside an `Inset` remains invalid. An inset renders each child `Space` inside a
-bounded viewport anchored to the current parent row; it is not a geometry call,
-shape shortcut, or raw SVG/HTML injection surface.
-
-`Inset` arguments:
-
-- `data` is required and MUST name a chart-scoped named or derived table.
-- `match` is required and MUST be a map of child-table columns to row-context
-  columns, e.g. `match: [city => city]` or
-  `match: [city => parent.city, category => category]`.
-- `size` gives a square viewport. It MAY be a finite number of pixels or a
-  numeric parent-table column. A mapped `size` uses `minSize` and `maxSize`,
-  defaulting to `12` and `48`.
-- `width` and `height` give a rectangular viewport and MUST NOT be combined with
-  `size`. If only `width` is present, `height` defaults to the same value.
-- `scales` MUST be `"shared"` or `"local"` and defaults to `"shared"`.
-- `guides` is a boolean and defaults to `false`, so repeated child position
-  guides are not emitted unless requested. It controls child Cartesian
-  grids/axes and polar grids/labels; legends remain governed by ordinary
-  `Guide` declarations and the inset scale policy below.
-- `clip` MUST be `"rect"`, `"circle"`, or `false` and defaults to `"rect"`.
-- `padding`, `dx`, and `dy` are finite pixel numbers and default to `2`, `0`,
-  and `0`.
-- `placement` MUST be `"center"` or `"mark-center"`. `"center"` uses the row
-  anchor. `"mark-center"` uses the rendered mark center when it can be computed
-  (notably polar area marks such as pie slices) and otherwise falls back to the
-  row anchor.
-- `anchor` MUST be `"position"` or `"centroid"`. `"position"` anchors to the
-  current row's resolved x/y point. `"centroid"` MAY be used in a spatial
-  `Space(geom)` and anchors to the deterministic projected geometry centroid
-  when one can be computed; otherwise render emits no child marks for that
-  instance.
-
-Inset matching is an explicit equi-match. The left side of each `match` entry
-MUST be an unqualified child-table column. The right side MUST be an
-unqualified current-row column or `parent.<column>` for the immediate parent row
-context in a nested inset. Implementations MUST reject unknown row-context
-qualifiers. Null match values never match, including null-to-null. Matched child
-rows preserve child table order, and duplicate child rows are rendered
-deterministically.
-
-With `scales: "shared"`, each child `Space` bound to the inset data table
-trains its position scales across the union of all matched child rows for that
-inset declaration. Child spaces bound to another named or derived table train
-against that table's own rows. Shared-scale inset child legends MUST use the
-same planned row subset used for child scale training and MAY be merged with
-other chart legends. With `scales: "local"`, each child `Space` bound to the
-inset data table trains from only that instance's matched rows, and chart-level
-legends for marks inside that inset MUST NOT be emitted because there is no
-single shared legend domain. Position guides in child spaces default off, but
-child marks remain ordinary Algraf marks and may carry tooltips, highlights,
-themes, scales, and nested insets. `let`, `Scale`, `Guide`, and `Theme`
-declarations directly inside an `Inset` body apply as inherited defaults to
-each child `Space`; declarations inside a child `Space` override those
-defaults. Inset contents MUST NOT contain user-authored JavaScript, CSS, HTML,
-external images, or raw SVG fragments.
+A subordinate chart anchored at a host row — a map glyph, a sparkline on a
+point, a mini-pie — is expressed as a **glyph mark** (spec §7.11, §14.27): a
+chart-valued mark declared once in chart scope with `Glyph` and invoked inside a
+`Space` body with ordinary geometry-call syntax. A glyph mark draws at the host
+row's anchor like `Point` and participates in the existing mark, scale, and
+legend systems; it is not a raw SVG/HTML injection surface.
 
 Example:
 
@@ -1461,8 +1405,8 @@ Unparenthesized blend expressions such as `time * lower + upper` and `lower + up
 The formatter MUST NOT remove parentheses that make a blend expression valid.
 
 Qualified algebra names are reserved for row-context references such as
-`parent.id` inside inset `match` maps (§7.3). Outside those contexts, a
-qualified name MUST produce `E2104`.
+`outer.id` inside a glyph mark's `key` resolution (§7.11, §14.27). Outside those
+contexts, a qualified name MUST produce `E2204`.
 
 ### 7.8 Literals
 
@@ -1569,6 +1513,74 @@ Chart(data: "penguins.csv") {
 
     Space(flipper_length * body_mass) {
         Point(fill: primary, alpha: dim_alpha)
+    }
+}
+```
+
+### 7.11 Glyph Declaration
+
+A `Glyph` declaration (since version 0.71) is a chart-scoped, reusable,
+chart-valued mark template. It supersedes the removed `Inset` block.
+
+```ebnf
+GlyphDecl   ::= "Glyph" Ident "(" GlyphArgs ")" BlockStart GlyphBody BlockEnd
+GlyphArgs   ::= GlyphArg ("," GlyphArg)* ","?
+GlyphArg    ::= Arg
+GlyphBody   ::= GlyphItem*
+GlyphItem   ::= SpaceBlock
+             | LetDecl
+             | ScaleDecl
+             | GuideDecl
+             | ThemeDecl
+             | ErrorItem
+```
+
+Rules:
+
+- A `Glyph` MUST be declared in chart scope (alongside `Table`, `Derive`,
+  `Scale`, `Theme`, `Guide`, `Layout`).
+- The declaration arguments are ordinary named `Arg` nodes validated in
+  semantics. `data` is REQUIRED and MUST name a chart-scoped `Table` or
+  `Derive`. `key` is REQUIRED. `scales` is OPTIONAL. Any other argument is
+  `E2201`.
+- `key` lists the correlation columns and accepts one of three forms: a single
+  bare identifier (`key: store`); a bracketed bare list whose entries are
+  identifiers each equi-matched against a host-row column of the same name
+  searched outward through the row-context chain (`key: [id, category]`); or a
+  bracketed map of explicit `child => hostRef` pairs (`key: [id => region]`).
+  In the map form `hostRef` is an unqualified host-row column or an
+  `outer.`-qualified ancestor column (`key: [id => outer.id]`). An invalid or
+  missing `key` is `E2203`.
+- `scales` sets the default training scope for the glyph's internal scales and
+  MUST be `"shared"` or `"local"`, defaulting to `"shared"`. Per-`Scale`
+  `train:` (§16.18) overrides it.
+- A glyph body MUST contain one or more `Space` blocks, identical in form to any
+  other space (exactly one algebra expression each, §7.3). `let`, `Scale`,
+  `Guide`, and `Theme` declarations directly inside a glyph body apply as
+  inherited defaults to each child `Space`; declarations inside a child `Space`
+  override those defaults. A glyph body MUST NOT contain user-authored
+  JavaScript, CSS, HTML, external images, or raw SVG.
+- A glyph name MUST NOT shadow a built-in geometry name (§13.8); a collision is
+  `E2201` at the declaration site.
+- A glyph MUST NOT invoke itself, directly or transitively (`E2209`/`E2210`).
+
+Example:
+
+```ag
+Chart(data: "stores.csv") {
+    Table mix = "store_category_mix.csv"
+
+    Glyph pie(data: mix, key: store, scales: "shared") {
+        Space(share, coords: polar, theta: y) {
+            Bar(fill: category, layout: "fill")
+        }
+    }
+
+    Scale(size: footfall, range: [16, 44])
+
+    Space(revenue * satisfaction) {
+        Point(alpha: 0.15, size: 2)
+        pie(size: footfall, clip: "circle")
     }
 }
 ```
@@ -3088,11 +3100,20 @@ pub struct ChartBlock {
 pub enum ChartItem {
     Space(Spanned<SpaceBlock>),
     Derive(Spanned<DeriveDecl>),
+    Glyph(Spanned<GlyphDecl>),
     Scale(Spanned<Call>),
     Guide(Spanned<Call>),
     Theme(Spanned<Call>),
     Layout(Spanned<Call>),
     Error(ErrorNode),
+}
+```
+
+```rust
+pub struct GlyphDecl {
+    pub name: Spanned<String>,
+    pub args: Vec<Spanned<Argument>>,
+    pub body: Vec<Spanned<GlyphItem>>,
 }
 ```
 
@@ -3109,7 +3130,6 @@ pub struct SpaceBlock {
 ```rust
 pub enum SpaceItem {
     Geometry(Spanned<GeometryCall>),
-    Inset(Spanned<InsetBlock>),
     Scale(Spanned<Call>),
     Guide(Spanned<Call>),
     Theme(Spanned<Call>),
@@ -3117,15 +3137,11 @@ pub enum SpaceItem {
 }
 ```
 
-```rust
-pub struct InsetBlock {
-    pub args: Vec<Spanned<Argument>>,
-    pub body: Vec<Spanned<InsetItem>>,
-}
-```
+A glyph mark is a `GeometryCall` whose name resolves to a chart-scoped `Glyph`
+rather than a built-in geometry (§13.8); there is no distinct space-item node.
 
 ```rust
-pub enum InsetItem {
+pub enum GlyphItem {
     Space(Spanned<SpaceBlock>),
     Let(Spanned<LetDecl>),
     Scale(Spanned<Call>),
@@ -3824,37 +3840,52 @@ pub enum SpaceDataRef {
 ```rust
 pub enum SpaceLayerIr {
     Geometry(GeometryIr),
-    Inset(InsetIr),
+    Glyph(GlyphCallIr),
 }
 ```
 
-`layers` preserves source order for geometry calls and inset blocks. The legacy
+`layers` preserves source order for geometry calls and glyph marks. The legacy
 `geometries` list is retained for scale training and existing geometry
-lowerings, but emission MUST use `layers` when a space contains insets so marks
-and child scenes render in the order authored.
+lowerings, but emission MUST use `layers` when a space contains glyph marks so
+marks and child scenes render in the order authored.
 
 ```rust
-pub struct InsetIr {
+pub struct GlyphDeclIr {
+    pub name: String,
     pub data: SpaceDataRef,
-    pub match_rules: Vec<InsetMatchIr>,
-    pub size: InsetSizeIr,
-    pub scale_policy: InsetScalePolicyIr,
-    pub guides: bool,
-    pub clip: InsetClipIr,
+    pub key: Vec<GlyphKeyIr>,
+    pub scale_policy: GlyphScalePolicyIr,
+    pub child_spaces: Vec<SpaceIr>,
+    pub span: Span,
+}
+
+pub struct GlyphKeyIr {
+    pub child_column: String,
+    pub host_ref: GlyphHostRefIr,
+}
+
+pub enum GlyphHostRefIr {
+    Current(String),
+    Outer(String),
+}
+
+pub struct GlyphCallIr {
+    pub glyph: String,
+    pub size: GlyphSizeIr,
+    pub clip: GlyphClipIr,
     pub padding: f64,
-    pub placement: InsetPlacementIr,
+    pub placement: GlyphPlacementIr,
     pub dx: f64,
     pub dy: f64,
-    pub anchor: InsetAnchorIr,
-    pub child_spaces: Vec<SpaceIr>,
+    pub legend: bool,
     pub span: Span,
 }
 ```
 
-Inset IR MUST carry validated child data, explicit match rules, viewport
-settings, scale policy, guide/clip policy, child spaces, and source span. The
-semantic analyzer MUST validate child table names, match columns, row-context
-references, size settings, and type compatibility before rendering.
+A `GlyphDeclIr` is lowered once per chart-scoped `Glyph` declaration. A
+`GlyphCallIr` is lowered per call site and references a declaration by name. The
+semantic analyzer MUST validate the glyph data table, key columns, host-row
+references, viewport sizing, and type compatibility before rendering.
 
 ### 13.4 Derived Table IR
 
@@ -4114,6 +4145,17 @@ non-numeric column is `E1607`.
 Since version 0.8 the registry MUST include a `Geo` geometry (spec §14.23),
 supported only in a spatial space. Its properties are `fill` (column or color),
 `stroke` (color), `strokeWidth` (number), and `alpha` (number).
+
+Since version 0.71 the analyzer resolves a call head `Name(...)` inside a
+`Space` body in this order:
+
+1. a built-in geometry from the geometry registry, else
+2. a chart-scoped `Glyph` declaration (spec §7.11, §14.27), else
+3. `E1201` unknown geometry/glyph.
+
+The registry is consulted first, so a `Glyph` can never silently redefine a
+built-in geometry; a declared glyph whose name collides with a registry
+geometry is rejected at the declaration site (`E2201`).
 
 ### 13.9 Property Registry
 
@@ -5756,6 +5798,93 @@ renderings. A future convenience geometry MAY be added only if it lowers to the
 corresponding derived-table form before rendering and produces identical SVG,
 draw-list, raster, and interaction sidecar bytes.
 
+### 14.27 Glyph Mark
+
+> Since version 0.71.0. Supersedes the removed `Inset` block.
+
+A **glyph** is a chart-valued mark: a chart-scoped `Glyph` declaration (§7.11)
+invoked inside a `Space` body with ordinary geometry-call syntax. A glyph mark
+renders its child `Space` blocks inside a bounded viewport anchored at the host
+row, once per host row of the enclosing space. It is not a geometry registry
+entry, a shape shortcut, or a raw SVG/HTML injection surface.
+
+#### Invocation and aesthetics
+
+```ag
+pie(size: footfall, clip: "circle", padding: 1, at: "position")
+```
+
+- **`size`** is the ordinary size aesthetic. It MAY be a finite pixel number or a
+  numeric host-table column. A mapped `size` trains the chart `Scale(size:)` and
+  uses that scale's `range:` as the min/max viewport footprint; there is no
+  `minSize`/`maxSize`.
+- **`width`/`height`** give a fixed rectangular footprint and MUST NOT be
+  combined with `size` (`E2206`). If only `width` is present, `height` defaults
+  to the same value.
+- **`clip`** MUST be `"rect"`, `"circle"`, or `false` and defaults to `"rect"`.
+- **`padding`**, **`dx`**, and **`dy`** are finite pixel numbers and default to
+  `2`, `0`, and `0`.
+- **`at`** is the placement strategy and MUST be `"position"`, `"mark-center"`,
+  or `"centroid"`, defaulting to `"position"`. `"position"` anchors to the host
+  row's resolved x/y point. `"mark-center"` uses the rendered mark center when it
+  can be computed (notably polar area marks such as pie slices) and otherwise
+  falls back to the row anchor. `"centroid"` MAY be used in a spatial
+  `Space(geom)` and anchors to the deterministic projected geometry centroid
+  when one can be computed; otherwise render emits no child marks for that
+  instance. An unsupported `at` value is `E2205`.
+- **`legend: false`** suppresses chart-level legends contributed by this glyph
+  call, reusing the ordinary mark legend control.
+- Ordinary geometries ignore these glyph-only viewport properties.
+
+#### Key resolution
+
+Each declared `key` column is equi-matched against the host row context. For
+each key column the analyzer resolves the host value by searching the
+row-context chain outward — the immediate host row first, then each enclosing
+glyph's host row — until a column of that name is found. An `outer.col`
+qualifier forces the nearest enclosing glyph host when a name is shadowed. A key
+that cannot be resolved in the host row-context chain is `E2204`; incompatible
+match column types are `E2205`. Null match values never match, including
+null-to-null. Matched child rows preserve child-table order, and duplicate child
+rows render deterministically.
+
+Because the key search is one-sided and resolves by name up the chain, nested
+glyphs need no `parent.`-style qualifier:
+
+```ag
+Glyph trend(data: trends, key: [id, category], scales: "local") {
+    Space(t * value) { Line(stroke: "#111827") }
+}
+Glyph nodepie(data: mix, key: id, scales: "shared") {
+    Space(value, coords: polar, theta: y) {
+        Bar(fill: category, layout: "fill")
+        trend(width: 18, height: 8, at: "mark-center")
+    }
+}
+```
+
+#### Scale and legend participation
+
+With the glyph `scales: "shared"` default (and per-`Scale` `train: "shared"`,
+§16.18), each child `Space` bound to the glyph data table trains its position
+scales across the union of all matched child rows for the glyph. Child spaces
+bound to another named or derived table train against that table's own rows.
+With `scales: "local"` (or `train: "local"`), each child `Space` trains from
+only that instance's matched rows. Glyph internal scales flow into the chart
+legend collection exactly like any other mark's scales, deduplicated by
+`(aesthetic, domain)` (§17.7). A position or data-trained scale under
+`train: "local"` produces no chart-level legend; aesthetic scales with a fixed
+domain (e.g. a categorical color `range:` map) always merge regardless of
+`train:`. Child position guides default off.
+
+#### Limits
+
+Glyph marks MAY nest. A nested-glyph depth limit emits `E2209` and skips the
+over-depth child scene; a recursive mark budget that would be exceeded emits
+`E2210`. A glyph MUST NOT invoke itself directly or transitively. Glyph contents
+MUST NOT contain user-authored JavaScript, CSS, HTML, external images, or raw
+SVG fragments.
+
 ## 15. Statistics
 
 ### 15.1 Stat Model
@@ -7166,6 +7295,32 @@ MUST apply only when both axes have continuous or temporal data-unit spans; it
 is ignored for categorical, polar, and spatial spaces. `aspect: 1` makes equal
 x/y data-unit distances visually equal after the final layout.
 
+### 16.18 Scale Training Scope
+
+> Since version 0.71.0.
+
+`Scale(...)` gains an optional `train:` property controlling how the scale is
+trained across repeated instances of an enclosing glyph mark (§14.27):
+
+```ag
+Scale(y: gdp, train: "local")     // each glyph instance auto-scales y
+Scale(x: year, train: "shared")   // all glyph instances share the x domain
+```
+
+- `train:` MUST be `"shared"` or `"local"`. An invalid value is `E1606`.
+- `train: "shared"` trains the scale across the union of all instances of the
+  enclosing glyph within its host space.
+- `train: "local"` trains the scale per glyph instance.
+- When `train:` is absent, the glyph's `scales:` default (§7.11) applies; outside
+  a glyph, `train:` has no effect.
+
+This subsumes two older vocabularies. The facet `Layout(facetScales: "free-x")`
+control (§17.4) is equivalent to `train: "local"` on the x position scale and is
+retained as facet sugar. The removed inset `scales: "shared" | "local"`
+becomes the glyph-level default that `train:` overrides per scale. A position or
+data-trained scale under `train: "local"` produces no chart-level legend (no
+shared domain); aesthetic scales with a fixed domain always merge (§17.7).
+
 ## 17. Layout
 
 ### 17.1 Viewport Model
@@ -7294,7 +7449,9 @@ accepted string modes are `"fixed"` (default), `"free-x"`/`"free_x"`,
 `"free-y"`/`"free_y"`, and `"free"`. Free scales are panel-local for axes named
 by the mode; the other axes continue to share the full faceted data domain.
 Coordinate zoom, when present, is applied after each panel's fixed or free
-domain has been trained.
+domain has been trained. Since version 0.71.0 `facetScales` is facet sugar over
+the per-`Scale` `train:` mechanism (§16.18): a free axis is equivalent to
+`train: "local"` on that position scale.
 
 `Layout(facetLabel: "value" | "name-value")` controls strip text. `"value"` is
 the default. `"name-value"` prefixes each value with its facet column name.
@@ -7360,6 +7517,18 @@ Guides render above or outside plot depending on guide type.
 Background renders first.
 
 Grid renders before data marks.
+
+### 17.7 Legend Merging for Glyphs
+
+> Since version 0.71.0.
+
+Glyph internal scales flow into the chart legend collection exactly like any
+mark's scales, deduplicated by `(aesthetic, domain)`. N glyph instances that
+share one `fill: category` scale yield one legend. Shared-scale glyph legends
+MUST use the same planned row subset used for child scale training. Per-call
+suppression reuses the ordinary mark legend control (`legend: false`); a
+position or data-trained scale under `train: "local"` (§16.18) contributes no
+chart-level legend because it has no single shared domain.
 
 ## 18. SVG Rendering
 
@@ -7468,7 +7637,8 @@ y range is `[plot.y + plot.height, plot.y]`.
 
 Data marks SHOULD be clipped to plot area by default.
 
-Inset clips MAY be rectangular or circular, according to `Inset(clip:)`.
+Glyph clips MAY be rectangular or circular, according to a glyph mark's `clip:`
+(§14.27).
 
 SVG clip path IDs MUST be deterministic.
 
@@ -7535,18 +7705,18 @@ equivalent op (§24.6). Because both backends observe the same primitive calls,
 they agree on coordinates and colors by construction, and a new geometry or
 guide primitive reaches every backend at once.
 
-Inset planning is recursive over the same planned scene. For each inset
-instance, planning MUST resolve the parent anchor in pixel coordinates, match
+Glyph-mark planning is recursive over the same planned scene. For each glyph
+instance, planning MUST resolve the host anchor in pixel coordinates, match
 child rows explicitly, allocate the child viewport, train each child space using
-the declared shared/local policy, resolve child themes/guides/scales, and store
-the resulting child panels before any backend emits output. Emission MUST
-consume those planned child panels and emit child layers through the same mark
-sink using absolute coordinates; backends MUST NOT recompute matches, anchors,
-scale domains, guide visibility, or row subsets. Nested insets MUST be
+the declared shared/local policy (§16.18), resolve child themes/guides/scales,
+and store the resulting child panels before any backend emits output. Emission
+MUST consume those planned child panels and emit child layers through the same
+mark sink using absolute coordinates; backends MUST NOT recompute matches,
+anchors, scale domains, guide visibility, or row subsets. Nested glyphs MUST be
 supported with a deterministic maximum depth of at least 8; exceeding that
-limit emits `E2109` and skips the over-depth child scene. Recursive mark
-budgets MUST estimate matched child output before emission and emit `E2110`
-when the configured budget would be exceeded. Inset clipping MUST be
+limit emits `E2209` and skips the over-depth child scene. Recursive mark
+budgets MUST estimate matched child output before emission and emit `E2210`
+when the configured budget would be exceeded. Glyph clipping MUST be
 represented as rectangular or circular clip scopes in SVG, draw-list, and
 raster output, or omitted when `clip: false`.
 
@@ -7835,10 +8005,11 @@ standalone shape legend draws its swatches in the default mark fill; when the
 same column is also mapped to `fill` or `stroke`, the shape legend is merged
 into that color legend instead of duplicated (§19.7).
 
-Marks inside an `Inset` contribute chart-level legends only when the containing
-inset uses `scales: "shared"` (§7.3). Those legend domains use the same shared
-row subset used for child scale training. Marks inside `scales: "local"` insets
-MUST NOT emit chart-level legends.
+Marks inside a glyph (§14.27) contribute chart-level legends only for scales
+trained with shared scope (`train: "shared"` or the glyph `scales: "shared"`
+default, §16.18). Those legend domains use the same shared row subset used for
+child scale training. A position or data-trained scale under `train: "local"`
+MUST NOT emit a chart-level legend (§17.7).
 
 Alpha mappings are accepted where geometry registries allow them, but alpha
 scale targets and alpha legends are deferred past version 0.40. Dash/stroke
@@ -9387,7 +9558,7 @@ The renderer is organized around one boundary, between **planning** and
 
 - Planning (pipeline steps 12–17) consumes the IR and loaded data eagerly and
   resolves a fully described render scene: derived tables, geometry-local stats,
-  trained scales, layout rectangles, guide measurements, inset instances,
+  trained scales, layout rectangles, guide measurements, glyph instances,
   planned child panels, and legends. Planning reads data only through the
   data-table abstraction and MUST NOT write output bytes.
 - Emission (pipeline step 18) takes that scene and serializes it through one
@@ -9423,16 +9594,16 @@ The renderer ships three backends over this seam:
   `caption`, `alt`, and resolved `description` values, using `null` for absent
   values. `legend` is `null` when no legend is present; otherwise it carries the
   resolved `position` (`"right"`, `"bottom"`, `"top"`, or `"left"`) and SVG
-  pixel `rect`. `plots[]` carries every top-level, faceted, and inset plot
+  pixel `rect`. `plots[]` carries every top-level, faceted, and glyph plot
   area's `id`, `plot_rect`, and `axes` so nested charts are addressable without
-  re-running layout. Top-level plot IDs are `plot0`, `plot1`, etc. Inset plot
-  IDs are hierarchical and include the current mark prefix, inset declaration
-  index, parent source-row index, and child-space index, e.g.
-  `p0:i0[3]:s0`. The bracketed row value is the parent table's source row
-  number, not the ordinal among rendered inset instances, so IDs stay stable
-  when earlier parent rows fail to match or cannot resolve an anchor. Nested
-  inset IDs extend this prefix recursively. A plot MAY include `clip_rect` when
-  coordinate zoom or an inset clip bounds data marks (§16.17). Circular inset
+  re-running layout. Top-level plot IDs are `plot0`, `plot1`, etc. Glyph plot
+  IDs are hierarchical and include the current mark prefix, glyph mark index,
+  host source-row index, and child-space index, e.g.
+  `p0:i0[3]:s0`. The bracketed row value is the host table's source row
+  number, not the ordinal among rendered glyph instances, so IDs stay stable
+  when earlier host rows fail to match or cannot resolve an anchor. Nested
+  glyph IDs extend this prefix recursively. A plot MAY include `clip_rect` when
+  coordinate zoom or a glyph clip bounds data marks (§16.17). Circular glyph
   clips report their bounding rectangle in metadata; the draw scene carries the
   exact circle clip. `axes.x`
   and `axes.y`, when present, describe host-invertible scales with `scale`,
@@ -9451,7 +9622,7 @@ The renderer ships three backends over this seam:
   `mark.groups[mark.interaction.emit_field]`; hosts MUST NOT evaluate Algraf
   source or scrape SVG attributes to recover it. Top-level mark IDs use
   `p{panel}:g{geometry}:r{row}`;
-  inset mark IDs prefix the hierarchical inset plot ID, e.g.
+  glyph mark IDs prefix the hierarchical glyph plot ID, e.g.
   `p0:i0[3]:s0:g0:r2`. `groups` maps each highlight key to its
   first-appearance-ordered values and also includes event-emitter fields when a
   mark declares `On(...)`. Host runtimes MAY use the mark coordinates and group
@@ -9465,7 +9636,7 @@ The renderer ships three backends over this seam:
   description: every SVG element the renderer emits for the chart body and guides
   has a corresponding draw-list op with identical coordinates and colors. The op
   set is `clipStart`, `circleClipStart`, `clipEnd`, `rect`, `circle`, `path`,
-  `polygon`, `image`, `line`, and `text`; geometry, guide, and inset emission all produce
+  `polygon`, `image`, `line`, and `text`; geometry, guide, and glyph emission all produce
   these primitives through one shared mark sink, so
   the two backends cannot diverge below the panel level. The draw list covers the
   canvas, background, plot panels (with facet strips and labels), chart
@@ -10166,25 +10337,28 @@ missing `=>`/stray separator in a map literal)
 
 `E2001 render mark budget exceeded`
 
-`E2101 invalid or unsupported Inset argument`
+Diagnostic codes from the removed `Inset` block (the 2101–2110 range) were
+retired in version 0.71.0 along with the block itself; they MUST NOT be reused.
 
-`E2102 unknown or invalid Inset child data table`
+`E2201 invalid or unsupported Glyph argument, or glyph name shadows a geometry`
 
-`E2103 invalid or missing Inset match map`
+`E2202 unknown or invalid Glyph data table`
 
-`E2104 invalid Inset row-context reference`
+`E2203 invalid or missing Glyph key`
 
-`E2105 unsupported Inset anchor or incompatible match column types`
+`E2204 unresolved Glyph key in the host row-context chain`
 
-`E2106 invalid Inset viewport sizing`
+`E2205 unsupported Glyph placement or incompatible key column types`
 
-`E2107 reserved for inset guide/legend policy errors`
+`E2206 invalid Glyph viewport sizing`
 
-`E2108 reserved for inset placement policy errors`
+`E2207 reserved for glyph guide/legend policy errors`
 
-`E2109 nested Inset depth exceeded`
+`E2208 reserved for glyph placement policy errors`
 
-`E2110 recursive Inset mark budget exceeded`
+`E2209 nested Glyph depth exceeded`
+
+`E2210 recursive Glyph mark budget exceeded`
 
 ### 26.3 Warning Diagnostics
 
@@ -10192,11 +10366,11 @@ missing `=>`/stray separator in a map literal)
 
 `W2002 geometry produced no marks`
 
-Inset rendering MAY also emit `W2002` when an inset declaration cannot produce
-child marks for a parent row. A single unmatched parent row uses
-`Inset matched no child rows`; when more than one parent row is unmatched for
-the same inset declaration, renderers SHOULD emit one summary warning of the
-form `Inset matched no child rows for N of M parent rows`.
+Glyph rendering MAY also emit `W2002` when a glyph mark cannot produce child
+marks for a host row. A single unmatched host row uses
+`Glyph matched no child rows`; when more than one host row is unmatched for the
+same glyph mark, renderers SHOULD emit one summary warning of the form
+`Glyph matched no child rows for N of M host rows`.
 
 `W2003 rows dropped due to missing values`
 
@@ -10843,6 +11017,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.68.1 | [`V0_68_1_PLAN.md`](V0_68_1_PLAN.md) | Browser editor package asset contract patch | Implemented |
 | 0.68.5 | [`V0_68_5_PLAN.md`](V0_68_5_PLAN.md) | Gradient color literal compatibility for alpha hex, rgb, and rgba | Implemented |
 | 0.69.0 | [`V0_69_PLAN.md`](V0_69_PLAN.md) | Arrow-stream and large-data aggregate performance | In progress |
+| 0.70.0 | [`V0_70_PLAN.md`](V0_70_PLAN.md) | Demo site and README CLI documentation alignment | Implemented |
+| 0.71.0 | [`V0_71_PLAN.md`](V0_71_PLAN.md) | Replace the Inset block with a chart-valued glyph mark | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
@@ -11065,6 +11241,7 @@ ChartBody      ::= ChartItem*
 ChartItem      ::= SpaceBlock
                  | DeriveDecl
                  | TableDecl
+                 | GlyphDecl
                  | LetDecl
                  | ScaleDecl
                  | GuideDecl
@@ -11076,15 +11253,14 @@ SpaceBlock     ::= "Space" "(" Algebra SpaceArgs? ")" "{" SpaceBody "}"
 SpaceArgs      ::= "," Arg ("," Arg)* ","?
 SpaceBody      ::= SpaceItem*
 SpaceItem      ::= GeometryCall
-                 | InsetBlock
                  | LetDecl
                  | ScaleDecl
                  | GuideDecl
                  | ThemeDecl
                  | ErrorItem
-InsetBlock     ::= "Inset" "(" ArgList? ")" "{" InsetBody "}"
-InsetBody      ::= InsetItem*
-InsetItem      ::= SpaceBlock
+GlyphDecl      ::= "Glyph" Ident "(" ArgList ")" "{" GlyphBody "}"
+GlyphBody      ::= GlyphItem*
+GlyphItem      ::= SpaceBlock
                  | LetDecl
                  | ScaleDecl
                  | GuideDecl
@@ -11181,6 +11357,7 @@ pub struct ChartBlock {
 pub enum ChartItem {
     Space(Spanned<SpaceBlock>),
     Derive(Spanned<DeriveDecl>),
+    Glyph(Spanned<GlyphDecl>),
     Scale(Spanned<Call>),
     Guide(Spanned<Call>),
     Theme(Spanned<Call>),
@@ -11211,7 +11388,6 @@ pub struct StatCall {
 #[derive(Debug, Clone)]
 pub enum SpaceItem {
     Geometry(Spanned<GeometryCall>),
-    Inset(Spanned<InsetBlock>),
     Scale(Spanned<Call>),
     Guide(Spanned<Call>),
     Theme(Spanned<Call>),
@@ -11219,13 +11395,14 @@ pub enum SpaceItem {
 }
 
 #[derive(Debug, Clone)]
-pub struct InsetBlock {
+pub struct GlyphDecl {
+    pub name: Spanned<String>,
     pub args: Vec<Spanned<Argument>>,
-    pub body: Vec<Spanned<InsetItem>>,
+    pub body: Vec<Spanned<GlyphItem>>,
 }
 
 #[derive(Debug, Clone)]
-pub enum InsetItem {
+pub enum GlyphItem {
     Space(Spanned<SpaceBlock>),
     Let(Spanned<LetDecl>),
     Scale(Spanned<Call>),

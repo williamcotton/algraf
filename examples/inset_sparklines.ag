@@ -2,19 +2,14 @@ Chart(data: "inset_country_summary.csv", width: 760, height: 500,
       title: "Life expectancy, income, and GDP trend") {
     Table yearly = "inset_country_yearly.csv"
 
-    Space(income * life_expectancy) {
-        Inset(data: yearly,
-              match: [country => country],
-              width: 58,
-              height: 24,
-              scales: "shared",
-              guides: false,
-              clip: "rect",
-              padding: 2) {
-            Space(year * gdp_per_capita) {
-                Line(stroke: "#1f77b4", strokeWidth: 1.2)
-            }
+    Glyph spark(data: yearly, key: [country], scales: "shared") {
+        Space(year * gdp_per_capita) {
+            Line(stroke: "#1f77b4", strokeWidth: 1.2)
         }
+    }
+
+    Space(income * life_expectancy) {
+        spark(width: 58, height: 24, clip: "rect", padding: 2)
         Text(label: country, dy: -22, size: 8, anchor: "middle")
     }
 }

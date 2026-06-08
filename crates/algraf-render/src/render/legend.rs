@@ -1,6 +1,6 @@
 use algraf_data::Table;
 use algraf_semantics::{
-    FrameIr, GeometryIr, GeometryKind, GradientIr, InsetScalePolicyIr, PropertyKey, ScaleIr,
+    FrameIr, GeometryIr, GeometryKind, GlyphScalePolicyIr, GradientIr, PropertyKey, ScaleIr,
     ScaleTargetIr, SettingValue,
 };
 
@@ -12,7 +12,7 @@ use crate::scale::categorical_domain;
 use crate::stats;
 use crate::theme::Theme;
 
-use super::inset_plan::PlannedInset;
+use super::glyph_plan::PlannedGlyph;
 use super::panels::{Panel, PlannedLayer};
 use super::row_table::RowSubsetTable;
 
@@ -60,23 +60,26 @@ fn collect_panel_legend_candidates(
                 theme,
                 assets,
             ),
-            PlannedLayer::Inset(inset) => {
-                collect_inset_legend_candidates(candidates, inset, theme, assets);
+            PlannedLayer::Glyph(glyph) => {
+                collect_glyph_legend_candidates(candidates, glyph, theme, assets);
             }
         }
     }
 }
 
-fn collect_inset_legend_candidates(
+fn collect_glyph_legend_candidates(
     candidates: &mut Vec<(PropertyKey, Legend)>,
-    inset: &PlannedInset<'_>,
+    glyph: &PlannedGlyph<'_>,
     theme: &Theme,
     assets: &ImageAssets,
 ) {
-    if inset.scale_policy != InsetScalePolicyIr::Shared {
+    if !glyph.legend {
         return;
     }
-    for instance in &inset.instances {
+    if glyph.scale_policy != GlyphScalePolicyIr::Shared {
+        return;
+    }
+    for instance in &glyph.instances {
         for child_panel in &instance.child_panels {
             collect_panel_legend_candidates(candidates, child_panel, theme, assets);
         }

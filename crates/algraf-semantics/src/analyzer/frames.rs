@@ -5,13 +5,14 @@
 use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::{parse_temporal_literal, DataType};
 use algraf_syntax::ast::{
-    AlgebraBinary, AlgebraCall, AlgebraExpr, AlgebraName, AlgebraOp, Arg, InsetBlock, InsetItem,
+    AlgebraBinary, AlgebraCall, AlgebraExpr, AlgebraName, AlgebraOp, Arg, GeometryCall, GlyphItem,
     LetDecl, LiteralKind, SpaceBlock, SpaceItem, ValueExpr,
 };
 use algraf_syntax::{node_span, unescape_string_literal as string_value, SyntaxKind};
 
 use super::context::{ActiveTable, Analyzer};
 use crate::ir::*;
+use crate::registry;
 use crate::util::closest;
 
 #[derive(Default)]
@@ -73,7 +74,7 @@ impl Analyzer<'_> {
 
         let mut geometry_layers = Vec::new();
         let mut source_layers = Vec::new();
-        let mut inset_derived = Vec::new();
+        let mut glyph_derived = Vec::new();
         let mut theme: Option<ThemeIr> = None;
         let mut guides = GuideOverridesIr::default();
         let mut scales = Vec::new();
@@ -105,6 +106,17 @@ impl Analyzer<'_> {
                         continue;
                     }
                     saw_layer = true;
+                    // A call head that is not a built-in geometry but matches a
+                    // chart-scoped glyph declaration renders as a glyph mark
+                    // (spec §13.8 precedence, §14.27).
+                    let name = call.name().unwrap_or_default();
+                    if registry::geometry(&name).is_none() && self.glyphs.contains_key(&name) {
+                        last_geometry = None;
+                        if let Some(glyph) = self.glyph_call(&call, &table, &mut glyph_derived) {
+                            source_layers.push(SpaceLayerIr::Glyph(glyph));
+                        }
+                        continue;
+                    }
                     if let Some(geo) = self.geometry(&call, &frame, &coords, &table) {
                         let source_index = source_layers.len();
                         let geometry_index = geometry_layers.len();
@@ -113,13 +125,6 @@ impl Analyzer<'_> {
                         last_geometry = Some((geometry_index, source_index));
                     } else {
                         last_geometry = None;
-                    }
-                }
-                SpaceItem::Inset(block) => {
-                    saw_layer = true;
-                    last_geometry = None;
-                    if let Some(inset) = self.inset(&block, &table, &mut inset_derived) {
-                        source_layers.push(SpaceLayerIr::Inset(inset));
                     }
                 }
                 SpaceItem::Theme(decl) => {
@@ -172,18 +177,18 @@ impl Analyzer<'_> {
         };
 
         let mut analysis = SpaceAnalysis::default();
-        analysis.derived.extend(inset_derived);
+        analysis.derived.extend(glyph_derived);
 
         if source_layers
             .iter()
-            .any(|layer| matches!(layer, SpaceLayerIr::Inset(_)))
+            .any(|layer| matches!(layer, SpaceLayerIr::Glyph(_)))
         {
             for geo in &geometry_layers {
                 if is_lowered_geometry(geo) {
                     self.diag(
                         Diagnostic::error(
-                            codes::E2101,
-                            "high-level geometry lowering inside a space with `Inset` is not supported",
+                            codes::E2201,
+                            "high-level geometry lowering inside a space with a glyph mark is not supported",
                             geo.span,
                         )
                         .with_help("move the derived table into an explicit `Derive` and render a primitive mark"),
@@ -860,98 +865,134 @@ impl Analyzer<'_> {
         }
     }
 
-    fn inset(
+    /// Resolve a glyph mark call site (spec §14.27): bind the declaration's
+    /// `data`/`key`/`scales`, validate the call-site viewport props, and analyze
+    /// the glyph's child spaces against the host row context.
+    fn glyph_call(
         &mut self,
-        block: &InsetBlock,
-        parent_table: &ActiveTable,
+        call: &GeometryCall,
+        _host_table: &ActiveTable,
         derived_out: &mut Vec<DeriveIr>,
-    ) -> Option<InsetIr> {
-        let span = node_span(block.syntax());
-        let args = block.args();
+    ) -> Option<GlyphCallIr> {
+        const MAX_GLYPH_DEPTH: usize = 8;
+        let span = node_span(call.syntax());
+        let glyph_name = call.name().unwrap_or_default();
+        let glyph = self.glyphs.get(&glyph_name).cloned()?;
+
+        if self.glyph_stack.contains(&glyph_name) {
+            self.diag(Diagnostic::error(
+                codes::E2210,
+                format!("glyph `{glyph_name}` invokes itself recursively"),
+                span,
+            ));
+            return None;
+        }
+        if self.glyph_stack.len() >= MAX_GLYPH_DEPTH {
+            self.diag(Diagnostic::error(
+                codes::E2209,
+                format!("glyph nesting exceeds the maximum depth of {MAX_GLYPH_DEPTH}"),
+                span,
+            ));
+            return None;
+        }
+
+        // --- Declaration arguments: data, key, scales (spec §7.11) ---
         let mut data_ref = None;
         let mut child_table = None;
-        let mut match_rules = Vec::new();
-        let mut width = None;
-        let mut height = None;
-        let mut size_number = None;
-        let mut size_column = None;
-        let mut min_size = 16.0;
-        let mut max_size = 48.0;
-        let mut scale_policy = InsetScalePolicyIr::Shared;
-        let mut guides = false;
-        let mut clip = InsetClipIr::Rect;
-        let mut padding = 2.0;
-        let mut placement = InsetPlacementIr::Center;
-        let mut dx = 0.0;
-        let mut dy = 0.0;
-        let mut anchor = InsetAnchorIr::Position;
-
-        for arg in &args {
+        let mut key_arg = None;
+        let mut scale_policy = GlyphScalePolicyIr::Shared;
+        for arg in &glyph.args() {
             let Some(key) = arg.key() else { continue };
             let key_span = node_span(arg.syntax());
             match key.as_str() {
                 "data" => {
-                    if let Some((data, table)) = self.inset_data_ref(arg) {
+                    if let Some((data, table)) = self.glyph_data_ref(arg) {
                         data_ref = Some(data);
                         child_table = Some(table);
                     }
                 }
-                "match" => {
-                    if let Some(table) = child_table.as_ref() {
-                        match_rules = self.inset_match_rules(arg, table);
-                    }
-                }
-                "width" => width = self.inset_number_arg(arg, "`width`"),
-                "height" => height = self.inset_number_arg(arg, "`height`"),
-                "size" => match arg.value() {
-                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Number) => {
-                        size_number = self.inset_number_arg(arg, "`size`");
-                    }
-                    Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) => {
-                        size_column = Some(self.resolve_column(&name, parent_table));
-                    }
-                    Some(value) => self.diag(Diagnostic::error(
-                        codes::E2106,
-                        "`size` expects a number or a numeric column in the parent table",
-                        node_span(value.syntax()),
-                    )),
-                    None => {}
-                },
-                "minSize" => {
-                    if let Some(value) = self.inset_number_arg(arg, "`minSize`") {
-                        min_size = value;
-                    }
-                }
-                "maxSize" => {
-                    if let Some(value) = self.inset_number_arg(arg, "`maxSize`") {
-                        max_size = value;
-                    }
-                }
+                "key" => key_arg = Some(arg.clone()),
                 "scales" => {
-                    if let Some(value) = self.inset_string_arg(arg, "`scales`") {
+                    if let Some(value) = self.glyph_string_arg(arg, "`scales`") {
                         match value.as_str() {
-                            "shared" => scale_policy = InsetScalePolicyIr::Shared,
-                            "local" => scale_policy = InsetScalePolicyIr::Local,
+                            "shared" => scale_policy = GlyphScalePolicyIr::Shared,
+                            "local" => scale_policy = GlyphScalePolicyIr::Local,
                             _ => self.diag(Diagnostic::error(
-                                codes::E2101,
+                                codes::E2201,
                                 "`scales` must be \"shared\" or \"local\"",
                                 key_span,
                             )),
                         }
                     }
                 }
-                "guides" => {
-                    if let Some(value) = self.inset_bool_arg(arg, "`guides`") {
-                        guides = value;
+                _ => self.diag(Diagnostic::error(
+                    codes::E2201,
+                    format!("unsupported glyph declaration argument `{key}`"),
+                    key_span,
+                )),
+            }
+        }
+
+        let Some(data_ref) = data_ref else {
+            self.diag(Diagnostic::error(
+                codes::E2202,
+                format!(
+                    "glyph `{glyph_name}` requires `data:` naming a chart table or derived table"
+                ),
+                glyph.name_span().unwrap_or(span),
+            ));
+            return None;
+        };
+        let child_table = child_table.unwrap_or_else(ActiveTable::empty);
+
+        let key = match key_arg {
+            Some(arg) => self.glyph_key(&arg, &child_table),
+            None => {
+                self.diag(Diagnostic::error(
+                    codes::E2203,
+                    format!("glyph `{glyph_name}` requires a `key:`"),
+                    glyph.name_span().unwrap_or(span),
+                ));
+                Vec::new()
+            }
+        };
+
+        // --- Call-site viewport props (spec §14.27) ---
+        let mut width = None;
+        let mut height = None;
+        let mut size_column = None;
+        let mut clip = GlyphClipIr::Rect;
+        let mut padding = 2.0;
+        let mut placement = GlyphPlacementIr::Position;
+        let mut dx = 0.0;
+        let mut dy = 0.0;
+        let mut legend = true;
+        for arg in &call.args() {
+            let Some(key) = arg.key() else { continue };
+            let key_span = node_span(arg.syntax());
+            match key.as_str() {
+                "width" => width = self.glyph_number_arg(arg, "`width`"),
+                "height" => height = self.glyph_number_arg(arg, "`height`"),
+                "size" => match arg.value() {
+                    Some(ValueExpr::Algebra(AlgebraExpr::Name(name)))
+                        if name.qualifier().is_none() =>
+                    {
+                        size_column = Some(self.resolve_column(&name, _host_table));
                     }
-                }
+                    Some(value) => self.diag(Diagnostic::error(
+                        codes::E2206,
+                        "`size` expects a host-table column mapped through `Scale(size:)`",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
                 "clip" => match arg.value() {
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
                         match string_value(&lit.text().unwrap_or_default()).as_str() {
-                            "rect" => clip = InsetClipIr::Rect,
-                            "circle" => clip = InsetClipIr::Circle,
+                            "rect" => clip = GlyphClipIr::Rect,
+                            "circle" => clip = GlyphClipIr::Circle,
                             other => self.diag(Diagnostic::error(
-                                codes::E2101,
+                                codes::E2201,
                                 format!(
                                     "`clip` must be \"rect\", \"circle\", or false, not {other:?}"
                                 ),
@@ -961,174 +1002,135 @@ impl Analyzer<'_> {
                     }
                     Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Bool) => {
                         if lit.text().as_deref() == Some("false") {
-                            clip = InsetClipIr::None;
+                            clip = GlyphClipIr::None;
                         } else {
                             self.diag(Diagnostic::error(
-                                codes::E2101,
+                                codes::E2201,
                                 "`clip` must be \"rect\", \"circle\", or false",
                                 node_span(lit.syntax()),
                             ));
                         }
                     }
                     Some(value) => self.diag(Diagnostic::error(
-                        codes::E2101,
+                        codes::E2201,
                         "`clip` must be \"rect\", \"circle\", or false",
                         node_span(value.syntax()),
                     )),
                     None => {}
                 },
                 "padding" => {
-                    if let Some(value) = self.inset_number_arg(arg, "`padding`") {
+                    if let Some(value) = self.glyph_number_arg(arg, "`padding`") {
                         padding = value.max(0.0);
                     }
                 }
-                "placement" => {
-                    if let Some(value) = self.inset_string_arg(arg, "`placement`") {
+                "at" => {
+                    if let Some(value) = self.glyph_string_arg(arg, "`at`") {
                         match value.as_str() {
-                            "center" => placement = InsetPlacementIr::Center,
-                            "mark-center" => placement = InsetPlacementIr::MarkCenter,
+                            "position" => placement = GlyphPlacementIr::Position,
+                            "mark-center" => placement = GlyphPlacementIr::MarkCenter,
+                            "centroid" => placement = GlyphPlacementIr::Centroid,
                             _ => self.diag(Diagnostic::error(
-                                codes::E2101,
-                                "`placement` must be \"center\" or \"mark-center\"",
+                                codes::E2205,
+                                "`at` must be \"position\", \"mark-center\", or \"centroid\"",
                                 key_span,
                             )),
                         }
                     }
                 }
                 "dx" => {
-                    if let Some(value) = self.inset_number_arg(arg, "`dx`") {
+                    if let Some(value) = self.glyph_number_arg(arg, "`dx`") {
                         dx = value;
                     }
                 }
                 "dy" => {
-                    if let Some(value) = self.inset_number_arg(arg, "`dy`") {
+                    if let Some(value) = self.glyph_number_arg(arg, "`dy`") {
                         dy = value;
                     }
                 }
-                "anchor" => {
-                    if let Some(value) = self.inset_string_arg(arg, "`anchor`") {
-                        match value.as_str() {
-                            "position" => anchor = InsetAnchorIr::Position,
-                            "centroid" => anchor = InsetAnchorIr::Centroid,
-                            _ => self.diag(Diagnostic::error(
-                                codes::E2105,
-                                "`anchor` must be \"position\" or \"centroid\"",
-                                key_span,
-                            )),
-                        }
+                "legend" => {
+                    if let Some(value) = self.glyph_bool_arg(arg, "`legend`") {
+                        legend = value;
                     }
                 }
                 _ => self.diag(Diagnostic::error(
-                    codes::E2101,
-                    format!("unsupported Inset argument `{key}`"),
+                    codes::E2201,
+                    format!("unsupported glyph argument `{key}`"),
                     key_span,
                 )),
             }
         }
 
-        if match_rules.is_empty() {
-            if let (Some(table), Some(match_arg)) = (
-                child_table.as_ref(),
-                args.iter()
-                    .find(|arg| arg.key().as_deref() == Some("match")),
-            ) {
-                match_rules = self.inset_match_rules(match_arg, table);
-            }
-        }
-
-        if child_table.is_some()
-            && match_rules.is_empty()
-            && !args.iter().any(|arg| arg.key().as_deref() == Some("match"))
-        {
-            self.diag(
-                Diagnostic::error(codes::E2103, "`Inset` requires an explicit `match:`", span)
-                    .with_help("write an equi-match such as `match: [city => city]`"),
-            );
-        }
-
-        let Some(data_ref) = data_ref else {
+        if (width.is_some() || height.is_some()) && size_column.is_some() {
             self.diag(Diagnostic::error(
-                codes::E2102,
-                "`Inset` requires `data:` naming a chart table or derived table",
+                codes::E2206,
+                "a glyph mark cannot combine `size` with `width` or `height`",
                 span,
             ));
-            return None;
-        };
-        let child_table = child_table.unwrap_or_else(ActiveTable::empty);
-
-        if (width.is_some() || height.is_some()) && (size_number.is_some() || size_column.is_some())
-        {
-            self.diag(Diagnostic::error(
-                codes::E2106,
-                "`Inset` cannot combine `size` with `width` or `height`",
-                span,
-            ));
-        }
-        if min_size > max_size {
-            std::mem::swap(&mut min_size, &mut max_size);
         }
         let size = match size_column {
-            Some(column) => InsetSizeIr::Mapped {
+            Some(column) => GlyphSizeIr::Mapped {
                 column,
-                min: min_size.max(0.0),
-                max: max_size.max(0.0),
+                min: 12.0,
+                max: 48.0,
             },
             None => {
-                let w = width.or(size_number).unwrap_or(32.0).max(0.0);
-                let h = height.or(size_number).unwrap_or(w).max(0.0);
-                InsetSizeIr::Fixed {
+                let w = width.unwrap_or(32.0).max(0.0);
+                let h = height.unwrap_or(w).max(0.0);
+                GlyphSizeIr::Fixed {
                     width: w,
                     height: h,
                 }
             }
         };
 
-        let mut inset_theme: Option<ThemeIr> = None;
-        let mut inset_guides = GuideOverridesIr::default();
-        let mut inset_scales = Vec::new();
-        let inset_lets = block
+        // --- Glyph body: inherited defaults + child spaces (spec §7.11) ---
+        let mut glyph_theme: Option<ThemeIr> = None;
+        let mut glyph_guides = GuideOverridesIr::default();
+        let mut glyph_scales = Vec::new();
+        let glyph_lets = glyph
             .items()
             .into_iter()
             .filter_map(|item| match item {
-                InsetItem::Let(decl) => Some(decl),
+                GlyphItem::Let(decl) => Some(decl),
                 _ => None,
             })
             .collect::<Vec<_>>();
-        for item in block.items() {
+        for item in glyph.items() {
             match item {
-                InsetItem::Theme(decl) => {
+                GlyphItem::Theme(decl) => {
                     if let Some(theme) = self.theme_decl(&decl) {
-                        inset_theme = Some(theme);
+                        glyph_theme = Some(theme);
                     }
                 }
-                InsetItem::Scale(decl) => {
+                GlyphItem::Scale(decl) => {
                     if let Some(scale) = self.scale_decl(&decl, &child_table) {
-                        inset_scales.push(scale);
+                        glyph_scales.push(scale);
                     }
                 }
-                InsetItem::Guide(decl) => self.guide_decl(&decl, &mut inset_guides),
-                InsetItem::Space(_) | InsetItem::Let(_) | InsetItem::Error(_) => {}
+                GlyphItem::Guide(decl) => self.guide_decl(&decl, &mut glyph_guides),
+                GlyphItem::Space(_) | GlyphItem::Let(_) | GlyphItem::Error(_) => {}
             }
         }
 
         let previous_space_vars = self.space_vars.clone();
-        let mut inset_scope_vars = previous_space_vars.clone();
-        inset_scope_vars.extend(self.collect_let_decls(&inset_lets));
-        self.space_vars = inset_scope_vars;
+        let mut glyph_scope_vars = previous_space_vars.clone();
+        glyph_scope_vars.extend(self.collect_let_decls(&glyph_lets));
+        self.space_vars = glyph_scope_vars;
+        self.glyph_stack.push(glyph_name.clone());
 
         let mut child_spaces = Vec::new();
-        for item in block.items() {
-            if let InsetItem::Space(space) = item {
+        for item in glyph.items() {
+            if let GlyphItem::Space(space) = item {
                 let mut analysis =
                     self.space_with_default(&space, Some((data_ref.clone(), child_table.clone())));
                 derived_out.extend(analysis.derived);
                 for child in &mut analysis.spaces {
                     if child.theme.is_none() {
-                        child.theme = inset_theme.clone();
+                        child.theme = glyph_theme.clone();
                     }
-                    child.guides = merge_guide_overrides(&inset_guides, &child.guides);
-                    if !inset_scales.is_empty() {
-                        let mut scales = inset_scales.clone();
+                    child.guides = merge_guide_overrides(&glyph_guides, &child.guides);
+                    if !glyph_scales.is_empty() {
+                        let mut scales = glyph_scales.clone();
                         scales.extend(child.scales.clone());
                         child.scales = scales;
                     }
@@ -1136,33 +1138,35 @@ impl Analyzer<'_> {
                 child_spaces.extend(analysis.spaces);
             }
         }
+        self.glyph_stack.pop();
         self.space_vars = previous_space_vars;
         if child_spaces.is_empty() {
             self.diag(Diagnostic::warning(
                 codes::W2001,
-                "`Inset` block contains no child Space",
+                format!("glyph `{glyph_name}` contains no child Space"),
                 span,
             ));
         }
 
-        Some(InsetIr {
+        Some(GlyphCallIr {
+            glyph_name,
             data: data_ref,
-            match_rules,
+            key,
             size,
             scale_policy,
-            guides,
+            guides: false,
             clip,
             padding,
             placement,
             dx,
             dy,
-            anchor,
+            legend,
             child_spaces,
             span,
         })
     }
 
-    fn inset_data_ref(&mut self, arg: &Arg) -> Option<(SpaceDataRef, ActiveTable)> {
+    fn glyph_data_ref(&mut self, arg: &Arg) -> Option<(SpaceDataRef, ActiveTable)> {
         match arg.value() {
             Some(ValueExpr::Algebra(AlgebraExpr::Name(name))) if name.qualifier().is_none() => {
                 let table_name = name.name().unwrap_or_default();
@@ -1177,16 +1181,16 @@ impl Analyzer<'_> {
                     return Some((SpaceDataRef::Table(table_name), table));
                 }
                 self.diag(Diagnostic::error(
-                    codes::E2102,
-                    format!("unknown inset child table `{table_name}`"),
+                    codes::E2202,
+                    format!("unknown glyph data table `{table_name}`"),
                     node_span(name.syntax()),
                 ));
                 None
             }
             Some(value) => {
                 self.diag(Diagnostic::error(
-                    codes::E2102,
-                    "`Inset(data:)` must name a chart table or derived table",
+                    codes::E2202,
+                    "`data:` must name a chart table or derived table",
                     node_span(value.syntax()),
                 ));
                 None
@@ -1195,56 +1199,105 @@ impl Analyzer<'_> {
         }
     }
 
-    fn inset_match_rules(&mut self, arg: &Arg, child_table: &ActiveTable) -> Vec<InsetMatchIr> {
+    fn glyph_key(&mut self, arg: &Arg, child_table: &ActiveTable) -> Vec<GlyphKeyIr> {
         let Some(value) = arg.value() else {
             return Vec::new();
         };
-        let ValueExpr::Map(map) = value else {
-            self.diag(Diagnostic::error(
-                codes::E2103,
-                "`match` expects a map such as `[child_key => parent_key]`",
-                node_span(value.syntax()),
-            ));
-            return Vec::new();
-        };
-        let mut rules = Vec::new();
-        for entry in map.entries() {
-            let span = node_span(entry.syntax());
-            let Some(child_expr) = entry.key() else {
-                continue;
-            };
-            let Some(parent_expr) = entry.value() else {
-                continue;
-            };
-            let Some(child) = self.inset_child_match_column(&child_expr, child_table) else {
-                continue;
-            };
-            let Some(parent) = self.inset_parent_match_column(&parent_expr) else {
-                continue;
-            };
-            if !match_types_compatible(child.dtype, parent.column().dtype) {
-                self.diag(Diagnostic::error(
-                    codes::E2105,
-                    format!(
-                        "inset match compares `{}` ({:?}) with `{}` ({:?})",
-                        child.name,
-                        child.dtype,
-                        parent.column().name,
-                        parent.column().dtype
-                    ),
-                    span,
-                ));
+        match value {
+            ValueExpr::Algebra(AlgebraExpr::Name(name)) if name.qualifier().is_none() => self
+                .glyph_bare_key(&name, child_table)
+                .into_iter()
+                .collect(),
+            ValueExpr::Array(array) => {
+                let mut keys = Vec::new();
+                for item in array.values() {
+                    match item {
+                        ValueExpr::Algebra(AlgebraExpr::Name(name))
+                            if name.qualifier().is_none() =>
+                        {
+                            if let Some(key) = self.glyph_bare_key(&name, child_table) {
+                                keys.push(key);
+                            }
+                        }
+                        other => self.diag(Diagnostic::error(
+                            codes::E2203,
+                            "glyph key list entries must be bare column names",
+                            node_span(other.syntax()),
+                        )),
+                    }
+                }
+                keys
             }
-            rules.push(InsetMatchIr {
-                child,
-                parent,
-                span,
-            });
+            ValueExpr::Map(map) => {
+                let mut keys = Vec::new();
+                for entry in map.entries() {
+                    let span = node_span(entry.syntax());
+                    let (Some(child_expr), Some(host_expr)) = (entry.key(), entry.value()) else {
+                        continue;
+                    };
+                    let Some(child) = self.glyph_child_key_column(&child_expr, child_table) else {
+                        continue;
+                    };
+                    let Some(host) = self.glyph_host_ref(&host_expr) else {
+                        continue;
+                    };
+                    if !match_types_compatible(child.dtype, host.column().dtype) {
+                        self.diag(Diagnostic::error(
+                            codes::E2205,
+                            format!(
+                                "glyph key compares `{}` ({:?}) with `{}` ({:?})",
+                                child.name,
+                                child.dtype,
+                                host.column().name,
+                                host.column().dtype
+                            ),
+                            span,
+                        ));
+                    }
+                    keys.push(GlyphKeyIr { child, host, span });
+                }
+                keys
+            }
+            other => {
+                self.diag(Diagnostic::error(
+                    codes::E2203,
+                    "`key:` must be a column name or a list of columns",
+                    node_span(other.syntax()),
+                ));
+                Vec::new()
+            }
         }
-        rules
     }
 
-    fn inset_child_match_column(
+    fn glyph_bare_key(
+        &mut self,
+        name: &AlgebraName,
+        child_table: &ActiveTable,
+    ) -> Option<GlyphKeyIr> {
+        let span = name
+            .ident_span()
+            .unwrap_or_else(|| node_span(name.syntax()));
+        let col_name = name.name().unwrap_or_default();
+        let child = self.resolve_column(name, child_table);
+        let host = self.resolve_host_column(&col_name, span, 0)?;
+        if !match_types_compatible(child.dtype, host.dtype) {
+            self.diag(Diagnostic::error(
+                codes::E2205,
+                format!(
+                    "glyph key `{}` ({:?}) is incompatible with host column ({:?})",
+                    col_name, child.dtype, host.dtype
+                ),
+                span,
+            ));
+        }
+        Some(GlyphKeyIr {
+            child,
+            host: GlyphHostRefIr::Current(host),
+            span,
+        })
+    }
+
+    fn glyph_child_key_column(
         &mut self,
         value: &ValueExpr,
         child_table: &ActiveTable,
@@ -1255,8 +1308,8 @@ impl Analyzer<'_> {
             }
             _ => {
                 self.diag(Diagnostic::error(
-                    codes::E2103,
-                    "left side of an inset match must be a child-table column",
+                    codes::E2203,
+                    "left side of a glyph key must be a child-table column",
                     node_span(value.syntax()),
                 ));
                 None
@@ -1264,78 +1317,72 @@ impl Analyzer<'_> {
         }
     }
 
-    fn inset_parent_match_column(&mut self, value: &ValueExpr) -> Option<InsetParentRefIr> {
+    fn glyph_host_ref(&mut self, value: &ValueExpr) -> Option<GlyphHostRefIr> {
         let ValueExpr::Algebra(AlgebraExpr::Name(name)) = value else {
             self.diag(Diagnostic::error(
-                codes::E2104,
-                "right side of an inset match must be a current or parent row column",
+                codes::E2204,
+                "right side of a glyph key must be a host-row column",
                 node_span(value.syntax()),
             ));
             return None;
         };
-        let qualifier = name.qualifier();
-        let table_index = match qualifier.as_deref() {
-            None => 0,
-            Some("parent") => 1,
+        let span = name
+            .ident_span()
+            .unwrap_or_else(|| node_span(name.syntax()));
+        let col_name = name.name().unwrap_or_default();
+        match name.qualifier().as_deref() {
+            None => self
+                .resolve_host_column(&col_name, span, 0)
+                .map(GlyphHostRefIr::Current),
+            Some("outer") => self
+                .resolve_host_column(&col_name, span, 1)
+                .map(GlyphHostRefIr::Outer),
             Some(other) => {
                 self.diag(Diagnostic::error(
-                    codes::E2104,
-                    format!("unknown row-context qualifier `{other}`"),
+                    codes::E2204,
+                    format!("unknown glyph row-context qualifier `{other}`"),
                     node_span(name.syntax()),
                 ));
-                return None;
+                None
             }
-        };
-        let Some(table) = self.row_context_tables.get(table_index).cloned() else {
-            self.diag(Diagnostic::error(
-                codes::E2104,
-                "`parent.` reference has no parent row context here",
-                node_span(name.syntax()),
-            ));
-            return None;
-        };
-        let column = if qualifier.is_some() {
-            let col_name = name.name().unwrap_or_default();
-            let span = name
-                .ident_span()
-                .unwrap_or_else(|| node_span(name.syntax()));
-            match table.get(&col_name) {
-                Some(dtype) => ColumnRef {
-                    name: col_name,
-                    dtype,
-                    span,
-                },
-                None => {
-                    if table.has_unknown_columns() {
-                        return Some(InsetParentRefIr::Parent(ColumnRef {
-                            name: col_name,
-                            dtype: DataType::Unknown,
-                            span,
-                        }));
-                    }
-                    self.diag(Diagnostic::error(
-                        codes::E1101,
-                        format!("unknown parent row column `{col_name}`"),
-                        span,
-                    ));
-                    ColumnRef {
-                        name: col_name,
-                        dtype: DataType::Unknown,
-                        span,
-                    }
-                }
-            }
-        } else {
-            self.resolve_column(name, &table)
-        };
-        if qualifier.is_some() {
-            Some(InsetParentRefIr::Parent(column))
-        } else {
-            Some(InsetParentRefIr::Current(column))
         }
     }
 
-    fn inset_number_arg(&mut self, arg: &Arg, label: &str) -> Option<f64> {
+    /// Search the host row-context chain (spec §14.27) for a column named
+    /// `col_name`, beginning at index `start` (use `1` for `outer.`). The first
+    /// match wins; an unresolved column is `E2204`.
+    fn resolve_host_column(
+        &mut self,
+        col_name: &str,
+        span: Span,
+        start: usize,
+    ) -> Option<ColumnRef> {
+        let tables = self.row_context_tables.clone();
+        for table in tables.iter().skip(start) {
+            if let Some(dtype) = table.get(col_name) {
+                return Some(ColumnRef {
+                    name: col_name.to_string(),
+                    dtype,
+                    span,
+                });
+            }
+            if table.has_unknown_columns() {
+                return Some(ColumnRef {
+                    name: col_name.to_string(),
+                    dtype: DataType::Unknown,
+                    span,
+                });
+            }
+        }
+        self.diag(Diagnostic::error(
+            codes::E2204,
+            format!("glyph key `{col_name}` is not available in the host row context"),
+            span,
+        ));
+        None
+    }
+
+    fn glyph_number_arg(&mut self, arg: &Arg, label: &str) -> Option<f64> {
         match arg.value() {
             Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Number) => {
                 let value = lit.text().and_then(|text| text.parse::<f64>().ok())?;
@@ -1343,7 +1390,7 @@ impl Analyzer<'_> {
                     Some(value)
                 } else {
                     self.diag(Diagnostic::error(
-                        codes::E2106,
+                        codes::E2206,
                         format!("{label} expects a finite number"),
                         node_span(lit.syntax()),
                     ));
@@ -1352,7 +1399,7 @@ impl Analyzer<'_> {
             }
             Some(value) => {
                 self.diag(Diagnostic::error(
-                    codes::E2106,
+                    codes::E2206,
                     format!("{label} expects a number"),
                     node_span(value.syntax()),
                 ));
@@ -1362,14 +1409,14 @@ impl Analyzer<'_> {
         }
     }
 
-    fn inset_string_arg(&mut self, arg: &Arg, label: &str) -> Option<String> {
+    fn glyph_string_arg(&mut self, arg: &Arg, label: &str) -> Option<String> {
         match arg.value() {
             Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
                 Some(string_value(&lit.text().unwrap_or_default()))
             }
             Some(value) => {
                 self.diag(Diagnostic::error(
-                    codes::E2101,
+                    codes::E2201,
                     format!("{label} expects a string literal"),
                     node_span(value.syntax()),
                 ));
@@ -1379,14 +1426,14 @@ impl Analyzer<'_> {
         }
     }
 
-    fn inset_bool_arg(&mut self, arg: &Arg, label: &str) -> Option<bool> {
+    fn glyph_bool_arg(&mut self, arg: &Arg, label: &str) -> Option<bool> {
         match arg.value() {
             Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Bool) => {
                 Some(lit.text().as_deref() == Some("true"))
             }
             Some(value) => {
                 self.diag(Diagnostic::error(
-                    codes::E2101,
+                    codes::E2201,
                     format!("{label} expects a boolean"),
                     node_span(value.syntax()),
                 ));
@@ -1519,11 +1566,11 @@ impl Analyzer<'_> {
         if let Some(qualifier) = name.qualifier() {
             self.diag(
                 Diagnostic::error(
-                    codes::E2104,
-                    format!("qualified row reference `{qualifier}.{col_name}` is only valid in `Inset(match:)`"),
+                    codes::E1101,
+                    format!("qualified row reference `{qualifier}.{col_name}` is only valid in a glyph `key:`"),
                     node_span(name.syntax()),
                 )
-                .with_help("use `parent.column` only on the right side of an inset match rule"),
+                .with_help("use `outer.column` only on the right side of a glyph key map entry"),
             );
             return ColumnRef {
                 name: col_name,

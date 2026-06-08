@@ -96,8 +96,8 @@ fn collect_space_sources(
     for layer in &space.layers {
         match layer {
             SpaceLayerIr::Geometry(geo) => collect_geometry_sources(geo, table, sources),
-            SpaceLayerIr::Inset(inset) => {
-                for child in &inset.child_spaces {
+            SpaceLayerIr::Glyph(glyph) => {
+                for child in &glyph.child_spaces {
                     collect_space_sources(child, primary, derived, sources);
                 }
             }

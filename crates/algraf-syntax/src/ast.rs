@@ -121,6 +121,7 @@ pub enum ChartItem {
     Space(SpaceBlock),
     Derive(DeriveDecl),
     Table(TableDecl),
+    Glyph(GlyphDecl),
     Let(LetDecl),
     Scale(Decl),
     Guide(Decl),
@@ -136,6 +137,7 @@ impl ChartItem {
             SyntaxKind::SPACE_BLOCK => SpaceBlock::cast(node).map(ChartItem::Space),
             SyntaxKind::DERIVE_DECL => DeriveDecl::cast(node).map(ChartItem::Derive),
             SyntaxKind::TABLE_DECL => TableDecl::cast(node).map(ChartItem::Table),
+            SyntaxKind::GLYPH_DECL => GlyphDecl::cast(node).map(ChartItem::Glyph),
             SyntaxKind::LET_DECL => LetDecl::cast(node).map(ChartItem::Let),
             SyntaxKind::SCALE_DECL => Decl::cast(node).map(ChartItem::Scale),
             SyntaxKind::GUIDE_DECL => Decl::cast(node).map(ChartItem::Guide),
@@ -176,7 +178,6 @@ impl SpaceBlock {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpaceItem {
     Geometry(GeometryCall),
-    Inset(InsetBlock),
     Let(LetDecl),
     Scale(Decl),
     Guide(Decl),
@@ -188,7 +189,6 @@ impl SpaceItem {
     pub fn cast(node: SyntaxNode) -> Option<SpaceItem> {
         match node.kind() {
             SyntaxKind::GEOMETRY_CALL => GeometryCall::cast(node).map(SpaceItem::Geometry),
-            SyntaxKind::INSET_BLOCK => InsetBlock::cast(node).map(SpaceItem::Inset),
             SyntaxKind::LET_DECL => LetDecl::cast(node).map(SpaceItem::Let),
             SyntaxKind::SCALE_DECL => Decl::cast(node).map(SpaceItem::Scale),
             SyntaxKind::GUIDE_DECL => Decl::cast(node).map(SpaceItem::Guide),
@@ -199,26 +199,38 @@ impl SpaceItem {
     }
 }
 
+// --- Glyph ----------------------------------------------------------------
+
 ast_node!(
-    /// An `Inset(...) { ... }` block nested inside a `Space`.
-    InsetBlock = INSET_BLOCK
+    /// A `Glyph name(...) { ... }` chart-scoped glyph declaration (spec §7.11).
+    GlyphDecl = GLYPH_DECL
 );
 
-impl InsetBlock {
-    /// The inset's arguments.
+impl GlyphDecl {
+    /// The glyph's name.
+    pub fn name(&self) -> Option<String> {
+        first_token(&self.syntax, SyntaxKind::IDENT).map(|t| t.text().to_string())
+    }
+
+    /// The span of the glyph name token, excluding trivia.
+    pub fn name_span(&self) -> Option<Span> {
+        first_token(&self.syntax, SyntaxKind::IDENT).map(token_span)
+    }
+
+    /// The glyph's declaration arguments (`data`, `key`, `scales`).
     pub fn args(&self) -> Vec<Arg> {
         child_nodes(&self.syntax, Arg::cast)
     }
 
-    /// The inset's body items.
-    pub fn items(&self) -> Vec<InsetItem> {
-        child_nodes(&self.syntax, InsetItem::cast)
+    /// The glyph's body items.
+    pub fn items(&self) -> Vec<GlyphItem> {
+        child_nodes(&self.syntax, GlyphItem::cast)
     }
 }
 
-/// An inset-body item. Inset bodies can own child spaces and local declarations.
+/// A glyph-body item. Glyph bodies own child spaces and local declarations.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InsetItem {
+pub enum GlyphItem {
     Space(SpaceBlock),
     Let(LetDecl),
     Scale(Decl),
@@ -227,15 +239,15 @@ pub enum InsetItem {
     Error(Error),
 }
 
-impl InsetItem {
-    pub fn cast(node: SyntaxNode) -> Option<InsetItem> {
+impl GlyphItem {
+    pub fn cast(node: SyntaxNode) -> Option<GlyphItem> {
         match node.kind() {
-            SyntaxKind::SPACE_BLOCK => SpaceBlock::cast(node).map(InsetItem::Space),
-            SyntaxKind::LET_DECL => LetDecl::cast(node).map(InsetItem::Let),
-            SyntaxKind::SCALE_DECL => Decl::cast(node).map(InsetItem::Scale),
-            SyntaxKind::GUIDE_DECL => Decl::cast(node).map(InsetItem::Guide),
-            SyntaxKind::THEME_DECL => Decl::cast(node).map(InsetItem::Theme),
-            SyntaxKind::ERROR => Error::cast(node).map(InsetItem::Error),
+            SyntaxKind::SPACE_BLOCK => SpaceBlock::cast(node).map(GlyphItem::Space),
+            SyntaxKind::LET_DECL => LetDecl::cast(node).map(GlyphItem::Let),
+            SyntaxKind::SCALE_DECL => Decl::cast(node).map(GlyphItem::Scale),
+            SyntaxKind::GUIDE_DECL => Decl::cast(node).map(GlyphItem::Guide),
+            SyntaxKind::THEME_DECL => Decl::cast(node).map(GlyphItem::Theme),
+            SyntaxKind::ERROR => Error::cast(node).map(GlyphItem::Error),
             _ => None,
         }
     }
