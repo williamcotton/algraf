@@ -10,6 +10,30 @@ data, trains scales, and emits deterministic SVG. The whole system — parser,
 language server, runtime, and renderer — ships as one Rust binary named
 `algraf`.
 
+## General DSL and API approach
+
+Keep Algraf's language surface declarative and visualization-focused. The DSL
+may name data sources, columns, stats, scales, guides, marks, and rendering
+options; it must not grow awareness of producer languages such as PDL, concrete
+data engines such as Polars, or storage details such as Arrow arrays and
+Parquet row groups.
+
+Use strict crate boundaries when adding performance work:
+
+- `algraf-data` owns concrete loaders and conversion details for native formats.
+- `algraf-driver` owns caller-data source resolution, format selection,
+  sniffing, reader construction, and unsupported-format diagnostics.
+- `algraf-render` owns visual semantics and consumes `Table`, typed column
+  views, scan helpers, handles, or aggregate APIs. It must not import Arrow,
+  Parquet, Polars, SQLite, or other native data-engine symbols.
+- Parser, syntax, semantics, editor services, ordinary LSP surfaces, and public
+  browser/WASM APIs must stay independent of concrete native data engines.
+
+Native performance features are CLI/native concerns unless a plan explicitly
+says otherwise. Do not enable Arrow stream, Parquet, Polars, SQLite, native
+filesystem, or similar data-engine support in `algraf-wasm`; browser callers
+should receive stable unsupported-format diagnostics for native-only formats.
+
 ## Spec and versioned plans
 
 Three artifacts govern behavior, and they must stay in sync:
@@ -74,6 +98,31 @@ Three artifacts govern behavior, and they must stay in sync:
 
 If you find the spec, a plan, and the code disagreeing, treat it as drift to
 fix — reconcile all three rather than picking one.
+
+### NPM package version checks
+
+Algraf browser packages are not guaranteed to be published for every Rust/CLI
+version bump. Treat local package version stamps and published npm dependency
+pins as separate concerns.
+
+Before changing any npm package `version` field or npm-consumer version for
+internal Algraf packages, verify that the target version actually exists on npm:
+
+```bash
+npm view algraf-wasm versions --json
+npm view algraf-editor versions --json
+```
+
+This applies to package manifests for `algraf-wasm` and `algraf-editor`, demo
+dependencies, downstream install instructions, peer dependency ranges,
+package-lock `node_modules/algraf-*` entries, and package docs. Do not point a
+package version, consumer dependency, or install command at
+`algraf-wasm@<version>` or `algraf-editor@<version>` unless npm confirms that
+exact version exists, or the user explicitly says the change is preparing an
+unpublished local package release. If a package is not published for the new
+workspace version, keep package and consumer pins on the latest verified
+published version and document that browser package publication is independent
+from the Rust/CLI release.
 
 ## Workspace layout
 
@@ -184,3 +233,11 @@ progression (basics → layering → stats → layouts → derived tables → an
   (spec §18.12, §23.6).
 - Tests live in each crate's `tests/` directory and follow the categories in
   spec §27. Add tests alongside new behavior.
+
+## Commits
+
+Do not create git commits. Make file edits, run the required validation
+checks, and stop. Every commit must be authored manually by a human
+author after they review the working tree. Stage and commit only when
+explicitly asked to do so for a specific commit, and never as part of
+finishing a task or closing out a multi-step plan.
