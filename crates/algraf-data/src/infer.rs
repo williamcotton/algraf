@@ -115,11 +115,23 @@ pub fn infer_column_with_policy(
     }
 
     let n_present = raw.len() - n_missing;
-    let dtype = if temporal_policy.is_some() {
+    let mut dtype = if temporal_policy.is_some() {
         DataType::Temporal
     } else {
         decide_type(n_present, n_bool, n_int, n_float, n_temporal, n_string)
     };
+    // A mostly temporal column does not degrade to a categorical axis because
+    // of a few malformed cells: at most 10% stragglers infer as Temporal,
+    // coerce to missing, and warn (spec §10.3, v0.75). Mixtures involving
+    // numeric or boolean cells keep their existing classification.
+    let mostly_temporal = dtype == DataType::Mixed
+        && temporal_policy.is_none()
+        && n_temporal + n_string == n_present
+        && n_temporal > n_string
+        && n_string * 10 <= n_present;
+    if mostly_temporal {
+        dtype = DataType::Temporal;
+    }
 
     let column = build_column(dtype, raw, temporal_policy);
     let nullable = n_missing > 0 || (temporal_policy.is_some() && n_string > 0);
@@ -179,6 +191,26 @@ pub fn infer_column_with_policy(
         ) {
             warnings.push(warning);
         }
+    }
+    if mostly_temporal {
+        let examples = raw
+            .iter()
+            .filter(|s| !is_missing(s) && matches!(classify(s.as_str()), Cell::Str))
+            .take(3)
+            .cloned()
+            .collect::<Vec<_>>();
+        warnings.push(DataWarning::for_column(
+            name,
+            format!(
+                "{} non-missing value(s) in a mostly temporal column failed temporal parsing and were treated as missing{}",
+                n_string,
+                if examples.is_empty() {
+                    String::new()
+                } else {
+                    format!("; examples: {}", examples.join(", "))
+                }
+            ),
+        ));
     }
 
     InferredColumn {

@@ -60,7 +60,7 @@ pub const THEME_OVERRIDE_KEYS: &[&str] = &[
 pub const SCALE_AESTHETIC_TARGETS: &[&str] = &["fill", "stroke", "size", "strokeWidth"];
 
 /// Named scale types accepted by `Scale(type: ...)`.
-pub const SCALE_TYPE_NAMES: &[&str] = &["linear", "log10", "sqrt", "categorical"];
+pub const SCALE_TYPE_NAMES: &[&str] = &["linear", "log10", "sqrt", "categorical", "temporal"];
 
 /// Named categorical palettes accepted by `Scale(palette: ...)`.
 pub const PALETTE_NAMES: &[&str] = &["default", "accent"];
@@ -414,9 +414,9 @@ const SCALE_DOC_ARGS: &[ArgDoc] = &[
     },
     ArgDoc {
         name: "type",
-        value: "\"linear\" | \"log10\" | \"sqrt\" | \"categorical\"",
+        value: "\"linear\" | \"log10\" | \"sqrt\" | \"categorical\" | \"temporal\"",
         default: Some("\"linear\""),
-        doc: "Position scale transform or categorical axis override.",
+        doc: "Position scale transform, categorical axis override, or explicit temporal axis.",
     },
     ArgDoc {
         name: "domain",
@@ -435,6 +435,12 @@ const SCALE_DOC_ARGS: &[ArgDoc] = &[
         value: "array",
         default: None,
         doc: "Exact axis ticks or legend entries.",
+    },
+    ArgDoc {
+        name: "tickInterval",
+        value: "\"<count> <unit>\"",
+        default: None,
+        doc: "Generated calendar tick cadence for a temporal axis, such as \"3 months\" or \"1 week\". Units: millisecond, second, minute, hour, day, week, month, quarter, year. Exact `breaks` win when both are declared.",
     },
     ArgDoc {
         name: "expand",
@@ -922,6 +928,7 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
             "domain",
             "mode",
             "breaks",
+            "tickInterval",
             "expand",
             "expansion",
             "reverse",

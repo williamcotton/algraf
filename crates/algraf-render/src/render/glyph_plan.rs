@@ -788,6 +788,7 @@ mod tests {
             domain: None,
             categorical_domain: None,
             breaks: None,
+            tick_interval: None,
             break_labels: None,
             expansion: None,
             range: Some([Some(lo), Some(hi)]),

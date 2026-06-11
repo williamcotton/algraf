@@ -600,6 +600,17 @@ fn declaration_value_items(
             .iter()
             .map(|name| value_item(&format!("\"{name}\""), "Scale type"))
             .collect(),
+        ("Scale", "tickInterval") => vec![
+            value_item("\"1 day\"", "Daily calendar ticks"),
+            value_item("\"1 week\"", "ISO Monday week ticks"),
+            value_item("\"1 month\"", "Month-start ticks"),
+            value_item("\"3 months\"", "Quarterly ticks (Jan/Apr/Jul/Oct)"),
+            value_item("\"1 quarter\"", "Quarterly ticks (Jan/Apr/Jul/Oct)"),
+            value_item("\"6 months\"", "Half-year ticks (Jan/Jul)"),
+            value_item("\"1 year\"", "Year-start ticks"),
+            value_item("\"6 hours\"", "Clock ticks at 00/06/12/18"),
+            value_item("\"15 minutes\"", "Quarter-hour clock ticks"),
+        ],
         ("Scale", "domain") => vec![value_item("[0, 1]", "Numeric domain")],
         ("Scale", "palette") => registry::PALETTE_NAMES
             .iter()

@@ -1,0 +1,13 @@
+Chart(data: "temporal_weekly_ticks.csv", width: 860, height: 420,
+      title: "Daily signups with Monday week ticks") {
+    Theme(name: "minimal")
+
+    Scale(axis: x, tickInterval: "1 week")
+    Guide(axis: x, label: "Week starting", timeFormat: "%b %-d")
+    Guide(axis: y, label: "Signups")
+
+    Space(day * signups) {
+        Line(stroke: "#54a24b", strokeWidth: 1.5)
+        Point(fill: "#54a24b", size: 2)
+    }
+}

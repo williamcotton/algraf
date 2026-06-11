@@ -1,0 +1,13 @@
+Chart(data: "timeseries_gaps.csv", width: 780, height: 420,
+      title: "Sparse checks keep real elapsed time") {
+    Theme(name: "minimal")
+
+    Scale(axis: x, type: "temporal")
+    Guide(axis: x, label: "Day", timeFormat: "%b %-d")
+    Guide(axis: y, label: "Response (ms)")
+
+    Space(day * response_ms) {
+        Line(stroke: "#4c78a8", strokeWidth: 1.5)
+        Point(fill: "#4c78a8", size: 2.5)
+    }
+}

@@ -1,0 +1,13 @@
+Chart(data: "temporal_tick_interval.csv", width: 900, height: 420,
+      title: "Monthly deploys with quarterly ticks") {
+    Theme(name: "minimal")
+
+    Scale(axis: x, tickInterval: "3 months")
+    Guide(axis: x, label: "Month", timeFormat: "%b %Y", tickLabelAngle: -45)
+    Guide(axis: y, label: "Deploys")
+
+    Space(month * deploys) {
+        Line(stroke: "#e45756", strokeWidth: 2)
+        Point(fill: "#e45756", size: 2.5)
+    }
+}

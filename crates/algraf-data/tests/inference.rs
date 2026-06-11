@@ -377,3 +377,58 @@ fn test_schema_only_sampling_reads_headers() {
     assert_eq!(names, vec!["a", "b"]);
     assert_eq!(schema[0].dtype, DataType::Integer);
 }
+
+/// A mostly temporal column with a few malformed cells (at most 10% of
+/// non-missing values) infers Temporal with the failures coerced to missing
+/// plus one aggregated warning, rather than degrading to a categorical
+/// Mixed column (spec §10.3, v0.75).
+#[test]
+fn test_mostly_temporal_column_keeps_temporal_type_and_warns() {
+    let mut csv = String::from("d,v\n");
+    for day in 1..=12 {
+        csv.push_str(&format!("2024-03-{day:02},1\n"));
+    }
+    csv.push_str("not-a-date,1\n");
+    let loaded = load(&csv);
+    assert_eq!(
+        loaded.frame.column_def("d").unwrap().dtype,
+        DataType::Temporal
+    );
+    assert!(
+        matches!(loaded.frame.value("d", 12), Some(DataValueRef::Null)),
+        "failure is missing"
+    );
+    assert!(
+        loaded
+            .warnings
+            .iter()
+            .any(|warning| warning.message.contains("mostly temporal")),
+        "{:?}",
+        loaded.warnings
+    );
+}
+
+/// Blanks and explicit missing markers never count against temporal
+/// inference; an otherwise temporal column stays temporal and nullable.
+#[test]
+fn test_blank_cells_do_not_degrade_temporal_inference() {
+    let loaded = load("d,v\n2024-03-01,1\n,2\n2024-03-03,3\n");
+    let def = loaded.frame.column_def("d").unwrap();
+    assert_eq!(def.dtype, DataType::Temporal);
+    assert!(def.nullable);
+    assert!(matches!(
+        loaded.frame.value("d", 1),
+        Some(DataValueRef::Null)
+    ));
+}
+
+/// Past the 10% straggler allowance the column stays Mixed/categorical —
+/// the rescue rule must not reclassify genuinely messy columns.
+#[test]
+fn test_heavily_malformed_temporal_column_stays_mixed() {
+    let loaded = load("d\n2024-03-01\n2024-03-02\nnope\nalso-nope\n");
+    assert_ne!(
+        loaded.frame.column_def("d").unwrap().dtype,
+        DataType::Temporal
+    );
+}

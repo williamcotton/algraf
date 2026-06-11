@@ -18,8 +18,20 @@
   <line x1="75.2" y1="370" x2="610" y2="370" stroke="#333333" stroke-width="1" />
   <line x1="75.2" y1="370" x2="75.2" y2="375" stroke="#333333" stroke-width="1" />
   <text x="75.2" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-01</text>
-  <line x1="402.629" y1="370" x2="402.629" y2="375" stroke="#333333" stroke-width="1" />
-  <text x="402.629" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-07-01</text>
+  <line x1="151.6" y1="370" x2="151.6" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="151.6" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-08</text>
+  <line x1="228" y1="370" x2="228" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="228" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-15</text>
+  <line x1="304.4" y1="370" x2="304.4" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="304.4" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-22</text>
+  <line x1="380.8" y1="370" x2="380.8" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="380.8" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-06-29</text>
+  <line x1="457.2" y1="370" x2="457.2" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="457.2" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-07-06</text>
+  <line x1="533.6" y1="370" x2="533.6" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="533.6" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-07-13</text>
+  <line x1="610" y1="370" x2="610" y2="375" stroke="#333333" stroke-width="1" />
+  <text x="610" y="388" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-07-20</text>
   <text x="342.6" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Timeline</text>
   <line x1="75.2" y1="66" x2="75.2" y2="370" stroke="#333333" stroke-width="1" />
   <line x1="70.2" y1="319.333" x2="75.2" y2="319.333" stroke="#333333" stroke-width="1" />

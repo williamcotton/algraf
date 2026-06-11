@@ -24,6 +24,55 @@ enum RangeSpec {
     ColorArray(Vec<String>, Span),
 }
 
+/// Parse a `tickInterval` string: `"<unit>"` or `"<count> <unit>"` with a
+/// positive integer count and a singular or plural calendar/clock unit
+/// (spec §16.11). Returns a targeted message for `E1204` on any other shape.
+fn parse_tick_interval(text: &str) -> Result<TemporalTickIntervalIr, String> {
+    let mut parts = text.split_whitespace();
+    let (count_text, unit_text) = match (parts.next(), parts.next(), parts.next()) {
+        (Some(unit), None, None) => (None, unit),
+        (Some(count), Some(unit), None) => (Some(count), unit),
+        _ => {
+            return Err(format!(
+                "`tickInterval` expects \"<unit>\" or \"<count> <unit>\", got `{text}`"
+            ))
+        }
+    };
+
+    let count = match count_text {
+        None => 1,
+        Some(raw) => match raw.parse::<u32>() {
+            Ok(0) | Err(_) => {
+                return Err(format!(
+                    "`tickInterval` count must be a positive integer, got `{raw}`"
+                ))
+            }
+            Ok(count) => count,
+        },
+    };
+
+    let singular = unit_text.strip_suffix('s').unwrap_or(unit_text);
+    let unit = match singular {
+        "millisecond" => TemporalTickUnitIr::Millisecond,
+        "second" => TemporalTickUnitIr::Second,
+        "minute" => TemporalTickUnitIr::Minute,
+        "hour" => TemporalTickUnitIr::Hour,
+        "day" => TemporalTickUnitIr::Day,
+        "week" => TemporalTickUnitIr::Week,
+        "month" => TemporalTickUnitIr::Month,
+        "quarter" => TemporalTickUnitIr::Quarter,
+        "year" => TemporalTickUnitIr::Year,
+        _ => {
+            return Err(format!(
+                "`tickInterval` unit `{unit_text}` is not supported; use millisecond, \
+                 second, minute, hour, day, week, month, quarter, or year"
+            ))
+        }
+    };
+
+    Ok(TemporalTickIntervalIr { count, unit })
+}
+
 fn range_span(range: &RangeSpec) -> Span {
     match range {
         RangeSpec::Numeric(_, span)
@@ -44,6 +93,8 @@ impl Analyzer<'_> {
         let mut domain_span: Option<Span> = None;
         let mut breaks: Option<Vec<f64>> = None;
         let mut breaks_span: Option<Span> = None;
+        let mut tick_interval: Option<TemporalTickIntervalIr> = None;
+        let mut tick_interval_span: Option<Span> = None;
         let mut break_labels: Option<Vec<String>> = None;
         let mut break_labels_span: Option<Span> = None;
         let mut expansion = None;
@@ -111,6 +162,7 @@ impl Analyzer<'_> {
                             "log10" => scale_type = Some(ScaleTypeIr::Log10),
                             "sqrt" => scale_type = Some(ScaleTypeIr::Sqrt),
                             "categorical" => scale_type = Some(ScaleTypeIr::Categorical),
+                            "temporal" => scale_type = Some(ScaleTypeIr::Temporal),
                             _ => self.diag(Diagnostic::error(
                                 codes::E1204,
                                 format!("unknown scale type `{value}`"),
@@ -167,6 +219,25 @@ impl Analyzer<'_> {
                         breaks = self.break_values(&value);
                     }
                 }
+                "tickInterval" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        let value = string_value(&lit.text().unwrap_or_default());
+                        let value_span = node_span(lit.syntax());
+                        tick_interval_span = Some(value_span);
+                        match parse_tick_interval(&value) {
+                            Ok(interval) => tick_interval = Some(interval),
+                            Err(message) => {
+                                self.diag(Diagnostic::error(codes::E1204, message, value_span))
+                            }
+                        }
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`tickInterval` expects a string literal such as \"3 months\"",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
                 "expand" | "expansion" => {
                     if let Some(value) = arg.value() {
                         expansion = self.scale_expansion(&value);
@@ -371,6 +442,40 @@ impl Analyzer<'_> {
                             span,
                         ));
                     }
+                    if let Some(s) = tick_interval_span {
+                        self.diag(Diagnostic::error(
+                            codes::E1608,
+                            "`tickInterval` applies only to temporal axes; this axis is categorical",
+                            s,
+                        ));
+                        tick_interval = None;
+                    }
+                }
+                if scale_type == Some(ScaleTypeIr::Temporal) && integer.is_some() {
+                    self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`integer` applies only to continuous axis scales",
+                        span,
+                    ));
+                }
+                if let Some(s) = tick_interval_span
+                    .filter(|_| matches!(scale_type, Some(ScaleTypeIr::Log10 | ScaleTypeIr::Sqrt)))
+                {
+                    self.diag(Diagnostic::error(
+                        codes::E1608,
+                        "`tickInterval` applies only to temporal axes",
+                        s,
+                    ));
+                    tick_interval = None;
+                }
+                // Exact breaks win over a generated cadence (spec §16.11).
+                if let (Some(_), Some(s)) = (&breaks, tick_interval_span) {
+                    self.diag(Diagnostic::warning(
+                        codes::E1609,
+                        "`tickInterval` is ignored because exact `breaks` are declared on this axis",
+                        s,
+                    ));
+                    tick_interval = None;
                 }
             }
             ScaleTargetIr::Aesthetic { aesthetic, column } => {
@@ -396,6 +501,14 @@ impl Analyzer<'_> {
                         "`type`, `reverse`, and `integer` apply only to axis scales",
                         span,
                     ));
+                }
+                if let Some(s) = tick_interval_span {
+                    self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`tickInterval` applies only to axis scales",
+                        s,
+                    ));
+                    tick_interval = None;
                 }
 
                 if is_color {
@@ -614,6 +727,7 @@ impl Analyzer<'_> {
             domain,
             categorical_domain,
             breaks,
+            tick_interval,
             break_labels,
             expansion,
             range: range_numeric,

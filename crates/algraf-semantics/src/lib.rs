@@ -25,7 +25,7 @@ pub use ir::{
     QqDistributionIr, ScaleExpansionIr, ScaleIr, ScaleModeIr, ScaleTargetIr, ScaleTypeIr,
     SettingValue, SmoothMethodIr, SpaceDataRef, SpaceIr, SpaceLayerIr, SpatialPredicateIr,
     StatCallIr, StatKind, StatOptionsIr, StepDirectionIr, SummaryReducerIr, TableDeclIr,
-    TemporalFormatIr, ThemeIr, ThemeLineIr, ThemeOverrides, ThemeRectIr, ThemeTextIr,
-    PROPERTY_KEYS,
+    TemporalFormatIr, TemporalTickIntervalIr, TemporalTickUnitIr, ThemeIr, ThemeLineIr,
+    ThemeOverrides, ThemeRectIr, ThemeTextIr, PROPERTY_KEYS,
 };
 pub use planning::{geometry_column_name, spatial_join_appended_columns};

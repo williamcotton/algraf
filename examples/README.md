@@ -290,6 +290,128 @@ Chart(data: "hourly_load.csv", width: 720, height: 360, title: "Requests over th
 
 ![time_only_anchor](time_only_anchor.svg)
 
+## Sparse timeseries keep real elapsed time
+
+Temporal axes are continuous: missing dates stay visible as proportional
+gaps rather than collapsing like categorical bands. The nine-day outage in
+this series occupies nine days of horizontal space. The explicit
+`Scale(axis: x, type: "temporal")` is an assertion — temporal columns train
+temporal axes automatically — that documents intent and guards against a
+silent categorical fallback:
+
+```algraf
+Chart(data: "timeseries_gaps.csv", width: 780, height: 420,
+      title: "Sparse checks keep real elapsed time") {
+    Theme(name: "minimal")
+
+    Scale(axis: x, type: "temporal")
+    Guide(axis: x, label: "Day", timeFormat: "%b %-d")
+    Guide(axis: y, label: "Response (ms)")
+
+    Space(day * response_ms) {
+        Line(stroke: "#4c78a8", strokeWidth: 1.5)
+        Point(fill: "#4c78a8", size: 2.5)
+    }
+}
+```
+
+![timeseries_gaps](timeseries_gaps.svg)
+
+## Calendar tick cadence with `tickInterval`
+
+`Scale(tickInterval: ...)` asks for ticks on a calendar grid: `"3 months"`
+lands on January/April/July/October every year, regardless of where the
+domain starts. The scale controls tick positions; `Guide(timeFormat: ...)`
+and `tickLabelAngle` control their presentation:
+
+```algraf
+Chart(data: "temporal_tick_interval.csv", width: 900, height: 420,
+      title: "Monthly deploys with quarterly ticks") {
+    Theme(name: "minimal")
+
+    Scale(axis: x, tickInterval: "3 months")
+    Guide(axis: x, label: "Month", timeFormat: "%b %Y", tickLabelAngle: -45)
+    Guide(axis: y, label: "Deploys")
+
+    Space(month * deploys) {
+        Line(stroke: "#e45756", strokeWidth: 2)
+        Point(fill: "#e45756", size: 2.5)
+    }
+}
+```
+
+![temporal_tick_interval](temporal_tick_interval.svg)
+
+## Weekly ticks anchor to ISO Mondays
+
+Week cadences count from the ISO Monday grid, so every tick is a Monday:
+
+```algraf
+Chart(data: "temporal_weekly_ticks.csv", width: 860, height: 420,
+      title: "Daily signups with Monday week ticks") {
+    Theme(name: "minimal")
+
+    Scale(axis: x, tickInterval: "1 week")
+    Guide(axis: x, label: "Week starting", timeFormat: "%b %-d")
+    Guide(axis: y, label: "Signups")
+
+    Space(day * signups) {
+        Line(stroke: "#54a24b", strokeWidth: 1.5)
+        Point(fill: "#54a24b", size: 2)
+    }
+}
+```
+
+![temporal_weekly_ticks](temporal_weekly_ticks.svg)
+
+## Multi-year cadences land on round years
+
+Year steps land on years divisible by the step count — `"5 years"` reads
+1985, 1990, 1995 rather than arbitrary domain-relative years. With no
+`timeFormat`, default labels adapt to the tick granularity, so year-start
+ticks read `1985` instead of `1985-01-01`:
+
+```algraf
+Chart(data: "temporal_year_ticks.csv", width: 820, height: 420,
+      title: "Four decades with five-year ticks") {
+    Theme(name: "minimal")
+
+    Scale(axis: x, tickInterval: "5 years")
+    Guide(axis: x, label: "Year")
+    Guide(axis: y, label: "Index")
+
+    Space(year * index_value) {
+        Line(stroke: "#b279a2", strokeWidth: 2)
+    }
+}
+```
+
+![temporal_year_ticks](temporal_year_ticks.svg)
+
+## Sub-second cadences for telemetry
+
+Clock units restart at every UTC midnight, so `"500 milliseconds"` ticks
+land on whole half-seconds. A custom chrono pattern renders the millisecond
+labels:
+
+```algraf
+Chart(data: "temporal_subsecond_ticks.csv", width: 820, height: 420,
+      title: "Sensor telemetry with half-second ticks") {
+    Theme(name: "minimal")
+
+    Scale(axis: x, tickInterval: "500 milliseconds")
+    Guide(axis: x, label: "Time", timeFormat: "%H:%M:%S%.3f")
+    Guide(axis: y, label: "Reading")
+
+    Space(stamp * reading) {
+        Line(stroke: "#f58518", strokeWidth: 1.5)
+        Point(fill: "#f58518", size: 2)
+    }
+}
+```
+
+![temporal_subsecond_ticks](temporal_subsecond_ticks.svg)
+
 ## Layering multiple space blocks: weather forecast
 
 You can overlay different geometries mapped to different y-axis columns by defining multiple `Space` blocks inside the same `Chart`. They will share the same trained coordinate system. Here, we layer a forecast range (`Ribbon`), a mean forecast line (`Line`), and actual observed temperatures (`Point`).

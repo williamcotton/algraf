@@ -94,6 +94,59 @@ pub(super) fn validate_scale_configs(
                 ));
             }
         }
+        if scale.scale_type == Some(ScaleTypeIr::Temporal) {
+            let column = vector_column(axis_frame);
+            let temporal_column = column.is_some_and(|column| {
+                matches!(
+                    column.dtype,
+                    algraf_data::DataType::Temporal | algraf_data::DataType::Unknown
+                )
+            });
+            if !temporal_column {
+                // An explicit temporal scale must not coerce strings or
+                // numbers into dates at render time (spec §16.11); diagnose
+                // and fall back to the column's natural axis.
+                diagnostics.push(Diagnostic::warning(
+                    codes::R0004,
+                    "temporal scale requires a temporal axis column; parse the column as a date or datetime first",
+                    column.map(|column| column.span).unwrap_or(scale.span),
+                ));
+            }
+        }
+        if let Some(interval) = scale.tick_interval {
+            let column = vector_column(axis_frame);
+            let temporal_column = column.is_some_and(|column| {
+                matches!(
+                    column.dtype,
+                    algraf_data::DataType::Temporal | algraf_data::DataType::Unknown
+                )
+            });
+            if !temporal_column {
+                diagnostics.push(Diagnostic::warning(
+                    codes::E1608,
+                    "`tickInterval` applies only to temporal axes; this axis is not temporal",
+                    scale.span,
+                ));
+            } else if let Some(column) = column {
+                // Warn when the requested cadence exceeds the interval tick
+                // budget and the step count was promoted (spec §16.11).
+                if let Some((min, max, _)) = crate::scale::temporal_domain(table, &column.name) {
+                    let effective =
+                        crate::space::temporal::interval_effective_count(min, max, interval);
+                    if effective != i64::from(interval.count) {
+                        diagnostics.push(Diagnostic::warning(
+                            codes::R0004,
+                            format!(
+                                "`tickInterval` cadence was promoted from every {} {unit}(s) to every {effective} {unit}(s) to fit the tick budget",
+                                interval.count,
+                                unit = interval.unit.as_str(),
+                            ),
+                            scale.span,
+                        ));
+                    }
+                }
+            }
+        }
         if matches!(
             scale.scale_type,
             Some(ScaleTypeIr::Log10) | Some(ScaleTypeIr::Sqrt)

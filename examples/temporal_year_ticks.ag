@@ -1,0 +1,12 @@
+Chart(data: "temporal_year_ticks.csv", width: 820, height: 420,
+      title: "Four decades with five-year ticks") {
+    Theme(name: "minimal")
+
+    Scale(axis: x, tickInterval: "5 years")
+    Guide(axis: x, label: "Year")
+    Guide(axis: y, label: "Index")
+
+    Space(year * index_value) {
+        Line(stroke: "#b279a2", strokeWidth: 2)
+    }
+}

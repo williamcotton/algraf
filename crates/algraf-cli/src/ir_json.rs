@@ -126,6 +126,9 @@ fn scale_json(scale: &ScaleIr) -> Value {
         "domain": scale.domain,
         "categoricalDomain": scale.categorical_domain.as_ref(),
         "breaks": scale.breaks.as_ref(),
+        "tickInterval": scale.tick_interval.map(|interval| {
+            json!({ "count": interval.count, "unit": interval.unit.as_str() })
+        }),
         "labels": scale.break_labels.as_ref(),
         "expansion": scale.expansion.as_ref().map(|expansion| {
             json!({ "mult": expansion.mult, "add": expansion.add })

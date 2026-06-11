@@ -16,10 +16,11 @@ use algraf_data::{DataType, Table, TemporalPrecision};
 use algraf_semantics::{
     AxisSelectorIr, AxisViewDomainIr, ColumnRef, CoordinateViewIr, FrameIr, PolarDirectionIr,
     PolarThetaIr, ScaleExpansionIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, TemporalFormatIr,
+    TemporalTickIntervalIr,
 };
 
 mod polar;
-mod temporal;
+pub(crate) mod temporal;
 
 pub(crate) use polar::{polar_angular_range, Polar, POLAR_LABEL_GAP};
 use temporal::{format_temporal, temporal_ticks};
@@ -182,30 +183,30 @@ impl AxisScale {
                     (scale.map(t), label)
                 })
                 .collect(),
-            AxisScale::Temporal { scale, .. } => temporal_ticks(scale)
-                .into_iter()
-                .enumerate()
-                .map(|(index, micros)| {
-                    let label = scale
-                        .tick_labels
-                        .get(index)
-                        .cloned()
-                        .unwrap_or_else(|| format_temporal(micros, scale.precision, format));
-                    (scale.map(micros), label)
-                })
-                .collect(),
-            AxisScale::TemporalUnion { scale, .. } => temporal_ticks(scale)
-                .into_iter()
-                .enumerate()
-                .map(|(index, micros)| {
-                    let label = scale
-                        .tick_labels
-                        .get(index)
-                        .cloned()
-                        .unwrap_or_else(|| format_temporal(micros, scale.precision, format));
-                    (scale.map(micros), label)
-                })
-                .collect(),
+            AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
+                let ticks = temporal_ticks(scale);
+                // With no explicit timeFormat, adapt the default label
+                // pattern to the tick granularity: year-start ticks read
+                // `2024`, month-start ticks read `2024-04` (spec §16.4).
+                let default_pattern = if format.is_none() {
+                    temporal::default_tick_pattern(&ticks)
+                } else {
+                    None
+                };
+                ticks
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, micros)| {
+                        let label = scale.tick_labels.get(index).cloned().unwrap_or_else(|| {
+                            match default_pattern {
+                                Some(pattern) => temporal::format_with_pattern(micros, pattern),
+                                None => format_temporal(micros, scale.precision, format),
+                            }
+                        });
+                        (scale.map(micros), label)
+                    })
+                    .collect()
+            }
             AxisScale::Band { scale, .. } => scale
                 .categories
                 .iter()
@@ -995,6 +996,7 @@ struct AxisScaleConfig {
     domain: Option<[Option<f64>; 2]>,
     categorical_domain: Option<Vec<String>>,
     breaks: Option<Vec<f64>>,
+    tick_interval: Option<TemporalTickIntervalIr>,
     break_labels: Option<Vec<String>>,
     expansion: Option<ScaleExpansionIr>,
     view_domain: Option<AxisViewDomainIr>,
@@ -1086,6 +1088,9 @@ fn axis_config(
             if scale.breaks.is_some() {
                 config.breaks = scale.breaks.clone();
             }
+            if scale.tick_interval.is_some() {
+                config.tick_interval = scale.tick_interval;
+            }
             if scale.break_labels.is_some() {
                 config.break_labels = scale.break_labels.clone();
             }
@@ -1130,6 +1135,17 @@ fn apply_axis_breaks_to_temporal(scale: &mut TemporalScale, config: &AxisScaleCo
     if let Some(values) = &config.breaks {
         scale.tick_values = values.iter().map(|value| *value as i64).collect();
         scale.tick_span = Some((scale.min, scale.max));
+        // Declared breaks are exact (spec §16.11): no index thinning. Label
+        // overlap is handled by guide-planning label thinning.
+        scale.exact_ticks = true;
+    } else if let Some(interval) = config.tick_interval {
+        // Generated calendar cadence (spec §16.11); exact breaks win above.
+        let ticks = temporal::interval_ticks(scale.min, scale.max, interval);
+        if ticks.len() >= 2 {
+            scale.tick_values = ticks;
+            scale.tick_span = Some((scale.min, scale.max));
+            scale.exact_ticks = true;
+        }
     }
     if let Some(labels) = &config.break_labels {
         scale.tick_labels = labels.clone();

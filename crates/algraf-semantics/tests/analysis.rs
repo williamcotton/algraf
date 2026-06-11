@@ -3343,3 +3343,129 @@ fn test_on_unknown_emit_column_is_e1101() {
         "E1101"
     ));
 }
+
+// --- Temporal axis controls: tickInterval and type "temporal" (spec §16.11, v0.75) ---
+
+#[test]
+fn tick_interval_parses_count_and_unit_into_ir() {
+    let src = r#"Chart(data: "p.csv") {
+  Scale(axis: x, tickInterval: "3 months")
+  Space(time * value) { Line() }
+}"#;
+    let analysis = analyze_source(src, &schema());
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let interval = ir.scales[0].tick_interval.expect("tick interval");
+    assert_eq!(interval.count, 3);
+    assert_eq!(interval.unit, algraf_semantics::TemporalTickUnitIr::Month);
+}
+
+#[test]
+fn tick_interval_bare_unit_means_count_one() {
+    let src = r#"Chart(data: "p.csv") {
+  Scale(axis: x, tickInterval: "week")
+  Space(time * value) { Line() }
+}"#;
+    let ir = analyze_source(src, &schema()).ir.expect("ir");
+    let interval = ir.scales[0].tick_interval.expect("tick interval");
+    assert_eq!(interval.count, 1);
+    assert_eq!(interval.unit, algraf_semantics::TemporalTickUnitIr::Week);
+}
+
+#[test]
+fn tick_interval_malformed_values_emit_e1204() {
+    for value in [
+        "\"0 days\"",
+        "\"-1 month\"",
+        "\"1.5 hours\"",
+        "\"fortnight\"",
+        "\"every 2 weeks\"",
+        "3",
+    ] {
+        let src = format!(
+            "Chart(data: \"p.csv\") {{\n  Scale(axis: x, tickInterval: {value})\n  Space(time * value) {{ Line() }}\n}}"
+        );
+        assert!(
+            has(&src, "E1204"),
+            "`{value}` must emit E1204: {:?}",
+            codes(&src)
+        );
+    }
+}
+
+#[test]
+fn tick_interval_on_aesthetic_scale_emits_e1204() {
+    let src = r#"Chart(data: "p.csv") {
+  Scale(fill: species, tickInterval: "1 month")
+  Space(time * value) { Point(fill: species) }
+}"#;
+    assert!(has(src, "E1204"), "{:?}", codes(src));
+}
+
+#[test]
+fn tick_interval_on_categorical_axis_emits_e1608() {
+    let src = r#"Chart(data: "p.csv") {
+  Scale(axis: x, type: "categorical", tickInterval: "1 month")
+  Space(time * value) { Line() }
+}"#;
+    assert!(has(src, "E1608"), "{:?}", codes(src));
+}
+
+#[test]
+fn tick_interval_with_exact_breaks_warns_e1609() {
+    let src = r#"Chart(data: "p.csv") {
+  Scale(axis: x, tickInterval: "1 month", breaks: [date("2024-01-01"), date("2024-07-01")])
+  Space(time * value) { Line() }
+}"#;
+    let analysis = analyze_source(src, &schema());
+    let warning = analysis
+        .diagnostics
+        .iter()
+        .find(|d| d.code == "E1609")
+        .expect("E1609 warning");
+    assert_eq!(warning.severity, algraf_core::Severity::Warning);
+    let ir = analysis.ir.expect("ir");
+    assert!(ir.scales[0].breaks.is_some(), "breaks win");
+    assert!(ir.scales[0].tick_interval.is_none(), "interval dropped");
+}
+
+#[test]
+fn temporal_scale_type_is_accepted_on_axes() {
+    let src = r#"Chart(data: "p.csv") {
+  Scale(axis: x, type: "temporal")
+  Space(time * value) { Line() }
+}"#;
+    let analysis = analyze_source(src, &schema());
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(
+        ir.scales[0].scale_type,
+        Some(algraf_semantics::ScaleTypeIr::Temporal)
+    );
+}
+
+#[test]
+fn temporal_scale_type_on_aesthetic_emits_e1204() {
+    let src = r#"Chart(data: "p.csv") {
+  Scale(fill: species, type: "temporal")
+  Space(time * value) { Point(fill: species) }
+}"#;
+    assert!(has(src, "E1204"), "{:?}", codes(src));
+}
+
+#[test]
+fn temporal_scale_type_with_integer_emits_e1204() {
+    let src = r#"Chart(data: "p.csv") {
+  Scale(axis: x, type: "temporal", integer: true)
+  Space(time * value) { Line() }
+}"#;
+    assert!(has(src, "E1204"), "{:?}", codes(src));
+}

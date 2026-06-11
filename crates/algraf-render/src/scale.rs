@@ -119,6 +119,9 @@ pub struct TemporalScale {
     pub tick_values: Vec<i64>,
     pub tick_labels: Vec<String>,
     pub tick_span: Option<(i64, i64)>,
+    /// `tick_values` came from an explicit `tickInterval` and already honor
+    /// their own budget; index-stride thinning must not apply (spec §16.11).
+    pub exact_ticks: bool,
 }
 
 impl TemporalScale {
@@ -136,6 +139,7 @@ impl TemporalScale {
             tick_values: Vec::new(),
             tick_labels: Vec::new(),
             tick_span: None,
+            exact_ticks: false,
         }
     }
 

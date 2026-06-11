@@ -1,0 +1,13 @@
+Chart(data: "temporal_subsecond_ticks.csv", width: 820, height: 420,
+      title: "Sensor telemetry with half-second ticks") {
+    Theme(name: "minimal")
+
+    Scale(axis: x, tickInterval: "500 milliseconds")
+    Guide(axis: x, label: "Time", timeFormat: "%H:%M:%S%.3f")
+    Guide(axis: y, label: "Reading")
+
+    Space(stamp * reading) {
+        Line(stroke: "#f58518", strokeWidth: 1.5)
+        Point(fill: "#f58518", size: 2)
+    }
+}

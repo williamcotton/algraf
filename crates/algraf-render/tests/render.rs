@@ -1343,7 +1343,8 @@ fn test_temporal_axis_uses_calendar_month_ticks() {
         "Chart(data: \"t.csv\") { Space(day * value) { Line() } }",
         "day,value\n2026-01-01,1\n2026-02-01,5\n2026-03-01,3\n2026-04-01,4\n2026-05-01,2\n",
     );
-    assert!(svg.contains(">2026-02-01</text>"));
+    // Month-start ticks carry granularity-adaptive `%Y-%m` labels (v0.75).
+    assert!(svg.contains(">2026-02</text>"));
     assert!(!svg.contains("2026-01-25"));
 }
 
@@ -3002,4 +3003,124 @@ fn interaction_metadata_records_event_emitters() {
     assert_eq!(first["interaction"]["emit_field"], "g");
     assert_eq!(first["groups"]["g"], "A");
     assert_eq!(parsed["groups"]["g"], serde_json::json!(["A", "B"]));
+}
+
+// --- Temporal tickInterval and ladder rendering (spec §16.4, §16.11, v0.75) ---
+
+const MONTHLY_CSV: &str = "\
+when,count
+2022-05-01,1
+2022-11-01,4
+2023-04-01,9
+2023-09-01,16
+2024-02-01,25
+2024-07-01,36
+2024-12-01,30
+2025-05-01,21
+2025-09-01,12
+";
+
+/// `tickInterval: "3 months"` must render byte-for-byte identically to an
+/// explicit `breaks:` array listing the same calendar instants — the
+/// equivalence oracle for generated cadences (spec §16.11).
+#[test]
+fn tick_interval_matches_equivalent_explicit_breaks_byte_for_byte() {
+    let interval_chart = r#"Chart(data: "t.csv", width: 720, height: 400) {
+  Scale(axis: x, tickInterval: "3 months")
+  Space(when * count) { Line() }
+}"#;
+    let breaks_chart = r#"Chart(data: "t.csv", width: 720, height: 400) {
+  Scale(axis: x, breaks: [
+      date("2022-07-01"), date("2022-10-01"), date("2023-01-01"),
+      date("2023-04-01"), date("2023-07-01"), date("2023-10-01"),
+      date("2024-01-01"), date("2024-04-01"), date("2024-07-01"),
+      date("2024-10-01"), date("2025-01-01"), date("2025-04-01"),
+      date("2025-07-01")
+  ])
+  Space(when * count) { Line() }
+}"#;
+    assert_eq!(
+        render_svg(interval_chart, MONTHLY_CSV),
+        render_svg(breaks_chart, MONTHLY_CSV)
+    );
+}
+
+/// Without any Scale declaration, the extended automatic ladder labels a
+/// multi-year monthly series with month-grid ticks and granularity-adaptive
+/// `%Y-%m` labels rather than sparse year ticks or full dates.
+#[test]
+fn automatic_ladder_labels_multi_year_series_with_month_labels() {
+    let chart = r#"Chart(data: "t.csv", width: 720, height: 400) {
+  Space(when * count) { Line() }
+}"#;
+    let svg = render_svg(chart, MONTHLY_CSV);
+    assert!(svg.contains(">2023-01<"), "expected 2023-01 label: {svg}");
+    assert!(svg.contains(">2024-07<"), "expected 2024-07 label: {svg}");
+    assert!(
+        !svg.contains(">2023-01-01<"),
+        "month-start ticks must not carry full-date labels"
+    );
+}
+
+/// `Guide(timeFormat: ...)` reformats interval ticks without moving them.
+#[test]
+fn tick_interval_composes_with_time_format() {
+    let chart = r#"Chart(data: "t.csv", width: 720, height: 400) {
+  Scale(axis: x, tickInterval: "6 months")
+  Guide(axis: x, timeFormat: "%b %Y")
+  Space(when * count) { Line() }
+}"#;
+    let svg = render_svg(chart, MONTHLY_CSV);
+    assert!(svg.contains(">Jul 2022<"), "expected Jul 2022 label: {svg}");
+    assert!(svg.contains(">Jan 2024<"), "expected Jan 2024 label: {svg}");
+}
+
+/// A temporal y axis honors tickInterval the same way x does.
+#[test]
+fn tick_interval_applies_to_temporal_y_axes() {
+    let chart = r#"Chart(data: "t.csv", width: 400, height: 720) {
+  Scale(axis: y, tickInterval: "1 year")
+  Space(count * when) { Point() }
+}"#;
+    let svg = render_svg(chart, MONTHLY_CSV);
+    assert!(svg.contains(">2023<"), "expected 2023 label: {svg}");
+    assert!(svg.contains(">2025<"), "expected 2025 label: {svg}");
+}
+
+/// Sparse daily data keeps proportional gaps: the pixel distance between
+/// Jan 2 and Jan 10 is eight times the distance between Jan 1 and Jan 2.
+#[test]
+fn temporal_axis_keeps_proportional_gaps_for_missing_dates() {
+    let chart = r#"Chart(data: "t.csv", width: 720, height: 400) {
+  Space(when * count) { Point() }
+}"#;
+    let csv = "when,count\n2024-01-01,1\n2024-01-02,2\n2024-01-10,3\n";
+    let result = {
+        let frame = algraf_data::read_csv_str(csv).expect("csv").frame;
+        let parsed = parse(chart);
+        let analysis = analyze(&parsed.syntax(), frame.schema());
+        let ir = analysis.ir.expect("ir");
+        algraf_render::render(&ir, &frame, &Theme::minimal(), None).expect("render")
+    };
+    let circles: Vec<f64> = result
+        .svg
+        .match_indices("<circle")
+        .map(|(start, _)| {
+            let rest = &result.svg[start..];
+            let cx = rest.split("cx=\"").nth(1).expect("cx attr");
+            cx.split('"')
+                .next()
+                .expect("cx value")
+                .parse()
+                .expect("cx parses")
+        })
+        .collect();
+    assert_eq!(circles.len(), 3, "{}", result.svg);
+    let short_gap = circles[1] - circles[0];
+    let long_gap = circles[2] - circles[1];
+    assert!(
+        (long_gap / short_gap - 8.0).abs() < 1e-6,
+        "gap ratio was {} (short {short_gap}, long {long_gap})",
+        long_gap / short_gap
+    );
 }

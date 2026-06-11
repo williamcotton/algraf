@@ -67,6 +67,11 @@ charts=(
     temporal_formats_auto
     temporal_parse_custom
     temporal_histogram
+    timeseries_gaps
+    temporal_tick_interval
+    temporal_weekly_ticks
+    temporal_year_ticks
+    temporal_subsecond_ticks
     space_theme
     presentation_theme
     density

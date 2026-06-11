@@ -416,6 +416,10 @@ pub struct ScaleIr {
     /// Exact break values for axes or legends. Temporal breaks are stored as
     /// UTC-equivalent microseconds, matching temporal domain bounds.
     pub breaks: Option<Vec<f64>>,
+    /// Generated calendar tick cadence for a temporal axis
+    /// (`tickInterval: "3 months"`, spec §16.11). Exact `breaks:` win when
+    /// both are declared.
+    pub tick_interval: Option<TemporalTickIntervalIr>,
     /// Positional labels paired with `breaks`.
     pub break_labels: Option<Vec<String>>,
     /// Domain expansion/padding. Continuous axes use `mult` and `add` in data
@@ -494,6 +498,7 @@ pub enum ScaleTypeIr {
     Log10,
     Sqrt,
     Categorical,
+    Temporal,
 }
 
 impl ScaleTypeIr {
@@ -505,8 +510,50 @@ impl ScaleTypeIr {
             ScaleTypeIr::Log10 => "log10",
             ScaleTypeIr::Sqrt => "sqrt",
             ScaleTypeIr::Categorical => "categorical",
+            ScaleTypeIr::Temporal => "temporal",
         }
     }
+}
+
+/// Calendar/clock units accepted by `Scale(tickInterval: ...)` (spec §16.11).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TemporalTickUnitIr {
+    Millisecond,
+    Second,
+    Minute,
+    Hour,
+    Day,
+    Week,
+    Month,
+    Quarter,
+    Year,
+}
+
+impl TemporalTickUnitIr {
+    /// The authoritative singular source spelling.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TemporalTickUnitIr::Millisecond => "millisecond",
+            TemporalTickUnitIr::Second => "second",
+            TemporalTickUnitIr::Minute => "minute",
+            TemporalTickUnitIr::Hour => "hour",
+            TemporalTickUnitIr::Day => "day",
+            TemporalTickUnitIr::Week => "week",
+            TemporalTickUnitIr::Month => "month",
+            TemporalTickUnitIr::Quarter => "quarter",
+            TemporalTickUnitIr::Year => "year",
+        }
+    }
+}
+
+/// A generated calendar tick cadence for a temporal axis: a positive integer
+/// step count and a unit, parsed from strings such as `"3 months"` or
+/// `"day"` (spec §16.11). Tick positions anchor to fixed unit grids, not the
+/// trained domain start.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TemporalTickIntervalIr {
+    pub count: u32,
+    pub unit: TemporalTickUnitIr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

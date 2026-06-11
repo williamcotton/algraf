@@ -34,15 +34,15 @@
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="610" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="60" y1="410" x2="60" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="60" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01-01</text>
+  <text x="60" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-01</text>
   <line x1="202.083" y1="410" x2="202.083" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="202.083" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-02-01</text>
+  <text x="202.083" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-02</text>
   <line x1="330.417" y1="410" x2="330.417" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="330.417" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-03-01</text>
+  <text x="330.417" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-03</text>
   <line x1="472.5" y1="410" x2="472.5" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="472.5" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-04-01</text>
+  <text x="472.5" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-04</text>
   <line x1="610" y1="410" x2="610" y2="415" stroke="#333333" stroke-width="1" />
-  <text x="610" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05-01</text>
+  <text x="610" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2026-05</text>
   <text x="335" y="448" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">day</text>
   <line x1="60" y1="40" x2="60" y2="410" stroke="#333333" stroke-width="1" />
   <line x1="55" y1="384.483" x2="60" y2="384.483" stroke="#333333" stroke-width="1" />

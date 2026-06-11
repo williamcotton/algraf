@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420" role="img" aria-label="Monthly deploys with quarterly ticks">
+<title>Monthly deploys with quarterly ticks</title>
+<rect class="algraf-background" x="0" y="0" width="900" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Monthly deploys with quarterly ticks</text>
+<rect class="algraf-plot-area" x="60" y="66" width="810" height="266.785" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="131.099" y1="66" x2="131.099" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="192.231" y1="66" x2="192.231" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="252.699" y1="66" x2="252.699" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="312.834" y1="66" x2="312.834" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="373.634" y1="66" x2="373.634" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="434.766" y1="66" x2="434.766" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="495.566" y1="66" x2="495.566" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="556.034" y1="66" x2="556.034" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="616.833" y1="66" x2="616.833" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="677.966" y1="66" x2="677.966" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="738.433" y1="66" x2="738.433" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="798.568" y1="66" x2="798.568" y2="332.785" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="291.388" x2="870" y2="291.388" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="258.532" x2="870" y2="258.532" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="225.677" x2="870" y2="225.677" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="192.822" x2="870" y2="192.822" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="159.966" x2="870" y2="159.966" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="127.111" x2="870" y2="127.111" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="94.256" x2="870" y2="94.256" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="100.533" y1="66" x2="100.533" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="161.665" y1="66" x2="161.665" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="222.797" y1="66" x2="222.797" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="282.6" y1="66" x2="282.6" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="343.068" y1="66" x2="343.068" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="404.2" y1="66" x2="404.2" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="465.332" y1="66" x2="465.332" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="525.8" y1="66" x2="525.8" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="586.267" y1="66" x2="586.267" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="647.4" y1="66" x2="647.4" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="708.532" y1="66" x2="708.532" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="768.335" y1="66" x2="768.335" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="828.802" y1="66" x2="828.802" y2="332.785" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="307.815" x2="870" y2="307.815" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="274.96" x2="870" y2="274.96" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="242.105" x2="870" y2="242.105" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="209.249" x2="870" y2="209.249" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="176.394" x2="870" y2="176.394" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="143.539" x2="870" y2="143.539" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="110.683" x2="870" y2="110.683" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="77.828" x2="870" y2="77.828" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M60 314.386 L80.599 268.389 L100.533 261.818 L121.132 225.677 L141.731 228.962 L161.665 245.39 L182.264 228.962 L202.199 255.247 L222.797 281.531 L243.396 271.674 L262.002 294.673 L282.6 307.815 L302.535 281.531 L323.134 278.246 L343.068 235.534 L363.667 225.677 L384.266 215.82 L404.2 173.108 L424.799 173.108 L444.733 176.394 L465.332 156.681 L485.931 176.394 L505.201 202.678 L525.8 192.822 L545.734 219.106 L566.333 205.964 L586.267 219.106 L606.866 228.962 L627.465 192.822 L647.4 186.251 L667.998 176.394 L687.933 130.396 L708.532 120.54 L729.13 120.54 L747.736 87.685 L768.335 100.827 L788.269 84.399 L808.868 110.683 L828.802 140.253 L849.401 130.396 L870 150.11" fill="none" stroke="#e45756" stroke-width="2" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="60" cy="314.386" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="80.599" cy="268.389" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="100.533" cy="261.818" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="121.132" cy="225.677" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="141.731" cy="228.962" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="161.665" cy="245.39" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="182.264" cy="228.962" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="202.199" cy="255.247" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="222.797" cy="281.531" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="243.396" cy="271.674" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="262.002" cy="294.673" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="282.6" cy="307.815" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="302.535" cy="281.531" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="323.134" cy="278.246" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="343.068" cy="235.534" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="363.667" cy="225.677" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="384.266" cy="215.82" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="404.2" cy="173.108" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="424.799" cy="173.108" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="444.733" cy="176.394" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="465.332" cy="156.681" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="485.931" cy="176.394" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="505.201" cy="202.678" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="525.8" cy="192.822" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="545.734" cy="219.106" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="566.333" cy="205.964" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="586.267" cy="219.106" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="606.866" cy="228.962" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="627.465" cy="192.822" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="647.4" cy="186.251" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="667.998" cy="176.394" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="687.933" cy="130.396" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="708.532" cy="120.54" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="729.13" cy="120.54" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="747.736" cy="87.685" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="768.335" cy="100.827" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="788.269" cy="84.399" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="808.868" cy="110.683" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="828.802" cy="140.253" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="849.401" cy="130.396" r="2.5" fill="#e45756" opacity="1" />
+  <circle cx="870" cy="150.11" r="2.5" fill="#e45756" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="332.785" x2="870" y2="332.785" stroke="#333333" stroke-width="1" />
+  <line x1="100.533" y1="332.785" x2="100.533" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="100.533" y="350.785" text-anchor="end" transform="rotate(-45 100.533 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul 2022</text>
+  <line x1="161.665" y1="332.785" x2="161.665" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="161.665" y="350.785" text-anchor="end" transform="rotate(-45 161.665 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oct 2022</text>
+  <line x1="222.797" y1="332.785" x2="222.797" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="222.797" y="350.785" text-anchor="end" transform="rotate(-45 222.797 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan 2023</text>
+  <line x1="282.6" y1="332.785" x2="282.6" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="282.6" y="350.785" text-anchor="end" transform="rotate(-45 282.6 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr 2023</text>
+  <line x1="343.068" y1="332.785" x2="343.068" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="343.068" y="350.785" text-anchor="end" transform="rotate(-45 343.068 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul 2023</text>
+  <line x1="404.2" y1="332.785" x2="404.2" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="404.2" y="350.785" text-anchor="end" transform="rotate(-45 404.2 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oct 2023</text>
+  <line x1="465.332" y1="332.785" x2="465.332" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="465.332" y="350.785" text-anchor="end" transform="rotate(-45 465.332 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan 2024</text>
+  <line x1="525.8" y1="332.785" x2="525.8" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="525.8" y="350.785" text-anchor="end" transform="rotate(-45 525.8 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr 2024</text>
+  <line x1="586.267" y1="332.785" x2="586.267" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="586.267" y="350.785" text-anchor="end" transform="rotate(-45 586.267 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul 2024</text>
+  <line x1="647.4" y1="332.785" x2="647.4" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="647.4" y="350.785" text-anchor="end" transform="rotate(-45 647.4 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Oct 2024</text>
+  <line x1="708.532" y1="332.785" x2="708.532" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="708.532" y="350.785" text-anchor="end" transform="rotate(-45 708.532 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan 2025</text>
+  <line x1="768.335" y1="332.785" x2="768.335" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="768.335" y="350.785" text-anchor="end" transform="rotate(-45 768.335 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr 2025</text>
+  <line x1="828.802" y1="332.785" x2="828.802" y2="337.785" stroke="#333333" stroke-width="1" />
+  <text x="828.802" y="350.785" text-anchor="end" transform="rotate(-45 828.802 350.785)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jul 2025</text>
+  <text x="465" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Month</text>
+  <line x1="60" y1="66" x2="60" y2="332.785" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="307.815" x2="60" y2="307.815" stroke="#333333" stroke-width="1" />
+  <text x="52" y="311.815" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="55" y1="274.96" x2="60" y2="274.96" stroke="#333333" stroke-width="1" />
+  <text x="52" y="278.96" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55" y1="242.105" x2="60" y2="242.105" stroke="#333333" stroke-width="1" />
+  <text x="52" y="246.105" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <line x1="55" y1="209.249" x2="60" y2="209.249" stroke="#333333" stroke-width="1" />
+  <text x="52" y="213.249" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <line x1="55" y1="176.394" x2="60" y2="176.394" stroke="#333333" stroke-width="1" />
+  <text x="52" y="180.394" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">50</text>
+  <line x1="55" y1="143.539" x2="60" y2="143.539" stroke="#333333" stroke-width="1" />
+  <text x="52" y="147.539" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">60</text>
+  <line x1="55" y1="110.683" x2="60" y2="110.683" stroke="#333333" stroke-width="1" />
+  <text x="52" y="114.683" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">70</text>
+  <line x1="55" y1="77.828" x2="60" y2="77.828" stroke="#333333" stroke-width="1" />
+  <text x="52" y="81.828" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">80</text>
+  <text x="25.6" y="199.393" text-anchor="middle" transform="rotate(-90 25.6 199.393)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Deploys</text>
+</g>
+</svg>
