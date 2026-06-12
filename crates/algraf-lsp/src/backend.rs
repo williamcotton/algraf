@@ -422,3 +422,69 @@ impl LanguageServer for Backend {
         Ok(Some(inlay_hints_for(&state, params.range)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_project(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("algraf-lsp-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn semantic_token_data(source: &str) -> Vec<u32> {
+        semantic_tokens_for(source)
+            .iter()
+            .flat_map(|token| {
+                [
+                    token.delta_line,
+                    token.delta_start,
+                    token.length,
+                    token.token_type,
+                    token.token_modifiers_bitset,
+                ]
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn stale_upsert_does_not_clobber_newer_document_text() {
+        let dir = temp_project("stale-upsert");
+        let source_path = dir.join("chart.ag");
+        let data_path = dir.join("data.csv");
+        std::fs::write(&data_path, "x,y\n1,2\n").unwrap();
+
+        let old_source = "Chart(data: \"data.csv\") {\n    Space(x * y) { Point() }\n}";
+        let new_source =
+            "Chart(data: \"data.csv\") {\n    Space(x * y) { Point(size: 3, alpha: 0.5) }\n}";
+        std::fs::write(&source_path, old_source).unwrap();
+        let uri = Url::from_file_path(&source_path).unwrap();
+
+        let (service, _socket) = crate::build_service();
+        let backend = service.inner();
+
+        backend
+            .upsert_document(uri.clone(), 1, old_source.to_string())
+            .await;
+        let old_tokens = semantic_token_data(&backend.document(&uri).unwrap().text);
+
+        backend
+            .upsert_document(uri.clone(), 3, new_source.to_string())
+            .await;
+        let new_state = backend.document(&uri).unwrap();
+        let new_tokens = semantic_token_data(&new_state.text);
+        assert_eq!(new_state.version, 3);
+        assert_eq!(new_state.text, new_source);
+        assert_ne!(old_tokens, new_tokens, "edit must change the token stream");
+
+        backend
+            .upsert_document(uri.clone(), 2, old_source.to_string())
+            .await;
+        let state_after_stale = backend.document(&uri).unwrap();
+        assert_eq!(state_after_stale.version, 3);
+        assert_eq!(state_after_stale.text, new_source);
+        assert_eq!(semantic_token_data(&state_after_stale.text), new_tokens);
+    }
+}

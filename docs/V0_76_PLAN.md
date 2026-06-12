@@ -90,9 +90,10 @@ it.
   point). The backend now inserts the latest text (with carried-over or
   pending analysis state) before spawning analysis, discards analysis results
   for superseded versions or closed documents, and ignores stale lower-version
-  `didChange` notifications. Spec §21.3 documents the ordering requirements;
-  covered by the `stale_did_change_does_not_clobber_newer_document_text`
-  integration test. No protocol, capability, or language change.
+  `didChange` notifications. Spec §21.3 documents the ordering requirements.
+  The original protocol regression is now covered by the focused
+  `stale_upsert_does_not_clobber_newer_document_text` backend test added in
+  v0.81.0. No protocol, capability, or language change.
 
 ## Non-Goals
 

@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.80.0
+Status: 0.81.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.80.0 specification.
+This working copy is the 0.81.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -10920,6 +10920,13 @@ MUST exercise non-ASCII byte-span ↔ UTF-16 position conversion (spec §11.2,
 UTF-16 units. The integration suite remains the home for protocol-level behavior
 that spans more than one feature.
 
+Version 0.81.0: document-version cache invariants, including stale lower-version
+updates that must not clobber newer text, SHOULD have focused backend/document
+management tests in addition to any protocol-level coverage. Those tests SHOULD
+assert cached version/text behavior and at least one text-derived surface, such
+as semantic tokens, without depending on server-to-client diagnostic socket
+draining.
+
 ### 27.8 Property-Based Tests
 
 Property tests MAY verify:
@@ -11270,7 +11277,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.77.0 | [`V0_77_PLAN.md`](V0_77_PLAN.md) | Default stacked legend order follows rendered visual stack order | Implemented |
 | 0.78.0 | [`V0_78_PLAN.md`](V0_78_PLAN.md) | Overlaid spaces share the zero-baseline requirement when training position scales | Implemented |
 | 0.79.0 | [`V0_79_PLAN.md`](V0_79_PLAN.md) | Measured legend layout reserve | Implemented |
-| 0.80.0 | [`V0_80_PLAN.md`](V0_80_PLAN.md) | Default Cartesian data-mark clipping for explicit axis domains and ordinary panels | In progress |
+| 0.80.0 | [`V0_80_PLAN.md`](V0_80_PLAN.md) | Default Cartesian data-mark clipping for explicit axis domains and ordinary panels | Implemented |
+| 0.81.0 | [`V0_81_PLAN.md`](V0_81_PLAN.md) | LSP document-version test harness stability | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

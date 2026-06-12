@@ -1,6 +1,6 @@
 # Algraf v0.80.0 Plan
 
-Status: In progress
+Status: Implemented
 Target version: 0.80.0
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
@@ -41,19 +41,22 @@ from bleeding into margins, legends, titles, or neighboring panels.
 - Cartesian panels open a deterministic rectangular clip scope around data-mark
   layers by default, including panels with explicit axis domains and panels
   without coordinate zoom.
-  Status: In progress.
+  Status: Implemented. Covered by
+  `explicit_axis_domain_clips_cartesian_marks_by_default`.
 
 - The same clip flag drives SVG, draw-list, raster, and interaction metadata so
   all render backends agree on visible plot bounds.
-  Status: In progress.
+  Status: Implemented. The draw-list and interaction metadata carry the same
+  glyph clip state used by SVG/raster emission.
 
 - Glyph child panels use the same Cartesian default inside their own child plot
   rectangle.
-  Status: In progress.
+  Status: Implemented. Glyph child render scenes inherit the rectangular
+  Cartesian plot clip.
 
 - Spec §16.11, §18.5, and §24.3 document that explicit scale domains do not
   filter rows, but Cartesian data marks are clipped to the final plot rectangle.
-  Status: In progress.
+  Status: Implemented.
 
 ## Deferred
 
