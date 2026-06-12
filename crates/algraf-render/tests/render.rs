@@ -35,6 +35,21 @@ fn render_result(source: &str, csv: &str) -> RenderResult {
     render(&ir, &frame, &Theme::minimal(), None).expect("render")
 }
 
+fn mark_rect_count(svg: &str) -> usize {
+    svg.match_indices("<rect x=")
+        .filter(|(index, _)| !inside_defs(svg, *index))
+        .count()
+}
+
+fn inside_defs(svg: &str, index: usize) -> bool {
+    let before = &svg[..index];
+    match (before.rfind("<defs>"), before.rfind("</defs>")) {
+        (Some(open), Some(close)) => open > close,
+        (Some(_), None) => true,
+        _ => false,
+    }
+}
+
 #[cfg(feature = "arrow-stream")]
 fn arrow_stream_fixture() -> Vec<u8> {
     let schema = Arc::new(Schema::new(vec![
@@ -1601,7 +1616,7 @@ fn test_histogram_via_derive_and_rect() {
     );
     assert!(svg.contains("algraf-geom-rect"));
     // Four bins -> four rects (plus background + plot).
-    assert_eq!(svg.matches("<rect x=").count(), 4);
+    assert_eq!(mark_rect_count(&svg), 4);
 }
 
 #[test]
@@ -1612,7 +1627,7 @@ fn test_direct_histogram_renders_like_primitive_rects() {
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     assert!(result.svg.contains("algraf-geom-rect"));
-    assert_eq!(result.svg.matches("<rect x=").count(), 4);
+    assert_eq!(mark_rect_count(&result.svg), 4);
     assert!(result.svg.contains("fill=\"steelblue\""));
 }
 
@@ -1624,7 +1639,7 @@ fn test_horizontal_histogram_orientation_renders_count_on_x() {
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     assert!(result.svg.contains("algraf-geom-rect"));
-    assert_eq!(result.svg.matches("<rect x=").count(), 4);
+    assert_eq!(mark_rect_count(&result.svg), 4);
     assert!(result.svg.contains(">count</text>"));
 }
 
@@ -1634,7 +1649,7 @@ fn test_histogram_with_bin_width_aligns_axis_ticks() {
         "Chart(data: \"d.csv\") { Derive bins = Bin(value, binWidth: 1, boundary: 0) Space(bin_start * count, data: bins) { Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count) } }",
         "value\n1.0\n1.4\n1.7\n2.1\n2.5\n2.7\n3.0\n3.2\n3.5\n3.7\n4.1\n4.4\n4.7\n5.0\n5.3\n5.6\n6.1\n6.4\n6.8\n7.2\n7.5\n8.0\n8.3\n8.7\n",
     );
-    assert_eq!(svg.matches("<rect x=").count(), 8);
+    assert_eq!(mark_rect_count(&svg), 8);
     assert!(svg.contains(">9</text>"));
     assert!(!svg.contains(">0.5</text>"));
 }
@@ -1645,7 +1660,7 @@ fn test_bin_closed_right_assigns_boundary_values_to_left_bins() {
         "Chart(data: \"d.csv\") { Derive bins = Bin(value, binWidth: 10, boundary: 0, closed: \"right\") Space(bin_start * count, data: bins) { Rect(xmin: bin_start, xmax: bin_end, ymin: 0, ymax: count) } }",
         "value\n0\n10\n",
     );
-    assert_eq!(svg.matches("<rect x=").count(), 2);
+    assert_eq!(mark_rect_count(&svg), 2);
     assert!(svg.contains(">-10</text>"));
 }
 
@@ -2004,7 +2019,7 @@ fn test_temporal_histogram_renders_bins() {
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     assert!(result.svg.contains("algraf-geom-rect"));
-    assert_eq!(result.svg.matches("<rect x=").count(), 3);
+    assert_eq!(mark_rect_count(&result.svg), 3);
     assert!(result.svg.contains("2026-01"));
 }
 

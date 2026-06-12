@@ -85,6 +85,110 @@ fn visual_zoom_uses_clip_scope_and_sidecar_clip_flags() {
 }
 
 #[test]
+fn explicit_axis_domain_clips_cartesian_marks_by_default() {
+    let source = r##"Chart(data: "p.csv", width: 320, height: 240) {
+  Scale(axis: y, domain: [10, 20])
+  Space(x * y) {
+    Point()
+    Area(baseline: 10, fill: "#cccccc")
+    Line()
+    Rect(xmin: xmin, xmax: xmax, ymin: ymin, ymax: ymax, fill: "#dddddd")
+    Segment(x: 1, y: 5, xend: 3, yend: 25)
+    Text(label: label)
+  }
+}"##;
+    let csv = "x,y,xmin,xmax,ymin,ymax,label\n1,5,0.8,1.2,5,25,below\n2,15,1.8,2.2,12,18,inside\n3,25,2.8,3.2,-5,15,above\n";
+
+    let list = draw_list(source, csv);
+    let clip_start = list
+        .ops
+        .iter()
+        .position(|op| {
+            matches!(
+                op,
+                DrawOp::ClipStart {
+                    role: DrawRole::Mark,
+                    ..
+                }
+            )
+        })
+        .expect("mark clip scope starts");
+    let clip_end = list
+        .ops
+        .iter()
+        .position(|op| {
+            matches!(
+                op,
+                DrawOp::ClipEnd {
+                    role: DrawRole::Mark
+                }
+            )
+        })
+        .expect("mark clip scope ends");
+
+    for (index, op) in list.ops.iter().enumerate() {
+        if is_mark_primitive(op) {
+            assert!(
+                clip_start < index && index < clip_end,
+                "mark primitive outside clip scope at {index}: {op:?}"
+            );
+        }
+    }
+    assert!(list.ops.iter().any(|op| matches!(
+        op,
+        DrawOp::Circle {
+            role: DrawRole::Mark,
+            ..
+        }
+    )));
+    assert!(list.ops.iter().any(|op| matches!(
+        op,
+        DrawOp::Path {
+            role: DrawRole::Mark,
+            ..
+        }
+    )));
+    assert!(list.ops.iter().any(|op| matches!(
+        op,
+        DrawOp::Rect {
+            role: DrawRole::Mark,
+            ..
+        }
+    )));
+    assert!(list.ops.iter().any(|op| matches!(
+        op,
+        DrawOp::Line {
+            role: DrawRole::Mark,
+            ..
+        }
+    )));
+    assert!(list.ops.iter().any(|op| matches!(
+        op,
+        DrawOp::Text {
+            role: DrawRole::Mark,
+            ..
+        }
+    )));
+
+    let metadata = render_metadata_json(source, csv);
+    assert_eq!(
+        metadata["plots"][0]["clip_rect"],
+        metadata["plots"][0]["plot_rect"]
+    );
+    let marks = metadata["marks"].as_array().expect("marks");
+    let clipped_for = |id: &str| {
+        marks
+            .iter()
+            .find(|mark| mark["id"] == id)
+            .unwrap_or_else(|| panic!("missing mark {id}: {marks:?}"))["clipped"]
+            .clone()
+    };
+    assert_eq!(clipped_for("p0:g0:r0"), true);
+    assert!(clipped_for("p0:g0:r1").is_null());
+    assert_eq!(clipped_for("p0:g0:r2"), true);
+}
+
+#[test]
 fn fixed_aspect_shrinks_cartesian_plot_to_preserve_units() {
     let list = draw_list(
         r#"Chart(data: "p.csv", width: 640, height: 280) {
@@ -99,6 +203,34 @@ fn fixed_aspect_shrinks_cartesian_plot_to_preserve_units() {
     let plots = plot_rects(&list);
     assert_eq!(plots.len(), 1);
     assert!((plots[0].0 - plots[0].1).abs() < 0.001, "{plots:?}");
+}
+
+fn is_mark_primitive(op: &DrawOp) -> bool {
+    matches!(
+        op,
+        DrawOp::Rect {
+            role: DrawRole::Mark,
+            ..
+        } | DrawOp::Circle {
+            role: DrawRole::Mark,
+            ..
+        } | DrawOp::Path {
+            role: DrawRole::Mark,
+            ..
+        } | DrawOp::Polygon {
+            role: DrawRole::Mark,
+            ..
+        } | DrawOp::Image {
+            role: DrawRole::Mark,
+            ..
+        } | DrawOp::Line {
+            role: DrawRole::Mark,
+            ..
+        } | DrawOp::Text {
+            role: DrawRole::Mark,
+            ..
+        }
+    )
 }
 
 #[test]

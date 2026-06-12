@@ -152,7 +152,7 @@ pub(super) fn build_render_plan<'t>(
             let panel_theme = resolve_space_theme(theme, space.theme.as_ref(), cli_theme_override);
             let space_guides = ir.guides.with_overrides(&space.guides);
             let space_scales = merged_scales(&ir.scales, &space.scales);
-            let clip_marks = space.view.has_zoom();
+            let clip_marks = clips_cartesian_data_marks(space);
             validate_scale_configs(&space.frame, table, &space_scales, space.span, diagnostics);
             if is_spatial_space(space) {
                 // A spatial space projects geographic coordinates into the plot;
@@ -462,6 +462,10 @@ pub(super) fn build_render_plan<'t>(
         legends,
         panels,
     }
+}
+
+fn clips_cartesian_data_marks(space: &SpaceIr) -> bool {
+    matches!(space.coords, CoordsIr::Cartesian)
 }
 
 #[allow(clippy::too_many_arguments)]

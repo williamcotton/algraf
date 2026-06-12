@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.79.0
+Status: 0.80.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.79.0 specification.
+This working copy is the 0.80.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -7139,8 +7139,10 @@ expansion `0`. A two-number array is `[mult, add]`. Continuous axes expand by
 `span * mult + add` on both sides before explicit domain bounds are applied.
 Temporal axes use the same rule in microsecond units. Categorical axes use
 `mult` as deterministic outer band padding. Explicit `domain:` bounds remain
-data-domain training constraints and are not visual zoom or clipping; visual
-coordinate zoom is a separate `Space` coordinate-view control (§16.17).
+data-domain training constraints and are not row filters or visual coordinate
+zoom controls; Cartesian data marks are still clipped to the final plot
+rectangle by default after scale mapping (§18.5). Visual coordinate zoom is a
+separate `Space` coordinate-view control (§16.17).
 
 Version 0.2.0 MUST support `reverse: true` for position axes.
 
@@ -7799,6 +7801,14 @@ y range is `[plot.y + plot.height, plot.y]`.
 ### 18.5 Clipping
 
 Data marks SHOULD be clipped to plot area by default.
+
+Version 0.80.0: Cartesian panels MUST open a deterministic rectangular clip
+scope around data-mark layers by default, regardless of whether the axis view
+comes from data-trained domains, explicit `Scale(axis: ..., domain: ...)`
+bounds, or `Space(zoomX:/zoomY:)`. The clip scope is applied after source data
+loading, derived stat materialization, scale-domain training, scale expansion,
+explicit scale bounds, and coordinate zoom. It MUST NOT filter source rows or
+stat rows before geometry emission.
 
 Glyph clips MAY be rectangular or circular, according to a glyph mark's `clip:`
 (§14.27).
@@ -9832,9 +9842,9 @@ The renderer ships three backends over this seam:
   number, not the ordinal among rendered glyph instances, so IDs stay stable
   when earlier host rows fail to match or cannot resolve an anchor. Nested
   glyph IDs extend this prefix recursively. A plot MAY include `clip_rect` when
-  coordinate zoom or a glyph clip bounds data marks (§16.17). Circular glyph
-  clips report their bounding rectangle in metadata; the draw scene carries the
-  exact circle clip. `axes.x`
+  Cartesian plot clipping or a glyph clip bounds data marks (§18.5). Circular
+  glyph clips report their bounding rectangle in metadata; the draw scene
+  carries the exact circle clip. `axes.x`
   and `axes.y`, when present, describe host-invertible scales with `scale`,
   `domain`, `range`, `format`, and `label`; band scales also carry padding and
   bandwidth metadata. Continuous scale names are `linear`, `log10`, and `sqrt`;
@@ -11260,6 +11270,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.77.0 | [`V0_77_PLAN.md`](V0_77_PLAN.md) | Default stacked legend order follows rendered visual stack order | Implemented |
 | 0.78.0 | [`V0_78_PLAN.md`](V0_78_PLAN.md) | Overlaid spaces share the zero-baseline requirement when training position scales | Implemented |
 | 0.79.0 | [`V0_79_PLAN.md`](V0_79_PLAN.md) | Measured legend layout reserve | Implemented |
+| 0.80.0 | [`V0_80_PLAN.md`](V0_80_PLAN.md) | Default Cartesian data-mark clipping for explicit axis domains and ordinary panels | In progress |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

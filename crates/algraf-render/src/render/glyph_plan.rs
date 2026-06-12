@@ -416,7 +416,7 @@ fn plan_child_panel<'t>(
         legend_rows,
         None,
         None,
-        space.view.has_zoom(),
+        matches!(space.coords, CoordsIr::Cartesian),
         panel_theme,
         space_guides,
         space_scales,

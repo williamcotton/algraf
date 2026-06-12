@@ -203,7 +203,7 @@ pub(crate) trait MarkSink {
     /// Clear the interaction metadata set by [`MarkSink::begin_mark`].
     fn end_mark(&mut self);
 
-    /// Open a rectangular clip scope for data marks. Coordinate zoom uses this
+    /// Open a rectangular clip scope for data marks. Cartesian panels use this
     /// to hide out-of-view primitives after scales and stats have been trained.
     fn open_clip(&mut self, rect: Rect);
     /// Open a circular clip scope, used by circular inset plots.
