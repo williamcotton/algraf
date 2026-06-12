@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.77.0
+Status: 0.78.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.77.0 specification.
+This working copy is the 0.78.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -7638,6 +7638,19 @@ contributing tables, so the secondary layer aligns with the primary in the
 shared plot area. A bound that a space has locked (a `fill`-layout bar, a `Rect`)
 is not widened by this union.
 
+Version 0.78.0: the zero-baseline requirement participates in that union. When
+any overlaid space requires a numeric axis domain to include zero (a `Bar`, or
+an `Area` with a zero baseline), every compatible overlaid space sharing that
+axis MUST adopt the requirement, so all spaces resolve the same domain padding
+and train identical domains. Without this, a secondary layer whose own data
+does not reach zero pads below zero while the zero-pinned primary does not, and
+the secondary layer's marks render shifted by the padding amount even though
+the unioned min/max extents agree. Spaces with locked bounds keep their exact
+values and do not adopt the requirement. An explicit chart-level
+`Scale(axis: …, domain: […])` continues to apply to every overlaid space's
+config and therefore overrides the shared trained domain in all of them at
+once.
+
 Version 0.8: overlaid **spatial** spaces share one spatial scale (§16.15). The
 renderer MUST union the projected bounding boxes of all spatial spaces and fit
 them once, so a projected `long * lat` point overlay aligns with a `Space(geom)`
@@ -11240,6 +11253,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.75.0 | [`V0_75_PLAN.md`](V0_75_PLAN.md) | Comprehensive temporal axes: tickInterval, temporal scale type, extended tick ladder, adaptive labels, ingestion hardening | Implemented |
 | 0.76.0 | [`V0_76_PLAN.md`](V0_76_PLAN.md) | Agent language-reference templates and safe root instruction-file initialization | Implemented |
 | 0.77.0 | [`V0_77_PLAN.md`](V0_77_PLAN.md) | Default stacked legend order follows rendered visual stack order | Implemented |
+| 0.78.0 | [`V0_78_PLAN.md`](V0_78_PLAN.md) | Overlaid spaces share the zero-baseline requirement when training position scales | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

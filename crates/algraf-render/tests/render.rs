@@ -2745,6 +2745,59 @@ fn test_named_table_overlay_shares_position_scale() {
 }
 
 #[test]
+fn test_named_table_overlay_shares_zero_baseline() {
+    // A zero-baseline Area overlays a named-table Point layer carrying the
+    // same values. The area's zero requirement must propagate to the secondary
+    // space so both train the identical y domain — otherwise the secondary
+    // space pads below zero and every mark lands a padding's worth too low
+    // (spec §17.5). With the shared baseline, each point sits exactly on the
+    // area's top edge.
+    let result = render_result_with_tables(
+        "Chart(data: \"p.csv\") { Table t2 = \"s.csv\" Space(x * y) { Area(fill: series, layout: \"stack\") } Space(x * y2, data: t2) { Point() } }",
+        "x,y,series\n1,10,a\n2,20,a\n3,15,a\n",
+        &[("t2", "x,y2\n1,10\n2,20\n3,15\n")],
+    );
+    assert_circles_on_path_vertices(&result.svg, 3);
+}
+
+#[test]
+fn test_named_table_overlay_explicit_domain_governs_joined_scale() {
+    // An explicit chart-level `Scale(axis: y, domain:)` merges into every
+    // overlaid space's config, so the override drives the one joined scale:
+    // both layers honor the same bounds and the marks still coincide
+    // (spec §17.5).
+    let result = render_result_with_tables(
+        "Chart(data: \"p.csv\") { Table t2 = \"s.csv\" Scale(axis: y, domain: [0, 100]) Space(x * y) { Area(fill: series, layout: \"stack\") } Space(x * y2, data: t2) { Point() } }",
+        "x,y,series\n1,10,a\n2,20,a\n3,15,a\n",
+        &[("t2", "x,y2\n1,10\n2,20\n3,15\n")],
+    );
+    assert!(result.svg.contains(">100</text>"));
+    assert_circles_on_path_vertices(&result.svg, 3);
+}
+
+/// Assert every `<circle>` center coincides with a vertex of some `<path>`,
+/// proving the circle layer shares the position scales of the path layer.
+fn assert_circles_on_path_vertices(svg: &str, expected_circles: usize) {
+    let centers: Vec<(&str, &str)> = svg
+        .match_indices("<circle cx=\"")
+        .map(|(i, _)| {
+            let s = &svg[i + 12..];
+            let cx = &s[..s.find('"').unwrap()];
+            let rest = &s[s.find("cy=\"").unwrap() + 4..];
+            let cy = &rest[..rest.find('"').unwrap()];
+            (cx, cy)
+        })
+        .collect();
+    assert_eq!(centers.len(), expected_circles);
+    for (cx, cy) in centers {
+        assert!(
+            svg.contains(&format!("M{cx} {cy} ")) || svg.contains(&format!("L{cx} {cy} ")),
+            "point ({cx}, {cy}) should sit on a path vertex"
+        );
+    }
+}
+
+#[test]
 fn test_wide_y_tick_labels_reserve_more_left_margin() {
     // Guide planning (spec §17.3): the plot's left edge is pushed right to fit
     // the widest y tick label, so a chart with large y values reserves more
@@ -3232,7 +3285,9 @@ fn manual_fill_range_keeps_color_binding_under_stack_reorder() {
     let additions_swatch = legend.find("#1f77b4").expect("additions swatch color");
     let deletions_swatch = legend.find("#8ecae6").expect("deletions swatch color");
     assert!(
-        additions_swatch < additions && additions < deletions_swatch && deletions_swatch < deletions,
+        additions_swatch < additions
+            && additions < deletions_swatch
+            && deletions_swatch < deletions,
         "expected swatch colors interleaved with their own labels: {legend}"
     );
 }

@@ -886,6 +886,7 @@ fn facet_frame(frame: &FrameIr) -> Option<(&FrameIr, &ColumnRef)> {
 struct AxisExtent {
     numeric: Option<(f64, f64)>,
     temporal: Option<(i64, i64)>,
+    include_zero: bool,
 }
 
 impl AxisExtent {
@@ -910,6 +911,11 @@ impl AxisExtent {
         if let Some((min, max)) = self.temporal {
             hints.merge_temporal_extent(min, max);
         }
+        // A zero baseline changes domain padding, so it must be shared too or
+        // overlaid spaces train domains that differ by the padding amount.
+        if self.include_zero {
+            hints.merge_include_zero();
+        }
     }
 
     fn add_hints(&mut self, hints: &AxisDomainHints) {
@@ -919,6 +925,7 @@ impl AxisExtent {
         if let Some((min, max)) = hints.temporal_extent() {
             self.add_temporal(min, max);
         }
+        self.include_zero |= hints.includes_zero();
     }
 }
 

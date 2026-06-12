@@ -50,9 +50,9 @@ pub(crate) fn stacked_legend_order(
     }
     let sequences = match geo.kind {
         GeometryKind::Bar => bar_sequences(geo, categories, column, space, table, rows)?,
-        GeometryKind::Area => {
-            area_sequences(geo, aesthetic, categories, column, space, table, rows, scales)?
-        }
+        GeometryKind::Area => area_sequences(
+            geo, aesthetic, categories, column, space, table, rows, scales,
+        )?,
         // A grouped stacked Histogram desugars to pre-stacked `Rect` rows with
         // `stack_lower`/`stack_upper` bounds (spec §14.7).
         GeometryKind::Rect => prestacked_rect_sequences(geo, categories, column, table, rows)?,
@@ -138,7 +138,10 @@ fn area_sequences(
     {
         return None;
     }
-    let value_col = space.y_axis().and_then(|axis| axis.data_column())?.to_string();
+    let value_col = space
+        .y_axis()
+        .and_then(|axis| axis.data_column())?
+        .to_string();
 
     // Aggregate each (category, x) cell exactly as stacking does, then walk the
     // x positions in pixel order emitting each position's visible groups in

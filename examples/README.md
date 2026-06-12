@@ -1739,6 +1739,37 @@ Chart(
 
 ![stacked_legend_cohorts](stacked_legend_cohorts.svg)
 
+## Overlaying a named-table line on a stacked area
+
+Compatible overlaid spaces train one shared position scale even when they back
+onto different tables: the continuous and temporal extents are unioned, and so
+is the zero-baseline requirement. Here the stacked area pins y at zero, and the
+capacity line from the named `fleet` table adopts the same baseline — both
+layers resolve the identical zero-based y domain with no manual
+`Scale(axis: y, domain: …)`. An explicit chart-level domain, when you do want
+one, applies to the joined scale across every overlaid space.
+
+```algraf
+Chart(data: "area_layouts.csv", width: 760, height: 420, title: "Trips by rider type vs. fleet capacity") {
+    Table fleet = "fleet_capacity.csv"
+    Theme(name: "minimal")
+    Scale(fill: rider_type, palette: "accent", label: "Rider type")
+    Guide(axis: x, label: "Day")
+    Guide(axis: y, label: "Trips")
+
+    Space(day * trips) {
+        Area(fill: rider_type, layout: "stack", alpha: 0.42)
+    }
+
+    Space(day * capacity, data: fleet) {
+        Line(stroke: "#111111", strokeWidth: 1.4, dash: "dashed")
+        Point(fill: "#111111", size: 2)
+    }
+}
+```
+
+![stacked_area_capacity_line](stacked_area_capacity_line.svg)
+
 ## Fill-normalized area layout
 
 `Area(layout: "fill")` normalizes each x-position stack to a share-of-total

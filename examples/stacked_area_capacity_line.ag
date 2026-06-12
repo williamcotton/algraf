@@ -1,0 +1,16 @@
+Chart(data: "area_layouts.csv", width: 760, height: 420, title: "Trips by rider type vs. fleet capacity") {
+    Table fleet = "fleet_capacity.csv"
+    Theme(name: "minimal")
+    Scale(fill: rider_type, palette: "accent", label: "Rider type")
+    Guide(axis: x, label: "Day")
+    Guide(axis: y, label: "Trips")
+
+    Space(day * trips) {
+        Area(fill: rider_type, layout: "stack", alpha: 0.42)
+    }
+
+    Space(day * capacity, data: fleet) {
+        Line(stroke: "#111111", strokeWidth: 1.4, dash: "dashed")
+        Point(fill: "#111111", size: 2)
+    }
+}

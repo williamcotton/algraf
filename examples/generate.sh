@@ -46,6 +46,7 @@ charts=(
     bar_count
     area
     stacked_area
+    stacked_area_capacity_line
     stacked_legend_cohorts
     fill_area
     labels

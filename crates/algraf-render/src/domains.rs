@@ -117,6 +117,21 @@ impl AxisDomainHints {
         self.add_temporal(max);
     }
 
+    /// Whether geometry hints require the numeric domain to include zero.
+    pub fn includes_zero(&self) -> bool {
+        self.numeric.include_zero
+    }
+
+    /// Adopt a zero-baseline requirement from an overlaid space (spec §17.5).
+    /// Sharing the requirement makes every overlaid space resolve the same
+    /// padding at zero, so their trained domains stay identical. Locked bounds
+    /// keep their exact values, so the requirement is skipped there.
+    pub fn merge_include_zero(&mut self) {
+        if !self.numeric.hard_min && !self.numeric.hard_max {
+            self.numeric.include_zero = true;
+        }
+    }
+
     /// The numeric extent requested by geometry-specific domain hints, including
     /// a required zero baseline when present.
     pub fn numeric_extent(&self) -> Option<(f64, f64)> {
