@@ -55,9 +55,9 @@
 </g>
 <g class="algraf-legends">
   <text x="626" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Rider type</text>
-  <rect x="626" y="78" width="12" height="12" fill="#006BA4" />
-  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">member</text>
-  <rect x="626" y="96" width="12" height="12" fill="#FF800E" />
-  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">casual</text>
+  <rect x="626" y="78" width="12" height="12" fill="#FF800E" />
+  <text x="644" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">casual</text>
+  <rect x="626" y="96" width="12" height="12" fill="#006BA4" />
+  <text x="644" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">member</text>
 </g>
 </svg>

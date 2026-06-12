@@ -11,12 +11,14 @@ mod line;
 mod point;
 mod polar;
 mod rect_tile;
+mod stack;
 mod text;
 
 pub(crate) use common::{
     adjusted_position as adjusted_mark_position, DEFAULT_FILL, DEFAULT_SIZE_RANGE,
     DEFAULT_STROKE_WIDTH_RANGE,
 };
+pub(crate) use stack::stacked_legend_order;
 
 use algraf_core::{codes, Diagnostic};
 use algraf_data::Table;

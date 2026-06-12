@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.75.0
+Status: 0.77.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.75.0 specification.
+This working copy is the 0.77.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -4797,6 +4797,11 @@ Bar MUST treat negative values according to stack rules.
 
 Positive and negative stacks SHOULD be separated around baseline.
 
+Version 0.77.0: for `stack` and `fill` layouts, the default legend order for
+the stacked categorical aesthetic MUST follow rendered visual stack order
+rather than raw scale/domain order (§19.5). Stack accumulation order continues
+to control geometry placement from the baseline outward.
+
 ### 14.7 Histogram
 
 Syntax:
@@ -4858,6 +4863,11 @@ Both forms bin per group over shared edges, color by the group column with a
 categorical `fill` legend, and are deterministic (stacking and dodge slots
 ordered by group first-appearance). A grouped Histogram requires a numeric input
 column; a temporal input with grouping MUST emit `E1404`.
+
+Version 0.77.0: the stacked form's default `fill` legend MUST follow the
+rendered visual stack order of the generated stacked bars (§19.5), including
+through the pre-stacked `Rect` desugaring below. The dodged form keeps
+scale/domain legend order.
 
 Grouped, dodged, blended, and annotated Histograms MUST honor the same
 generated-axis orientation. In horizontal orientation, `count`/stack/density
@@ -5288,6 +5298,12 @@ Raw y values MUST NOT expand the normalized axis after fill layout is selected.
 
 Grouped Area layouts require a numeric y axis and a usable grouping aesthetic;
 otherwise semantic analysis MUST emit `E1302`.
+
+Version 0.77.0: for `stack` and `fill` layouts, when the stack groups come
+from a categorical `fill` or `stroke` mapping, that aesthetic's default legend
+order MUST follow rendered visual stack order rather than raw scale/domain
+order (§19.5). An explicit `group` mapping forms bands that need not align
+with the color aesthetic's categories, so it keeps scale/domain legend order.
 
 ### 14.15 Tile
 
@@ -8115,6 +8131,38 @@ Fill mapping creates fill legend.
 
 Stroke mapping creates stroke legend.
 
+Discrete color legends default to scale/domain order, except for visibly
+stacked layouts. Version 0.77.0: when a discrete `fill` or `stroke` legend's
+aesthetic forms the stack groups of `Bar(layout: "stack" | "fill")`,
+`Area(layout: "stack" | "fill")`, or the grouped stacked Histogram's
+pre-stacked `Rect` desugaring (§14.7), the default legend entry order MUST
+follow the rendered visual stack order:
+
+- Categories that visibly stack together at any position form a cohort.
+- Within a cohort, the positive side lists segments outward-to-baseline — a
+  vertical positive stack's top band first, a rightward-growing horizontal
+  stack's rightmost band first — followed by the negative side
+  baseline-outward. A category belongs to the side of its first visible
+  contribution.
+- Cohorts are ordered by their earliest member in scale/domain order. A
+  domain containing multiple disjoint visible stack cohorts MUST NOT be
+  reversed wholesale; each cohort reorders independently.
+- Only visible (nonzero-extent) stack contributions participate. The
+  zero-height placeholder cells sparse stacked Areas evaluate (§14.14) MUST
+  NOT link cohorts or affect ordering.
+- Accumulation order within a cohort is reconstructed from the per-position
+  accumulation sequences; conflicting pair directions resolve first-seen, and
+  remaining ties or cycle breaks fall back to domain order, so the result is
+  deterministic across repeated runs.
+- The reorder is presentation-only: it MUST NOT change trained scale domains,
+  category color assignment (manual `range:` maps keep binding colors by
+  category), interaction group domains, or geometry placement.
+
+Non-stacked discrete legends, and continuous, binned, size, image, and
+identity-color legends, keep their existing order. Polar stacked marks
+(§16.16) keep scale/domain legend order. Legend suppression (`Guide(fill:
+null)`, `Guide(stroke: null)`, `Guide(legend: false)`) is unaffected.
+
 A `size` or `strokeWidth` mapping MUST create a size legend. The legend title
 follows the same rules as color legends — the scale's `label:` when declared,
 otherwise the mapped column's display name (see §16.13). Its entries are five
@@ -8185,7 +8233,8 @@ domains, version 0.2.0 MUST merge them into a single legend rather than
 emitting two legends with the same title.
 
 Two discrete legends have compatible domains when their entry labels are
-equal and in the same order.
+equal and in the same order, as finally displayed — i.e. after any stacked
+visual reordering (§19.5) has been applied to each candidate.
 
 A merged legend MUST render each swatch with the fill color as the swatch face
 and the stroke color as the swatch outline.
@@ -8194,7 +8243,9 @@ When `shape` maps to the same categorical column with a compatible domain as a
 `fill` or `stroke` legend, the implementation MUST fold the shape legend into
 that color legend — drawing each swatch as the category's marker glyph filled
 with the color legend's color — rather than emitting a separate shape legend
-with the same title.
+with the same title. Version 0.77.0: the fold matches shapes to color entries
+by label rather than by position, so a color legend displayed in stacked
+visual order (§19.5) keeps each category's marker glyph aligned.
 
 Aesthetics mapped to different columns MUST keep separate legends.
 
@@ -11187,7 +11238,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.73.0 | [`V0_73_PLAN.md`](V0_73_PLAN.md) | Add another example to the README | Implemented |
 | 0.74.0 | [`V0_74_PLAN.md`](V0_74_PLAN.md) | Internal CLI maintenance: split `main.rs` into command modules | Proposed (superseded in sequence by 0.75.0; renumber when it starts) |
 | 0.75.0 | [`V0_75_PLAN.md`](V0_75_PLAN.md) | Comprehensive temporal axes: tickInterval, temporal scale type, extended tick ladder, adaptive labels, ingestion hardening | Implemented |
-| 0.76.0 | [`V0_76_PLAN.md`](V0_76_PLAN.md) | Agent language-reference templates and safe root instruction-file initialization | In progress |
+| 0.76.0 | [`V0_76_PLAN.md`](V0_76_PLAN.md) | Agent language-reference templates and safe root instruction-file initialization | Implemented |
+| 0.77.0 | [`V0_77_PLAN.md`](V0_77_PLAN.md) | Default stacked legend order follows rendered visual stack order | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

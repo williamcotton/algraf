@@ -3124,3 +3124,150 @@ fn temporal_axis_keeps_proportional_gaps_for_missing_dates() {
         long_gap / short_gap
     );
 }
+
+// ---- v0.77: stacked legend order follows the rendered visual stack (§19.5) ----
+
+/// The legend region of an SVG (everything from the `algraf-legends` group on).
+fn legend_region(svg: &str) -> &str {
+    svg.split_once("algraf-legends")
+        .map(|(_, after)| after)
+        .expect("expected a legend group in the SVG")
+}
+
+/// Byte position of a legend text label within the legend region.
+fn legend_label_pos(legend: &str, label: &str) -> usize {
+    legend
+        .find(&format!(">{label}<"))
+        .unwrap_or_else(|| panic!("expected legend label `{label}` in: {legend}"))
+}
+
+#[test]
+fn stacked_bar_legend_lists_top_band_first() {
+    // Deletions accumulate first (baseline), additions render on top; the
+    // default legend reads top-to-bottom: additions, then deletions.
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") { Space(day * count) { Bar(fill: segment, layout: \"stack\") } }",
+        "day,count,segment\nmon,3,seg_deletions\nmon,5,seg_additions\ntue,2,seg_deletions\ntue,4,seg_additions\n",
+    );
+    let legend = legend_region(&svg);
+    assert!(
+        legend_label_pos(legend, "seg_additions") < legend_label_pos(legend, "seg_deletions"),
+        "expected the top stack band first in the legend: {legend}"
+    );
+}
+
+#[test]
+fn horizontal_stacked_bar_legend_lists_rightmost_band_first() {
+    // A rightward-growing horizontal stack: the farthest-right band (last
+    // accumulated) leads the legend.
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") { Space(count * day) { Bar(fill: segment, layout: \"stack\") } }",
+        "day,count,segment\nmon,3,seg_first\nmon,5,seg_second\ntue,2,seg_first\ntue,4,seg_second\n",
+    );
+    let legend = legend_region(&svg);
+    assert!(
+        legend_label_pos(legend, "seg_second") < legend_label_pos(legend, "seg_first"),
+        "expected the rightmost stack band first in the legend: {legend}"
+    );
+}
+
+#[test]
+fn stacked_fill_bar_legend_uses_visual_stack_order() {
+    // `layout: "fill"` stacks the same way after normalization.
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") { Space(day * count) { Bar(fill: segment, layout: \"fill\") } }",
+        "day,count,segment\nmon,3,seg_lower\nmon,5,seg_upper\ntue,2,seg_lower\ntue,4,seg_upper\n",
+    );
+    let legend = legend_region(&svg);
+    assert!(
+        legend_label_pos(legend, "seg_upper") < legend_label_pos(legend, "seg_lower"),
+        "expected the top stack band first in the fill-layout legend: {legend}"
+    );
+}
+
+#[test]
+fn unstacked_bar_legend_keeps_domain_order() {
+    // Without a stacked layout the legend keeps scale/domain order.
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") { Space((day / segment) * count) { Bar(fill: segment) } }",
+        "day,count,segment\nmon,3,seg_deletions\nmon,5,seg_additions\ntue,2,seg_deletions\ntue,4,seg_additions\n",
+    );
+    let legend = legend_region(&svg);
+    assert!(
+        legend_label_pos(legend, "seg_deletions") < legend_label_pos(legend, "seg_additions"),
+        "expected domain order for a non-stacked bar legend: {legend}"
+    );
+}
+
+#[test]
+fn stacked_area_legend_lists_top_band_first() {
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") { Space(x * y) { Area(fill: series, layout: \"stack\") } }",
+        "x,y,series\n1,3,series_low\n1,5,series_high\n2,4,series_low\n2,6,series_high\n",
+    );
+    let legend = legend_region(&svg);
+    assert!(
+        legend_label_pos(legend, "series_high") < legend_label_pos(legend, "series_low"),
+        "expected the top stack band first in the stacked area legend: {legend}"
+    );
+}
+
+#[test]
+fn manual_fill_range_keeps_color_binding_under_stack_reorder() {
+    // The manual range binds colors in baseline-outward stack order; the
+    // displayed legend reverses the order but every category keeps its color.
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") { Scale(fill: segment, range: [\"seg_deletions\" => \"#8ecae6\", \"seg_additions\" => \"#1f77b4\"]) Space(day * count) { Bar(fill: segment, layout: \"stack\") } }",
+        "day,count,segment\nmon,3,seg_deletions\nmon,5,seg_additions\ntue,2,seg_deletions\ntue,4,seg_additions\n",
+    );
+    let legend = legend_region(&svg);
+    let additions = legend_label_pos(legend, "seg_additions");
+    let deletions = legend_label_pos(legend, "seg_deletions");
+    assert!(
+        additions < deletions,
+        "expected the top stack band first: {legend}"
+    );
+    // Swatches render immediately before their labels, in entry order, so the
+    // additions color leads in the legend region and color binding holds.
+    let additions_swatch = legend.find("#1f77b4").expect("additions swatch color");
+    let deletions_swatch = legend.find("#8ecae6").expect("deletions swatch color");
+    assert!(
+        additions_swatch < additions && additions < deletions_swatch && deletions_swatch < deletions,
+        "expected swatch colors interleaved with their own labels: {legend}"
+    );
+}
+
+#[test]
+fn disjoint_stack_cohorts_keep_cohort_order_and_reverse_within() {
+    // Before/after cohorts never visibly stack together: the legend keeps the
+    // `before` cohort first (domain order) while reading each cohort
+    // top-to-bottom. A whole-domain reverse would put `after_*` first.
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") { Scale(fill: seg, range: [\"before_del\" => \"#8ecae6\", \"before_add\" => \"#1f77b4\", \"after_del\" => \"#ffbf69\", \"after_add\" => \"#ff7f0e\"]) Space(x * y) { Area(fill: seg, layout: \"stack\") } }",
+        "x,y,seg\n1,3,before_del\n1,5,before_add\n2,4,before_del\n2,6,before_add\n3,2,after_del\n3,7,after_add\n4,3,after_del\n4,8,after_add\n",
+    );
+    let legend = legend_region(&svg);
+    let order: Vec<usize> = ["before_add", "before_del", "after_add", "after_del"]
+        .iter()
+        .map(|label| legend_label_pos(legend, label))
+        .collect();
+    assert!(
+        order.windows(2).all(|pair| pair[0] < pair[1]),
+        "expected cohort order before_add, before_del, after_add, after_del: {legend}"
+    );
+}
+
+#[test]
+fn grouped_stacked_histogram_legend_lists_top_band_first() {
+    // The grouped histogram desugars to pre-stacked Rects; group `grp_a`
+    // accumulates first (baseline), so `grp_b` reads first in the legend.
+    let svg = render_svg(
+        "Chart(data: \"d.csv\") { Space(v) { Histogram(fill: g, bins: 2) } }",
+        "v,g\n1,grp_a\n1,grp_b\n2,grp_a\n2,grp_a\n2,grp_b\n",
+    );
+    let legend = legend_region(&svg);
+    assert!(
+        legend_label_pos(legend, "grp_b") < legend_label_pos(legend, "grp_a"),
+        "expected the top stacked histogram band first in the legend: {legend}"
+    );
+}

@@ -105,11 +105,11 @@
 </g>
 <g class="algraf-legends">
   <text x="586" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">cohort</text>
-  <rect x="586" y="78" width="12" height="12" fill="#4E79A7" />
-  <text x="604" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Morning</text>
+  <rect x="586" y="78" width="12" height="12" fill="#E15759" />
+  <text x="604" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Evening</text>
   <rect x="586" y="96" width="12" height="12" fill="#F28E2B" />
   <text x="604" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Afternoon</text>
-  <rect x="586" y="114" width="12" height="12" fill="#E15759" />
-  <text x="604" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Evening</text>
+  <rect x="586" y="114" width="12" height="12" fill="#4E79A7" />
+  <text x="604" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Morning</text>
 </g>
 </svg>

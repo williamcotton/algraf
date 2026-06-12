@@ -52,11 +52,9 @@ fn collect_panel_legend_candidates(
         match layer {
             PlannedLayer::Geometry(geo) => collect_geometry_legend_candidates(
                 candidates,
-                panel.frame,
+                panel,
                 geo,
                 legend_table,
-                &panel.scales,
-                &panel.guides,
                 theme,
                 assets,
             ),
@@ -94,17 +92,17 @@ fn collect_glyph_legend_candidates(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn collect_geometry_legend_candidates(
     candidates: &mut Vec<(PropertyKey, Legend)>,
-    frame: &FrameIr,
+    panel: &Panel<'_>,
     geo: &GeometryIr,
     table: &dyn Table,
-    scales: &[ScaleIr],
-    guides: &algraf_semantics::GuideIr,
     theme: &Theme,
     assets: &ImageAssets,
 ) {
+    let frame = panel.frame;
+    let scales: &[ScaleIr] = &panel.scales;
+    let guides = &panel.guides;
     for aesthetic in [PropertyKey::Fill, PropertyKey::Stroke] {
         if aesthetic == PropertyKey::Fill && !guides.fill_legend {
             continue;
@@ -118,7 +116,28 @@ fn collect_geometry_legend_candidates(
             // column-derived legend title (spec §16.13).
             let title = scale_label(scales, aesthetic.as_str())
                 .unwrap_or_else(|| crate::svg::display_label(&mapping.column.name));
-            if let Some(legend) = spec.legend(&title) {
+            if let Some(mut legend) = spec.legend(&title) {
+                // A stacked geometry's discrete legend follows the rendered
+                // visual stack order rather than the raw scale/domain order
+                // (spec §19.5). Entries permute as (label, color) pairs, so
+                // category→color binding is untouched.
+                if let ColorSpec::Categorical {
+                    col, categories, ..
+                } = &spec
+                {
+                    if let Some(order) = crate::geom::stacked_legend_order(
+                        geo,
+                        aesthetic,
+                        categories,
+                        col,
+                        &panel.scaled,
+                        panel.table,
+                        panel.rows.as_deref(),
+                        scales,
+                    ) {
+                        reorder_legend(&mut legend, &order);
+                    }
+                }
                 push_candidate(candidates, aesthetic, legend);
             }
         }
@@ -169,6 +188,26 @@ fn collect_geometry_legend_candidates(
     if let Some(legend) = image_legend(geo, table, scales, assets) {
         push_candidate(candidates, PropertyKey::Src, legend);
     }
+}
+
+/// Permute a discrete legend's aligned per-entry arrays into `order` (indices
+/// into the current entries). Used to present stacked legends in rendered
+/// visual stack order (spec §19.5); a permutation moves each (label, color)
+/// pair as a unit, so it never re-binds a color to a different category.
+fn reorder_legend(legend: &mut Legend, order: &[usize]) {
+    if legend.kind != LegendKind::Discrete || order.len() != legend.entries.len() {
+        return;
+    }
+    fn permute<T: Clone>(values: &mut Vec<T>, order: &[usize]) {
+        if values.len() == order.len() {
+            *values = order.iter().map(|&i| values[i].clone()).collect();
+        }
+    }
+    permute(&mut legend.entries, order);
+    permute(&mut legend.stroke_entries, order);
+    permute(&mut legend.sizes, order);
+    permute(&mut legend.shapes, order);
+    permute(&mut legend.images, order);
 }
 
 fn push_candidate(
@@ -372,9 +411,28 @@ fn merge_legends(candidates: Vec<(PropertyKey, Legend)>) -> Vec<Legend> {
 
         // A shape legend over a color-mapped column keeps the color legend's
         // swatches and labels, but draws each as the mapped marker glyph.
+        // Shapes are matched by label rather than position so a color legend
+        // displayed in stacked visual order stays aligned (spec §19.5, §19.7).
         if aesthetic == PropertyKey::Shape {
-            if labels_match && existing.shapes.is_empty() {
-                existing.shapes = legend.shapes;
+            if existing.kind == LegendKind::Discrete
+                && legend.kind == LegendKind::Discrete
+                && existing.shapes.is_empty()
+                && existing.entries.len() == legend.entries.len()
+            {
+                let shapes: Option<Vec<_>> = existing
+                    .entries
+                    .iter()
+                    .map(|(label, _)| {
+                        legend
+                            .entries
+                            .iter()
+                            .position(|(l, _)| l == label)
+                            .and_then(|i| legend.shapes.get(i).copied())
+                    })
+                    .collect();
+                if let Some(shapes) = shapes {
+                    existing.shapes = shapes;
+                }
             }
             continue;
         }

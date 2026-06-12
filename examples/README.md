@@ -1697,6 +1697,48 @@ Chart(data: "area_layouts.csv", width: 760, height: 420, title: "Trips by rider 
 
 ![stacked_area](stacked_area.svg)
 
+## Stacked legends read like the stack
+
+Stacked layouts list their default legend in rendered visual order: the top
+band of a vertical stack comes first, not the raw scale/domain order. The
+manual `range:` map below binds colors in baseline-outward stack order
+(deletions first), yet each cohort's legend reads top-to-bottom — additions
+above deletions. The reorder is cohort-aware: the `v1` and `v2` segments never
+stack in the same month, so the `v1` entries stay ahead of the `v2` entries
+instead of the whole domain reversing. Colors stay bound to their categories
+throughout.
+
+```algraf
+Chart(
+    data: "release_line_changes.csv",
+    width: 760,
+    height: 440,
+    title: "Lines changed per month around the v2 cutover",
+    subtitle: "Each stack cohort's legend reads top-to-bottom like the rendered bands"
+) {
+    Theme(name: "minimal")
+    Parse(column: month, as: "date", format: "%Y-%m-%d")
+    Scale(
+        fill: change_segment,
+        range: [
+            "v1 deletions" => "#8ecae6",
+            "v1 additions" => "#1f77b4",
+            "v2 deletions" => "#ffbf69",
+            "v2 additions" => "#ff7f0e"
+        ],
+        label: "Lines"
+    )
+    Guide(axis: x, label: "Month")
+    Guide(axis: y, label: "Lines")
+
+    Space(month * lines) {
+        Area(fill: change_segment, layout: "stack", alpha: 0.76)
+    }
+}
+```
+
+![stacked_legend_cohorts](stacked_legend_cohorts.svg)
+
 ## Fill-normalized area layout
 
 `Area(layout: "fill")` normalizes each x-position stack to a share-of-total
