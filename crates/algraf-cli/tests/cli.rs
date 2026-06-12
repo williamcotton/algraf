@@ -815,6 +815,91 @@ fn check_emits_data_warning_in_human_output_but_not_json() {
     assert!(!strict.status.success());
 }
 
+#[test]
+fn init_codex_creates_language_reference_and_agents_file() {
+    let dir = temp_dir("init-codex");
+
+    let output = Command::new(bin())
+        .arg("init")
+        .arg("--codex")
+        .arg(&dir)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let lang = fs::read_to_string(dir.join("ALGRAF_LANG.md")).unwrap();
+    assert!(lang.contains("# Algraf Language Reference"));
+    assert!(lang.contains("Algraf is not JavaScript, Python"));
+    let agents = fs::read_to_string(dir.join("AGENTS.md")).unwrap();
+    assert!(agents.contains("ALGRAF_LANG.md"));
+    assert!(!dir.join("CLAUDE.md").exists());
+}
+
+#[test]
+fn init_claude_and_agy_share_language_reference() {
+    let dir = temp_dir("init-claude-agy");
+
+    let output = Command::new(bin())
+        .arg("init")
+        .arg("--claude")
+        .arg("--agy")
+        .arg(&dir)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(dir.join("ALGRAF_LANG.md").exists());
+    assert!(fs::read_to_string(dir.join("AGENTS.md"))
+        .unwrap()
+        .contains("ALGRAF_LANG.md"));
+    assert!(fs::read_to_string(dir.join("CLAUDE.md"))
+        .unwrap()
+        .contains("ALGRAF_LANG.md"));
+}
+
+#[test]
+fn init_appends_to_existing_agents_file_without_overwriting() {
+    let dir = temp_dir("init-existing-agents");
+    let agents_path = dir.join("AGENTS.md");
+    fs::write(&agents_path, "# Existing\n\nKeep this line.\n").unwrap();
+
+    let output = Command::new(bin())
+        .arg("init")
+        .arg("--agy")
+        .arg(&dir)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let agents = fs::read_to_string(agents_path).unwrap();
+    assert!(agents.contains("Keep this line."));
+    assert!(agents.contains("ALGRAF_LANG.md"));
+}
+
+#[test]
+fn init_refuses_to_overwrite_existing_language_reference() {
+    let dir = temp_dir("init-existing-lang");
+    fs::write(dir.join("ALGRAF_LANG.md"), "custom\n").unwrap();
+
+    let output = Command::new(bin())
+        .arg("init")
+        .arg("--codex")
+        .arg(&dir)
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains("refusing to overwrite"),
+        "stderr: {}",
+        stderr(&output)
+    );
+    assert_eq!(
+        fs::read_to_string(dir.join("ALGRAF_LANG.md")).unwrap(),
+        "custom\n"
+    );
+}
+
 fn stdout(output: &std::process::Output) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
 }

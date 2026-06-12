@@ -407,6 +407,72 @@ async fn semantic_tokens_full_returns_tokens() {
     assert!(!tokens.data.is_empty());
 }
 
+async fn semantic_token_data(service: &mut LspService<Backend>, uri: Url, id: i64) -> Vec<u32> {
+    let params = SemanticTokensParams {
+        text_document: TextDocumentIdentifier { uri },
+        work_done_progress_params: Default::default(),
+        partial_result_params: Default::default(),
+    };
+    let response = call(
+        service,
+        Request::build("textDocument/semanticTokens/full")
+            .params(serde_json::to_value(params).unwrap())
+            .id(id)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let result: Option<SemanticTokensResult> = response_result(response);
+    let Some(SemanticTokensResult::Tokens(tokens)) = result else {
+        panic!("expected semantic tokens");
+    };
+    tokens
+        .data
+        .iter()
+        .flat_map(|token| {
+            [
+                token.delta_line,
+                token.delta_start,
+                token.length,
+                token.token_type,
+                token.token_modifiers_bitset,
+            ]
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn stale_did_change_does_not_clobber_newer_document_text() {
+    // tower-lsp handles messages concurrently, so analysis for an older
+    // document version can finish after a newer didChange has landed. Token
+    // requests answered from superseded text paint misaligned highlighting in
+    // the editor, so a lower-version upsert must never clobber newer text.
+    let dir = temp_project("stale-did-change");
+    let source_path = dir.join("chart.ag");
+    let data_path = dir.join("data.csv");
+    std::fs::write(&data_path, "x,y\n1,2\n").unwrap();
+
+    let old_source = "Chart(data: \"data.csv\") {\n    Space(x * y) { Point() }\n}";
+    let new_source =
+        "Chart(data: \"data.csv\") {\n    Space(x * y) { Point(size: 3, alpha: 0.5) }\n}";
+    std::fs::write(&source_path, old_source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), old_source).await;
+    let old_tokens = semantic_token_data(&mut service, uri.clone(), 3).await;
+
+    change_document(&mut service, uri.clone(), 3, new_source).await;
+    let new_tokens = semantic_token_data(&mut service, uri.clone(), 4).await;
+    assert_ne!(old_tokens, new_tokens, "edit must change the token stream");
+
+    // A stale lower-version change (analysis completing out of order) must be
+    // ignored: tokens still reflect the version-3 text afterwards.
+    change_document(&mut service, uri.clone(), 2, old_source).await;
+    let tokens_after_stale = semantic_token_data(&mut service, uri.clone(), 5).await;
+    assert_eq!(tokens_after_stale, new_tokens);
+}
+
 #[tokio::test]
 async fn code_action_quotes_bare_color_literal() {
     let dir = temp_project("code-action-color");

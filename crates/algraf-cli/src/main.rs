@@ -10,6 +10,7 @@
 //! - `cmd_ast` — `ast`: print the parse tree.
 //! - `cmd_ir` — `ir`: print the semantic IR.
 //! - `cmd_lsp` — `lsp`: run the language server over stdio.
+//! - `cmd_init` — `init`: create project-level agent guidance files.
 //! - `input` — source reading + `--var` template expansion.
 //! - `io` — output-path resolution and the render-output writer.
 //! - `svg_debug` — `--debug-layout` and `--emit-metadata` SVG augmentation.
@@ -20,6 +21,7 @@ mod astjson;
 mod cmd_ast;
 mod cmd_check;
 mod cmd_format;
+mod cmd_init;
 mod cmd_ir;
 mod cmd_lsp;
 mod cmd_render;
@@ -39,6 +41,7 @@ use clap::{Parser, Subcommand};
 use crate::cmd_ast::{ast_cmd, AstArgs};
 use crate::cmd_check::{check_cmd, CheckArgs};
 use crate::cmd_format::{format_cmd, FormatArgs};
+use crate::cmd_init::{init_cmd, InitArgs};
 use crate::cmd_ir::{ir_cmd, IrArgs};
 use crate::cmd_lsp::lsp_cmd;
 use crate::cmd_render::{render_cmd, RenderArgs};
@@ -70,6 +73,8 @@ enum Command {
     Ast(AstArgs),
     /// Print the semantic IR.
     Ir(IrArgs),
+    /// Create project-level agent guidance files.
+    Init(InitArgs),
     /// Run the language server over stdio.
     Lsp,
 }
@@ -98,6 +103,7 @@ fn run(cli: Cli) -> Result<(), CliError> {
         Command::Schema(args) => schema_cmd(args),
         Command::Ast(args) => ast_cmd(args),
         Command::Ir(args) => ir_cmd(args),
+        Command::Init(args) => init_cmd(args),
         Command::Lsp => lsp_cmd(),
     }
 }

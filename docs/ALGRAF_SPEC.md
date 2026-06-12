@@ -8519,6 +8519,16 @@ edits MAY reuse cached diagnostics only when the document has no external schema
 sources; documents that depend on files or SQLite queries MUST re-run schema
 resolution so fingerprint invalidation can observe external changes.
 
+Because the LSP transport handles messages concurrently, document management
+MUST make the latest opened/changed text visible to text-derived requests
+(semantic tokens, formatting, signature help) before blocking analysis for that
+text completes; analysis-derived state MAY lag behind the text until analysis
+lands. Answering a `semanticTokens/full` request from superseded text makes the
+editor paint misaligned tokens against the current buffer. Correspondingly, an
+analysis result for a superseded document version MUST NOT overwrite newer
+text or publish its diagnostics, MUST NOT resurrect a closed document, and a
+`didChange` carrying a version lower than the cached one MUST be ignored.
+
 When an editor/LSP document uses `Chart(data: input)` or `Chart(data: stdin)`
 and the host has not supplied caller-provided data bytes or an injected primary
 schema, analysis MUST treat the primary table schema as unknown rather than
@@ -9006,6 +9016,8 @@ Recommended commands:
 
 `algraf ir`
 
+`algraf init`
+
 ### 22.3 Render Command
 
 Usage:
@@ -9226,7 +9238,26 @@ Prints semantic IR.
 
 Requires schema resolution.
 
-### 22.9 Exit Codes
+### 22.9 Init Command
+
+`algraf init --codex`, `algraf init --claude`, and `algraf init --agy` create
+project root guidance for LLM coding agents.
+
+The command MUST write an `ALGRAF_LANG.md` language reference in the target
+directory. It MUST NOT overwrite an existing `ALGRAF_LANG.md` with different
+content. If the file already matches the built-in template, the command is a
+no-op for that file.
+
+`--codex` and `--agy` target `AGENTS.md`. `--claude` targets `CLAUDE.md`.
+Existing agent files MUST NOT be overwritten. If an existing target file already
+mentions `ALGRAF_LANG.md`, the command leaves it unchanged. Otherwise it appends
+a short section that points agents at `ALGRAF_LANG.md`.
+
+The command MAY accept a positional target directory. If no directory is
+provided, it uses the current directory. At least one of `--codex`, `--claude`,
+or `--agy` is required.
+
+### 22.10 Exit Codes
 
 Exit code 0:
 
@@ -9250,7 +9281,7 @@ internal error
 
 Internal errors SHOULD print bug-report guidance.
 
-### 22.10 Diagnostic Output
+### 22.11 Diagnostic Output
 
 Human output SHOULD include:
 
@@ -11156,6 +11187,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.73.0 | [`V0_73_PLAN.md`](V0_73_PLAN.md) | Add another example to the README | Implemented |
 | 0.74.0 | [`V0_74_PLAN.md`](V0_74_PLAN.md) | Internal CLI maintenance: split `main.rs` into command modules | Proposed (superseded in sequence by 0.75.0; renumber when it starts) |
 | 0.75.0 | [`V0_75_PLAN.md`](V0_75_PLAN.md) | Comprehensive temporal axes: tickInterval, temporal scale type, extended tick ladder, adaptive labels, ingestion hardening | Implemented |
+| 0.76.0 | [`V0_76_PLAN.md`](V0_76_PLAN.md) | Agent language-reference templates and safe root instruction-file initialization | In progress |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

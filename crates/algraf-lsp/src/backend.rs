@@ -58,6 +58,15 @@ impl Backend {
     }
 
     async fn upsert_document(&self, uri: Url, version: i32, text: String) {
+        // Client versions increase monotonically per document; a lower version
+        // is a stale notification and must not clobber newer text.
+        if self
+            .document(&uri)
+            .is_some_and(|current| current.version > version)
+        {
+            return;
+        }
+
         if let Some(mut state) = self
             .document(&uri)
             .filter(|state| state.text == text && !state.has_external_schema_sources)
@@ -75,12 +84,25 @@ impl Backend {
             return;
         }
 
+        // Make the new text visible to text-derived requests (semantic tokens,
+        // formatting, signature help) before the blocking analysis completes.
+        // tower-lsp handles messages concurrently, so a semanticTokens/full
+        // request can race the analysis; answering it from the pre-edit text
+        // makes the editor paint misaligned tokens. Analysis-derived fields are
+        // carried over (or empty for a fresh document) until analysis lands.
+        let pending = match self.document(&uri) {
+            Some(mut state) => {
+                state.text = text.clone();
+                state.version = version;
+                state
+            }
+            None => DocumentState::pending(text.clone(), version),
+        };
+        let fallback_schema = pending.primary_schema.clone().unwrap_or_default();
+        self.documents.insert(uri.clone(), pending);
+
         let schema_cache = Arc::clone(&self.schema_cache);
         let analysis_uri = uri.clone();
-        let fallback_schema = self
-            .document(&uri)
-            .and_then(|state| state.primary_schema)
-            .unwrap_or_default();
         let outcome = tokio::task::spawn_blocking(move || {
             analyze_document_blocking(&schema_cache, &analysis_uri, version, text, fallback_schema)
         })
@@ -91,6 +113,13 @@ impl Backend {
                 .await;
             return;
         };
+        // A newer didChange may have arrived while the analysis ran, or the
+        // document may have been closed; never clobber newer text or resurrect
+        // a closed document with stale analysis.
+        let current_version = self.document(&uri).map(|current| current.version);
+        if current_version.map_or(true, |current| current > version) {
+            return;
+        }
         let lsp_diagnostics = diagnostics
             .iter()
             .map(|d| diagnostic_to_lsp(&state.text, &uri, d))

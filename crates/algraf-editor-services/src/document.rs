@@ -25,6 +25,25 @@ pub struct DocumentState {
 }
 
 impl DocumentState {
+    /// State for a document whose analysis has not completed yet: the text and
+    /// version are current, and everything derived from analysis is empty
+    /// until the blocking analysis lands (spec §21.3).
+    pub fn pending(text: String, version: i32) -> DocumentState {
+        DocumentState {
+            text,
+            version,
+            parse: None,
+            analysis: None,
+            primary_schema: None,
+            table_schemas: HashMap::new(),
+            source_previews: SourcePreviews::default(),
+            data_path: None,
+            virtual_files: HashMap::new(),
+            has_external_schema_sources: false,
+            diagnostics: Vec::new(),
+        }
+    }
+
     pub fn diagnostics(&self) -> &[CoreDiagnostic] {
         &self.diagnostics
     }
