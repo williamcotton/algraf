@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.78.0
+Status: 0.79.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.78.0 specification.
+This working copy is the 0.79.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -7528,6 +7528,11 @@ If a legend is present, the side named by the resolved theme's
 `legendPosition` increases to reserve the measured legend rectangle. Valid
 positions are `"right"` (default), `"bottom"`, `"top"`, and `"left"`.
 
+Version 0.79.0: the measured legend rectangle MUST be derived from the
+collected legend titles and entry labels before the final layout pass. Right
+and left legends reserve measured width plus the plot/legend gap; top and
+bottom legends reserve measured wrapped height plus the plot/legend gap.
+
 If title present, top margin increases.
 
 If x tick labels rotated, bottom margin increases.
@@ -11254,6 +11259,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.76.0 | [`V0_76_PLAN.md`](V0_76_PLAN.md) | Agent language-reference templates and safe root instruction-file initialization | Implemented |
 | 0.77.0 | [`V0_77_PLAN.md`](V0_77_PLAN.md) | Default stacked legend order follows rendered visual stack order | Implemented |
 | 0.78.0 | [`V0_78_PLAN.md`](V0_78_PLAN.md) | Overlaid spaces share the zero-baseline requirement when training position scales | Implemented |
+| 0.79.0 | [`V0_79_PLAN.md`](V0_79_PLAN.md) | Measured legend layout reserve | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

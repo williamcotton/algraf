@@ -1,7 +1,7 @@
 use algraf_semantics::ChartIr;
 
 use crate::domains::SpaceDomainHints;
-use crate::layout::{Layout, Margins, Rect};
+use crate::layout::{Layout, LegendSize, Margins, Rect};
 use crate::space::ScaledSpace;
 use crate::theme::Theme;
 
@@ -21,9 +21,10 @@ pub(super) fn compute_layout(
     grid_categories: Option<&(Vec<String>, Vec<String>)>,
     facet_panel_count: Option<usize>,
     theme: &Theme,
+    legend_size: Option<LegendSize>,
 ) -> Layout {
     if let Some((row_categories, col_categories)) = grid_categories {
-        return Layout::compute_facet_grid_with_text(
+        return Layout::compute_facet_grid_with_text_and_legend_size(
             width,
             height,
             has_legends,
@@ -36,10 +37,11 @@ pub(super) fn compute_layout(
             margins,
             theme.legend_position,
             ir.layout.panel_spacing,
+            legend_size,
         );
     }
     match facet_panel_count {
-        Some(count) => Layout::compute_facets_with_text(
+        Some(count) => Layout::compute_facets_with_text_and_legend_size(
             width,
             height,
             has_legends,
@@ -52,8 +54,9 @@ pub(super) fn compute_layout(
             margins,
             theme.legend_position,
             ir.layout.panel_spacing,
+            legend_size,
         ),
-        None => Layout::compute_with_text(
+        None => Layout::compute_with_text_and_legend_size(
             width,
             height,
             has_legends,
@@ -63,6 +66,7 @@ pub(super) fn compute_layout(
             left_extra,
             margins,
             theme.legend_position,
+            legend_size,
         ),
     }
 }

@@ -776,6 +776,26 @@ fn test_chart_margin_below_default_is_a_floor() {
     assert_eq!(tiny.layout.plot.right(), default.layout.plot.right());
 }
 
+#[test]
+fn test_long_right_legend_labels_reserve_width() {
+    let result = render_result(
+        "Chart(data: \"p.csv\", width: 480, height: 260, marginRight: 5) {
+  Space(x * y) { Point(fill: segment) }
+}",
+        "x,y,segment\n1,2,Before Apr 7 additions\n2,3,Before Apr 7 deletions\n",
+    );
+    let legend = result.layout.legend.expect("legend area");
+
+    assert!(
+        legend.width > 170.0,
+        "expected measured legend width, got {legend:?}"
+    );
+    assert!(
+        legend.right() <= 480.0 - 30.0 + 0.001,
+        "legend should fit inside the computed right margin: {legend:?}"
+    );
+}
+
 /// Render `source` against `csv` with `void` as the resolved chart theme, the
 /// way the CLI does for a chart-level `Theme(name: "void")` (spec §22.3).
 fn render_void(source: &str, csv: &str) -> RenderResult {

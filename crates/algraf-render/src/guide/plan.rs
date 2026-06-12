@@ -2,9 +2,12 @@
 //! from trained scales (spec §17.3, §19). Pure geometry — nothing here writes
 //! SVG; [`super::emit`] consumes these results.
 
-use algraf_semantics::TemporalFormatIr;
+use algraf_semantics::{LegendPositionIr, TemporalFormatIr};
 
+use crate::aes::{Legend, LegendKind};
+use crate::layout::LegendSize;
 use crate::space::ScaledSpace;
+use crate::theme::Theme;
 
 /// Gap between the plot edge and the right edge of the y tick labels.
 pub(crate) const Y_TICK_GAP: f64 = 8.0;
@@ -100,6 +103,142 @@ pub(crate) fn tick_label_row_count(rows: Option<usize>) -> usize {
 
 pub(crate) fn tick_label_row_gap(font_size: f64) -> f64 {
     font_size + 4.0
+}
+
+/// Estimate the legend content box before final layout. Right/left legends need
+/// measured width; top/bottom legends need measured height after wrapping.
+pub(crate) fn legend_size(
+    legends: &[Legend],
+    theme: &Theme,
+    position: LegendPositionIr,
+    available_width: f64,
+) -> LegendSize {
+    if matches!(position, LegendPositionIr::Top | LegendPositionIr::Bottom) {
+        horizontal_legend_size(legends, theme, available_width)
+    } else {
+        vertical_legend_size(legends, theme)
+    }
+}
+
+pub(crate) fn horizontal_legend_width(legend: &Legend, theme: &Theme) -> f64 {
+    let title = if legend.title.is_empty() {
+        0.0
+    } else {
+        estimate_text_width(&legend.title, theme.legend_title.size) + 14.0
+    };
+    let entries = match legend.kind {
+        LegendKind::Discrete | LegendKind::Image => legend
+            .entries
+            .iter()
+            .map(|(label, _)| 18.0 + estimate_text_width(label, theme.legend_text.size) + 12.0)
+            .sum::<f64>(),
+        LegendKind::Continuous => 18.0 + max_entry_label_width(legend, theme) + 12.0,
+        LegendKind::Width | LegendKind::Radius => size_legend_width(legend, theme) + 12.0,
+    };
+    (title + entries).max(80.0)
+}
+
+fn horizontal_legend_size(legends: &[Legend], theme: &Theme, available_width: f64) -> LegendSize {
+    let row_height = theme.legend_text.size.max(theme.legend_title.size) + 10.0;
+    let available_width = available_width.max(1.0);
+    let mut rows = 0usize;
+    let mut row_width = 0.0;
+
+    for legend in legends {
+        let width = horizontal_legend_width(legend, theme).min(available_width);
+        let next_width = if row_width == 0.0 {
+            width
+        } else {
+            row_width + theme.legend_spacing + width
+        };
+        if row_width > 0.0 && next_width > available_width {
+            rows += 1;
+            row_width = width;
+        } else {
+            if row_width > 0.0 {
+                row_width += theme.legend_spacing;
+            }
+            row_width += width;
+        }
+    }
+    if row_width > 0.0 {
+        rows += 1;
+    }
+
+    LegendSize {
+        width: available_width,
+        height: rows as f64 * (row_height + theme.legend_spacing),
+    }
+}
+
+fn vertical_legend_size(legends: &[Legend], theme: &Theme) -> LegendSize {
+    let mut width = 0.0_f64;
+    let mut height = 4.0_f64;
+    for legend in legends {
+        if !legend.title.is_empty() {
+            width = width.max(estimate_text_width(&legend.title, theme.legend_title.size));
+            height += theme.legend_title.size + 6.0;
+        }
+        match legend.kind {
+            LegendKind::Discrete | LegendKind::Image => {
+                for (label, _) in &legend.entries {
+                    width = width.max(18.0 + estimate_text_width(label, theme.legend_text.size));
+                    height += theme.legend_text.size + 6.0;
+                }
+            }
+            LegendKind::Continuous => {
+                width = width.max(18.0 + max_entry_label_width(legend, theme));
+                height += 18.0 + legend.entries.len() as f64 * 16.0;
+            }
+            LegendKind::Width | LegendKind::Radius => {
+                let (size_width, size_height) = size_legend_metrics(legend, theme);
+                width = width.max(size_width);
+                height += 6.0 + size_height;
+            }
+        }
+        height += theme.legend_spacing;
+    }
+
+    LegendSize {
+        width: width + 4.0,
+        height,
+    }
+}
+
+fn max_entry_label_width(legend: &Legend, theme: &Theme) -> f64 {
+    legend
+        .entries
+        .iter()
+        .map(|(label, _)| estimate_text_width(label, theme.legend_text.size))
+        .fold(0.0_f64, f64::max)
+}
+
+fn size_legend_width(legend: &Legend, theme: &Theme) -> f64 {
+    size_legend_metrics(legend, theme).0
+}
+
+fn size_legend_metrics(legend: &Legend, theme: &Theme) -> (f64, f64) {
+    const LINE_LEN: f64 = 28.0;
+    const ROW_GAP: f64 = 6.0;
+    const LABEL_PAD: f64 = 8.0;
+
+    let max_mag = legend.sizes.iter().copied().fold(0.0_f64, f64::max);
+    let label_x = match legend.kind {
+        LegendKind::Radius => 2.0 * max_mag + LABEL_PAD,
+        _ => LINE_LEN + max_mag / 2.0 + LABEL_PAD,
+    };
+    let mut width = 0.0_f64;
+    let mut height = 0.0_f64;
+    for (index, (label, _)) in legend.entries.iter().enumerate() {
+        let magnitude = legend.sizes.get(index).copied().unwrap_or(0.0);
+        let extent = match legend.kind {
+            LegendKind::Radius => 2.0 * magnitude,
+            _ => magnitude,
+        };
+        height += (extent + ROW_GAP).max(18.0);
+        width = width.max(label_x + estimate_text_width(label, theme.legend_text.size));
+    }
+    (width, height)
 }
 
 fn row_offset_extent(rows: Option<usize>, font_size: f64) -> f64 {

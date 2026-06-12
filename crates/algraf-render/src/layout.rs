@@ -48,6 +48,14 @@ pub struct Margins {
     pub left: Option<f64>,
 }
 
+/// Measured legend content size in pixels, excluding the gap between the legend
+/// and the plot panel.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LegendSize {
+    pub width: f64,
+    pub height: f64,
+}
+
 const MARGIN_TOP: f64 = 40.0;
 const MARGIN_RIGHT: f64 = 30.0;
 pub(crate) const MARGIN_BOTTOM: f64 = 50.0;
@@ -97,6 +105,36 @@ impl Layout {
         margins: Margins,
         legend_position: LegendPositionIr,
     ) -> Layout {
+        Layout::compute_with_text_and_legend_size(
+            width,
+            height,
+            has_legend,
+            has_axes,
+            top_extra,
+            bottom_extra,
+            left_extra,
+            margins,
+            legend_position,
+            None,
+        )
+    }
+
+    /// Compute layout with extra title/caption reserve and measured legend
+    /// content size. The legend size excludes the plot/legend gap; the layout
+    /// adds that gap on the side carrying the legend.
+    #[allow(clippy::too_many_arguments)]
+    pub fn compute_with_text_and_legend_size(
+        width: f64,
+        height: f64,
+        has_legend: bool,
+        has_axes: bool,
+        top_extra: f64,
+        bottom_extra: f64,
+        left_extra: f64,
+        margins: Margins,
+        legend_position: LegendPositionIr,
+        legend_size: Option<LegendSize>,
+    ) -> Layout {
         let (base_top, base_right, base_bottom, base_left) = if has_axes {
             (MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT)
         } else {
@@ -143,7 +181,8 @@ impl Layout {
             )
         };
         let (legend_left, legend_right, legend_top, legend_bottom) =
-            legend_reserve(has_legend, legend_position);
+            legend_reserve(has_legend, legend_position, legend_size);
+        let legend_size = measured_legend_size(legend_size);
 
         let plot = Rect {
             x: left + legend_left,
@@ -156,26 +195,26 @@ impl Layout {
             LegendPositionIr::Right => Rect {
                 x: plot.right() + LEGEND_GAP,
                 y: plot.y,
-                width: LEGEND_WIDTH - LEGEND_GAP,
+                width: legend_size.width,
                 height: plot.height,
             },
             LegendPositionIr::Left => Rect {
                 x: left,
                 y: plot.y,
-                width: LEGEND_WIDTH - LEGEND_GAP,
+                width: legend_size.width,
                 height: plot.height,
             },
             LegendPositionIr::Bottom => Rect {
                 x: plot.x,
                 y: plot.bottom() + bottom,
                 width: plot.width,
-                height: LEGEND_HEIGHT - LEGEND_GAP,
+                height: legend_size.height,
             },
             LegendPositionIr::Top => Rect {
                 x: plot.x,
                 y: top,
                 width: plot.width,
-                height: LEGEND_HEIGHT - LEGEND_GAP,
+                height: legend_size.height,
             },
         });
 
@@ -233,7 +272,42 @@ impl Layout {
         legend_position: LegendPositionIr,
         panel_spacing: Option<PanelSpacingIr>,
     ) -> Layout {
-        let mut layout = Layout::compute_with_text(
+        Layout::compute_facets_with_text_and_legend_size(
+            width,
+            height,
+            has_legend,
+            has_axes,
+            panel_count,
+            columns,
+            top_extra,
+            bottom_extra,
+            left_extra,
+            margins,
+            legend_position,
+            panel_spacing,
+            None,
+        )
+    }
+
+    /// Compute a facet-wrap layout with extra title/caption reserve and measured
+    /// legend content size.
+    #[allow(clippy::too_many_arguments)]
+    pub fn compute_facets_with_text_and_legend_size(
+        width: f64,
+        height: f64,
+        has_legend: bool,
+        has_axes: bool,
+        panel_count: usize,
+        columns: Option<usize>,
+        top_extra: f64,
+        bottom_extra: f64,
+        left_extra: f64,
+        margins: Margins,
+        legend_position: LegendPositionIr,
+        panel_spacing: Option<PanelSpacingIr>,
+        legend_size: Option<LegendSize>,
+    ) -> Layout {
+        let mut layout = Layout::compute_with_text_and_legend_size(
             width,
             height,
             has_legend,
@@ -243,6 +317,7 @@ impl Layout {
             left_extra,
             margins,
             legend_position,
+            legend_size,
         );
         let panel_count = panel_count.max(1);
         let columns = columns
@@ -271,7 +346,42 @@ impl Layout {
         legend_position: LegendPositionIr,
         panel_spacing: Option<PanelSpacingIr>,
     ) -> Layout {
-        let mut layout = Layout::compute_with_text(
+        Layout::compute_facet_grid_with_text_and_legend_size(
+            width,
+            height,
+            has_legend,
+            has_axes,
+            rows,
+            columns,
+            top_extra,
+            bottom_extra,
+            left_extra,
+            margins,
+            legend_position,
+            panel_spacing,
+            None,
+        )
+    }
+
+    /// Compute an exact row-by-column facet-grid layout with measured legend
+    /// content size.
+    #[allow(clippy::too_many_arguments)]
+    pub fn compute_facet_grid_with_text_and_legend_size(
+        width: f64,
+        height: f64,
+        has_legend: bool,
+        has_axes: bool,
+        rows: usize,
+        columns: usize,
+        top_extra: f64,
+        bottom_extra: f64,
+        left_extra: f64,
+        margins: Margins,
+        legend_position: LegendPositionIr,
+        panel_spacing: Option<PanelSpacingIr>,
+        legend_size: Option<LegendSize>,
+    ) -> Layout {
+        let mut layout = Layout::compute_with_text_and_legend_size(
             width,
             height,
             has_legend,
@@ -281,6 +391,7 @@ impl Layout {
             left_extra,
             margins,
             legend_position,
+            legend_size,
         );
         let rows = rows.max(1);
         let columns = columns.max(1);
@@ -363,14 +474,33 @@ fn default_facet_columns(panel_count: usize, plot: Rect) -> usize {
         .min(panel_count.max(1))
 }
 
-fn legend_reserve(has_legend: bool, position: LegendPositionIr) -> (f64, f64, f64, f64) {
+fn measured_legend_size(size: Option<LegendSize>) -> LegendSize {
+    let default = LegendSize {
+        width: LEGEND_WIDTH - LEGEND_GAP,
+        height: LEGEND_HEIGHT - LEGEND_GAP,
+    };
+    match size {
+        Some(size) => LegendSize {
+            width: size.width.max(default.width).max(1.0),
+            height: size.height.max(default.height).max(1.0),
+        },
+        None => default,
+    }
+}
+
+fn legend_reserve(
+    has_legend: bool,
+    position: LegendPositionIr,
+    size: Option<LegendSize>,
+) -> (f64, f64, f64, f64) {
     if !has_legend {
         return (0.0, 0.0, 0.0, 0.0);
     }
+    let size = measured_legend_size(size);
     match position {
-        LegendPositionIr::Right => (0.0, LEGEND_WIDTH, 0.0, 0.0),
-        LegendPositionIr::Left => (LEGEND_WIDTH, 0.0, 0.0, 0.0),
-        LegendPositionIr::Top => (0.0, 0.0, LEGEND_HEIGHT, 0.0),
-        LegendPositionIr::Bottom => (0.0, 0.0, 0.0, LEGEND_HEIGHT),
+        LegendPositionIr::Right => (0.0, size.width + LEGEND_GAP, 0.0, 0.0),
+        LegendPositionIr::Left => (size.width + LEGEND_GAP, 0.0, 0.0, 0.0),
+        LegendPositionIr::Top => (0.0, 0.0, size.height + LEGEND_GAP, 0.0),
+        LegendPositionIr::Bottom => (0.0, 0.0, 0.0, size.height + LEGEND_GAP),
     }
 }

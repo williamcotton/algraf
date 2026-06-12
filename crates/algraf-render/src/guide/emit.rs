@@ -16,8 +16,8 @@ use crate::svg::num;
 use crate::theme::{TextStyle, Theme};
 
 use super::plan::{
-    estimate_text_width, max_x_tick_label_height, max_y_tick_label_width, tick_label_row_count,
-    tick_label_row_gap, x_axis_title_y, y_axis_title_x,
+    estimate_text_width, horizontal_legend_width, max_x_tick_label_height, max_y_tick_label_width,
+    tick_label_row_count, tick_label_row_gap, x_axis_title_y, y_axis_title_x,
 };
 
 pub(crate) struct AxisRenderOptions<'a> {
@@ -703,20 +703,6 @@ fn render_legends_horizontal(
         }
         y += row_height + theme.legend_spacing;
     }
-}
-
-fn horizontal_legend_width(legend: &Legend, theme: &Theme) -> f64 {
-    let title = if legend.title.is_empty() {
-        0.0
-    } else {
-        estimate_text_width(&legend.title, theme.legend_title.size) + 14.0
-    };
-    let entries = legend
-        .entries
-        .iter()
-        .map(|(label, _)| 18.0 + estimate_text_width(label, theme.legend_text.size) + 12.0)
-        .sum::<f64>();
-    (title + entries).max(80.0)
 }
 
 fn render_legend_compact(sink: &mut dyn MarkSink, legend: &Legend, x: f64, y: f64, theme: &Theme) {

@@ -129,6 +129,7 @@ pub(super) fn build_render_plan<'t>(
         grid_categories.as_ref(),
         facet_panel_count,
         theme,
+        None,
     );
 
     // Position scales are shared across overlaid (non-faceted) spaces, even when
@@ -430,6 +431,12 @@ pub(super) fn build_render_plan<'t>(
         diagnostics.append(&mut scratch_diagnostics);
         layout_without_legends
     } else {
+        let legend_size = guide::legend_size(
+            &legends,
+            theme,
+            theme.legend_position,
+            layout_without_legends.plot.width,
+        );
         let layout = compute_layout(
             ir,
             width,
@@ -443,6 +450,7 @@ pub(super) fn build_render_plan<'t>(
             grid_categories.as_ref(),
             facet_panel_count,
             theme,
+            Some(legend_size),
         );
         panels = build_panels_for_layout(&layout, diagnostics);
         legends = collect_legends(&panels, theme, assets);

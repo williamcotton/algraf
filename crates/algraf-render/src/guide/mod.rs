@@ -18,6 +18,6 @@ pub(crate) use emit::{
     render_polar_labels, AxisRenderOptions,
 };
 pub(crate) use plan::{
-    estimate_text_width, max_x_tick_label_height, max_y_tick_label_width, x_axis_bottom_margin,
-    y_axis_left_margin,
+    estimate_text_width, legend_size, max_x_tick_label_height, max_y_tick_label_width,
+    x_axis_bottom_margin, y_axis_left_margin,
 };
