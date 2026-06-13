@@ -81,10 +81,16 @@ Chart(data: "points.json") { }
 Chart(data: "points.ndjson") { }
 Chart(data: Parquet("points.parquet")) { }
 Chart(data: input) { }
+Chart(data: stdin) { }
+Chart {
+    Table main = "points.csv"
+}
 ```
 
-`Chart(data: input)` means the caller supplies data, typically with
-`algraf render chart.ag --data data.csv` or `--data -`.
+`Chart(data: input)` and `Chart(data: stdin)` mean the caller supplies data,
+typically with `algraf render chart.ag --data data.csv` or `--data -`. If a
+chart omits `data:`, a visible `Table main = ...` is used as the primary data
+source.
 
 Native and geospatial constructors include:
 
@@ -98,6 +104,11 @@ Table shapes = Shapefile("shapes.shp")
 Local SQLite sources are gated syntax. Do not use `Sqlite(...)` unless the file
 has an appropriate `Algraf(version: "0.21", features: ["sql"])` header and the
 runtime supports the native SQL feature.
+
+Arrow IPC stream input is a caller-data format, not path-inferred chart syntax.
+Use `Chart(data: input)` with `--data - --data-format arrow-stream`, or use a
+`--data <path> --data-format arrow-stream` override. Do not expect
+`Chart(data: "events.arrow")` to infer Arrow stream format by extension.
 
 ## Algebra
 
@@ -173,9 +184,11 @@ Space(x * y) {
 }
 ```
 
-Common geometries include `Point`, `Line`, `Bar`, `Rect`, `Text`, `Label`,
-`Area`, `Ribbon`, `Boxplot`, `Violin`, `Smooth`, `Histogram`, `FreqPoly`,
-`Image`, and `Geo` depending on the current release.
+Common geometries include `Point`, `Line`, `Path`, `Bar`, `Rect`, `Text`,
+`Label`, `Area`, `Ribbon`, `Boxplot`, `Violin`, `Smooth`, `Histogram`,
+`FreqPoly`, `Density`, `Image`, `Geo`, `Tile`, `Segment`, `ErrorBar`,
+`LineRange`, `PointRange`, `CrossBar`, `HLine`, `VLine`, `Rug`, and
+`Graticule` depending on the current release.
 
 Use documented geometry properties. Do not invent ggplot-style aesthetics or
 Vega-Lite keys unless they exist in Algraf.
@@ -328,6 +341,7 @@ Arguments:
 
 ```ag
 Chart(data: "data.csv", width: 800, height: 520) { ... }
+Chart { Table main = "data.csv" ... }
 ```
 
 Arguments:
@@ -347,8 +361,9 @@ marginBottom    number
 marginLeft      number
 ```
 
-`data` is the only source argument. Do not use `dataset`, `source`, `url`, or
-Vega-Lite-style `data: { ... }`.
+`data` is the only source argument. If `data` is omitted, `Table main = ...`
+is used as the chart's primary data source when present. Do not use `dataset`,
+`source`, `url`, or Vega-Lite-style `data: { ... }`.
 
 ### Table
 
@@ -544,9 +559,12 @@ legend           boolean
 fill             null
 stroke           null
 grid             boolean
+gridShape        "circle" | "polygon"
 ```
 
 Use `Guide(fill: null)` or `Guide(stroke: null)` to suppress legends.
+Use `Guide(gridShape: "polygon")` inside polar spaces for radar-style polygon
+grid rings; `"circle"` is the default.
 
 ### Layout
 
