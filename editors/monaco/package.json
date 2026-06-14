@@ -1,6 +1,6 @@
 {
   "name": "algraf-editor",
-  "version": "0.81.0",
+  "version": "0.84.0",
   "description": "Monaco and React editor integration for Algraf browser hosts.",
   "license": "MIT OR Apache-2.0",
   "type": "module",
@@ -34,7 +34,7 @@
     "pack:local": "mkdir -p ../../artifacts && npm pack --pack-destination ../../artifacts"
   },
   "peerDependencies": {
-    "algraf-wasm": "0.81.0",
+    "algraf-wasm": "0.84.0",
     "monaco-editor": "^0.55.1",
     "monaco-editor-textmate": "^4.0.0",
     "monaco-textmate": "^3.0.1",
