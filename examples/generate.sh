@@ -124,6 +124,7 @@ charts=(
     top_down_icicle
     variables
     custom_theme
+    strategic_reserves
     path
     step_vertices
     primitive_links

@@ -19,7 +19,7 @@ The complete visual gallery lives in [`examples/README.md`](examples/README.md).
 Live site: [`https://williamcotton.github.io/algraf/`](https://williamcotton.github.io/algraf/)
 Full demos: [`https://williamcotton.github.io/algraf/demos`](https://williamcotton.github.io/algraf/demos)
 
-## A tour in seven charts
+## A tour in eight charts
 
 Each chart below is a runnable file under [`examples/`](examples/). The examples
 start with one `Space` and one geometry, then add one or two features at a time:
@@ -264,6 +264,53 @@ Chart(data: "station_throughput.csv", width: 760, height: 470, title: "Station t
 ```
 
 ![station_throughput](examples/station_throughput.svg)
+
+## 8. Strategic reserves: an editorial house style
+
+A publication's house style is a declarative composition of theme tokens and
+annotation properties — never a fork of the renderer. This wire-service line
+chart carries its entire look in one `Theme(...)` block plus a few annotation
+arguments: the value axis sits on the right (`axisYPosition`), only horizontal
+grid rules show (`gridX: false`), the value ticks step by 200 (`breaks`), and the
+caption stacks event keys above a de-emphasized `source:` line.
+
+New features: opposite-side axes (`Guide(axis: y, position:)` / `axisYPosition`),
+numeric axis formatting (`format: ".0f"`), per-axis grid control (`gridX`/`gridY`
+or `Guide(axis:, grid:)`), multi-line `caption:` plus a `source:` line styled by
+`plotSource`, and circled event badges on `VLine` (`labelShape: "circle"`).
+
+```algraf
+Chart(data: "strategic_reserves.csv", width: 600, height: 560,
+    marginTop: 70, marginRight: 64,
+    title: "Oil spill",
+    subtitle: "Crude-oil strategic reserves*, m barrels",
+    caption: "1 Russia invades Ukraine\n2 US-Israeli air strikes on Iran begin\n*Excludes private reserves",
+    source: "Sources: EIA; Japan's Ministry of Economy, Trade and Industry") {
+    Theme(name: "minimal",
+        background: "#f3f0eb",
+        plotBackground: "#f3f0eb",
+        gridMajor: Line(stroke: "#d8d4cc", strokeWidth: 1),
+        axisText: Text(size: 11, fill: "#7a7a7a"),
+        plotSource: Text(size: 10, fill: "#9a9a9a"),
+        axisYPosition: "right",
+        gridX: false)
+    Scale(stroke: country, range: ["United States" => "#e3120b", "Japan" => "#f6a6a1"])
+    Scale(axis: y, domain: [0, 800], breaks: [0, 200, 400, 600, 800])
+    Guide(axis: x, label: null)
+    Guide(axis: y, label: null, format: ".0f")
+    Guide(legend: false)
+
+    Space(year * reserves) {
+        Line(group: country, stroke: country, strokeWidth: 3)
+        VLine(x: 2022, stroke: "#111111", label: "1", labelShape: "circle", labelPosition: "top")
+        VLine(x: 2025, stroke: "#111111", label: "2", labelShape: "circle", labelPosition: "top")
+        Text(x: 2008, y: 640, label: "United States", fill: "#e3120b", size: 13, anchor: "middle")
+        Text(x: 2010, y: 250, label: "Japan", fill: "#d98884", size: 13, anchor: "middle")
+    }
+}
+```
+
+![strategic_reserves](examples/strategic_reserves.svg)
 
 ## Install and run
 

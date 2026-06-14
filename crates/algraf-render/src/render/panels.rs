@@ -10,7 +10,7 @@ use algraf_semantics::{
 use crate::domains::{train_space_domains, AxisDomainHints, SpaceDomainHints};
 use crate::guide;
 use crate::helpers::frame_axis;
-use crate::layout::{Layout, Margins, Rect, MARGIN_BOTTOM, MARGIN_LEFT};
+use crate::layout::{AxisSides, GuideExtra, Layout, Margins, Rect, MARGIN_BOTTOM, MARGIN_LEFT};
 use crate::scale::{categorical_domain, cell_category, numeric_domain, temporal_domain};
 use crate::space::ScaledSpace;
 use crate::theme::Theme;
@@ -87,6 +87,12 @@ pub(super) fn build_render_plan<'t>(
         left: ir.margin_left.map(f64::from),
     };
     let (top_extra, chart_bottom_extra) = chart_text_reserve(ir, theme);
+    // The y axis can move to the right and the x axis to the top; a per-chart
+    // `Guide(position:)` overrides the theme default, which overrides the
+    // built-in left/bottom (spec §19.2, §19.3, §20.1).
+    let y_axis_position = ir.guides.y_position.unwrap_or(theme.axis_y_position);
+    let x_axis_position = ir.guides.x_position.unwrap_or(theme.axis_x_position);
+    let axis_sides = AxisSides::from_positions(y_axis_position, x_axis_position);
     // A first pass with a provisional layout to discover legends.
     let provisional = Layout::compute_with_text(
         width,
@@ -95,20 +101,19 @@ pub(super) fn build_render_plan<'t>(
         has_axes,
         top_extra,
         chart_bottom_extra,
-        0.0,
+        GuideExtra::default(),
+        axis_sides,
         margins,
         theme.legend_position,
     );
-    let guide_bottom_extra = if has_axes {
-        x_label_bottom_extra(ir, primary, derived, &provisional, theme)
+    let bottom_extra = chart_bottom_extra;
+    let guide_extra = if has_axes {
+        GuideExtra {
+            x: x_label_bottom_extra(ir, primary, derived, &provisional, theme),
+            y: y_label_left_extra(ir, primary, derived, &provisional, theme),
+        }
     } else {
-        0.0
-    };
-    let bottom_extra = chart_bottom_extra + guide_bottom_extra;
-    let left_extra = if has_axes {
-        y_label_left_extra(ir, primary, derived, &provisional, theme)
-    } else {
-        0.0
+        GuideExtra::default()
     };
     let grid_categories = ir
         .layout
@@ -124,7 +129,8 @@ pub(super) fn build_render_plan<'t>(
         has_axes,
         top_extra,
         bottom_extra,
-        left_extra,
+        guide_extra,
+        axis_sides,
         margins,
         grid_categories.as_ref(),
         facet_panel_count,
@@ -445,7 +451,8 @@ pub(super) fn build_render_plan<'t>(
             has_axes,
             top_extra,
             bottom_extra,
-            left_extra,
+            guide_extra,
+            axis_sides,
             margins,
             grid_categories.as_ref(),
             facet_panel_count,
@@ -790,6 +797,7 @@ fn x_label_bottom_extra(
                 &scaled,
                 theme.axis_text.size,
                 guides.x_time_format.as_ref(),
+                guides.x_format.as_deref(),
                 guides.x_tick_label_angle,
                 guides.x_tick_label_rows,
             ));
@@ -837,6 +845,7 @@ fn y_label_left_extra(
                 &scaled,
                 theme.axis_text.size,
                 guides.y_time_format.as_ref(),
+                guides.y_format.as_deref(),
                 guides.y_tick_label_angle,
                 guides.y_tick_label_rows,
             ));
@@ -856,12 +865,22 @@ fn chart_text_reserve(ir: &ChartIr, theme: &Theme) -> (f64, f64) {
     if ir.subtitle.is_some() {
         top += theme.plot_subtitle.size + 4.0;
     }
-    let bottom = if ir.caption.is_some() {
-        theme.plot_caption.size + 8.0
-    } else {
-        0.0
-    };
+    // Stack one line per `\n`-separated caption line, then the source line(s)
+    // (spec §17.3). Each line reserves its own height so nothing clips.
+    let mut bottom = 0.0;
+    if let Some(caption) = &ir.caption {
+        bottom += caption_line_count(caption) as f64 * (theme.plot_caption.size + 4.0) + 4.0;
+    }
+    if let Some(source) = &ir.source {
+        bottom += caption_line_count(source) as f64 * (theme.plot_source.size + 4.0) + 4.0;
+    }
     (top, bottom)
+}
+
+/// Number of stacked lines in a `\n`-separated caption/source string (spec
+/// §17.3, §14.16). Always at least one line for a non-empty string.
+pub(super) fn caption_line_count(text: &str) -> usize {
+    text.split('\n').count().max(1)
 }
 
 fn facet_panel_count(

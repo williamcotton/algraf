@@ -1,6 +1,6 @@
 //! Viewport layout with fixed margins (spec §17).
 
-use algraf_semantics::{LegendPositionIr, PanelSpacingIr};
+use algraf_semantics::{AxisPositionIr, LegendPositionIr, PanelSpacingIr};
 
 /// A rectangle in SVG coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -56,10 +56,49 @@ pub struct LegendSize {
     pub height: f64,
 }
 
+/// Which side each axis is drawn on, so the layout reserves the larger axis
+/// margin on the chosen side (spec §17.2–§17.3, §19.2–§19.3). The defaults
+/// (`y_right = false`, `x_top = false`) keep the y axis at the left and the x
+/// axis at the bottom.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct AxisSides {
+    pub y_right: bool,
+    pub x_top: bool,
+}
+
+impl AxisSides {
+    pub fn from_positions(y: AxisPositionIr, x: AxisPositionIr) -> AxisSides {
+        AxisSides {
+            y_right: matches!(y, AxisPositionIr::Right),
+            x_top: matches!(x, AxisPositionIr::Top),
+        }
+    }
+}
+
+/// Per-side extra reservation in pixels for guide tick labels/titles. The chart
+/// title and caption reserves are passed separately as `top_extra`/`bottom_extra`
+/// and always stay on the top/bottom; these route to whichever side carries the
+/// axis (spec §17.3).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct GuideExtra {
+    /// y-axis tick-label/title width, reserved on the y-axis side.
+    pub y: f64,
+    /// x-axis tick-label/title height, reserved on the x-axis side.
+    pub x: f64,
+}
+
+/// The larger axis-bearing margin and the smaller opposite margin per dimension.
 const MARGIN_TOP: f64 = 40.0;
 const MARGIN_RIGHT: f64 = 30.0;
 pub(crate) const MARGIN_BOTTOM: f64 = 50.0;
 pub(crate) const MARGIN_LEFT: f64 = 60.0;
+/// Margin reserved on the side carrying the x axis (its line, tick labels, and
+/// title floor), versus the opposite side which is light padding.
+const X_AXIS_MARGIN: f64 = MARGIN_BOTTOM;
+const X_OPPOSITE_MARGIN: f64 = MARGIN_TOP;
+/// Margin reserved on the side carrying the y axis, versus the opposite side.
+const Y_AXIS_MARGIN: f64 = MARGIN_LEFT;
+const Y_OPPOSITE_MARGIN: f64 = MARGIN_RIGHT;
 /// Base padding per side when the chart has no axes (e.g. the `void` theme).
 /// Unlike the axis margins this is pure padding, so a configured `margin*`
 /// value overrides it outright — down to 0 — rather than acting as a floor.
@@ -84,15 +123,17 @@ impl Layout {
             has_axes,
             0.0,
             0.0,
-            0.0,
+            GuideExtra::default(),
+            AxisSides::default(),
             Margins::default(),
             LegendPositionIr::Right,
         )
     }
 
-    /// Compute layout with extra title/caption reserve. `left_extra` widens the
-    /// left margin to make room for wide y tick labels (spec §17.3). `margins`
-    /// applies per-side user minimums on top of the computed margins.
+    /// Compute layout with extra title/caption reserve. `guide_extra` reserves
+    /// room for axis tick labels on whichever side `sides` puts each axis (spec
+    /// §17.3). `margins` applies per-side user minimums on top of the computed
+    /// margins.
     #[allow(clippy::too_many_arguments)]
     pub fn compute_with_text(
         width: f64,
@@ -101,7 +142,8 @@ impl Layout {
         has_axes: bool,
         top_extra: f64,
         bottom_extra: f64,
-        left_extra: f64,
+        guide_extra: GuideExtra,
+        sides: AxisSides,
         margins: Margins,
         legend_position: LegendPositionIr,
     ) -> Layout {
@@ -112,7 +154,8 @@ impl Layout {
             has_axes,
             top_extra,
             bottom_extra,
-            left_extra,
+            guide_extra,
+            sides,
             margins,
             legend_position,
             None,
@@ -130,13 +173,38 @@ impl Layout {
         has_axes: bool,
         top_extra: f64,
         bottom_extra: f64,
-        left_extra: f64,
+        guide_extra: GuideExtra,
+        sides: AxisSides,
         margins: Margins,
         legend_position: LegendPositionIr,
         legend_size: Option<LegendSize>,
     ) -> Layout {
+        // The axis-bearing side reserves the larger margin; its opposite side is
+        // light padding. Axis side moves the reservation, not the data marks
+        // (spec §17.2–§17.3, §19.2–§19.3).
         let (base_top, base_right, base_bottom, base_left) = if has_axes {
-            (MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT)
+            (
+                if sides.x_top {
+                    X_AXIS_MARGIN
+                } else {
+                    X_OPPOSITE_MARGIN
+                },
+                if sides.y_right {
+                    Y_AXIS_MARGIN
+                } else {
+                    Y_OPPOSITE_MARGIN
+                },
+                if sides.x_top {
+                    X_OPPOSITE_MARGIN
+                } else {
+                    X_AXIS_MARGIN
+                },
+                if sides.y_right {
+                    Y_OPPOSITE_MARGIN
+                } else {
+                    Y_AXIS_MARGIN
+                },
+            )
         } else {
             (
                 NO_AXES_MARGIN,
@@ -145,22 +213,33 @@ impl Layout {
                 NO_AXES_MARGIN,
             )
         };
-        // Content reserve for chart title/subtitle/caption and wide y tick
-        // labels. This is a hard minimum that an explicit margin never clips.
+        // Content reserve for chart title/subtitle (top) and caption/source
+        // (bottom). This is a hard minimum that an explicit margin never clips.
         let top_extra = top_extra.max(0.0);
         let bottom_extra = bottom_extra.max(0.0);
-        let left_extra = left_extra.max(0.0);
+        // Guide tick-label/title reserve routed to whichever side carries the
+        // axis. With a right y axis the label width reserves on the right; with a
+        // top x axis the label height reserves on the top.
+        let guide_x = guide_extra.x.max(0.0);
+        let guide_y = guide_extra.y.max(0.0);
+        let extra_top = top_extra + if sides.x_top { guide_x } else { 0.0 };
+        let extra_bottom = bottom_extra + if sides.x_top { 0.0 } else { guide_x };
+        let extra_left = if sides.y_right { 0.0 } else { guide_y };
+        let extra_right = if sides.y_right { guide_y } else { 0.0 };
         // Computed default margins = base padding + content reserve.
-        let computed_top = base_top + top_extra;
-        let computed_bottom = base_bottom + bottom_extra;
-        let computed_left = base_left + left_extra;
+        let computed_top = base_top + extra_top;
+        let computed_right = base_right + extra_right;
+        let computed_bottom = base_bottom + extra_bottom;
+        let computed_left = base_left + extra_left;
         let (top, right, bottom, left) = if has_axes {
             // With axes the base margin holds the axis line and tick labels, so
             // a configured value acts as a floor: it can widen a side but never
             // shrink below what the guides require (spec §17.3).
             (
                 margins.top.map_or(computed_top, |m| computed_top.max(m)),
-                margins.right.map_or(base_right, |m| base_right.max(m)),
+                margins
+                    .right
+                    .map_or(computed_right, |m| computed_right.max(m)),
                 margins
                     .bottom
                     .map_or(computed_bottom, |m| computed_bottom.max(m)),
@@ -172,12 +251,12 @@ impl Layout {
             // floored only by the content reserve so explicit chart text is
             // never clipped (spec §17.3).
             (
-                margins.top.map_or(computed_top, |m| m.max(top_extra)),
-                margins.right.unwrap_or(base_right),
+                margins.top.map_or(computed_top, |m| m.max(extra_top)),
+                margins.right.unwrap_or(computed_right),
                 margins
                     .bottom
-                    .map_or(computed_bottom, |m| m.max(bottom_extra)),
-                margins.left.map_or(computed_left, |m| m.max(left_extra)),
+                    .map_or(computed_bottom, |m| m.max(extra_bottom)),
+                margins.left.map_or(computed_left, |m| m.max(extra_left)),
             )
         };
         let (legend_left, legend_right, legend_top, legend_bottom) =
@@ -249,7 +328,8 @@ impl Layout {
             columns,
             0.0,
             0.0,
-            0.0,
+            GuideExtra::default(),
+            AxisSides::default(),
             Margins::default(),
             LegendPositionIr::Right,
             None,
@@ -267,7 +347,8 @@ impl Layout {
         columns: Option<usize>,
         top_extra: f64,
         bottom_extra: f64,
-        left_extra: f64,
+        guide_extra: GuideExtra,
+        sides: AxisSides,
         margins: Margins,
         legend_position: LegendPositionIr,
         panel_spacing: Option<PanelSpacingIr>,
@@ -281,7 +362,8 @@ impl Layout {
             columns,
             top_extra,
             bottom_extra,
-            left_extra,
+            guide_extra,
+            sides,
             margins,
             legend_position,
             panel_spacing,
@@ -301,7 +383,8 @@ impl Layout {
         columns: Option<usize>,
         top_extra: f64,
         bottom_extra: f64,
-        left_extra: f64,
+        guide_extra: GuideExtra,
+        sides: AxisSides,
         margins: Margins,
         legend_position: LegendPositionIr,
         panel_spacing: Option<PanelSpacingIr>,
@@ -314,7 +397,8 @@ impl Layout {
             has_axes,
             top_extra,
             bottom_extra,
-            left_extra,
+            guide_extra,
+            sides,
             margins,
             legend_position,
             legend_size,
@@ -341,7 +425,8 @@ impl Layout {
         columns: usize,
         top_extra: f64,
         bottom_extra: f64,
-        left_extra: f64,
+        guide_extra: GuideExtra,
+        sides: AxisSides,
         margins: Margins,
         legend_position: LegendPositionIr,
         panel_spacing: Option<PanelSpacingIr>,
@@ -355,7 +440,8 @@ impl Layout {
             columns,
             top_extra,
             bottom_extra,
-            left_extra,
+            guide_extra,
+            sides,
             margins,
             legend_position,
             panel_spacing,
@@ -375,7 +461,8 @@ impl Layout {
         columns: usize,
         top_extra: f64,
         bottom_extra: f64,
-        left_extra: f64,
+        guide_extra: GuideExtra,
+        sides: AxisSides,
         margins: Margins,
         legend_position: LegendPositionIr,
         panel_spacing: Option<PanelSpacingIr>,
@@ -388,7 +475,8 @@ impl Layout {
             has_axes,
             top_extra,
             bottom_extra,
-            left_extra,
+            guide_extra,
+            sides,
             margins,
             legend_position,
             legend_size,

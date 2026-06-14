@@ -1789,6 +1789,18 @@ fn merge_guide_overrides(
         y_tick_label_angle: local.y_tick_label_angle.or(inherited.y_tick_label_angle),
         x_tick_label_rows: local.x_tick_label_rows.or(inherited.x_tick_label_rows),
         y_tick_label_rows: local.y_tick_label_rows.or(inherited.y_tick_label_rows),
+        x_position: local.x_position.or(inherited.x_position),
+        y_position: local.y_position.or(inherited.y_position),
+        x_format: local
+            .x_format
+            .clone()
+            .or_else(|| inherited.x_format.clone()),
+        y_format: local
+            .y_format
+            .clone()
+            .or_else(|| inherited.y_format.clone()),
+        x_grid: local.x_grid.or(inherited.x_grid),
+        y_grid: local.y_grid.or(inherited.y_grid),
         grid_shape: local.grid_shape.or(inherited.grid_shape),
     }
 }

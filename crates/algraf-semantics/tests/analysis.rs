@@ -3469,3 +3469,165 @@ fn temporal_scale_type_with_integer_emits_e1204() {
 }"#;
     assert!(has(src, "E1204"), "{:?}", codes(src));
 }
+
+// --- v0.82.0 editorial primitives ---
+
+#[test]
+fn test_guide_axis_position_is_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: y, position: \"right\")\n  Guide(axis: x, position: \"top\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.guides.y_position.map(|p| p.as_str()), Some("right"));
+    assert_eq!(ir.guides.x_position.map(|p| p.as_str()), Some("top"));
+}
+
+#[test]
+fn test_guide_axis_position_invalid_or_wrong_axis_emits_e1204() {
+    // Value not valid for the y axis.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: y, position: \"top\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "E1204",
+    ));
+    // Unknown value.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: x, position: \"sideways\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "E1204",
+    ));
+    // Position without an axis.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Guide(position: \"right\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "E1204",
+    ));
+}
+
+#[test]
+fn test_guide_numeric_format_is_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: y, format: \".0f\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.guides.y_format.as_deref(), Some(".0f"));
+}
+
+#[test]
+fn test_guide_numeric_format_misuse_emits_e1909() {
+    // Unknown format string.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: y, format: \".9q\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "E1909",
+    ));
+    // Combined with timeFormat.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: x, format: \".0f\", timeFormat: \"year\")\n  Space(time * value) { Line() }\n}",
+        "E1909",
+    ));
+    // Without an axis.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Guide(format: \".0f\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "E1909",
+    ));
+}
+
+#[test]
+fn test_guide_per_axis_grid_is_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Guide(axis: x, grid: false)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.guides.x_grid, Some(false));
+    assert_eq!(ir.guides.y_grid, None);
+    // A bare grid toggle still sets the global flag.
+    assert!(ir.guides.grid);
+}
+
+#[test]
+fn test_chart_source_is_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\", caption: \"a\\nb\", source: \"Source: X\") {\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.caption.as_deref(), Some("a\nb"));
+    assert_eq!(ir.source.as_deref(), Some("Source: X"));
+}
+
+#[test]
+fn test_theme_editorial_tokens_are_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\", plotSource: Text(size: 10, fill: \"#9a9a9a\"), axisYPosition: \"right\", axisXPosition: \"top\", gridX: false, gridY: true)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let theme = analysis.ir.expect("ir").theme.expect("theme");
+    assert_eq!(
+        theme.overrides.plot_source.as_ref().and_then(|t| t.size),
+        Some(10.0)
+    );
+    assert_eq!(
+        theme.overrides.axis_y_position.map(|p| p.as_str()),
+        Some("right")
+    );
+    assert_eq!(
+        theme.overrides.axis_x_position.map(|p| p.as_str()),
+        Some("top")
+    );
+    assert_eq!(theme.overrides.grid_x, Some(false));
+    assert_eq!(theme.overrides.grid_y, Some(true));
+}
+
+#[test]
+fn test_theme_axis_position_wrong_value_emits_e1705() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(axisYPosition: \"top\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+#[test]
+fn test_vline_badge_invalid_shape_emits_e1204() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Point()\n    VLine(x: 200, label: \"1\", labelShape: \"triangle\")\n  }\n}",
+        "E1204",
+    ));
+}
+
+#[test]
+fn test_vline_badge_properties_analyze() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    Point()\n    VLine(x: 200, stroke: \"#111111\", label: \"1\", labelShape: \"circle\", labelPosition: \"top\", labelFill: \"#111111\", labelStroke: \"#ffffff\")\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+}

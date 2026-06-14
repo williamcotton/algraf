@@ -4,7 +4,7 @@ use algraf_semantics::{AestheticMapping, GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_for_row, number_setting};
 use crate::guide::estimate_text_width;
-use crate::helpers::{bool_setting, string_setting};
+use crate::helpers::{bool_setting, format_numeric, string_setting};
 use crate::layout::Rect;
 use crate::render::TextAnchor;
 use crate::scale::{categorical_domain, cell_category, cell_f64, cell_micros};
@@ -286,34 +286,6 @@ fn format_label_cell(
         }
     }
     cell_category(table, column, row)
-}
-
-fn format_numeric(value: f64, format: &str) -> String {
-    match format {
-        ".0f" => normalize_negative_zero(format!("{value:.0}")),
-        ".1f" => normalize_negative_zero(format!("{value:.1}")),
-        ".2f" => normalize_negative_zero(format!("{value:.2}")),
-        "$.2f" => {
-            let body = normalize_negative_zero(format!("{value:.2}"));
-            if let Some(stripped) = body.strip_prefix('-') {
-                format!("-${stripped}")
-            } else {
-                format!("${body}")
-            }
-        }
-        ".0%" => normalize_negative_zero(format!("{:.0}", value * 100.0)) + "%",
-        ".1%" => normalize_negative_zero(format!("{:.1}", value * 100.0)) + "%",
-        ".2%" => normalize_negative_zero(format!("{:.2}", value * 100.0)) + "%",
-        _ => value.to_string(),
-    }
-}
-
-fn normalize_negative_zero(text: String) -> String {
-    if text == "-0" || text.starts_with("-0.") && text[3..].chars().all(|ch| ch == '0') {
-        text[1..].to_string()
-    } else {
-        text
-    }
 }
 
 fn emit_label(

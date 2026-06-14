@@ -4,8 +4,10 @@ use algraf_semantics::{GeometryIr, PropertyKey};
 
 use crate::aes::{color_spec, number_setting};
 use crate::helpers::{number_setting_opt, string_setting};
+use crate::layout::Rect;
 use crate::render::TextAnchor;
-use crate::sink::{MarkSink, TextRun};
+use crate::sink::{Fill, MarkSink, Paint, Stroke, TextRun};
+use crate::theme::Theme;
 
 use super::common::{
     any_mapped, constant_or, emit_svg_line, emit_svg_line_with_dash, pos_center, render_rows,
@@ -44,17 +46,31 @@ pub(super) fn render_hline(
         dash.as_deref(),
     );
     if let Some(label) = string_setting(geo, PropertyKey::Label) {
-        sink.text(&TextRun {
-            x: plot.right() - 4.0,
-            y: y - 4.0,
-            anchor: TextAnchor::End,
-            rotate: None,
-            font_family: &theme.font_family,
-            font_size: theme.font_size,
-            fill: &theme.text_color,
-            opacity: None,
-            content: &label,
-        });
+        if has_badge_args(geo) {
+            // For HLine the label rides at the start (left) or end (right) of the
+            // rule, centered on the line (spec §14.17).
+            let position = string_setting(geo, PropertyKey::LabelPosition);
+            let end = !matches!(position.as_deref(), Some("start"));
+            let extent = badge_extent(&label, theme);
+            let cx = if end {
+                plot.right() - extent - 2.0
+            } else {
+                plot.x + extent + 2.0
+            };
+            draw_callout_badge(sink, geo, cx, y, &label, &color, theme);
+        } else {
+            sink.text(&TextRun {
+                x: plot.right() - 4.0,
+                y: y - 4.0,
+                anchor: TextAnchor::End,
+                rotate: None,
+                font_family: &theme.font_family,
+                font_size: theme.font_size,
+                fill: &theme.text_color,
+                opacity: None,
+                content: &label,
+            });
+        }
     }
 }
 
@@ -89,17 +105,144 @@ pub(super) fn render_vline(
         dash.as_deref(),
     );
     if let Some(label) = string_setting(geo, PropertyKey::Label) {
+        if has_badge_args(geo) {
+            // For VLine the label rides at the top (default) or bottom of the
+            // rule, centered on the line (spec §14.18).
+            let position = string_setting(geo, PropertyKey::LabelPosition);
+            let bottom = matches!(position.as_deref(), Some("bottom"));
+            let extent = badge_extent(&label, theme);
+            let cy = if bottom {
+                plot.bottom() - extent - 2.0
+            } else {
+                plot.y + extent + 2.0
+            };
+            draw_callout_badge(sink, geo, x, cy, &label, &color, theme);
+        } else {
+            sink.text(&TextRun {
+                x: x + 4.0,
+                y: plot.y + theme.font_size,
+                anchor: TextAnchor::Start,
+                rotate: None,
+                font_family: &theme.font_family,
+                font_size: theme.font_size,
+                fill: &theme.text_color,
+                opacity: None,
+                content: &label,
+            });
+        }
+    }
+}
+
+/// Whether a reference rule uses any callout-badge argument (spec §14.17–14.18).
+/// When none are present the legacy plain-text label path runs unchanged, so
+/// existing `VLine`/`HLine` output stays byte-for-byte identical.
+fn has_badge_args(geo: &GeometryIr) -> bool {
+    string_setting(geo, PropertyKey::LabelShape).is_some()
+        || string_setting(geo, PropertyKey::LabelPosition).is_some()
+        || string_setting(geo, PropertyKey::LabelFill).is_some()
+        || string_setting(geo, PropertyKey::LabelStroke).is_some()
+}
+
+/// Half the badge's box size, also used to inset it from the plot edge. Derived
+/// from the label text via the deterministic estimated-width model so output
+/// stays byte-stable (spec §14.18).
+fn badge_extent(label: &str, theme: &Theme) -> f64 {
+    let font = theme.font_size;
+    let text_w = label.chars().count() as f64 * font * 0.6;
+    text_w.max(font) / 2.0 + 3.0
+}
+
+/// Draw a callout badge (circle/square box plus centered text) or, for
+/// `labelShape: "none"`, plain centered text on the rule. The badge is emitted as
+/// existing scene primitives so it participates in draw-list metadata
+/// (spec §14.17–14.18).
+fn draw_callout_badge(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    cx: f64,
+    cy: f64,
+    label: &str,
+    rule_color: &str,
+    theme: &Theme,
+) {
+    let shape = string_setting(geo, PropertyKey::LabelShape);
+    let shape = shape.as_deref().unwrap_or("none");
+    let extent = badge_extent(label, theme);
+    let font = theme.font_size;
+    let baseline_shift = font * 0.35;
+    if shape == "none" {
+        // Plain centered text uses the badge fill (or the rule color) directly.
+        let fill =
+            string_setting(geo, PropertyKey::LabelFill).unwrap_or_else(|| rule_color.to_string());
         sink.text(&TextRun {
-            x: x + 4.0,
-            y: plot.y + theme.font_size,
-            anchor: TextAnchor::Start,
+            x: cx,
+            y: cy + baseline_shift,
+            anchor: TextAnchor::Middle,
             rotate: None,
             font_family: &theme.font_family,
-            font_size: theme.font_size,
-            fill: &theme.text_color,
+            font_size: font,
+            fill: &fill,
             opacity: None,
-            content: &label,
+            content: label,
         });
+        return;
+    }
+    let badge_fill =
+        string_setting(geo, PropertyKey::LabelFill).unwrap_or_else(|| rule_color.to_string());
+    let badge_stroke = string_setting(geo, PropertyKey::LabelStroke);
+    let paint = Paint {
+        fill: Fill::Color(badge_fill.clone()),
+        stroke: match &badge_stroke {
+            Some(color) => Stroke::Solid {
+                color: color.clone(),
+                width: 1.0,
+            },
+            None => Stroke::Omit,
+        },
+        opacity: None,
+    };
+    if shape == "square" {
+        let rect = Rect {
+            x: cx - extent,
+            y: cy - extent,
+            width: extent * 2.0,
+            height: extent * 2.0,
+        };
+        sink.rect(rect.x, rect.y, rect.width, rect.height, &paint);
+    } else {
+        // Default badge box is a circle.
+        sink.circle(cx, cy, extent, &paint);
+    }
+    // The digit/text inside a filled badge needs a contrasting color.
+    let text_fill = readable_text_color(&badge_fill);
+    sink.text(&TextRun {
+        x: cx,
+        y: cy + baseline_shift,
+        anchor: TextAnchor::Middle,
+        rotate: None,
+        font_family: &theme.font_family,
+        font_size: font,
+        fill: text_fill,
+        opacity: None,
+        content: label,
+    });
+}
+
+/// Pick black or white text for legibility on the badge fill color (spec
+/// §14.18). Unparseable colors default to dark text.
+fn readable_text_color(fill: &str) -> &'static str {
+    match crate::theme::parse_svg_color(fill) {
+        Some(rgba) => {
+            // Rec. 601 relative luminance.
+            let luma =
+                0.299 * f64::from(rgba.r) + 0.587 * f64::from(rgba.g) + 0.114 * f64::from(rgba.b);
+            if luma < 140.0 {
+                "#ffffff"
+            } else {
+                "#111111"
+            }
+        }
+        None => "#111111",
     }
 }
 

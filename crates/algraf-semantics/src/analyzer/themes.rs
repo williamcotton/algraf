@@ -7,9 +7,19 @@ use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
 use super::args::DupGuard;
 use super::context::{Analyzer, ValueForm};
-use crate::ir::{LegendPositionIr, ThemeIr, ThemeLineIr, ThemeOverrides, ThemeRectIr, ThemeTextIr};
+use crate::ir::{
+    AxisPositionIr, LegendPositionIr, ThemeIr, ThemeLineIr, ThemeOverrides, ThemeRectIr,
+    ThemeTextIr,
+};
 use crate::registry;
 use crate::util::closest;
+
+/// Which axis dimension a theme `axis*Position` token applies to.
+#[derive(Clone, Copy)]
+enum AxisDim {
+    X,
+    Y,
+}
 
 impl Analyzer<'_> {
     pub(super) fn theme_decl(&mut self, decl: &Decl) -> Option<ThemeIr> {
@@ -86,6 +96,9 @@ impl Analyzer<'_> {
             }
             "plotCaption" => {
                 overrides.plot_caption = self.theme_text(key, &value);
+            }
+            "plotSource" => {
+                overrides.plot_source = self.theme_text(key, &value);
             }
             "stripText" => {
                 overrides.strip_text = self.theme_text(key, &value);
@@ -164,7 +177,15 @@ impl Analyzer<'_> {
                 overrides.text_color = self.theme_scalar(key, &value, "a color string", as_str)
             }
             "grid" => overrides.grid = self.theme_scalar(key, &value, "a boolean", as_bool),
+            "gridX" => overrides.grid_x = self.theme_scalar(key, &value, "a boolean", as_bool),
+            "gridY" => overrides.grid_y = self.theme_scalar(key, &value, "a boolean", as_bool),
             "axes" => overrides.axes = self.theme_scalar(key, &value, "a boolean", as_bool),
+            "axisYPosition" => {
+                overrides.axis_y_position = self.theme_axis_position(key, &value, AxisDim::Y)
+            }
+            "axisXPosition" => {
+                overrides.axis_x_position = self.theme_axis_position(key, &value, AxisDim::X)
+            }
             _ => {
                 let mut diag = Diagnostic::error(
                     codes::E1704,
@@ -293,6 +314,42 @@ impl Analyzer<'_> {
                 None
             }
         }
+    }
+
+    /// Resolve an `axisYPosition`/`axisXPosition` token to an axis side, scoped
+    /// to the axis dimension (spec §20.1). A wrong-axis or unknown value emits
+    /// `E1705`.
+    fn theme_axis_position(
+        &mut self,
+        key: &str,
+        value: &ValueExpr,
+        dim: AxisDim,
+    ) -> Option<AxisPositionIr> {
+        let (expected, raw) = match dim {
+            AxisDim::Y => (
+                "\"left\" or \"right\"",
+                self.theme_scalar(key, value, "\"left\" or \"right\"", as_str)?,
+            ),
+            AxisDim::X => (
+                "\"top\" or \"bottom\"",
+                self.theme_scalar(key, value, "\"top\" or \"bottom\"", as_str)?,
+            ),
+        };
+        let resolved = match (dim, raw.as_str()) {
+            (AxisDim::Y, "left") => Some(AxisPositionIr::Left),
+            (AxisDim::Y, "right") => Some(AxisPositionIr::Right),
+            (AxisDim::X, "top") => Some(AxisPositionIr::Top),
+            (AxisDim::X, "bottom") => Some(AxisPositionIr::Bottom),
+            _ => None,
+        };
+        if resolved.is_none() {
+            self.diag(Diagnostic::error(
+                codes::E1705,
+                format!("`{key}` expects {expected}"),
+                node_span(value.syntax()),
+            ));
+        }
+        resolved
     }
 
     /// Resolve one scalar theme override value (after `let` substitution),

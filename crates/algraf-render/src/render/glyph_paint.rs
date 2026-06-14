@@ -121,7 +121,16 @@ fn paint_child_guides_before(sink: &mut dyn MarkSink, panel: &Panel<'_>) {
     if panel.scaled.is_polar() {
         guide::render_polar_grid(sink, &panel.scaled, &panel.guides, &panel.theme);
     } else if panel.guides.grid && !panel.scaled.is_spatial() {
-        guide::render_grid(sink, &panel.scaled, panel.plot, &panel.theme);
+        let draw_x = panel.guides.x_grid.unwrap_or(panel.theme.grid_x);
+        let draw_y = panel.guides.y_grid.unwrap_or(panel.theme.grid_y);
+        guide::render_grid(
+            sink,
+            &panel.scaled,
+            panel.plot,
+            &panel.theme,
+            draw_x,
+            draw_y,
+        );
     }
 }
 
@@ -137,16 +146,7 @@ fn paint_child_guides_after(sink: &mut dyn MarkSink, panel: &Panel<'_>) {
             &panel.scaled,
             panel.plot,
             &panel.theme,
-            guide::AxisRenderOptions {
-                x_label_override: panel.guides.x_label.as_deref(),
-                y_label_override: panel.guides.y_label.as_deref(),
-                x_time_format: panel.guides.x_time_format.as_ref(),
-                y_time_format: panel.guides.y_time_format.as_ref(),
-                x_tick_label_angle: panel.guides.x_tick_label_angle,
-                y_tick_label_angle: panel.guides.y_tick_label_angle,
-                x_tick_label_rows: panel.guides.x_tick_label_rows,
-                y_tick_label_rows: panel.guides.y_tick_label_rows,
-            },
+            guide::AxisRenderOptions::from_guides(&panel.guides, &panel.theme),
         );
     }
 }

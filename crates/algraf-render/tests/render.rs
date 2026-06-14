@@ -3361,3 +3361,108 @@ fn grouped_stacked_histogram_legend_lists_top_band_first() {
         "expected the top stacked histogram band first in the legend: {legend}"
     );
 }
+
+// --- v0.82.0 editorial primitives ---
+
+const EDITORIAL_CSV: &str = "year,country,reserves\n2000,US,541\n2010,US,727\n2022,US,372\n2026,US,410\n2000,JP,300\n2010,JP,330\n2022,JP,318\n2026,JP,320\n";
+
+#[test]
+fn right_y_axis_places_ticks_right_of_plot() {
+    let right = render_svg(
+        "Chart(data: \"d.csv\", width: 400, height: 300) { Scale(axis: y, domain: [0, 800]) Guide(axis: y, position: \"right\", format: \".0f\") Space(year * reserves) { Line(group: country) } }",
+        EDITORIAL_CSV,
+    );
+    let left = render_svg(
+        "Chart(data: \"d.csv\", width: 400, height: 300) { Scale(axis: y, domain: [0, 800]) Guide(axis: y, format: \".0f\") Space(year * reserves) { Line(group: country) } }",
+        EDITORIAL_CSV,
+    );
+    // The "800" tick label x should be larger (further right) for a right axis.
+    let right_x = tick_label_x(&right, "800");
+    let left_x = tick_label_x(&left, "800");
+    assert!(
+        right_x > left_x + 50.0,
+        "right axis label x={right_x} should sit well right of left axis x={left_x}"
+    );
+    // Integer numeric format: no "800.0".
+    assert!(right.contains(">800<"), "expected integer tick label 800");
+    assert!(!right.contains("800.0"), "format .0f must not emit 800.0");
+}
+
+#[test]
+fn numeric_axis_format_rounds_to_integers() {
+    let svg = render_svg(
+        "Chart(data: \"d.csv\", width: 400, height: 300) { Scale(axis: y, domain: [0, 800]) Guide(axis: y, format: \".0f\") Space(year * reserves) { Line(group: country) } }",
+        EDITORIAL_CSV,
+    );
+    assert!(svg.contains(">800<") && svg.contains(">0<"));
+}
+
+#[test]
+fn multi_line_caption_and_source_stack() {
+    let svg = render_svg(
+        "Chart(data: \"d.csv\", width: 400, height: 300, caption: \"line one\\nline two\", source: \"Source: X\") { Space(year * reserves) { Line(group: country) } }",
+        EDITORIAL_CSV,
+    );
+    assert!(svg.contains("algraf-caption"), "caption rendered");
+    assert!(
+        svg.contains("line one") && svg.contains("line two"),
+        "both caption lines"
+    );
+    assert!(
+        svg.contains("algraf-source") && svg.contains("Source: X"),
+        "source line rendered"
+    );
+}
+
+#[test]
+fn vline_circle_badge_emits_circle_and_centered_text() {
+    let svg = render_svg(
+        "Chart(data: \"d.csv\", width: 400, height: 300) { Space(year * reserves) { Line(group: country) VLine(x: 2022, stroke: \"#111111\", label: \"1\", labelShape: \"circle\", labelPosition: \"top\") } }",
+        EDITORIAL_CSV,
+    );
+    assert!(svg.contains("<circle"), "badge circle emitted");
+    assert!(svg.contains(">1<"), "badge digit emitted");
+    // Plain (legacy) VLine label without badge args stays byte-stable text.
+    let legacy = render_svg(
+        "Chart(data: \"d.csv\", width: 400, height: 300) { Space(year * reserves) { Line(group: country) VLine(x: 2022, label: \"M\") } }",
+        EDITORIAL_CSV,
+    );
+    assert!(legacy.contains(">M<"));
+}
+
+#[test]
+fn per_axis_grid_hides_only_vertical_lines() {
+    let both = render_svg(
+        "Chart(data: \"d.csv\", width: 400, height: 300) { Space(year * reserves) { Line(group: country) } }",
+        EDITORIAL_CSV,
+    );
+    let horizontal_only = render_svg(
+        "Chart(data: \"d.csv\", width: 400, height: 300) { Guide(axis: x, grid: false) Space(year * reserves) { Line(group: country) } }",
+        EDITORIAL_CSV,
+    );
+    assert!(
+        grid_line_count(&horizontal_only) < grid_line_count(&both),
+        "hiding x grid should reduce grid line count"
+    );
+}
+
+fn tick_label_x(svg: &str, label: &str) -> f64 {
+    let needle = format!(">{label}<");
+    let pos = svg
+        .find(&needle)
+        .unwrap_or_else(|| panic!("label {label} not found"));
+    let prefix = &svg[..pos];
+    let tag = prefix.rfind("<text").expect("text tag");
+    let attrs = &svg[tag..pos];
+    let x_at = attrs.find("x=\"").expect("x attr") + 3;
+    let rest = &attrs[x_at..];
+    let end = rest.find('"').expect("x end");
+    rest[..end].parse().expect("x value")
+}
+
+fn grid_line_count(svg: &str) -> usize {
+    let start = svg.find("algraf-grid").unwrap_or(0);
+    let region = &svg[start..];
+    let end = region.find("</g>").map(|e| start + e).unwrap_or(svg.len());
+    svg[start..end].matches("<line").count()
+}

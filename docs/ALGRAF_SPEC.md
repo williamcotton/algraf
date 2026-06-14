@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.81.0
+Status: 0.82.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.81.0 specification.
+This working copy is the 0.82.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -5452,6 +5452,27 @@ It spans the plot x range.
 
 HLine accepts `dash: "solid" | "dotted" | "dashed"`. The default is solid.
 
+Version 0.82.0 MUST support callout-badge controls on the `label:` of `HLine`
+and `VLine` (§14.18 lists the shared rules):
+
+- `labelPosition` — string literal selecting where the label sits along the
+  rule. For `HLine`: `"start"` or `"end"` (default `"end"`). For `VLine`:
+  `"top"` (default) or `"bottom"`. Invalid values MUST emit `E1204`.
+- `labelShape` — string literal `"none"` (default, plain text), `"circle"`, or
+  `"square"`, drawing a deterministically sized badge box behind the label.
+  Badge size derives from the label text via the §17.3 estimated
+  text-measurement model so output stays byte-stable.
+- `labelFill` and `labelStroke` — color literals for the badge fill and border.
+  `labelFill` defaults to the rule `stroke`; the badge text uses a readable
+  contrast color derived from the fill; `labelStroke` defaults to no border.
+
+When `labelShape` is `"none"` the label renders as plain centered text on the
+rule at the selected position. A badge MUST render as `Rect`/circle plus `Text`
+in the draw-list scene (no new primitive kind), so it participates in existing
+scene metadata. An `HLine`/`VLine` `label:` with none of these arguments MUST be
+byte-for-byte unchanged from prior releases (plain text label). Leader/connector
+lines between a badge and an arbitrary data point remain deferred.
+
 ### 14.18 VLine
 
 Syntax:
@@ -5469,6 +5490,13 @@ VLine uses x scale to map literal x.
 It spans the plot y range.
 
 VLine accepts `dash: "solid" | "dotted" | "dashed"`. The default is solid.
+
+Version 0.82.0: `VLine` accepts the same `label:` callout-badge controls
+described in §14.17 (`labelPosition`, `labelShape`, `labelFill`, `labelStroke`).
+For `VLine` the badge rides at the `"top"` (default) or `"bottom"` of the rule,
+centered on the line. Two `VLine`s with `label: "1"`/`label: "2"`, `labelShape:
+"circle"`, `labelPosition: "top"` render circled digits at the plot top — the
+keyed event-marker pattern.
 
 ### 14.19 Segment
 
@@ -7560,6 +7588,26 @@ the viewport edge (useful for embedded sparklines). Chart title, subtitle, and
 caption reserve still act as a floor on the sides that carry them, so explicit
 text is never clipped.
 
+Version 0.82.0: layout reserves the axis rectangle on the side chosen by the
+resolved axis position (§19.2, §19.3). The larger axis-bearing margin and the
+smaller opposite margin swap with the side: a right y axis reserves the wide
+margin on the right (the left becomes light padding), and a top x axis reserves
+the wide margin on the top. The y tick-label/title width and x tick-label/title
+height are reserved on whichever side now carries the axis. The
+`marginTop`/`marginRight`/`marginBottom`/`marginLeft` floors continue to compose
+as `max(computed, configured)` on whichever side carries the axis.
+
+Version 0.82.0: `Chart(caption: "...")` MUST honor newline (`\n`) characters,
+rendering each line as a separate stacked text line below the plot in source
+order, reusing the per-line escaping rule from `Text` (§14.16). `Chart` MAY
+include a `source: "..."` string that renders as a final, de-emphasized line (or
+lines, also honoring `\n`) below the caption, styled by the `plotSource` theme
+token (§20.1). Layout MUST reserve the measured multi-line height for the
+caption-plus-source block so no line is clipped or overlaps the x axis. A
+non-string `caption:` or `source:` MUST emit the chart-argument type diagnostic.
+Badge sizing and these reserves use the deterministic approximate
+text-measurement model so output stays byte-stable.
+
 ### 17.4 Facet Layout
 
 Faceting uses nested spaces over a Cartesian plane.
@@ -8063,6 +8111,17 @@ Continuous x axis uses nice ticks.
 
 Temporal x axis uses formatted temporal ticks.
 
+Version 0.82.0 MUST support `Guide(axis: x, position: "top")` to render the x
+axis (ticks, tick labels, and title) on the top edge of the plot rectangle.
+`position` for the x axis accepts only `"top"` or `"bottom"` (default
+`"bottom"`); any other value, or a value not valid for the x axis (e.g.
+`"left"`), MUST emit `E1204` and the axis MUST fall back to its default side.
+The layout MUST reserve the axis rectangle on the chosen side (§17.3): a top x
+axis reserves top margin instead of bottom. Grid lines, plot clipping (§18.5),
+and data-mark placement MUST be unaffected by axis side — only guide placement
+and margin reservation move. A theme-level default is set by `axisXPosition`
+(§20.1), which a per-chart `Guide(axis: x, position:)` overrides.
+
 ### 19.3 Y Axis
 
 Y axis usually appears at left.
@@ -8070,6 +8129,18 @@ Y axis usually appears at left.
 Continuous y axis uses nice ticks.
 
 Categorical y axis uses category labels.
+
+Version 0.82.0 MUST support `Guide(axis: y, position: "right")` to render the y
+axis (ticks, tick labels, and title) on the right edge of the plot rectangle.
+`position` for the y axis accepts only `"left"` or `"right"` (default
+`"left"`); any other value, or a value not valid for the y axis (e.g. `"top"`),
+MUST emit `E1204` and the axis MUST fall back to its default side. The layout
+MUST reserve the axis rectangle on the chosen side (§17.3): a right y axis
+reserves right margin instead of left. A theme-level default is set by
+`axisYPosition` (§20.1), which a per-chart `Guide(axis: y, position:)`
+overrides. `position` requires `axis: x` or `axis: y`; without it, `E1204`.
+This release moves a single trained axis to a chosen side; per-side independent
+dual axes (a second value scale) remain deferred.
 
 ### 19.4 Axis Labels
 
@@ -8148,6 +8219,25 @@ tick index modulo `n`, adding deterministic vertical offsets. For the y axis,
 labels are assigned to offset columns by tick index modulo `n`. Guide planning
 MUST reserve the additional margin implied by the configured rows using the
 same deterministic text measurement model as rotated labels.
+
+Version 0.82.0 MUST support `Guide(axis: x, format: "...")` and `Guide(axis: y,
+format: "...")` to format numeric (continuous, non-temporal) axis tick labels
+using the deterministic numeric format vocabulary defined for `Text` (§14.16):
+`.0f`, `.1f`, `.2f`, `$.2f`, `.0%`, `.1%`, `.2%`. This gives editorial control
+over value-axis labels (e.g. `"800"` rather than `"800.0"`). An unknown format
+string, `format` combined with `timeFormat`, or `format` without `axis: x` or
+`axis: y`, MUST emit `E1909`. A numeric `format` applied to a temporal or
+categorical axis has no effect (those axes use `timeFormat` and category labels
+respectively). Output is identical across SVG, raster, and draw-list backends.
+
+Version 0.82.0 MUST support per-axis grid-line visibility. `Guide(axis: x,
+grid: false)` suppresses the vertical grid lines at x ticks; `Guide(axis: y,
+grid: false)` suppresses the horizontal grid lines at y ticks. A bare
+`Guide(grid: false)` continues to toggle all grid lines. A theme MAY set the
+default per-axis visibility with `gridX`/`gridY` (§20.1), which a per-chart
+`Guide(axis:, grid:)` overrides. This lets a house style keep only horizontal
+rules. Per-axis grid control affects only grid lines, not axis lines, ticks, or
+tick labels.
 
 ### 19.5 Legend Generation
 
@@ -8315,10 +8405,13 @@ pub struct Theme {
     pub point_size: f64,
     pub line_width: f64,
     pub grid: bool,
+    pub grid_x: bool,
+    pub grid_y: bool,
     pub axes: bool,
     pub plot_title: TextStyle,
     pub plot_subtitle: TextStyle,
     pub plot_caption: TextStyle,
+    pub plot_source: TextStyle,
     pub axis_title: TextStyle,
     pub axis_text: TextStyle,
     pub strip_text: TextStyle,
@@ -8329,6 +8422,8 @@ pub struct Theme {
     pub grid_minor: LineStyle,
     pub legend_position: LegendPosition,
     pub legend_spacing: f64,
+    pub axis_x_position: AxisPosition,
+    pub axis_y_position: AxisPosition,
 }
 
 pub struct TextStyle {
@@ -8357,6 +8452,16 @@ pub enum LegendPosition {
 ```
 
 These fields are the override targets for custom themes (spec §20.8).
+
+Version 0.82.0 adds editorial-chrome fields:
+
+- `plot_source: TextStyle` — styles the `source:` attribution line (§17.3),
+  defaulting to a smaller, lighter variant of `plot_caption`.
+- `grid_x: bool` / `grid_y: bool` — per-axis grid-line visibility defaults
+  (both `true`), letting a house style keep only horizontal rules (§19.4).
+- `axis_x_position` / `axis_y_position` — theme-level default axis side
+  (`AxisPosition` is `Left`/`Right`/`Top`/`Bottom`), overridden per chart by
+  `Guide(axis:, position:)` (§19.2, §19.3).
 
 ### 20.2 Minimal Theme
 
@@ -8479,9 +8584,10 @@ Theme(
 
 Grouped, geometry-style overrides reuse existing property value forms:
 
-- text styles: `plotTitle`, `plotSubtitle`, `plotCaption`, `axisTitle`,
-  `axisText`, `stripText`, `legendTitle`, and `legendText` accept
-  `Text(fontFamily?, size?, fill?)`.
+- text styles: `plotTitle`, `plotSubtitle`, `plotCaption`, `plotSource`,
+  `axisTitle`, `axisText`, `stripText`, `legendTitle`, and `legendText` accept
+  `Text(fontFamily?, size?, fill?)`. `plotSource` (since 0.82.0) styles the
+  `source:` line (§17.3).
 - line styles: `gridMajor` and `gridMinor` accept
   `Line(stroke?, strokeWidth?)`.
 - rectangle styles: `panelBackground` accepts
@@ -8494,9 +8600,13 @@ The remaining overrides are direct scalar values mapping to the theme fields
   `textColor`
 - numbers: `fontSize`, `titleSize`, `pointSize`, `lineWidth`
 - string: `fontFamily`
-- booleans: `grid`, `axes`
+- booleans: `grid`, `axes`, and (since 0.82.0) `gridX`/`gridY` for per-axis
+  grid-line defaults (§19.4)
 - legend controls: `legendPosition` string (`"right"`, `"bottom"`, `"top"`,
   or `"left"`) and numeric `legendSpacing`
+- axis sides (since 0.82.0): `axisYPosition` string (`"left"`/`"right"`) and
+  `axisXPosition` string (`"top"`/`"bottom"`), each scoped to its axis; a
+  wrong-axis or unknown value MUST emit `E1705` (§19.2, §19.3)
 
 Legacy scalar fields remain compatibility shorthands. For example,
 `plotBackground: "#fafafa"` sets the panel fill, while the structured
@@ -9830,8 +9940,9 @@ The renderer ships three backends over this seam:
   sidecar MUST carry `version: 1`, `plot_rect`, `axes`, `chart`, `legend`,
   `marks`, `groups`, and `plots` fields in stable key order. `plot_rect` is the
   first plot area's SVG pixel rectangle. `chart` carries `title`, `subtitle`,
-  `caption`, `alt`, and resolved `description` values, using `null` for absent
-  values. `legend` is `null` when no legend is present; otherwise it carries the
+  `caption`, `source` (since 0.82.0), `alt`, and resolved `description` values,
+  using `null` for absent values; `caption` and `source` preserve embedded
+  newlines verbatim (§17.3). `legend` is `null` when no legend is present; otherwise it carries the
   resolved `position` (`"right"`, `"bottom"`, `"top"`, or `"left"`) and SVG
   pixel `rect`. `plots[]` carries every top-level, faceted, and glyph plot
   area's `id`, `plot_rect`, and `axes` so nested charts are addressable without
@@ -9846,8 +9957,9 @@ The renderer ships three backends over this seam:
   glyph clips report their bounding rectangle in metadata; the draw scene
   carries the exact circle clip. `axes.x`
   and `axes.y`, when present, describe host-invertible scales with `scale`,
-  `domain`, `range`, `format`, and `label`; band scales also carry padding and
-  bandwidth metadata. Continuous scale names are `linear`, `log10`, and `sqrt`;
+  `domain`, `range`, `format`, `label`, and (since 0.82.0) `position` — the
+  resolved plot edge `"left"`/`"right"`/`"top"`/`"bottom"` (§19.2, §19.3); band
+  scales also carry padding and bandwidth metadata. Continuous scale names are `linear`, `log10`, and `sqrt`;
   temporal scales use `time` with UTC microsecond domains; categorical scales
   use `band` or `nested-band` with string domains. A host inverts a continuous
   axis by applying the inverse of the named transform over `domain` and `range`;
@@ -11279,6 +11391,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.79.0 | [`V0_79_PLAN.md`](V0_79_PLAN.md) | Measured legend layout reserve | Implemented |
 | 0.80.0 | [`V0_80_PLAN.md`](V0_80_PLAN.md) | Default Cartesian data-mark clipping for explicit axis domains and ordinary panels | Implemented |
 | 0.81.0 | [`V0_81_PLAN.md`](V0_81_PLAN.md) | LSP document-version test harness stability | Implemented |
+| 0.82.0 | [`V0_82_PLAN.md`](V0_82_PLAN.md) | Editorial chart primitives: opposite-side axes, multi-line caption/source, callout badges, per-axis grid, numeric axis format | Implemented |
+| 0.82.0 | [`V0_82_PLAN.md`](V0_82_PLAN.md) | Editorial chart design primitives: opposite-side axes, multi-line caption/source blocks, and annotation callout badges | Proposed |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

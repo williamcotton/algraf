@@ -22,6 +22,9 @@ pub struct ChartIr {
     pub title: Option<String>,
     pub subtitle: Option<String>,
     pub caption: Option<String>,
+    /// The de-emphasized source/attribution line below the caption (spec §17.3,
+    /// §20.1 `plotSource`). Newlines stack like the caption.
+    pub source: Option<String>,
     pub alt: Option<String>,
     pub description: Option<String>,
     pub width: u32,
@@ -110,10 +113,15 @@ pub struct ThemeOverrides {
     pub point_size: Option<f64>,
     pub line_width: Option<f64>,
     pub grid: Option<bool>,
+    /// Per-axis grid-line visibility defaults (spec §20.1 `gridX`/`gridY`).
+    pub grid_x: Option<bool>,
+    pub grid_y: Option<bool>,
     pub axes: Option<bool>,
     pub plot_title: Option<ThemeTextIr>,
     pub plot_subtitle: Option<ThemeTextIr>,
     pub plot_caption: Option<ThemeTextIr>,
+    /// Style for the `source:` attribution line (spec §20.1 `plotSource`).
+    pub plot_source: Option<ThemeTextIr>,
     pub axis_title: Option<ThemeTextIr>,
     pub axis_text: Option<ThemeTextIr>,
     pub strip_text: Option<ThemeTextIr>,
@@ -124,6 +132,10 @@ pub struct ThemeOverrides {
     pub grid_minor: Option<ThemeLineIr>,
     pub legend_position: Option<LegendPositionIr>,
     pub legend_spacing: Option<f64>,
+    /// Theme-level default y-axis side (spec §20.1 `axisYPosition`).
+    pub axis_y_position: Option<AxisPositionIr>,
+    /// Theme-level default x-axis side (spec §20.1 `axisXPosition`).
+    pub axis_x_position: Option<AxisPositionIr>,
 }
 
 /// A structured `Text(...)` theme-element override. Each field is optional so
@@ -268,9 +280,44 @@ pub struct GuideIr {
     pub x_tick_label_rows: Option<usize>,
     /// Optional y tick-label rows for deterministic dodging (spec §19.9).
     pub y_tick_label_rows: Option<usize>,
+    /// Explicit x-axis side from `Guide(axis: x, position: ...)` (spec §19.2).
+    /// `None` falls back to the theme `axisXPosition` token, then `"bottom"`.
+    pub x_position: Option<AxisPositionIr>,
+    /// Explicit y-axis side from `Guide(axis: y, position: ...)` (spec §19.3).
+    /// `None` falls back to the theme `axisYPosition` token, then `"left"`.
+    pub y_position: Option<AxisPositionIr>,
+    /// Optional numeric tick-label format for the x axis (spec §19.4, §14.16).
+    pub x_format: Option<String>,
+    /// Optional numeric tick-label format for the y axis (spec §19.4, §14.16).
+    pub y_format: Option<String>,
+    /// Per-axis grid-line visibility (spec §19). `None` follows the theme
+    /// `gridX`/`gridY` default (then the global `grid`).
+    pub x_grid: Option<bool>,
+    pub y_grid: Option<bool>,
     /// Polar grid shape (spec §16.16, §19): concentric circles (default) or
     /// straight-edged polygons (radar). Ignored for Cartesian spaces.
     pub grid_shape: GridShapeIr,
+}
+
+/// The side of the plot rectangle an axis is drawn on (spec §19.2, §19.3).
+/// `Left`/`Right` are valid for the y axis; `Top`/`Bottom` for the x axis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AxisPositionIr {
+    Left,
+    Right,
+    Top,
+    Bottom,
+}
+
+impl AxisPositionIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AxisPositionIr::Left => "left",
+            AxisPositionIr::Right => "right",
+            AxisPositionIr::Top => "top",
+            AxisPositionIr::Bottom => "bottom",
+        }
+    }
 }
 
 /// The shape of a polar grid (spec §16.16, §19).
@@ -298,6 +345,12 @@ impl Default for GuideIr {
             y_tick_label_angle: None,
             x_tick_label_rows: None,
             y_tick_label_rows: None,
+            x_position: None,
+            y_position: None,
+            x_format: None,
+            y_format: None,
+            x_grid: None,
+            y_grid: None,
             grid_shape: GridShapeIr::Circle,
         }
     }
@@ -324,6 +377,12 @@ impl GuideIr {
             y_tick_label_angle: overrides.y_tick_label_angle.or(self.y_tick_label_angle),
             x_tick_label_rows: overrides.x_tick_label_rows.or(self.x_tick_label_rows),
             y_tick_label_rows: overrides.y_tick_label_rows.or(self.y_tick_label_rows),
+            x_position: overrides.x_position.or(self.x_position),
+            y_position: overrides.y_position.or(self.y_position),
+            x_format: overrides.x_format.clone().or_else(|| self.x_format.clone()),
+            y_format: overrides.y_format.clone().or_else(|| self.y_format.clone()),
+            x_grid: overrides.x_grid.or(self.x_grid),
+            y_grid: overrides.y_grid.or(self.y_grid),
             grid_shape: overrides.grid_shape.unwrap_or(self.grid_shape),
         }
     }
@@ -344,6 +403,12 @@ pub struct GuideOverridesIr {
     pub y_tick_label_angle: Option<f64>,
     pub x_tick_label_rows: Option<usize>,
     pub y_tick_label_rows: Option<usize>,
+    pub x_position: Option<AxisPositionIr>,
+    pub y_position: Option<AxisPositionIr>,
+    pub x_format: Option<String>,
+    pub y_format: Option<String>,
+    pub x_grid: Option<bool>,
+    pub y_grid: Option<bool>,
     pub grid_shape: Option<GridShapeIr>,
 }
 
@@ -1439,6 +1504,10 @@ pub enum PropertyKey {
     Orientation,
     Baseline,
     Label,
+    LabelPosition,
+    LabelShape,
+    LabelFill,
+    LabelStroke,
     Format,
     Anchor,
     At,
@@ -1494,6 +1563,10 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::Orientation,
     PropertyKey::Baseline,
     PropertyKey::Label,
+    PropertyKey::LabelPosition,
+    PropertyKey::LabelShape,
+    PropertyKey::LabelFill,
+    PropertyKey::LabelStroke,
     PropertyKey::Format,
     PropertyKey::Anchor,
     PropertyKey::At,
@@ -1550,6 +1623,10 @@ impl PropertyKey {
             PropertyKey::Orientation => "orientation",
             PropertyKey::Baseline => "baseline",
             PropertyKey::Label => "label",
+            PropertyKey::LabelPosition => "labelPosition",
+            PropertyKey::LabelShape => "labelShape",
+            PropertyKey::LabelFill => "labelFill",
+            PropertyKey::LabelStroke => "labelStroke",
             PropertyKey::Format => "format",
             PropertyKey::Anchor => "anchor",
             PropertyKey::At => "at",

@@ -16,16 +16,16 @@ pub use analyzer::{
     analyze_with_tables_and_options, Analysis, AnalysisOptions,
 };
 pub use ir::{
-    AestheticMapping, AxisSelectorIr, AxisViewDomainIr, BinClosedIr, BinIntervalIr, ChartIr,
-    ColumnRef, CoordinateViewIr, CoordsIr, DataSourceIr, DeriveIr, FacetGridIr, FacetLabelModeIr,
-    FacetScaleModeIr, FrameIr, GeometryIr, GeometryKind, GlyphCallIr, GlyphClipIr, GlyphHostRefIr,
-    GlyphKeyIr, GlyphPlacementIr, GlyphScalePolicyIr, GlyphSizeIr, GradientIr, GradientStopIr,
-    GridBinsIr, GridShapeIr, GuideIr, GuideOverridesIr, InteractionIr, IntervalOrientationIr,
-    LegendPositionIr, LevelSpecIr, PanelSpacingIr, PolarDirectionIr, PolarThetaIr, PropertyKey,
-    QqDistributionIr, ScaleExpansionIr, ScaleIr, ScaleModeIr, ScaleTargetIr, ScaleTypeIr,
-    SettingValue, SmoothMethodIr, SpaceDataRef, SpaceIr, SpaceLayerIr, SpatialPredicateIr,
-    StatCallIr, StatKind, StatOptionsIr, StepDirectionIr, SummaryReducerIr, TableDeclIr,
-    TemporalFormatIr, TemporalTickIntervalIr, TemporalTickUnitIr, ThemeIr, ThemeLineIr,
-    ThemeOverrides, ThemeRectIr, ThemeTextIr, PROPERTY_KEYS,
+    AestheticMapping, AxisPositionIr, AxisSelectorIr, AxisViewDomainIr, BinClosedIr, BinIntervalIr,
+    ChartIr, ColumnRef, CoordinateViewIr, CoordsIr, DataSourceIr, DeriveIr, FacetGridIr,
+    FacetLabelModeIr, FacetScaleModeIr, FrameIr, GeometryIr, GeometryKind, GlyphCallIr,
+    GlyphClipIr, GlyphHostRefIr, GlyphKeyIr, GlyphPlacementIr, GlyphScalePolicyIr, GlyphSizeIr,
+    GradientIr, GradientStopIr, GridBinsIr, GridShapeIr, GuideIr, GuideOverridesIr, InteractionIr,
+    IntervalOrientationIr, LegendPositionIr, LevelSpecIr, PanelSpacingIr, PolarDirectionIr,
+    PolarThetaIr, PropertyKey, QqDistributionIr, ScaleExpansionIr, ScaleIr, ScaleModeIr,
+    ScaleTargetIr, ScaleTypeIr, SettingValue, SmoothMethodIr, SpaceDataRef, SpaceIr, SpaceLayerIr,
+    SpatialPredicateIr, StatCallIr, StatKind, StatOptionsIr, StepDirectionIr, SummaryReducerIr,
+    TableDeclIr, TemporalFormatIr, TemporalTickIntervalIr, TemporalTickUnitIr, ThemeIr,
+    ThemeLineIr, ThemeOverrides, ThemeRectIr, ThemeTextIr, PROPERTY_KEYS,
 };
 pub use planning::{geometry_column_name, spatial_join_appended_columns};

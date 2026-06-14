@@ -69,6 +69,17 @@ Three artifacts govern behavior, and they must stay in sync:
   (`MAY`, "deferred") rather than describe it as though it exists. Diagnostic
   codes emitted by code must exist in the spec; the spec MAY reserve codes the
   code does not yet emit.
+- **Keep the language-reference template in sync.**
+  `crates/algraf-cli/templates/ALGRAF_LANG.md` is the agent-facing language
+  reference that `algraf init` writes into a project, and it is a tracked
+  language-surface artifact like the TextMate grammar and `README.md`. Whenever
+  you add or change a geometry, geometry property, scale/guide key, theme token,
+  chart argument, CLI flag/subcommand, or enum value, update the template's
+  relevant reference sections (e.g. "Complete Declaration Reference", "Complete
+  Geometry Property Reference", "Property Value Forms And Enums", "CLI Commands")
+  in the same change. Like the spec, the template documents only the *implemented*
+  surface — update it alongside implementation, never ahead of it, so a project
+  on the current binary cannot be told about syntax that errors.
 - **Keep plan examples runnable.** `.ag` snippets in plan files must use only
   features the implementation actually accepts (e.g. `Smooth(method: "lm")`, not
   `"loess"` while loess is deferred).

@@ -2,6 +2,37 @@
 
 use algraf_semantics::{AxisSelectorIr, ColumnRef, FrameIr, GeometryIr, PropertyKey, SettingValue};
 
+/// Format a number with one of the deterministic numeric format strings shared
+/// by `Text` and numeric axis tick labels (spec §14.16, §19.4). An unknown
+/// format falls back to the default numeric rendering.
+pub(crate) fn format_numeric(value: f64, format: &str) -> String {
+    match format {
+        ".0f" => normalize_negative_zero(format!("{value:.0}")),
+        ".1f" => normalize_negative_zero(format!("{value:.1}")),
+        ".2f" => normalize_negative_zero(format!("{value:.2}")),
+        "$.2f" => {
+            let body = normalize_negative_zero(format!("{value:.2}"));
+            if let Some(stripped) = body.strip_prefix('-') {
+                format!("-${stripped}")
+            } else {
+                format!("${body}")
+            }
+        }
+        ".0%" => normalize_negative_zero(format!("{:.0}", value * 100.0)) + "%",
+        ".1%" => normalize_negative_zero(format!("{:.1}", value * 100.0)) + "%",
+        ".2%" => normalize_negative_zero(format!("{:.2}", value * 100.0)) + "%",
+        _ => value.to_string(),
+    }
+}
+
+pub(crate) fn normalize_negative_zero(text: String) -> String {
+    if text == "-0" || text.starts_with("-0.") && text[3..].chars().all(|ch| ch == '0') {
+        text[1..].to_string()
+    } else {
+        text
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BarLayout {
     Identity,

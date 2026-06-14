@@ -43,6 +43,8 @@ pub enum DrawRole {
     Subtitle,
     /// The chart caption.
     Caption,
+    /// The de-emphasized chart source/attribution line (spec §20.1 `plotSource`).
+    Source,
     /// A per-datum geometry mark.
     Mark,
     /// A gridline (Cartesian or polar).
@@ -66,6 +68,7 @@ impl DrawRole {
             DrawRole::Title => "title",
             DrawRole::Subtitle => "subtitle",
             DrawRole::Caption => "caption",
+            DrawRole::Source => "source",
             DrawRole::Mark => "mark",
             DrawRole::Grid => "grid",
             DrawRole::Axis => "axis",
@@ -604,16 +607,37 @@ impl RenderBackend for DrawListBackend {
         super::document::paint_axes_and_legends(&mut sink, &slots, legends, layout, theme);
         ops.extend(sink.into_ops());
 
+        // Stacked caption lines, then de-emphasized source line(s), matching the
+        // SVG backend's render_caption_block (spec §17.3, §20.1).
+        let mut caption_lines: Vec<(String, DrawRole, &crate::theme::TextStyle)> = Vec::new();
         if let Some(caption) = &ir.caption {
-            ops.push(DrawOp::Text {
-                role: DrawRole::Caption,
-                x: width - 16.0,
-                y: height - 12.0,
-                anchor: TextAnchor::End,
-                fill: theme.plot_caption.fill.clone(),
-                opacity: None,
-                content: caption.clone(),
-            });
+            for line in caption.split('\n') {
+                caption_lines.push((line.to_string(), DrawRole::Caption, &theme.plot_caption));
+            }
+        }
+        if let Some(source) = &ir.source {
+            for line in source.split('\n') {
+                caption_lines.push((line.to_string(), DrawRole::Source, &theme.plot_source));
+            }
+        }
+        if !caption_lines.is_empty() {
+            let mut baseline = height - 12.0;
+            let mut baselines = vec![0.0; caption_lines.len()];
+            for (index, (_, _, style)) in caption_lines.iter().enumerate().rev() {
+                baselines[index] = baseline;
+                baseline -= style.size + 4.0;
+            }
+            for (index, (text, role, style)) in caption_lines.into_iter().enumerate() {
+                ops.push(DrawOp::Text {
+                    role,
+                    x: width - 16.0,
+                    y: baselines[index],
+                    anchor: TextAnchor::End,
+                    fill: style.fill.clone(),
+                    opacity: None,
+                    content: text,
+                });
+            }
         }
 
         DrawList {

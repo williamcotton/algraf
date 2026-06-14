@@ -64,6 +64,7 @@ pub(crate) fn max_y_tick_label_width(
     space: &ScaledSpace,
     font_size: f64,
     format: Option<&TemporalFormatIr>,
+    numeric: Option<&str>,
     angle: Option<f64>,
     rows: Option<usize>,
 ) -> f64 {
@@ -72,7 +73,7 @@ pub(crate) fn max_y_tick_label_width(
     };
     let angle = angle.unwrap_or(0.0);
     let width = y
-        .ticks_with_format(format)
+        .ticks_formatted(format, numeric)
         .iter()
         .map(|(_, label)| rotated_text_size(label, font_size, angle).0)
         .fold(0.0_f64, f64::max);
@@ -84,13 +85,14 @@ pub(crate) fn max_x_tick_label_height(
     space: &ScaledSpace,
     font_size: f64,
     format: Option<&TemporalFormatIr>,
+    numeric: Option<&str>,
     angle: Option<f64>,
     rows: Option<usize>,
 ) -> f64 {
     let angle = angle.unwrap_or(0.0);
     let height = space
         .x
-        .ticks_with_format(format)
+        .ticks_formatted(format, numeric)
         .iter()
         .map(|(_, label)| rotated_text_size(label, font_size, angle).1)
         .fold(0.0_f64, f64::max);

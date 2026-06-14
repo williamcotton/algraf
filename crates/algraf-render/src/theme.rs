@@ -1,7 +1,8 @@
 //! Themes and color palettes (spec §16.8–16.9, §20).
 
 use algraf_semantics::{
-    LegendPositionIr, ThemeIr, ThemeLineIr, ThemeOverrides, ThemeRectIr, ThemeTextIr,
+    AxisPositionIr, LegendPositionIr, ThemeIr, ThemeLineIr, ThemeOverrides, ThemeRectIr,
+    ThemeTextIr,
 };
 
 use crate::svg::num;
@@ -47,11 +48,17 @@ pub struct Theme {
     pub line_width: f64,
     /// Whether grid lines are drawn.
     pub grid: bool,
+    /// Per-axis grid-line visibility defaults (spec §20.1 `gridX`/`gridY`). A
+    /// per-chart `Guide(axis:, grid:)` overrides these.
+    pub grid_x: bool,
+    pub grid_y: bool,
     /// Whether axes are drawn.
     pub axes: bool,
     pub plot_title: TextStyle,
     pub plot_subtitle: TextStyle,
     pub plot_caption: TextStyle,
+    /// Style for the `source:` attribution line (spec §20.1 `plotSource`).
+    pub plot_source: TextStyle,
     pub axis_title: TextStyle,
     pub axis_text: TextStyle,
     pub strip_text: TextStyle,
@@ -62,6 +69,11 @@ pub struct Theme {
     pub grid_minor: LineStyle,
     pub legend_position: LegendPositionIr,
     pub legend_spacing: f64,
+    /// Default y-axis side (spec §20.1 `axisYPosition`). A per-chart
+    /// `Guide(axis: y, position:)` overrides this.
+    pub axis_y_position: AxisPositionIr,
+    /// Default x-axis side (spec §20.1 `axisXPosition`).
+    pub axis_x_position: AxisPositionIr,
 }
 
 impl Default for Theme {
@@ -104,10 +116,14 @@ impl Theme {
             point_size: 3.0,
             line_width: 1.5,
             grid: true,
+            grid_x: true,
+            grid_y: true,
             axes: true,
             plot_title: text_style(font_family, title_size, text_color),
             plot_subtitle: text_style(font_family, font_size, text_color),
             plot_caption: text_style(font_family, font_size, text_color),
+            // A smaller, lighter variant of `plot_caption` (spec §20.1).
+            plot_source: text_style(font_family, font_size - 2.0, "#7a7a7a"),
             axis_title: text_style(font_family, font_size, text_color),
             axis_text: text_style(font_family, font_size, text_color),
             strip_text: text_style(font_family, font_size, text_color),
@@ -118,6 +134,8 @@ impl Theme {
             grid_minor: line_style("#f2f2f2", 0.6),
             legend_position: LegendPositionIr::Right,
             legend_spacing: 20.0,
+            axis_y_position: AxisPositionIr::Left,
+            axis_x_position: AxisPositionIr::Bottom,
         }
     }
 
@@ -154,6 +172,7 @@ impl Theme {
             plot_title: text_style("system-ui, sans-serif", 18.0, "#f5f5f5"),
             plot_subtitle: text_style("system-ui, sans-serif", 12.0, "#eeeeee"),
             plot_caption: text_style("system-ui, sans-serif", 12.0, "#eeeeee"),
+            plot_source: text_style("system-ui, sans-serif", 10.0, "#9a9a9a"),
             axis_title: text_style("system-ui, sans-serif", 12.0, "#eeeeee"),
             axis_text: text_style("system-ui, sans-serif", 12.0, "#eeeeee"),
             strip_text: text_style("system-ui, sans-serif", 12.0, "#eeeeee"),
@@ -293,6 +312,12 @@ impl Theme {
         if let Some(v) = ov.grid {
             self.grid = v;
         }
+        if let Some(v) = ov.grid_x {
+            self.grid_x = v;
+        }
+        if let Some(v) = ov.grid_y {
+            self.grid_y = v;
+        }
         if let Some(v) = ov.axes {
             self.axes = v;
         }
@@ -305,6 +330,9 @@ impl Theme {
         }
         if let Some(v) = &ov.plot_caption {
             apply_text_override(&mut self.plot_caption, v);
+        }
+        if let Some(v) = &ov.plot_source {
+            apply_text_override(&mut self.plot_source, v);
         }
         if let Some(v) = &ov.axis_title {
             apply_text_override(&mut self.axis_title, v);
@@ -340,6 +368,12 @@ impl Theme {
         if let Some(v) = ov.legend_spacing {
             self.legend_spacing = v.max(0.0);
         }
+        if let Some(v) = ov.axis_y_position {
+            self.axis_y_position = v;
+        }
+        if let Some(v) = ov.axis_x_position {
+            self.axis_x_position = v;
+        }
     }
 
     fn set_all_text_family(&mut self, family: &str) {
@@ -347,6 +381,7 @@ impl Theme {
             &mut self.plot_title,
             &mut self.plot_subtitle,
             &mut self.plot_caption,
+            &mut self.plot_source,
             &mut self.axis_title,
             &mut self.axis_text,
             &mut self.strip_text,

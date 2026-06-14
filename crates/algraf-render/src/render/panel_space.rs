@@ -1,7 +1,7 @@
 use algraf_semantics::ChartIr;
 
 use crate::domains::SpaceDomainHints;
-use crate::layout::{Layout, LegendSize, Margins, Rect};
+use crate::layout::{AxisSides, GuideExtra, Layout, LegendSize, Margins, Rect};
 use crate::space::ScaledSpace;
 use crate::theme::Theme;
 
@@ -16,7 +16,8 @@ pub(super) fn compute_layout(
     has_axes: bool,
     top_extra: f64,
     bottom_extra: f64,
-    left_extra: f64,
+    guide_extra: GuideExtra,
+    sides: AxisSides,
     margins: Margins,
     grid_categories: Option<&(Vec<String>, Vec<String>)>,
     facet_panel_count: Option<usize>,
@@ -33,7 +34,8 @@ pub(super) fn compute_layout(
             col_categories.len().max(1),
             top_extra,
             bottom_extra,
-            left_extra,
+            guide_extra,
+            sides,
             margins,
             theme.legend_position,
             ir.layout.panel_spacing,
@@ -50,7 +52,8 @@ pub(super) fn compute_layout(
             ir.layout.facet_columns,
             top_extra,
             bottom_extra,
-            left_extra,
+            guide_extra,
+            sides,
             margins,
             theme.legend_position,
             ir.layout.panel_spacing,
@@ -63,7 +66,8 @@ pub(super) fn compute_layout(
             has_axes,
             top_extra,
             bottom_extra,
-            left_extra,
+            guide_extra,
+            sides,
             margins,
             theme.legend_position,
             legend_size,

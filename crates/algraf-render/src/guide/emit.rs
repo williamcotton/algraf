@@ -4,7 +4,7 @@
 //! Emission goes through the backend-neutral [`MarkSink`] seam (spec §24.6), so
 //! the SVG and draw-list backends agree on guide coordinates and colors.
 
-use algraf_semantics::{GridShapeIr, GuideIr, LegendPositionIr, TemporalFormatIr};
+use algraf_semantics::{AxisPositionIr, GridShapeIr, GuideIr, LegendPositionIr, TemporalFormatIr};
 
 use crate::aes::{Legend, LegendKind};
 use crate::layout::Rect;
@@ -17,7 +17,8 @@ use crate::theme::{TextStyle, Theme};
 
 use super::plan::{
     estimate_text_width, horizontal_legend_width, max_x_tick_label_height, max_y_tick_label_width,
-    tick_label_row_count, tick_label_row_gap, x_axis_title_y, y_axis_title_x,
+    tick_label_row_count, tick_label_row_gap, x_axis_title_y, y_axis_title_x, X_TICK_BASELINE,
+    X_TITLE_GAP, Y_TICK_GAP, Y_TITLE_GAP,
 };
 
 pub(crate) struct AxisRenderOptions<'a> {
@@ -25,10 +26,38 @@ pub(crate) struct AxisRenderOptions<'a> {
     pub(crate) y_label_override: Option<&'a str>,
     pub(crate) x_time_format: Option<&'a TemporalFormatIr>,
     pub(crate) y_time_format: Option<&'a TemporalFormatIr>,
+    /// Numeric tick-label formats for continuous axes (spec §19.4, §14.16).
+    pub(crate) x_numeric_format: Option<&'a str>,
+    pub(crate) y_numeric_format: Option<&'a str>,
     pub(crate) x_tick_label_angle: Option<f64>,
     pub(crate) y_tick_label_angle: Option<f64>,
     pub(crate) x_tick_label_rows: Option<usize>,
     pub(crate) y_tick_label_rows: Option<usize>,
+    /// Resolved axis sides (spec §19.2, §19.3).
+    pub(crate) x_position: AxisPositionIr,
+    pub(crate) y_position: AxisPositionIr,
+}
+
+impl<'a> AxisRenderOptions<'a> {
+    /// Build axis options from a panel's resolved guides and theme, resolving the
+    /// axis side from `Guide(position:)` over the theme default (spec §19.2–19.3,
+    /// §20.1).
+    pub(crate) fn from_guides(guides: &'a GuideIr, theme: &Theme) -> AxisRenderOptions<'a> {
+        AxisRenderOptions {
+            x_label_override: guides.x_label.as_deref(),
+            y_label_override: guides.y_label.as_deref(),
+            x_time_format: guides.x_time_format.as_ref(),
+            y_time_format: guides.y_time_format.as_ref(),
+            x_numeric_format: guides.x_format.as_deref(),
+            y_numeric_format: guides.y_format.as_deref(),
+            x_tick_label_angle: guides.x_tick_label_angle,
+            y_tick_label_angle: guides.y_tick_label_angle,
+            x_tick_label_rows: guides.x_tick_label_rows,
+            y_tick_label_rows: guides.y_tick_label_rows,
+            x_position: guides.x_position.unwrap_or(theme.axis_x_position),
+            y_position: guides.y_position.unwrap_or(theme.axis_y_position),
+        }
+    }
 }
 
 /// Map a guide anchor string to a [`TextAnchor`].
@@ -40,16 +69,25 @@ fn anchor(value: &str) -> TextAnchor {
     }
 }
 
-/// Draw grid lines behind the data marks (spec §17.6). Only continuous and
-/// temporal axes get grid lines; categorical axes do not.
-pub(crate) fn render_grid(sink: &mut dyn MarkSink, space: &ScaledSpace, plot: Rect, theme: &Theme) {
-    if !theme.grid {
+/// Draw grid lines behind the data marks (spec §17.6, §19). Only continuous and
+/// temporal axes get grid lines; categorical axes do not. `draw_x` toggles the
+/// vertical lines at x ticks; `draw_y` toggles the horizontal lines at y ticks,
+/// so a house style can keep only horizontal rules.
+pub(crate) fn render_grid(
+    sink: &mut dyn MarkSink,
+    space: &ScaledSpace,
+    plot: Rect,
+    theme: &Theme,
+    draw_x: bool,
+    draw_y: bool,
+) {
+    if !theme.grid || (!draw_x && !draw_y) {
         return;
     }
     sink.open_layer("algraf-grid");
     let minor = &theme.grid_minor;
     if minor.stroke_width > 0.0 {
-        if !space.x.is_band() {
+        if draw_x && !space.x.is_band() {
             for x in minor_tick_positions(&space.x.ticks()) {
                 grid_line(
                     sink,
@@ -62,33 +100,37 @@ pub(crate) fn render_grid(sink: &mut dyn MarkSink, space: &ScaledSpace, plot: Re
                 );
             }
         }
-        if let Some(y) = &space.y {
-            if !y.is_band() {
-                for yp in minor_tick_positions(&y.ticks()) {
-                    grid_line(
-                        sink,
-                        plot.x,
-                        yp,
-                        plot.right(),
-                        yp,
-                        &minor.stroke,
-                        minor.stroke_width,
-                    );
+        if draw_y {
+            if let Some(y) = &space.y {
+                if !y.is_band() {
+                    for yp in minor_tick_positions(&y.ticks()) {
+                        grid_line(
+                            sink,
+                            plot.x,
+                            yp,
+                            plot.right(),
+                            yp,
+                            &minor.stroke,
+                            minor.stroke_width,
+                        );
+                    }
                 }
             }
         }
     }
     let color = &theme.grid_major.stroke;
     let width = theme.grid_major.stroke_width;
-    if !space.x.is_band() {
+    if draw_x && !space.x.is_band() {
         for (x, _) in space.x.ticks() {
             grid_line(sink, x, plot.y, x, plot.bottom(), color, width);
         }
     }
-    if let Some(y) = &space.y {
-        if !y.is_band() {
-            for (yp, _) in y.ticks() {
-                grid_line(sink, plot.x, yp, plot.right(), yp, color, width);
+    if draw_y {
+        if let Some(y) = &space.y {
+            if !y.is_band() {
+                for (yp, _) in y.ticks() {
+                    grid_line(sink, plot.x, yp, plot.right(), yp, color, width);
+                }
             }
         }
     }
@@ -351,18 +393,36 @@ pub(crate) fn render_axes(
     options: AxisRenderOptions<'_>,
 ) {
     sink.open_layer("algraf-axes");
+    render_x_axis(sink, space, plot, theme, &options);
+    render_y_axis(sink, space, plot, theme, &options);
+    sink.close_layer();
+}
 
-    // X axis along the bottom.
+/// Draw the x axis on the bottom (default) or top edge (spec §19.2). Only guide
+/// placement moves; tick positions along the axis are unchanged.
+fn render_x_axis(
+    sink: &mut dyn MarkSink,
+    space: &ScaledSpace,
+    plot: Rect,
+    theme: &Theme,
+    options: &AxisRenderOptions<'_>,
+) {
+    let top = matches!(options.x_position, AxisPositionIr::Top);
+    let axis_y = if top { plot.y } else { plot.bottom() };
+    // Tick marks and labels point away from the plot rectangle.
+    let tick_dir = if top { -5.0 } else { 5.0 };
     grid_line(
         sink,
         plot.x,
-        plot.bottom(),
+        axis_y,
         plot.right(),
-        plot.bottom(),
+        axis_y,
         &theme.axis_color,
         1.0,
     );
-    let x_ticks = space.x.ticks_with_format(options.x_time_format);
+    let x_ticks = space
+        .x
+        .ticks_formatted(options.x_time_format, options.x_numeric_format);
     let x_angle = options.x_tick_label_angle.unwrap_or(0.0);
     let x_rows = tick_label_row_count(options.x_tick_label_rows);
     let x_label_mask = if x_rows > 1 {
@@ -370,13 +430,14 @@ pub(crate) fn render_axes(
     } else {
         non_overlapping_x_tick_labels(&x_ticks, theme.axis_text.size, x_angle)
     };
+    let row_gap = tick_label_row_gap(theme.axis_text.size);
     for (index, (x, label)) in x_ticks.iter().enumerate() {
         grid_line(
             sink,
             *x,
-            plot.bottom(),
+            axis_y,
             *x,
-            plot.bottom() + 5.0,
+            axis_y + tick_dir,
             &theme.axis_color,
             1.0,
         );
@@ -390,12 +451,16 @@ pub(crate) fn render_axes(
         } else {
             "middle"
         };
+        let row_offset = (index % x_rows) as f64 * row_gap;
+        let label_y = if top {
+            axis_y - X_TOP_TICK_GAP - row_offset
+        } else {
+            axis_y + X_TICK_BASELINE + row_offset
+        };
         tick_text(
             sink,
             *x,
-            plot.bottom()
-                + super::plan::X_TICK_BASELINE
-                + (index % x_rows) as f64 * tick_label_row_gap(theme.axis_text.size),
+            label_y,
             tick_anchor,
             label,
             &theme.axis_text,
@@ -403,88 +468,134 @@ pub(crate) fn render_axes(
         );
     }
     // An override of "" suppresses the axis title (`Guide(axis: x, label: null)`,
-    // spec §19.x); ticks and grid are unaffected.
-    let x_label = options
-        .x_label_override
-        .map(str::to_string)
-        .unwrap_or_else(|| space.x.label());
+    // spec §19.4); ticks and grid are unaffected.
     if options.x_label_override != Some("") {
+        let x_label = options
+            .x_label_override
+            .map(str::to_string)
+            .unwrap_or_else(|| space.x.label());
         let max_label_height = max_x_tick_label_height(
             space,
             theme.axis_text.size,
             options.x_time_format,
+            options.x_numeric_format,
             options.x_tick_label_angle,
             options.x_tick_label_rows,
         );
+        let title_y = if top {
+            plot.y - X_TOP_TICK_GAP - max_label_height.max(theme.axis_title.size) - X_TITLE_GAP
+        } else {
+            x_axis_title_y(plot.bottom(), max_label_height, theme.axis_title.size)
+        };
         styled_text(
             sink,
             plot.x + plot.width / 2.0,
-            x_axis_title_y(plot.bottom(), max_label_height, theme.axis_title.size),
+            title_y,
             "middle",
             &x_label,
             &theme.axis_title,
         );
     }
+}
 
-    // Y axis along the left.
-    if let Some(y) = &space.y {
-        grid_line(
+/// Draw the y axis on the left (default) or right edge (spec §19.3). Only guide
+/// placement moves; tick positions along the axis are unchanged.
+fn render_y_axis(
+    sink: &mut dyn MarkSink,
+    space: &ScaledSpace,
+    plot: Rect,
+    theme: &Theme,
+    options: &AxisRenderOptions<'_>,
+) {
+    let Some(y) = &space.y else {
+        return;
+    };
+    let right = matches!(options.y_position, AxisPositionIr::Right);
+    let axis_x = if right { plot.right() } else { plot.x };
+    let tick_label_anchor = if right { "start" } else { "end" };
+    // Tick marks point away from the plot. For the left axis we keep the
+    // original (outer → inner) coordinate order so default output is byte-stable.
+    let (tick_x1, tick_x2) = if right {
+        (axis_x, axis_x + 5.0)
+    } else {
+        (axis_x - 5.0, axis_x)
+    };
+    grid_line(
+        sink,
+        axis_x,
+        plot.y,
+        axis_x,
+        plot.bottom(),
+        &theme.axis_color,
+        1.0,
+    );
+    let y_rows = tick_label_row_count(options.y_tick_label_rows);
+    let row_gap = tick_label_row_gap(theme.axis_text.size);
+    for (index, (yp, label)) in y
+        .ticks_formatted(options.y_time_format, options.y_numeric_format)
+        .iter()
+        .enumerate()
+    {
+        grid_line(sink, tick_x1, *yp, tick_x2, *yp, &theme.axis_color, 1.0);
+        let row_offset = (index % y_rows) as f64 * row_gap;
+        let label_x = if right {
+            axis_x + Y_TICK_GAP + row_offset
+        } else {
+            axis_x - Y_TICK_GAP - row_offset
+        };
+        tick_text(
             sink,
-            plot.x,
-            plot.y,
-            plot.x,
-            plot.bottom(),
-            &theme.axis_color,
-            1.0,
+            label_x,
+            *yp + 4.0,
+            tick_label_anchor,
+            label,
+            &theme.axis_text,
+            options.y_tick_label_angle.unwrap_or(0.0),
         );
-        let y_rows = tick_label_row_count(options.y_tick_label_rows);
-        for (index, (yp, label)) in y
-            .ticks_with_format(options.y_time_format)
-            .iter()
-            .enumerate()
-        {
-            grid_line(sink, plot.x - 5.0, *yp, plot.x, *yp, &theme.axis_color, 1.0);
-            tick_text(
-                sink,
-                plot.x - 8.0 - (index % y_rows) as f64 * tick_label_row_gap(theme.axis_text.size),
-                *yp + 4.0,
-                "end",
-                label,
-                &theme.axis_text,
-                options.y_tick_label_angle.unwrap_or(0.0),
-            );
-        }
+    }
+    if options.y_label_override != Some("") {
         let cy = plot.y + plot.height / 2.0;
         let max_label_width = max_y_tick_label_width(
             space,
             theme.axis_text.size,
             options.y_time_format,
+            options.y_numeric_format,
             options.y_tick_label_angle,
             options.y_tick_label_rows,
         );
-        let label_x = y_axis_title_x(plot.x, max_label_width, theme.axis_title.size);
         let y_label = options
             .y_label_override
             .map(str::to_string)
             .unwrap_or_else(|| y.label());
-        if options.y_label_override != Some("") {
-            // The y-axis title is rotated upright along the left edge.
-            sink.text(&TextRun {
-                x: label_x,
-                y: cy,
-                anchor: TextAnchor::Middle,
-                rotate: Some((-90.0, label_x, cy)),
-                font_family: &theme.axis_title.font_family,
-                font_size: theme.axis_title.size,
-                fill: &theme.axis_title.fill,
-                opacity: None,
-                content: &y_label,
-            });
-        }
+        // The y-axis title is rotated upright just past the widest tick label,
+        // on the same side as the axis.
+        let (title_x, rotation) = if right {
+            (
+                plot.right() + Y_TICK_GAP + max_label_width + Y_TITLE_GAP,
+                90.0,
+            )
+        } else {
+            (
+                y_axis_title_x(plot.x, max_label_width, theme.axis_title.size),
+                -90.0,
+            )
+        };
+        sink.text(&TextRun {
+            x: title_x,
+            y: cy,
+            anchor: TextAnchor::Middle,
+            rotate: Some((rotation, title_x, cy)),
+            font_family: &theme.axis_title.font_family,
+            font_size: theme.axis_title.size,
+            fill: &theme.axis_title.fill,
+            opacity: None,
+            content: &y_label,
+        });
     }
-
-    sink.close_layer();
 }
+
+/// Gap above the top x-axis line to the tick-label baseline (spec §19.2).
+const X_TOP_TICK_GAP: f64 = 8.0;
 
 /// Draw a facet strip label (spec §17.4).
 pub(crate) fn render_facet_label(sink: &mut dyn MarkSink, label: &str, area: Rect, theme: &Theme) {

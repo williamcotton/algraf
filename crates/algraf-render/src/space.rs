@@ -221,6 +221,28 @@ impl AxisScale {
         }
     }
 
+    /// Tick positions and labels honoring an optional numeric format (spec
+    /// §19.4, §14.16). A numeric format applies only to continuous (non-temporal,
+    /// non-categorical) axes; on other axes it is ignored and the default labels
+    /// from [`Self::ticks_with_format`] are used.
+    pub fn ticks_formatted(
+        &self,
+        temporal: Option<&TemporalFormatIr>,
+        numeric: Option<&str>,
+    ) -> Vec<(f64, String)> {
+        if let Some(format) = numeric {
+            if let AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } = self {
+                return scale
+                    .ticks(6)
+                    .into_iter()
+                    .filter(|t| *t >= scale.min - f64::EPSILON && *t <= scale.max + f64::EPSILON)
+                    .map(|t| (scale.map(t), crate::helpers::format_numeric(t, format)))
+                    .collect();
+            }
+        }
+        self.ticks_with_format(temporal)
+    }
+
     /// Domain span in data units for fixed-aspect layout. Returns `None` for
     /// categorical axes, whose units are visual bands rather than data units.
     pub fn continuous_domain_span(&self) -> Option<f64> {

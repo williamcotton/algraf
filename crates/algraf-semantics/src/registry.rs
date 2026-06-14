@@ -14,6 +14,7 @@ pub const CHART_ARGS: &[&str] = &[
     "title",
     "subtitle",
     "caption",
+    "source",
     "alt",
     "description",
     "marginTop",
@@ -34,6 +35,7 @@ pub const THEME_OVERRIDE_KEYS: &[&str] = &[
     "plotTitle",
     "plotSubtitle",
     "plotCaption",
+    "plotSource",
     "stripText",
     "legendTitle",
     "legendText",
@@ -42,6 +44,8 @@ pub const THEME_OVERRIDE_KEYS: &[&str] = &[
     "gridMinor",
     "legendPosition",
     "legendSpacing",
+    "axisYPosition",
+    "axisXPosition",
     "fontFamily",
     "fontSize",
     "titleSize",
@@ -53,6 +57,8 @@ pub const THEME_OVERRIDE_KEYS: &[&str] = &[
     "gridColor",
     "textColor",
     "grid",
+    "gridX",
+    "gridY",
     "axes",
 ];
 
@@ -122,7 +128,13 @@ const CHART_DOC_ARGS: &[ArgDoc] = &[
         name: "caption",
         value: "string",
         default: None,
-        doc: "Caption below the plot.",
+        doc: "Caption below the plot. Honors `\\n` for stacked lines.",
+    },
+    ArgDoc {
+        name: "source",
+        value: "string",
+        default: None,
+        doc: "De-emphasized source/attribution line below the caption. Honors `\\n`.",
     },
     ArgDoc {
         name: "alt",
@@ -534,6 +546,18 @@ const GUIDE_DOC_ARGS: &[ArgDoc] = &[
         value: "string",
         default: None,
         doc: "Temporal axis label format.",
+    },
+    ArgDoc {
+        name: "position",
+        value: "string",
+        default: None,
+        doc: "Axis side: y `\"left\"`/`\"right\"`, x `\"top\"`/`\"bottom\"`.",
+    },
+    ArgDoc {
+        name: "format",
+        value: "string",
+        default: None,
+        doc: "Numeric axis tick label format: `.0f`, `.1f`, `$.2f`, `.0%`, etc.",
     },
     ArgDoc {
         name: "tickLabelAngle",
@@ -1330,6 +1354,13 @@ const HLINE: &[PropSpec] = &[
     opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Label, &[Accept::Str]),
+    opt(
+        PropertyKey::LabelPosition,
+        &[Accept::Enum(&["start", "end"])],
+    ),
+    opt(PropertyKey::LabelShape, LABEL_SHAPE),
+    opt(PropertyKey::LabelFill, &[Accept::Color]),
+    opt(PropertyKey::LabelStroke, &[Accept::Color]),
 ];
 
 const VLINE: &[PropSpec] = &[
@@ -1339,7 +1370,16 @@ const VLINE: &[PropSpec] = &[
     opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Label, &[Accept::Str]),
+    opt(
+        PropertyKey::LabelPosition,
+        &[Accept::Enum(&["top", "bottom"])],
+    ),
+    opt(PropertyKey::LabelShape, LABEL_SHAPE),
+    opt(PropertyKey::LabelFill, &[Accept::Color]),
+    opt(PropertyKey::LabelStroke, &[Accept::Color]),
 ];
+
+const LABEL_SHAPE: &[Accept] = &[Accept::Enum(&["none", "circle", "square"])];
 
 const RUG: &[PropSpec] = &[
     opt(PropertyKey::Sides, &[Accept::Str]),
@@ -1575,6 +1615,7 @@ pub fn property_doc(name: &str) -> &'static str {
         "style" => "Reusable `Style(...)` fragment applied at this argument position.",
         "timeFormat" => "Temporal axis label format: `\"iso-date\"` or `\"iso-minute\"`.",
         "tickLabelAngle" => "Axis tick label rotation angle in degrees, from -90 to 90.",
+        "position" => "Axis side: y `\"left\"`/`\"right\"`, x `\"top\"`/`\"bottom\"`.",
         "features" => "Source feature gates reserved for future language capabilities.",
         "version" => "Algraf source language version.",
         "xmin" => "Rectangle minimum x boundary.",
@@ -1590,6 +1631,10 @@ pub fn property_doc(name: &str) -> &'static str {
         "width" => "Geometry width setting.",
         "baseline" => "Area or bar baseline.",
         "label" => "Text label or reference-line label.",
+        "labelPosition" => "Reference-line label placement: VLine `\"top\"`/`\"bottom\"`, HLine `\"start\"`/`\"end\"`.",
+        "labelShape" => "Reference-line callout badge shape: `\"none\"`, `\"circle\"`, or `\"square\"`.",
+        "labelFill" => "Reference-line callout badge fill color.",
+        "labelStroke" => "Reference-line callout badge border color.",
         "anchor" => "Text anchor: `\"start\"`, `\"middle\"`, or `\"end\"`.",
         "at" => "Terminal Label endpoint: `\"start\"` or `\"end\"`.",
         "dx" => "Horizontal text offset, in pixels: a number or a column mapping.",

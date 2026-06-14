@@ -9,7 +9,8 @@ use std::fmt::Write as _;
 
 use algraf_data::Table;
 use algraf_semantics::{
-    GeometryIr, GeometryKind, GlyphClipIr, GuideIr, LegendPositionIr, TemporalFormatIr,
+    AxisPositionIr, GeometryIr, GeometryKind, GlyphClipIr, GuideIr, LegendPositionIr,
+    TemporalFormatIr,
 };
 
 use crate::layout::Rect;
@@ -50,6 +51,7 @@ pub struct InteractionChart {
     pub title: Option<String>,
     pub subtitle: Option<String>,
     pub caption: Option<String>,
+    pub source: Option<String>,
     pub alt: Option<String>,
     pub description: Option<String>,
 }
@@ -79,6 +81,9 @@ pub struct InteractionAxis {
     pub range: [f64; 2],
     pub format: String,
     pub label: String,
+    /// The plot edge the axis renders on: `"left"`/`"right"`/`"top"`/`"bottom"`
+    /// (spec §18.7, §19.2–§19.3).
+    pub position: &'static str,
     pub padding_inner: Option<f64>,
     pub padding_outer: Option<f64>,
     pub bandwidth: Option<f64>,
@@ -226,6 +231,7 @@ pub(super) fn build_interaction_metadata(scene: &RenderScene<'_>) -> Interaction
             title: scene.ir.title.clone(),
             subtitle: scene.ir.subtitle.clone(),
             caption: scene.ir.caption.clone(),
+            source: scene.ir.source.clone(),
             alt: scene.ir.alt.clone(),
             description: chart_description(scene.ir),
         },
@@ -444,10 +450,23 @@ fn append_mark_group_value(groups: &mut Vec<InteractionGroupValue>, key: &str, v
 }
 
 fn panel_axes(panel: &Panel<'_>) -> InteractionAxes {
-    scaled_axes(&panel.scaled, &panel.guides)
+    let x_position = panel
+        .guides
+        .x_position
+        .unwrap_or(panel.theme.axis_x_position);
+    let y_position = panel
+        .guides
+        .y_position
+        .unwrap_or(panel.theme.axis_y_position);
+    scaled_axes(&panel.scaled, &panel.guides, x_position, y_position)
 }
 
-fn scaled_axes(scaled: &ScaledSpace, guides: &GuideIr) -> InteractionAxes {
+fn scaled_axes(
+    scaled: &ScaledSpace,
+    guides: &GuideIr,
+    x_position: AxisPositionIr,
+    y_position: AxisPositionIr,
+) -> InteractionAxes {
     if scaled.is_spatial() || scaled.is_polar() {
         return InteractionAxes { x: None, y: None };
     }
@@ -456,12 +475,14 @@ fn scaled_axes(scaled: &ScaledSpace, guides: &GuideIr) -> InteractionAxes {
             &scaled.x,
             guides.x_label.as_deref(),
             guides.x_time_format.as_ref(),
+            x_position,
         )),
         y: scaled.y.as_ref().map(|axis| {
             axis_metadata(
                 axis,
                 guides.y_label.as_deref(),
                 guides.y_time_format.as_ref(),
+                y_position,
             )
         }),
     }
@@ -471,6 +492,7 @@ fn axis_metadata(
     axis: &AxisScale,
     label_override: Option<&str>,
     time_format: Option<&TemporalFormatIr>,
+    position: AxisPositionIr,
 ) -> InteractionAxis {
     let label = label_override
         .map(ToOwned::to_owned)
@@ -488,6 +510,7 @@ fn axis_metadata(
                 range: [scale.range.0, scale.range.1],
                 format: "algraf-number".to_string(),
                 label,
+                position: position.as_str(),
                 padding_inner: None,
                 padding_outer: None,
                 bandwidth: None,
@@ -503,14 +526,15 @@ fn axis_metadata(
                     .map(|format| format.as_str().to_string())
                     .unwrap_or_else(|| "auto".to_string()),
                 label,
+                position: position.as_str(),
                 padding_inner: None,
                 padding_outer: None,
                 bandwidth: None,
                 inner_domain: Vec::new(),
             }
         }
-        AxisScale::Band { scale, .. } => band_axis("band", scale, label, Vec::new()),
-        AxisScale::NestedBand { scale, .. } => nested_band_axis(scale, label),
+        AxisScale::Band { scale, .. } => band_axis("band", scale, label, Vec::new(), position),
+        AxisScale::NestedBand { scale, .. } => nested_band_axis(scale, label, position),
     }
 }
 
@@ -519,6 +543,7 @@ fn band_axis(
     scale: &BandScale,
     label: String,
     inner_domain: Vec<String>,
+    position: AxisPositionIr,
 ) -> InteractionAxis {
     InteractionAxis {
         scale: scale_name,
@@ -526,6 +551,7 @@ fn band_axis(
         range: [scale.range.0, scale.range.1],
         format: "category".to_string(),
         label,
+        position: position.as_str(),
         padding_inner: Some(scale.pad_inner),
         padding_outer: Some(scale.pad_outer),
         bandwidth: Some(scale.bandwidth()),
@@ -533,13 +559,18 @@ fn band_axis(
     }
 }
 
-fn nested_band_axis(scale: &NestedBandScale, label: String) -> InteractionAxis {
+fn nested_band_axis(
+    scale: &NestedBandScale,
+    label: String,
+    position: AxisPositionIr,
+) -> InteractionAxis {
     InteractionAxis {
         scale: "nested-band",
         domain: InteractionDomain::Strings(scale.outer.categories.clone()),
         range: [scale.outer.range.0, scale.outer.range.1],
         format: "category".to_string(),
         label,
+        position: position.as_str(),
         padding_inner: Some(scale.outer.pad_inner),
         padding_outer: Some(scale.outer.pad_outer),
         bandwidth: Some(scale.outer.bandwidth()),
@@ -597,6 +628,7 @@ fn write_chart_json(out: &mut String, chart: &InteractionChart) {
     write_optional_string(out, "title", chart.title.as_deref(), true);
     write_optional_string(out, "subtitle", chart.subtitle.as_deref(), false);
     write_optional_string(out, "caption", chart.caption.as_deref(), false);
+    write_optional_string(out, "source", chart.source.as_deref(), false);
     write_optional_string(out, "alt", chart.alt.as_deref(), false);
     write_optional_string(out, "description", chart.description.as_deref(), false);
     out.push('}');
@@ -632,11 +664,12 @@ fn write_axis_json(out: &mut String, axis: &InteractionAxis) {
     write_domain_json(out, &axis.domain);
     let _ = write!(
         out,
-        ",\"range\":[{},{}],\"format\":{},\"label\":{}",
+        ",\"range\":[{},{}],\"format\":{},\"label\":{},\"position\":{}",
         num(axis.range[0]),
         num(axis.range[1]),
         json_string(&axis.format),
         json_string(&axis.label),
+        json_string(axis.position),
     );
     if let Some(value) = axis.padding_inner {
         let _ = write!(out, ",\"paddingInner\":{}", num(value));

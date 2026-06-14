@@ -551,7 +551,16 @@ pub(super) fn paint_grid(sink: &mut dyn MarkSink, slots: &[PanelSlot<'_>]) {
             if panel.scaled.is_polar() {
                 guide::render_polar_grid(sink, &panel.scaled, &panel.guides, &panel.theme);
             } else if panel.guides.grid && !panel.scaled.is_spatial() {
-                guide::render_grid(sink, &panel.scaled, panel.plot, &panel.theme);
+                let draw_x = panel.guides.x_grid.unwrap_or(panel.theme.grid_x);
+                let draw_y = panel.guides.y_grid.unwrap_or(panel.theme.grid_y);
+                guide::render_grid(
+                    sink,
+                    &panel.scaled,
+                    panel.plot,
+                    &panel.theme,
+                    draw_x,
+                    draw_y,
+                );
             }
         }
     }
@@ -578,16 +587,7 @@ pub(super) fn paint_axes_and_legends(
                     &panel.scaled,
                     panel.plot,
                     &panel.theme,
-                    guide::AxisRenderOptions {
-                        x_label_override: panel.guides.x_label.as_deref(),
-                        y_label_override: panel.guides.y_label.as_deref(),
-                        x_time_format: panel.guides.x_time_format.as_ref(),
-                        y_time_format: panel.guides.y_time_format.as_ref(),
-                        x_tick_label_angle: panel.guides.x_tick_label_angle,
-                        y_tick_label_angle: panel.guides.y_tick_label_angle,
-                        x_tick_label_rows: panel.guides.x_tick_label_rows,
-                        y_tick_label_rows: panel.guides.y_tick_label_rows,
-                    },
+                    guide::AxisRenderOptions::from_guides(&panel.guides, &panel.theme),
                 );
             }
         }
@@ -642,15 +642,47 @@ fn render_chart_text(
             escape_text(subtitle),
         ));
     }
+    render_caption_block(w, ir, width, height, theme);
+}
+
+/// Stack the caption lines and then the de-emphasized source line(s) at the
+/// bottom-right of the viewport, one row per `\n`-separated line in source order
+/// (spec §17.3, §20.1 `plotSource`). The block grows upward so the final source
+/// line sits at the bottom.
+fn render_caption_block(w: &mut SvgWriter, ir: &ChartIr, width: f64, height: f64, theme: &Theme) {
+    let mut lines: Vec<(&str, &crate::theme::TextStyle, &str)> = Vec::new();
     if let Some(caption) = &ir.caption {
+        for line in caption.split('\n') {
+            lines.push((line, &theme.plot_caption, "algraf-caption"));
+        }
+    }
+    if let Some(source) = &ir.source {
+        for line in source.split('\n') {
+            lines.push((line, &theme.plot_source, "algraf-source"));
+        }
+    }
+    if lines.is_empty() {
+        return;
+    }
+    let line_height = |style: &crate::theme::TextStyle| style.size + 4.0;
+    // Baseline of the last line; earlier lines stack above it.
+    let mut baseline = height - 12.0;
+    let mut baselines = vec![0.0; lines.len()];
+    for (index, (_, style, _)) in lines.iter().enumerate().rev() {
+        baselines[index] = baseline;
+        baseline -= line_height(style);
+    }
+    let x = width - 16.0;
+    for (index, (text, style, class)) in lines.iter().enumerate() {
         w.line(&format!(
-            "<text class=\"algraf-caption\" x=\"{}\" y=\"{}\" text-anchor=\"end\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
-            num(width - 16.0),
-            num(height - 12.0),
-            escape_attr(&theme.plot_caption.font_family),
-            num(theme.plot_caption.size),
-            escape_attr(&theme.plot_caption.fill),
-            escape_text(caption),
+            "<text class=\"{}\" x=\"{}\" y=\"{}\" text-anchor=\"end\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
+            class,
+            num(x),
+            num(baselines[index]),
+            escape_attr(&style.font_family),
+            num(style.size),
+            escape_attr(&style.fill),
+            escape_text(text),
         ));
     }
 }

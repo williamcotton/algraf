@@ -28,6 +28,7 @@ struct ChartArgs {
     title: Option<String>,
     subtitle: Option<String>,
     caption: Option<String>,
+    source: Option<String>,
     alt: Option<String>,
     description: Option<String>,
     margin_top: Option<u32>,
@@ -54,6 +55,7 @@ impl Analyzer<'_> {
             title,
             subtitle,
             caption,
+            source,
             alt,
             description,
             margin_top,
@@ -136,6 +138,7 @@ impl Analyzer<'_> {
             title,
             subtitle,
             caption,
+            source,
             alt,
             description,
             width,
@@ -199,6 +202,7 @@ impl Analyzer<'_> {
         let mut title = None;
         let mut subtitle = None;
         let mut caption = None;
+        let mut source = None;
         let mut alt = None;
         let mut description = None;
         let mut margin_top = None;
@@ -246,6 +250,10 @@ impl Analyzer<'_> {
                     caption =
                         self.expect_string(arg, codes::E1204, "`caption` expects a string literal")
                 }
+                "source" => {
+                    source =
+                        self.expect_string(arg, codes::E1204, "`source` expects a string literal")
+                }
                 "alt" => {
                     alt = self.expect_string(arg, codes::E1204, "`alt` expects a string literal")
                 }
@@ -284,6 +292,7 @@ impl Analyzer<'_> {
             title,
             subtitle,
             caption,
+            source,
             alt,
             description,
             margin_top,
