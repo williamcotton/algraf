@@ -22,17 +22,12 @@
   <line x1="561.153" y1="66" x2="561.153" y2="390" stroke="#e6e6e6" stroke-width="1" />
   <line x1="630.575" y1="66" x2="630.575" y2="390" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="75.2" y="66" width="614.8" height="324" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-bar">
-    <rect x="75.2" y="331.68" width="569.259" height="51.84" fill="#4E79A7" opacity="0.86" />
-    <rect x="75.2" y="266.88" width="444.3" height="51.84" fill="#4E79A7" opacity="0.86" />
-    <rect x="75.2" y="202.08" width="395.705" height="51.84" fill="#4E79A7" opacity="0.86" />
-    <rect x="75.2" y="137.28" width="284.63" height="51.84" fill="#4E79A7" opacity="0.86" />
-    <rect x="75.2" y="72.48" width="194.381" height="51.84" fill="#4E79A7" opacity="0.86" />
-  </g>
+<g class="algraf-layer algraf-geom-bar">
+  <rect x="75.2" y="331.68" width="569.259" height="51.84" fill="#4E79A7" opacity="0.86" />
+  <rect x="75.2" y="266.88" width="444.3" height="51.84" fill="#4E79A7" opacity="0.86" />
+  <rect x="75.2" y="202.08" width="395.705" height="51.84" fill="#4E79A7" opacity="0.86" />
+  <rect x="75.2" y="137.28" width="284.63" height="51.84" fill="#4E79A7" opacity="0.86" />
+  <rect x="75.2" y="72.48" width="194.381" height="51.84" fill="#4E79A7" opacity="0.86" />
 </g>
 <g class="algraf-axes">
   <line x1="75.2" y1="390" x2="690" y2="390" stroke="#333333" stroke-width="1" />

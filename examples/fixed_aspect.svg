@@ -28,7 +28,7 @@
   <line x1="253" y1="66" x2="497" y2="66" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <defs>
-<clipPath id="algraf-clip-0"><rect x="253" y="66" width="244" height="244" /></clipPath>
+<clipPath id="algraf-clip-0"><rect x="250" y="63" width="250" height="250" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-0)">
   <g class="algraf-layer algraf-geom-segment">

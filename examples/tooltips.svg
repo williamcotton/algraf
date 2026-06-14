@@ -21,39 +21,34 @@
   <line x1="60.8" y1="160.846" x2="610" y2="160.846" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60.8" y1="76.691" x2="610" y2="76.691" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="60.8" y="40" width="549.2" height="410" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-point">
-    <circle cx="98.676" cy="371.232" r="4" fill="#4E79A7" opacity="0.82"><title>species: Adelie
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="98.676" cy="371.232" r="4" fill="#4E79A7" opacity="0.82"><title>species: Adelie
 flipper_length: 181
 body_mass: 3750</title></circle>
-    <circle cx="157.857" cy="362.816" r="4" fill="#4E79A7" opacity="0.82"><title>species: Adelie
+  <circle cx="157.857" cy="362.816" r="4" fill="#4E79A7" opacity="0.82"><title>species: Adelie
 flipper_length: 186
 body_mass: 3800</title></circle>
-    <circle cx="264.383" cy="261.831" r="4" fill="#4E79A7" opacity="0.82"><title>species: Adelie
+  <circle cx="264.383" cy="261.831" r="4" fill="#4E79A7" opacity="0.82"><title>species: Adelie
 flipper_length: 195
 body_mass: 4400</title></circle>
-    <circle cx="240.71" cy="421.724" r="4" fill="#F28E2B" opacity="0.82"><title>species: Chinstrap
+  <circle cx="240.71" cy="421.724" r="4" fill="#F28E2B" opacity="0.82"><title>species: Chinstrap
 flipper_length: 193
 body_mass: 3450</title></circle>
-    <circle cx="288.055" cy="383.855" r="4" fill="#F28E2B" opacity="0.82"><title>species: Chinstrap
+  <circle cx="288.055" cy="383.855" r="4" fill="#F28E2B" opacity="0.82"><title>species: Chinstrap
 flipper_length: 197
 body_mass: 3675</title></circle>
-    <circle cx="335.4" cy="278.662" r="4" fill="#F28E2B" opacity="0.82"><title>species: Chinstrap
+  <circle cx="335.4" cy="278.662" r="4" fill="#F28E2B" opacity="0.82"><title>species: Chinstrap
 flipper_length: 201
 body_mass: 4300</title></circle>
-    <circle cx="441.926" cy="211.338" r="4" fill="#E15759" opacity="0.82"><title>species: Gentoo
+  <circle cx="441.926" cy="211.338" r="4" fill="#E15759" opacity="0.82"><title>species: Gentoo
 flipper_length: 210
 body_mass: 4700</title></circle>
-    <circle cx="512.943" cy="160.846" r="4" fill="#E15759" opacity="0.82"><title>species: Gentoo
+  <circle cx="512.943" cy="160.846" r="4" fill="#E15759" opacity="0.82"><title>species: Gentoo
 flipper_length: 216
 body_mass: 5000</title></circle>
-    <circle cx="572.124" cy="68.276" r="4" fill="#E15759" opacity="0.82"><title>species: Gentoo
+  <circle cx="572.124" cy="68.276" r="4" fill="#E15759" opacity="0.82"><title>species: Gentoo
 flipper_length: 221
 body_mass: 5550</title></circle>
-  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60.8" y1="450" x2="610" y2="450" stroke="#333333" stroke-width="1" />

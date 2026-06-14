@@ -2526,6 +2526,32 @@ Chart(data: "penguins.csv", width: 720, height: 480) {
 
 ![scale_domain](scale_domain.svg)
 
+## Clipping from a pinned floor
+
+A half-open domain pins only the bound you write. Here `domain: [0, null]`
+closes the lower y edge so losses below zero are masked at the floor, while the
+upper edge remains data-trained and open.
+
+```algraf
+Chart(data: "monthly_profit.csv", width: 760, height: 420, title: "Pinned floor clips losses") {
+    Theme(name: "minimal")
+    Scale(axis: y, domain: [0, null],
+          breaks: [0, 10000, 20000, 30000, 40000],
+          labels: ["0", "10k", "20k", "30k", "40k"])
+    Guide(axis: x, label: "Month")
+    Guide(axis: y, label: "Monthly profit")
+
+    Space(month * profit) {
+        Area(baseline: 0, fill: "#9ecae1", alpha: 0.45)
+        Line(stroke: "#1f77b4", strokeWidth: 2.5)
+        Point(fill: "#1f77b4", size: 4)
+        HLine(y: 0, stroke: "#333333", strokeWidth: 1)
+    }
+}
+```
+
+![domain_floor_clip](domain_floor_clip.svg)
+
 ## Declared categorical domain order
 
 String-array `domain:` values on position scales declare categorical axis order.

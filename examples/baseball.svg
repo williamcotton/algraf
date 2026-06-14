@@ -35,7 +35,7 @@
   <line x1="411" y1="330" x2="690" y2="330" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="90" width="279" height="240" /></clipPath>
+<clipPath id="algraf-clip-0"><rect x="0" y="90" width="720" height="240" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-0)">
   <g class="algraf-layer algraf-geom-text">
@@ -68,7 +68,7 @@
   </g>
 </g>
 <defs>
-<clipPath id="algraf-clip-1"><rect x="411" y="90" width="279" height="240" /></clipPath>
+<clipPath id="algraf-clip-1"><rect x="0" y="90" width="720" height="240" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-1)">
   <g class="algraf-layer algraf-geom-text">

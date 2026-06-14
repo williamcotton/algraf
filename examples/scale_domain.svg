@@ -30,7 +30,7 @@
   <line x1="60.8" y1="40" x2="570" y2="40" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <defs>
-<clipPath id="algraf-clip-0"><rect x="60.8" y="40" width="509.2" height="390" /></clipPath>
+<clipPath id="algraf-clip-0"><rect x="0" y="37" width="720" height="396" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-0)">
   <g class="algraf-layer algraf-geom-point">

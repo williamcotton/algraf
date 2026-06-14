@@ -33,31 +33,21 @@
   <line x1="60" y1="118.677" x2="610" y2="118.677" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="76.79" x2="610" y2="76.79" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="66" width="550" height="304" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-area">
-    <path d="M60 266.12 L151.667 254.392 L243.333 247.69 L335 259.418 L426.667 237.637 L518.333 226.746 L610 245.176 L610 370 L518.333 370 L426.667 370 L335 370 L243.333 370 L151.667 370 L60 370 Z" fill="#006BA4" opacity="0.42" />
-    <path d="M60 202.451 L151.667 178.157 L243.333 148.836 L335 259.418 L426.667 118.677 L518.333 88.519 L610 136.27 L610 245.176 L518.333 226.746 L426.667 237.637 L335 259.418 L243.333 247.69 L151.667 254.392 L60 266.12 Z" fill="#FF800E" opacity="0.42" />
-  </g>
+<g class="algraf-layer algraf-geom-area">
+  <path d="M60 266.12 L151.667 254.392 L243.333 247.69 L335 259.418 L426.667 237.637 L518.333 226.746 L610 245.176 L610 370 L518.333 370 L426.667 370 L335 370 L243.333 370 L151.667 370 L60 370 Z" fill="#006BA4" opacity="0.42" />
+  <path d="M60 202.451 L151.667 178.157 L243.333 148.836 L335 259.418 L426.667 118.677 L518.333 88.519 L610 136.27 L610 245.176 L518.333 226.746 L426.667 237.637 L335 259.418 L243.333 247.69 L151.667 254.392 L60 266.12 Z" fill="#FF800E" opacity="0.42" />
 </g>
-<defs>
-<clipPath id="algraf-clip-1"><rect x="60" y="66" width="550" height="304" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-1)">
-  <g class="algraf-layer algraf-geom-line">
-    <path d="M60 127.055 L151.667 127.055 L243.333 110.3 L335 110.3 L426.667 93.545 L518.333 93.545 L610 93.545" fill="none" stroke="#111111" stroke-width="1.4" opacity="1" stroke-dasharray="4 4" />
-  </g>
-  <g class="algraf-layer algraf-geom-point">
-    <circle cx="60" cy="127.055" r="2" fill="#111111" opacity="1" />
-    <circle cx="151.667" cy="127.055" r="2" fill="#111111" opacity="1" />
-    <circle cx="243.333" cy="110.3" r="2" fill="#111111" opacity="1" />
-    <circle cx="335" cy="110.3" r="2" fill="#111111" opacity="1" />
-    <circle cx="426.667" cy="93.545" r="2" fill="#111111" opacity="1" />
-    <circle cx="518.333" cy="93.545" r="2" fill="#111111" opacity="1" />
-    <circle cx="610" cy="93.545" r="2" fill="#111111" opacity="1" />
-  </g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M60 127.055 L151.667 127.055 L243.333 110.3 L335 110.3 L426.667 93.545 L518.333 93.545 L610 93.545" fill="none" stroke="#111111" stroke-width="1.4" opacity="1" stroke-dasharray="4 4" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="60" cy="127.055" r="2" fill="#111111" opacity="1" />
+  <circle cx="151.667" cy="127.055" r="2" fill="#111111" opacity="1" />
+  <circle cx="243.333" cy="110.3" r="2" fill="#111111" opacity="1" />
+  <circle cx="335" cy="110.3" r="2" fill="#111111" opacity="1" />
+  <circle cx="426.667" cy="93.545" r="2" fill="#111111" opacity="1" />
+  <circle cx="518.333" cy="93.545" r="2" fill="#111111" opacity="1" />
+  <circle cx="610" cy="93.545" r="2" fill="#111111" opacity="1" />
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="370" x2="610" y2="370" stroke="#333333" stroke-width="1" />

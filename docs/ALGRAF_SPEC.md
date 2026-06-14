@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.83.0
+Status: 0.84.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.83.0 specification.
+This working copy is the 0.84.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -7168,9 +7168,10 @@ expansion `0`. A two-number array is `[mult, add]`. Continuous axes expand by
 Temporal axes use the same rule in microsecond units. Categorical axes use
 `mult` as deterministic outer band padding. Explicit `domain:` bounds remain
 data-domain training constraints and are not row filters or visual coordinate
-zoom controls; Cartesian data marks are still clipped to the final plot
-rectangle by default after scale mapping (§18.5). Visual coordinate zoom is a
-separate `Space` coordinate-view control (§16.17).
+zoom controls; a pinned numeric bound additionally closes the visual edge that
+bound maps to for Cartesian data-mark clipping, while a `null` or absent bound
+leaves that edge open (§18.5). Visual coordinate zoom is a separate `Space`
+coordinate-view control (§16.17).
 
 Version 0.2.0 MUST support `reverse: true` for position axes.
 
@@ -7454,13 +7455,14 @@ training, scale expansion, and explicit `Scale(domain:)` bounds. It changes the
 axis view domain and guide ticks, but MUST NOT filter rows before stats or
 before draw-list/sidecar mark enumeration.
 
-Zoomed Cartesian panels MUST clip data marks to the final plot rectangle. SVG
-uses a deterministic `clipPath`; the draw-list backend emits matching
-`clipStart`/`clipEnd` scope ops; the render-model raster backend applies the
-same rectangular mask. The interaction sidecar keeps per-row mark coordinates;
-marks whose point coordinate lies outside a clipped panel carry
-`"clipped": true`, and each clipped plot carries `clip_rect` equal to the plot
-rectangle. Host runtimes MAY use `clip_rect` to hide or ignore clipped marks.
+Zoom is one source of Cartesian clipping (§18.5): `zoomX` closes both visual x
+edges and `zoomY` closes both visual y edges. SVG uses a deterministic
+`clipPath`; the draw-list backend emits matching `clipStart`/`clipEnd` scope
+ops; the render-model raster backend applies the same rectangular mask. The
+interaction sidecar keeps per-row mark coordinates; marks whose point
+coordinate lies outside a clipped edge carry `"clipped": true`, and each
+clipped plot carries the resolved `clip_rect`. Host runtimes MAY use
+`clip_rect` to hide or ignore clipped marks.
 
 `aspect` is a positive finite number specifying the ratio of x pixels per data
 unit to y pixels per data unit. The renderer MUST preserve the chart viewport,
@@ -7862,15 +7864,34 @@ y range is `[plot.y + plot.height, plot.y]`.
 
 ### 18.5 Clipping
 
-Data marks SHOULD be clipped to plot area by default.
+Version 0.80.0 introduced deterministic Cartesian data-mark clipping. Version
+0.84.0 refines that rule from a panel-wide default into a per-edge,
+domain-derived mask. A Cartesian panel MUST clip a visual edge when, and only
+when, the domain bound that maps to that edge is pinned by an explicit numeric
+`Scale(axis: ..., domain: ...)` bound, or when `Space(zoomX:)`/`Space(zoomY:)`
+narrows that axis. A `null` or absent domain bound leaves its edge open, and a
+purely data-trained, unzoomed Cartesian panel MUST open no clip scope.
 
-Version 0.80.0: Cartesian panels MUST open a deterministic rectangular clip
-scope around data-mark layers by default, regardless of whether the axis view
-comes from data-trained domains, explicit `Scale(axis: ..., domain: ...)`
-bounds, or `Space(zoomX:/zoomY:)`. The clip scope is applied after source data
-loading, derived stat materialization, scale-domain training, scale expansion,
-explicit scale bounds, and coordinate zoom. It MUST NOT filter source rows or
-stat rows before geometry emission.
+The lower-bound/upper-bound-to-edge mapping MUST be resolved through the trained
+axis range. For example, a default Cartesian y axis maps the lower data bound to
+the bottom edge and the upper data bound to the top edge; a reversed y axis swaps
+that mapping. A half-open domain such as `domain: [0, null]` therefore clips
+only the pinned visual edge. `zoomX` closes both x edges; `zoomY` closes both y
+edges.
+
+When at least one edge is clipped, the renderer MUST emit one deterministic
+rectangular mask whose closed edges are offset outward from the plot rectangle by
+a deterministic bleed equal to the panel's maximum data-mark half-extent (point
+radius and stroke half-width), capped on each side by the reserved space before
+neighboring panels or chart chrome. Open edges are unbounded by the panel mask
+and are represented by extending the rectangle to the SVG viewport. If no
+data-mark layer has positive extent, the bleed is `0`.
+
+The clip scope is applied after source data loading, derived stat
+materialization, scale-domain training, scale expansion, explicit scale bounds,
+and coordinate zoom. It MUST NOT filter source rows or stat rows before geometry
+emission. SVG `clipPath`, draw-list `clipStart`/`clipEnd`, raster masking, and
+interaction metadata MUST use the same resolved rectangle.
 
 Glyph clips MAY be rectangular or circular, according to a glyph mark's `clip:`
 (§14.27).
@@ -10037,10 +10058,12 @@ The renderer ships three backends over this seam:
   `p0:i0[3]:s0`. The bracketed row value is the host table's source row
   number, not the ordinal among rendered glyph instances, so IDs stay stable
   when earlier host rows fail to match or cannot resolve an anchor. Nested
-  glyph IDs extend this prefix recursively. A plot MAY include `clip_rect` when
-  Cartesian plot clipping or a glyph clip bounds data marks (§18.5). Circular
-  glyph clips report their bounding rectangle in metadata; the draw scene
-  carries the exact circle clip. `axes.x`
+  glyph IDs extend this prefix recursively. A plot MUST include `clip_rect`
+  only when at least one Cartesian edge or glyph clip bounds data marks (§18.5).
+  For Cartesian panel clipping, `clip_rect` is the resolved per-edge mask
+  rectangle, including mark-extent bleed on closed edges and viewport expansion
+  on open edges. Circular glyph clips report their bounding rectangle in
+  metadata; the draw scene carries the exact circle clip. `axes.x`
   and `axes.y`, when present, describe host-invertible scales with `scale`,
   `domain`, `range`, `format`, `label`, and (since 0.82.0) `position` — the
   resolved plot edge `"left"`/`"right"`/`"top"`/`"bottom"` (§19.2, §19.3); band
@@ -10052,7 +10075,9 @@ The renderer ships three backends over this seam:
   microseconds; it inverts a band axis by selecting the nearest domain band.
   `marks[]` carries stable `id`, `plot`, `x_px`, `y_px`, optional `clipped:
   true`, `groups`, optional `interaction`, and display-ready `tooltip` rows for
-  each pickable per-datum mark that survives layout. When present,
+  each pickable per-datum mark that survives layout. `clipped: true` is emitted
+  only when the mark's point coordinate lies outside a closed Cartesian clip
+  edge or outside an enclosing glyph clip. When present,
   `interaction` carries `{ "event": "click", "emit_field": "<column>" }` for an
   `On(...)` emitter. The emitted row value is resolved through
   `mark.groups[mark.interaction.emit_field]`; hosts MUST NOT evaluate Algraf
@@ -11479,6 +11504,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.82.0 | [`V0_82_PLAN.md`](V0_82_PLAN.md) | Editorial chart primitives: opposite-side axes, multi-line caption/source, callout badges, per-axis grid, numeric axis format | Implemented |
 | 0.82.0 | [`V0_82_PLAN.md`](V0_82_PLAN.md) | Editorial chart design primitives: opposite-side axes, multi-line caption/source blocks, and annotation callout badges | Proposed |
 | 0.83.0 | [`V0_83_PLAN.md`](V0_83_PLAN.md) | Typographic control of chart text chrome: weight/style/alignment and visibility for title, subtitle, caption, source, and axis/legend/strip text | Implemented |
+| 0.84.0 | [`V0_84_PLAN.md`](V0_84_PLAN.md) | Cartesian clipping follows pinned domain bounds and zoom per edge, with mark-extent bleed | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

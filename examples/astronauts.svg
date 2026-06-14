@@ -34,7 +34,7 @@
   <line x1="60" y1="124.783" x2="576.8" y2="124.783" stroke="#FFFFFF" stroke-width="1" />
 </g>
 <defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="82" width="516.8" height="328" /></clipPath>
+<clipPath id="algraf-clip-0"><rect x="59.5" y="81.5" width="517.8" height="329" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-0)">
   <g class="algraf-layer algraf-geom-rect">

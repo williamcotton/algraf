@@ -29,87 +29,77 @@
   <line x1="60.8" y1="249.593" x2="640" y2="249.593" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60.8" y1="161.572" x2="640" y2="161.572" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="60.8" y="82" width="579.2" height="388" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-path">
-    <line x1="100.745" y1="267.198" x2="118.968" y2="249.593" stroke="burlywood" stroke-width="30" stroke-linecap="round" opacity="1" />
-    <line x1="118.968" y1="249.593" x2="155.414" y2="337.615" stroke="burlywood" stroke-width="30" stroke-linecap="round" opacity="1" />
-    <line x1="155.414" y1="337.615" x2="173.637" y2="302.407" stroke="burlywood" stroke-width="29.118" stroke-linecap="round" opacity="1" />
-    <line x1="173.637" y1="302.407" x2="210.083" y2="284.802" stroke="burlywood" stroke-width="27.353" stroke-linecap="round" opacity="1" />
-    <line x1="210.083" y1="284.802" x2="246.529" y2="267.198" stroke="burlywood" stroke-width="25.588" stroke-linecap="round" opacity="1" />
-    <line x1="246.529" y1="267.198" x2="264.752" y2="249.593" stroke="burlywood" stroke-width="22.941" stroke-linecap="round" opacity="1" />
-    <line x1="264.752" y1="249.593" x2="282.975" y2="231.989" stroke="burlywood" stroke-width="19.853" stroke-linecap="round" opacity="1" />
-    <line x1="282.975" y1="231.989" x2="319.421" y2="214.385" stroke="burlywood" stroke-width="17.206" stroke-linecap="round" opacity="1" />
-    <line x1="319.421" y1="214.385" x2="330.355" y2="196.78" stroke="burlywood" stroke-width="15.662" stroke-linecap="round" opacity="1" />
-    <line x1="330.355" y1="196.78" x2="392.313" y2="284.802" stroke="burlywood" stroke-width="14.118" stroke-linecap="round" opacity="1" />
-    <line x1="392.313" y1="284.802" x2="436.048" y2="267.198" stroke="burlywood" stroke-width="12.574" stroke-linecap="round" opacity="1" />
-    <line x1="436.048" y1="267.198" x2="479.783" y2="161.572" stroke="burlywood" stroke-width="11.784" stroke-linecap="round" opacity="1" />
-    <line x1="479.783" y1="161.572" x2="519.874" y2="179.176" stroke="burlywood" stroke-width="10.019" stroke-linecap="round" opacity="1" />
-    <line x1="519.874" y1="179.176" x2="538.097" y2="161.572" stroke="burlywood" stroke-width="8.824" stroke-linecap="round" opacity="1" />
-    <line x1="538.097" y1="161.572" x2="596.411" y2="108.759" stroke="burlywood" stroke-width="8.824" stroke-linecap="round" opacity="1" />
-    <line x1="596.411" y1="108.759" x2="600.055" y2="126.363" stroke="burlywood" stroke-width="8.824" stroke-linecap="round" opacity="1" />
-    <line x1="600.055" y1="126.363" x2="592.766" y2="126.363" stroke="black" stroke-width="8.735" stroke-linecap="round" opacity="1" />
-    <line x1="592.766" y1="126.363" x2="574.543" y2="249.593" stroke="black" stroke-width="8.603" stroke-linecap="round" opacity="1" />
-    <line x1="574.543" y1="249.593" x2="567.254" y2="249.593" stroke="black" stroke-width="8.515" stroke-linecap="round" opacity="1" />
-    <line x1="567.254" y1="249.593" x2="516.229" y2="196.78" stroke="black" stroke-width="8.074" stroke-linecap="round" opacity="1" />
-    <line x1="516.229" y1="196.78" x2="476.139" y2="214.385" stroke="black" stroke-width="6.265" stroke-linecap="round" opacity="1" />
-    <line x1="476.139" y1="214.385" x2="439.693" y2="284.802" stroke="black" stroke-width="4.059" stroke-linecap="round" opacity="1" />
-    <line x1="439.693" y1="284.802" x2="392.313" y2="320.011" stroke="black" stroke-width="2.691" stroke-linecap="round" opacity="1" />
-    <line x1="392.313" y1="320.011" x2="333.999" y2="355.22" stroke="black" stroke-width="1.941" stroke-linecap="round" opacity="1" />
-    <line x1="333.999" y1="355.22" x2="290.264" y2="372.824" stroke="black" stroke-width="1.765" stroke-linecap="round" opacity="1" />
-    <line x1="290.264" y1="372.824" x2="264.752" y2="390.428" stroke="black" stroke-width="1.765" stroke-linecap="round" opacity="1" />
-    <line x1="264.752" y1="390.428" x2="257.463" y2="372.824" stroke="black" stroke-width="1.765" stroke-linecap="round" opacity="1" />
-    <line x1="257.463" y1="372.824" x2="228.306" y2="337.615" stroke="black" stroke-width="1.765" stroke-linecap="round" opacity="1" />
-    <line x1="228.306" y1="337.615" x2="202.794" y2="372.824" stroke="black" stroke-width="1.412" stroke-linecap="round" opacity="1" />
-    <line x1="202.794" y1="372.824" x2="188.215" y2="355.22" stroke="black" stroke-width="1.147" stroke-linecap="round" opacity="1" />
-    <line x1="188.215" y1="355.22" x2="137.191" y2="355.22" stroke="black" stroke-width="0.971" stroke-linecap="round" opacity="1" />
-    <line x1="137.191" y1="355.22" x2="115.323" y2="355.22" stroke="black" stroke-width="0.529" stroke-linecap="round" opacity="1" />
-    <line x1="115.323" y1="355.22" x2="108.034" y2="355.22" stroke="black" stroke-width="0.353" stroke-linecap="round" opacity="1" />
-    <line x1="108.034" y1="355.22" x2="104.389" y2="355.22" stroke="black" stroke-width="0.353" stroke-linecap="round" opacity="1" />
-    <line x1="100.745" y1="231.989" x2="118.968" y2="214.385" stroke="burlywood" stroke-width="5.294" stroke-linecap="round" opacity="1" />
-    <line x1="118.968" y1="214.385" x2="155.414" y2="302.407" stroke="burlywood" stroke-width="5.294" stroke-linecap="round" opacity="1" />
-    <line x1="155.414" y1="302.407" x2="195.504" y2="126.363" stroke="burlywood" stroke-width="4.412" stroke-linecap="round" opacity="1" />
-    <line x1="195.504" y1="126.363" x2="224.661" y2="143.967" stroke="burlywood" stroke-width="3.221" stroke-linecap="round" opacity="1" />
-    <line x1="224.661" y1="143.967" x2="272.041" y2="161.572" stroke="burlywood" stroke-width="2.912" stroke-linecap="round" opacity="1" />
-    <line x1="272.041" y1="161.572" x2="272.041" y2="161.572" stroke="burlywood" stroke-width="2.912" stroke-linecap="round" opacity="1" />
-    <line x1="272.041" y1="161.572" x2="290.264" y2="390.428" stroke="black" stroke-width="2.779" stroke-linecap="round" opacity="1" />
-    <line x1="290.264" y1="390.428" x2="264.752" y2="408.033" stroke="black" stroke-width="2.647" stroke-linecap="round" opacity="1" />
-    <line x1="264.752" y1="408.033" x2="257.463" y2="390.428" stroke="black" stroke-width="2.559" stroke-linecap="round" opacity="1" />
-    <line x1="100.745" y1="214.385" x2="118.968" y2="196.78" stroke="burlywood" stroke-width="1.941" stroke-linecap="round" opacity="1" />
-    <line x1="118.968" y1="196.78" x2="122.612" y2="108.759" stroke="burlywood" stroke-width="1.235" stroke-linecap="round" opacity="1" />
-    <line x1="122.612" y1="108.759" x2="122.612" y2="108.759" stroke="burlywood" stroke-width="0.529" stroke-linecap="round" opacity="1" />
-    <line x1="122.612" y1="108.759" x2="108.034" y2="355.22" stroke="black" stroke-width="0.529" stroke-linecap="round" opacity="1" />
-    <line x1="108.034" y1="355.22" x2="104.389" y2="355.22" stroke="black" stroke-width="0.529" stroke-linecap="round" opacity="1" />
-  </g>
+<g class="algraf-layer algraf-geom-path">
+  <line x1="100.745" y1="267.198" x2="118.968" y2="249.593" stroke="burlywood" stroke-width="30" stroke-linecap="round" opacity="1" />
+  <line x1="118.968" y1="249.593" x2="155.414" y2="337.615" stroke="burlywood" stroke-width="30" stroke-linecap="round" opacity="1" />
+  <line x1="155.414" y1="337.615" x2="173.637" y2="302.407" stroke="burlywood" stroke-width="29.118" stroke-linecap="round" opacity="1" />
+  <line x1="173.637" y1="302.407" x2="210.083" y2="284.802" stroke="burlywood" stroke-width="27.353" stroke-linecap="round" opacity="1" />
+  <line x1="210.083" y1="284.802" x2="246.529" y2="267.198" stroke="burlywood" stroke-width="25.588" stroke-linecap="round" opacity="1" />
+  <line x1="246.529" y1="267.198" x2="264.752" y2="249.593" stroke="burlywood" stroke-width="22.941" stroke-linecap="round" opacity="1" />
+  <line x1="264.752" y1="249.593" x2="282.975" y2="231.989" stroke="burlywood" stroke-width="19.853" stroke-linecap="round" opacity="1" />
+  <line x1="282.975" y1="231.989" x2="319.421" y2="214.385" stroke="burlywood" stroke-width="17.206" stroke-linecap="round" opacity="1" />
+  <line x1="319.421" y1="214.385" x2="330.355" y2="196.78" stroke="burlywood" stroke-width="15.662" stroke-linecap="round" opacity="1" />
+  <line x1="330.355" y1="196.78" x2="392.313" y2="284.802" stroke="burlywood" stroke-width="14.118" stroke-linecap="round" opacity="1" />
+  <line x1="392.313" y1="284.802" x2="436.048" y2="267.198" stroke="burlywood" stroke-width="12.574" stroke-linecap="round" opacity="1" />
+  <line x1="436.048" y1="267.198" x2="479.783" y2="161.572" stroke="burlywood" stroke-width="11.784" stroke-linecap="round" opacity="1" />
+  <line x1="479.783" y1="161.572" x2="519.874" y2="179.176" stroke="burlywood" stroke-width="10.019" stroke-linecap="round" opacity="1" />
+  <line x1="519.874" y1="179.176" x2="538.097" y2="161.572" stroke="burlywood" stroke-width="8.824" stroke-linecap="round" opacity="1" />
+  <line x1="538.097" y1="161.572" x2="596.411" y2="108.759" stroke="burlywood" stroke-width="8.824" stroke-linecap="round" opacity="1" />
+  <line x1="596.411" y1="108.759" x2="600.055" y2="126.363" stroke="burlywood" stroke-width="8.824" stroke-linecap="round" opacity="1" />
+  <line x1="600.055" y1="126.363" x2="592.766" y2="126.363" stroke="black" stroke-width="8.735" stroke-linecap="round" opacity="1" />
+  <line x1="592.766" y1="126.363" x2="574.543" y2="249.593" stroke="black" stroke-width="8.603" stroke-linecap="round" opacity="1" />
+  <line x1="574.543" y1="249.593" x2="567.254" y2="249.593" stroke="black" stroke-width="8.515" stroke-linecap="round" opacity="1" />
+  <line x1="567.254" y1="249.593" x2="516.229" y2="196.78" stroke="black" stroke-width="8.074" stroke-linecap="round" opacity="1" />
+  <line x1="516.229" y1="196.78" x2="476.139" y2="214.385" stroke="black" stroke-width="6.265" stroke-linecap="round" opacity="1" />
+  <line x1="476.139" y1="214.385" x2="439.693" y2="284.802" stroke="black" stroke-width="4.059" stroke-linecap="round" opacity="1" />
+  <line x1="439.693" y1="284.802" x2="392.313" y2="320.011" stroke="black" stroke-width="2.691" stroke-linecap="round" opacity="1" />
+  <line x1="392.313" y1="320.011" x2="333.999" y2="355.22" stroke="black" stroke-width="1.941" stroke-linecap="round" opacity="1" />
+  <line x1="333.999" y1="355.22" x2="290.264" y2="372.824" stroke="black" stroke-width="1.765" stroke-linecap="round" opacity="1" />
+  <line x1="290.264" y1="372.824" x2="264.752" y2="390.428" stroke="black" stroke-width="1.765" stroke-linecap="round" opacity="1" />
+  <line x1="264.752" y1="390.428" x2="257.463" y2="372.824" stroke="black" stroke-width="1.765" stroke-linecap="round" opacity="1" />
+  <line x1="257.463" y1="372.824" x2="228.306" y2="337.615" stroke="black" stroke-width="1.765" stroke-linecap="round" opacity="1" />
+  <line x1="228.306" y1="337.615" x2="202.794" y2="372.824" stroke="black" stroke-width="1.412" stroke-linecap="round" opacity="1" />
+  <line x1="202.794" y1="372.824" x2="188.215" y2="355.22" stroke="black" stroke-width="1.147" stroke-linecap="round" opacity="1" />
+  <line x1="188.215" y1="355.22" x2="137.191" y2="355.22" stroke="black" stroke-width="0.971" stroke-linecap="round" opacity="1" />
+  <line x1="137.191" y1="355.22" x2="115.323" y2="355.22" stroke="black" stroke-width="0.529" stroke-linecap="round" opacity="1" />
+  <line x1="115.323" y1="355.22" x2="108.034" y2="355.22" stroke="black" stroke-width="0.353" stroke-linecap="round" opacity="1" />
+  <line x1="108.034" y1="355.22" x2="104.389" y2="355.22" stroke="black" stroke-width="0.353" stroke-linecap="round" opacity="1" />
+  <line x1="100.745" y1="231.989" x2="118.968" y2="214.385" stroke="burlywood" stroke-width="5.294" stroke-linecap="round" opacity="1" />
+  <line x1="118.968" y1="214.385" x2="155.414" y2="302.407" stroke="burlywood" stroke-width="5.294" stroke-linecap="round" opacity="1" />
+  <line x1="155.414" y1="302.407" x2="195.504" y2="126.363" stroke="burlywood" stroke-width="4.412" stroke-linecap="round" opacity="1" />
+  <line x1="195.504" y1="126.363" x2="224.661" y2="143.967" stroke="burlywood" stroke-width="3.221" stroke-linecap="round" opacity="1" />
+  <line x1="224.661" y1="143.967" x2="272.041" y2="161.572" stroke="burlywood" stroke-width="2.912" stroke-linecap="round" opacity="1" />
+  <line x1="272.041" y1="161.572" x2="272.041" y2="161.572" stroke="burlywood" stroke-width="2.912" stroke-linecap="round" opacity="1" />
+  <line x1="272.041" y1="161.572" x2="290.264" y2="390.428" stroke="black" stroke-width="2.779" stroke-linecap="round" opacity="1" />
+  <line x1="290.264" y1="390.428" x2="264.752" y2="408.033" stroke="black" stroke-width="2.647" stroke-linecap="round" opacity="1" />
+  <line x1="264.752" y1="408.033" x2="257.463" y2="390.428" stroke="black" stroke-width="2.559" stroke-linecap="round" opacity="1" />
+  <line x1="100.745" y1="214.385" x2="118.968" y2="196.78" stroke="burlywood" stroke-width="1.941" stroke-linecap="round" opacity="1" />
+  <line x1="118.968" y1="196.78" x2="122.612" y2="108.759" stroke="burlywood" stroke-width="1.235" stroke-linecap="round" opacity="1" />
+  <line x1="122.612" y1="108.759" x2="122.612" y2="108.759" stroke="burlywood" stroke-width="0.529" stroke-linecap="round" opacity="1" />
+  <line x1="122.612" y1="108.759" x2="108.034" y2="355.22" stroke="black" stroke-width="0.529" stroke-linecap="round" opacity="1" />
+  <line x1="108.034" y1="355.22" x2="104.389" y2="355.22" stroke="black" stroke-width="0.529" stroke-linecap="round" opacity="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-1"><rect x="60.8" y="82" width="579.2" height="388" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-1)">
-  <g class="algraf-layer algraf-geom-text">
-    <text x="100.745" y="249.593" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Kowno</text>
-    <text x="148.125" y="302.407" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Wilna</text>
-    <text x="188.215" y="355.22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Smorgoni</text>
-    <text x="202.794" y="372.824" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Moiodexno</text>
-    <text x="235.595" y="214.385" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Gloubokoe</text>
-    <text x="231.95" y="443.241" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Minsk</text>
-    <text x="264.752" y="372.824" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Studienska</text>
-    <text x="272.041" y="161.572" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Polotzk</text>
-    <text x="290.264" y="355.22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Bobr</text>
-    <text x="326.71" y="196.78" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Witebsk</text>
-    <text x="333.999" y="337.615" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Orscha</text>
-    <text x="333.999" y="443.241" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Mohilow</text>
-    <text x="392.313" y="284.802" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Smolensk</text>
-    <text x="436.048" y="267.198" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Dorogobouge</text>
-    <text x="476.139" y="214.385" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Wixma</text>
-    <text x="479.783" y="161.572" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Chjat</text>
-    <text x="538.097" y="161.572" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Mojaisk</text>
-    <text x="596.411" y="108.759" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Moscou</text>
-    <text x="559.965" y="196.78" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Tarantino</text>
-    <text x="556.32" y="249.593" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Malo-Jarosewii</text>
-  </g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="100.745" y="249.593" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Kowno</text>
+  <text x="148.125" y="302.407" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Wilna</text>
+  <text x="188.215" y="355.22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Smorgoni</text>
+  <text x="202.794" y="372.824" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Moiodexno</text>
+  <text x="235.595" y="214.385" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Gloubokoe</text>
+  <text x="231.95" y="443.241" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Minsk</text>
+  <text x="264.752" y="372.824" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Studienska</text>
+  <text x="272.041" y="161.572" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Polotzk</text>
+  <text x="290.264" y="355.22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Bobr</text>
+  <text x="326.71" y="196.78" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Witebsk</text>
+  <text x="333.999" y="337.615" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Orscha</text>
+  <text x="333.999" y="443.241" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Mohilow</text>
+  <text x="392.313" y="284.802" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Smolensk</text>
+  <text x="436.048" y="267.198" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Dorogobouge</text>
+  <text x="476.139" y="214.385" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Wixma</text>
+  <text x="479.783" y="161.572" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Chjat</text>
+  <text x="538.097" y="161.572" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Mojaisk</text>
+  <text x="596.411" y="108.759" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Moscou</text>
+  <text x="559.965" y="196.78" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Tarantino</text>
+  <text x="556.32" y="249.593" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#222222" opacity="1">Malo-Jarosewii</text>
 </g>
 <g class="algraf-axes">
   <line x1="60.8" y1="470" x2="640" y2="470" stroke="#333333" stroke-width="1" />

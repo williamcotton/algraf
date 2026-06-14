@@ -35,38 +35,33 @@
   <line x1="60" y1="126.56" x2="638.4" y2="126.56" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="77.878" x2="638.4" y2="77.878" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="66" width="578.4" height="384" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-point">
-    <circle cx="598.51" cy="114.389" r="8.667" fill="#4E79A7" opacity="0.6" />
-    <circle cx="166.478" cy="289.643" r="25" fill="#F28E2B" opacity="0.6" />
-    <circle cx="99.89" cy="423.517" r="24.664" fill="#F28E2B" opacity="0.6" />
-    <circle cx="447.894" cy="275.039" r="4.885" fill="#E15759" opacity="0.6" />
-    <circle cx="400.33" cy="260.434" r="5.54" fill="#F28E2B" opacity="0.6" />
-    <circle cx="416.185" cy="340.759" r="4.641" fill="#E15759" opacity="0.6" />
-    <circle cx="152.209" cy="416.215" r="6.852" fill="#76B7B2" opacity="0.6" />
-    <circle cx="447.894" cy="92.483" r="4.198" fill="#4E79A7" opacity="0.6" />
-    <circle cx="511.311" cy="97.351" r="4" fill="#59A14F" opacity="0.6" />
-    <circle cx="130.806" cy="284.775" r="4.519" fill="#EDC948" opacity="0.6" />
-    <circle cx="400.33" cy="355.363" r="4.641" fill="#E15759" opacity="0.6" />
-    <circle cx="328.986" cy="182.544" r="4.397" fill="#F28E2B" opacity="0.6" />
-  </g>
-  <g class="algraf-layer algraf-geom-text">
-    <text x="598.51" y="100.389" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">United States</text>
-    <text x="166.478" y="275.643" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">China</text>
-    <text x="99.89" y="409.517" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">India</text>
-    <text x="447.894" y="261.039" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">Germany</text>
-    <text x="400.33" y="246.434" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">Japan</text>
-    <text x="416.185" y="326.759" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">United Kingdom</text>
-    <text x="152.209" y="402.215" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">Brazil</text>
-    <text x="447.894" y="78.483" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">Canada</text>
-    <text x="511.311" y="83.351" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">Australia</text>
-    <text x="130.806" y="270.775" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">South Africa</text>
-    <text x="400.33" y="341.363" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">France</text>
-    <text x="328.986" y="168.544" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">South Korea</text>
-  </g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="598.51" cy="114.389" r="8.667" fill="#4E79A7" opacity="0.6" />
+  <circle cx="166.478" cy="289.643" r="25" fill="#F28E2B" opacity="0.6" />
+  <circle cx="99.89" cy="423.517" r="24.664" fill="#F28E2B" opacity="0.6" />
+  <circle cx="447.894" cy="275.039" r="4.885" fill="#E15759" opacity="0.6" />
+  <circle cx="400.33" cy="260.434" r="5.54" fill="#F28E2B" opacity="0.6" />
+  <circle cx="416.185" cy="340.759" r="4.641" fill="#E15759" opacity="0.6" />
+  <circle cx="152.209" cy="416.215" r="6.852" fill="#76B7B2" opacity="0.6" />
+  <circle cx="447.894" cy="92.483" r="4.198" fill="#4E79A7" opacity="0.6" />
+  <circle cx="511.311" cy="97.351" r="4" fill="#59A14F" opacity="0.6" />
+  <circle cx="130.806" cy="284.775" r="4.519" fill="#EDC948" opacity="0.6" />
+  <circle cx="400.33" cy="355.363" r="4.641" fill="#E15759" opacity="0.6" />
+  <circle cx="328.986" cy="182.544" r="4.397" fill="#F28E2B" opacity="0.6" />
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="598.51" y="100.389" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">United States</text>
+  <text x="166.478" y="275.643" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">China</text>
+  <text x="99.89" y="409.517" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">India</text>
+  <text x="447.894" y="261.039" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">Germany</text>
+  <text x="400.33" y="246.434" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">Japan</text>
+  <text x="416.185" y="326.759" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">United Kingdom</text>
+  <text x="152.209" y="402.215" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">Brazil</text>
+  <text x="447.894" y="78.483" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">Canada</text>
+  <text x="511.311" y="83.351" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">Australia</text>
+  <text x="130.806" y="270.775" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">South Africa</text>
+  <text x="400.33" y="341.363" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">France</text>
+  <text x="328.986" y="168.544" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#444444" opacity="1">South Korea</text>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="450" x2="638.4" y2="450" stroke="#333333" stroke-width="1" />

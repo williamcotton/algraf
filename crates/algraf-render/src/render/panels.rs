@@ -4,15 +4,18 @@ use algraf_core::{codes, Diagnostic};
 use algraf_data::{DataFrame, Table};
 use algraf_semantics::{
     AxisSelectorIr, ChartIr, ColumnRef, CoordsIr, FacetGridIr, FacetLabelModeIr, FacetScaleModeIr,
-    FrameIr, GeometryIr, GuideIr, ScaleIr, SpaceIr, SpaceLayerIr,
+    FrameIr, GeometryIr, GeometryKind, GuideIr, PropertyKey, ScaleIr, ScaleTargetIr, SpaceIr,
+    SpaceLayerIr,
 };
 
+use crate::aes::{color_spec, number_setting, number_spec, ColorSpec, NumberSpec};
 use crate::domains::{train_space_domains, AxisDomainHints, SpaceDomainHints};
+use crate::geom::{DEFAULT_SIZE_RANGE, DEFAULT_STROKE_WIDTH_RANGE};
 use crate::guide;
 use crate::helpers::frame_axis;
 use crate::layout::{AxisSides, GuideExtra, Layout, Margins, Rect, MARGIN_BOTTOM, MARGIN_LEFT};
 use crate::scale::{categorical_domain, cell_category, numeric_domain, temporal_domain};
-use crate::space::ScaledSpace;
+use crate::space::{AxisScale, ScaledSpace};
 use crate::theme::Theme;
 
 use super::common::{merged_scales, resolve_space_theme, validate_scale_configs};
@@ -34,11 +37,58 @@ pub(super) struct Panel<'t> {
     pub(super) legend_rows: Option<Vec<usize>>,
     pub(super) label: Option<String>,
     pub(super) facet_index: Option<usize>,
-    pub(super) clip_marks: bool,
+    pub(super) clip_edges: ClipEdges,
+    pub(super) clip: Option<PanelClip>,
     pub(super) theme: Theme,
     pub(super) guides: GuideIr,
     pub(super) scales: Vec<ScaleIr>,
     pub(super) show_guides: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) struct ClipEdges {
+    pub(super) top: bool,
+    pub(super) right: bool,
+    pub(super) bottom: bool,
+    pub(super) left: bool,
+}
+
+impl ClipEdges {
+    fn any(self) -> bool {
+        self.top || self.right || self.bottom || self.left
+    }
+
+    fn set(&mut self, edge: ClipEdge) {
+        match edge {
+            ClipEdge::Top => self.top = true,
+            ClipEdge::Right => self.right = true,
+            ClipEdge::Bottom => self.bottom = true,
+            ClipEdge::Left => self.left = true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClipEdge {
+    Top,
+    Right,
+    Bottom,
+    Left,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct PanelClip {
+    pub(super) edges: ClipEdges,
+    pub(super) rect: Rect,
+}
+
+impl PanelClip {
+    pub(super) fn clips_point(self, x: f64, y: f64) -> bool {
+        (self.edges.left && x < self.rect.x - f64::EPSILON)
+            || (self.edges.right && x > self.rect.right() + f64::EPSILON)
+            || (self.edges.top && y < self.rect.y - f64::EPSILON)
+            || (self.edges.bottom && y > self.rect.bottom() + f64::EPSILON)
+    }
 }
 
 pub(super) enum PlannedLayer<'t> {
@@ -158,7 +208,6 @@ pub(super) fn build_render_plan<'t>(
             let panel_theme = resolve_space_theme(theme, space.theme.as_ref(), cli_theme_override);
             let space_guides = ir.guides.with_overrides(&space.guides);
             let space_scales = merged_scales(&ir.scales, &space.scales);
-            let clip_marks = clips_cartesian_data_marks(space);
             validate_scale_configs(&space.frame, table, &space_scales, space.span, diagnostics);
             if is_spatial_space(space) {
                 // A spatial space projects geographic coordinates into the plot;
@@ -179,7 +228,6 @@ pub(super) fn build_render_plan<'t>(
                             None,
                             None,
                             None,
-                            false,
                             panel_theme,
                             space_guides,
                             space_scales,
@@ -257,7 +305,6 @@ pub(super) fn build_render_plan<'t>(
                                 &ir.layout.facet_label_map,
                             )),
                             Some(index),
-                            clip_marks,
                             panel_theme.clone(),
                             space_guides.clone(),
                             space_scales.clone(),
@@ -320,7 +367,6 @@ pub(super) fn build_render_plan<'t>(
                                 &ir.layout.facet_label_map,
                             )),
                             Some(index),
-                            clip_marks,
                             panel_theme.clone(),
                             space_guides.clone(),
                             space_scales.clone(),
@@ -372,7 +418,6 @@ pub(super) fn build_render_plan<'t>(
                             None,
                             None,
                             None,
-                            false,
                             panel_theme,
                             space_guides,
                             space_scales,
@@ -411,7 +456,6 @@ pub(super) fn build_render_plan<'t>(
                             None,
                             None,
                             None,
-                            clip_marks,
                             panel_theme,
                             space_guides,
                             space_scales,
@@ -463,6 +507,7 @@ pub(super) fn build_render_plan<'t>(
         legends = collect_legends(&panels, theme, assets);
         layout
     };
+    resolve_panel_clips(&mut panels, &layout);
 
     RenderPlan {
         layout,
@@ -471,8 +516,346 @@ pub(super) fn build_render_plan<'t>(
     }
 }
 
-fn clips_cartesian_data_marks(space: &SpaceIr) -> bool {
-    matches!(space.coords, CoordsIr::Cartesian)
+pub(super) fn resolve_panel_clips(panels: &mut [Panel<'_>], layout: &Layout) {
+    let blockers = clip_blockers(layout);
+    resolve_panel_clips_in_bounds(panels, layout.svg, &blockers);
+}
+
+pub(super) fn resolve_panel_clips_in_bounds(
+    panels: &mut [Panel<'_>],
+    bounds: Rect,
+    blockers: &[Rect],
+) {
+    for panel in panels {
+        if !panel.clip_edges.any() {
+            panel.clip = None;
+            continue;
+        }
+        let bleed = panel_mark_extent(panel);
+        let caps = clip_bleed_caps(panel.plot, bounds, blockers);
+        panel.clip = Some(PanelClip {
+            edges: panel.clip_edges,
+            rect: resolved_clip_rect(panel.plot, bounds, panel.clip_edges, bleed, caps),
+        });
+    }
+}
+
+fn clip_blockers(layout: &Layout) -> Vec<Rect> {
+    let mut blockers = Vec::new();
+    if layout.facets.is_empty() {
+        blockers.push(layout.plot);
+    } else {
+        for facet in &layout.facets {
+            if facet.strip.width > 0.0 && facet.strip.height > 0.0 {
+                blockers.push(facet.strip);
+            }
+            blockers.push(facet.plot);
+        }
+    }
+    if let Some(legend) = layout.legend {
+        blockers.push(legend);
+    }
+    blockers
+}
+
+fn cartesian_clip_edges(space: &SpaceIr, scaled: &ScaledSpace, scales: &[ScaleIr]) -> ClipEdges {
+    if !matches!(space.coords, CoordsIr::Cartesian) {
+        return ClipEdges::default();
+    }
+    let mut edges = ClipEdges::default();
+    if space.view.zoom_x.is_some() {
+        edges.left = true;
+        edges.right = true;
+    }
+    if space.view.zoom_y.is_some() && scaled.y.is_some() {
+        edges.top = true;
+        edges.bottom = true;
+    }
+    if let Some(bounds) = axis_domain_bounds(scales, AxisSelectorIr::X) {
+        add_bound_edges(&mut edges, AxisSelectorIr::X, &scaled.x, bounds);
+    }
+    if let (Some(axis), Some(bounds)) = (
+        scaled.y.as_ref(),
+        axis_domain_bounds(scales, AxisSelectorIr::Y),
+    ) {
+        add_bound_edges(&mut edges, AxisSelectorIr::Y, axis, bounds);
+    }
+    edges
+}
+
+fn axis_domain_bounds(scales: &[ScaleIr], axis: AxisSelectorIr) -> Option<[Option<f64>; 2]> {
+    scales.iter().rev().find_map(|scale| match scale.target {
+        ScaleTargetIr::Axis(target) if target == axis => scale.domain,
+        _ => None,
+    })
+}
+
+fn add_bound_edges(
+    edges: &mut ClipEdges,
+    selector: AxisSelectorIr,
+    axis: &AxisScale,
+    bounds: [Option<f64>; 2],
+) {
+    let Some((lower, upper)) = bound_edges(selector, axis) else {
+        return;
+    };
+    if bounds[0].is_some() {
+        edges.set(lower);
+    }
+    if bounds[1].is_some() {
+        edges.set(upper);
+    }
+}
+
+fn bound_edges(selector: AxisSelectorIr, axis: &AxisScale) -> Option<(ClipEdge, ClipEdge)> {
+    let (range0, range1) = continuousish_axis_range(axis)?;
+    let lower_before_upper = range0 <= range1;
+    match selector {
+        AxisSelectorIr::X if lower_before_upper => Some((ClipEdge::Left, ClipEdge::Right)),
+        AxisSelectorIr::X => Some((ClipEdge::Right, ClipEdge::Left)),
+        AxisSelectorIr::Y if lower_before_upper => Some((ClipEdge::Top, ClipEdge::Bottom)),
+        AxisSelectorIr::Y => Some((ClipEdge::Bottom, ClipEdge::Top)),
+    }
+}
+
+fn continuousish_axis_range(axis: &AxisScale) -> Option<(f64, f64)> {
+    match axis {
+        AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => Some(scale.range),
+        AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
+            Some(scale.range)
+        }
+        AxisScale::Band { .. } | AxisScale::NestedBand { .. } => None,
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ClipBleedCaps {
+    top: f64,
+    right: f64,
+    bottom: f64,
+    left: f64,
+}
+
+fn clip_bleed_caps(plot: Rect, bounds: Rect, blockers: &[Rect]) -> ClipBleedCaps {
+    let mut caps = ClipBleedCaps {
+        top: (plot.y - bounds.y).max(0.0),
+        right: (bounds.right() - plot.right()).max(0.0),
+        bottom: (bounds.bottom() - plot.bottom()).max(0.0),
+        left: (plot.x - bounds.x).max(0.0),
+    };
+    for blocker in blockers {
+        if same_rect(*blocker, plot) {
+            continue;
+        }
+        if spans_overlap(blocker.y, blocker.bottom(), plot.y, plot.bottom()) {
+            if blocker.right() <= plot.x + f64::EPSILON {
+                caps.left = caps.left.min((plot.x - blocker.right()).max(0.0));
+            }
+            if blocker.x >= plot.right() - f64::EPSILON {
+                caps.right = caps.right.min((blocker.x - plot.right()).max(0.0));
+            }
+        }
+        if spans_overlap(blocker.x, blocker.right(), plot.x, plot.right()) {
+            if blocker.bottom() <= plot.y + f64::EPSILON {
+                caps.top = caps.top.min((plot.y - blocker.bottom()).max(0.0));
+            }
+            if blocker.y >= plot.bottom() - f64::EPSILON {
+                caps.bottom = caps.bottom.min((blocker.y - plot.bottom()).max(0.0));
+            }
+        }
+    }
+    caps
+}
+
+fn resolved_clip_rect(
+    plot: Rect,
+    bounds: Rect,
+    edges: ClipEdges,
+    bleed: f64,
+    caps: ClipBleedCaps,
+) -> Rect {
+    let left = if edges.left {
+        plot.x - bleed.min(caps.left)
+    } else {
+        bounds.x
+    };
+    let right = if edges.right {
+        plot.right() + bleed.min(caps.right)
+    } else {
+        bounds.right()
+    };
+    let top = if edges.top {
+        plot.y - bleed.min(caps.top)
+    } else {
+        bounds.y
+    };
+    let bottom = if edges.bottom {
+        plot.bottom() + bleed.min(caps.bottom)
+    } else {
+        bounds.bottom()
+    };
+    Rect {
+        x: left,
+        y: top,
+        width: (right - left).max(0.0),
+        height: (bottom - top).max(0.0),
+    }
+}
+
+fn same_rect(a: Rect, b: Rect) -> bool {
+    (a.x - b.x).abs() <= f64::EPSILON
+        && (a.y - b.y).abs() <= f64::EPSILON
+        && (a.width - b.width).abs() <= f64::EPSILON
+        && (a.height - b.height).abs() <= f64::EPSILON
+}
+
+fn spans_overlap(a0: f64, a1: f64, b0: f64, b1: f64) -> bool {
+    a0 < b1 - f64::EPSILON && b0 < a1 - f64::EPSILON
+}
+
+fn panel_mark_extent(panel: &Panel<'_>) -> f64 {
+    panel
+        .layers
+        .iter()
+        .map(|layer| match layer {
+            PlannedLayer::Geometry(geo) => geometry_mark_extent(
+                geo,
+                panel.table,
+                panel.rows.as_deref(),
+                &panel.theme,
+                &panel.scales,
+            ),
+            PlannedLayer::Glyph(glyph) => glyph
+                .instances
+                .iter()
+                .map(|instance| instance.viewport.width.max(instance.viewport.height) / 2.0)
+                .fold(0.0, f64::max),
+        })
+        .fold(0.0, f64::max)
+}
+
+fn geometry_mark_extent(
+    geo: &GeometryIr,
+    table: &dyn Table,
+    rows: Option<&[usize]>,
+    theme: &Theme,
+    scales: &[ScaleIr],
+) -> f64 {
+    match geo.kind {
+        GeometryKind::Point => max_number_spec(
+            &number_spec(
+                geo,
+                PropertyKey::Size,
+                table,
+                scales,
+                DEFAULT_SIZE_RANGE,
+                theme.point_size,
+            ),
+            table,
+            rows,
+            theme.point_size,
+        )
+        .max(0.0),
+        GeometryKind::Image => {
+            max_number_spec(
+                &number_spec(
+                    geo,
+                    PropertyKey::Size,
+                    table,
+                    scales,
+                    DEFAULT_SIZE_RANGE,
+                    theme.point_size,
+                ),
+                table,
+                rows,
+                theme.point_size,
+            )
+            .max(0.0)
+                / 2.0
+        }
+        GeometryKind::Line | GeometryKind::Path => {
+            max_number_spec(
+                &number_spec(
+                    geo,
+                    PropertyKey::StrokeWidth,
+                    table,
+                    scales,
+                    DEFAULT_STROKE_WIDTH_RANGE,
+                    theme.line_width,
+                ),
+                table,
+                rows,
+                theme.line_width,
+            )
+            .max(0.0)
+                / 2.0
+        }
+        GeometryKind::Smooth
+        | GeometryKind::Boxplot
+        | GeometryKind::Violin
+        | GeometryKind::Density
+        | GeometryKind::ErrorBar
+        | GeometryKind::LineRange
+        | GeometryKind::PointRange
+        | GeometryKind::CrossBar
+        | GeometryKind::HexBin
+        | GeometryKind::HLine
+        | GeometryKind::VLine
+        | GeometryKind::Rug
+        | GeometryKind::Segment => {
+            number_setting(geo, PropertyKey::StrokeWidth, theme.line_width).max(0.0) / 2.0
+        }
+        GeometryKind::Bar
+        | GeometryKind::Rect
+        | GeometryKind::Tile
+        | GeometryKind::Ribbon
+        | GeometryKind::Area
+        | GeometryKind::Geo => {
+            if stroke_visible(geo, table, rows, scales) {
+                number_setting(geo, PropertyKey::StrokeWidth, 1.0).max(0.0) / 2.0
+            } else {
+                0.0
+            }
+        }
+        GeometryKind::Text
+        | GeometryKind::Label
+        | GeometryKind::Graticule
+        | GeometryKind::Histogram
+        | GeometryKind::FreqPoly
+        | GeometryKind::Bin2D => 0.0,
+    }
+}
+
+fn max_number_spec(
+    spec: &NumberSpec,
+    table: &dyn Table,
+    rows: Option<&[usize]>,
+    default: f64,
+) -> f64 {
+    render_row_indices(table, rows)
+        .into_iter()
+        .map(|row| spec.at(table, row, default))
+        .fold(0.0, f64::max)
+}
+
+fn stroke_visible(
+    geo: &GeometryIr,
+    table: &dyn Table,
+    rows: Option<&[usize]>,
+    scales: &[ScaleIr],
+) -> bool {
+    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
+    match stroke {
+        ColorSpec::None => false,
+        ColorSpec::Constant(_) => true,
+        _ => render_row_indices(table, rows)
+            .into_iter()
+            .any(|row| stroke.resolve(table, row).is_some()),
+    }
+}
+
+fn render_row_indices(table: &dyn Table, rows: Option<&[usize]>) -> Vec<usize> {
+    rows.map_or_else(|| (0..table.row_count()).collect(), <[usize]>::to_vec)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -490,7 +873,6 @@ fn build_root_panel<'t>(
     rows: Option<Vec<usize>>,
     label: Option<String>,
     facet_index: Option<usize>,
-    clip_marks: bool,
     panel_theme: Theme,
     space_guides: GuideIr,
     space_scales: Vec<ScaleIr>,
@@ -512,7 +894,6 @@ fn build_root_panel<'t>(
         None,
         label,
         facet_index,
-        clip_marks,
         panel_theme,
         space_guides,
         space_scales,
@@ -539,7 +920,6 @@ pub(super) fn planned_panel<'t>(
     legend_rows: Option<Vec<usize>>,
     label: Option<String>,
     facet_index: Option<usize>,
-    clip_marks: bool,
     panel_theme: Theme,
     space_guides: GuideIr,
     space_scales: Vec<ScaleIr>,
@@ -563,6 +943,7 @@ pub(super) fn planned_panel<'t>(
         depth,
         diagnostics,
     );
+    let clip_edges = cartesian_clip_edges(space, &scaled, &space_scales);
     Panel {
         table,
         frame: &space.frame,
@@ -573,7 +954,8 @@ pub(super) fn planned_panel<'t>(
         legend_rows,
         label,
         facet_index,
-        clip_marks,
+        clip_edges,
+        clip: None,
         theme: panel_theme,
         guides: space_guides,
         scales: space_scales,

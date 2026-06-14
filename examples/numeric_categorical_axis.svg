@@ -15,7 +15,7 @@
   <line x1="60" y1="66" x2="470" y2="66" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="66" width="410" height="264" /></clipPath>
+<clipPath id="algraf-clip-0"><rect x="0" y="66" width="620" height="264" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-0)">
   <g class="algraf-layer algraf-geom-bar">

@@ -1,12 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="200" height="50" viewBox="0 0 200 50" role="img">
 <rect class="algraf-background" x="0" y="0" width="200" height="50" fill="#ffffff" />
 <rect class="algraf-plot-area" x="0" y="2" width="200" height="46" fill="#ffffff" />
-<defs>
-<clipPath id="algraf-clip-0"><rect x="0" y="2" width="200" height="46" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-line">
-    <path d="M13.793 44.828 L25.287 42.349 L36.782 37.392 L48.276 39.871 L59.77 29.957 L71.264 20.043 L82.759 22.522 L94.253 27.478 L105.747 32.435 L117.241 25 L128.736 15.086 L140.23 17.565 L151.724 10.129 L163.218 5.172 L174.713 12.608 L186.207 7.651" fill="none" stroke="#e74c3c" stroke-width="1.5" opacity="1" />
-  </g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M13.793 44.828 L25.287 42.349 L36.782 37.392 L48.276 39.871 L59.77 29.957 L71.264 20.043 L82.759 22.522 L94.253 27.478 L105.747 32.435 L117.241 25 L128.736 15.086 L140.23 17.565 L151.724 10.129 L163.218 5.172 L174.713 12.608 L186.207 7.651" fill="none" stroke="#e74c3c" stroke-width="1.5" opacity="1" />
 </g>
 </svg>

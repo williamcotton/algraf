@@ -87,7 +87,7 @@
   <line x1="391" y1="304" x2="650" y2="304" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="90" width="259" height="126" /></clipPath>
+<clipPath id="algraf-clip-0"><rect x="0" y="85" width="800" height="136" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-0)">
   <g class="algraf-layer algraf-geom-line">
@@ -108,7 +108,7 @@
   </g>
 </g>
 <defs>
-<clipPath id="algraf-clip-1"><rect x="391" y="90" width="259" height="126" /></clipPath>
+<clipPath id="algraf-clip-1"><rect x="0" y="85" width="800" height="136" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-1)">
   <g class="algraf-layer algraf-geom-line">
@@ -129,7 +129,7 @@
   </g>
 </g>
 <defs>
-<clipPath id="algraf-clip-2"><rect x="60" y="304" width="259" height="126" /></clipPath>
+<clipPath id="algraf-clip-2"><rect x="0" y="299" width="800" height="136" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-2)">
   <g class="algraf-layer algraf-geom-line">
@@ -150,7 +150,7 @@
   </g>
 </g>
 <defs>
-<clipPath id="algraf-clip-3"><rect x="391" y="304" width="259" height="126" /></clipPath>
+<clipPath id="algraf-clip-3"><rect x="0" y="299" width="800" height="136" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-3)">
   <g class="algraf-layer algraf-geom-line">

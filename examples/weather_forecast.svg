@@ -26,7 +26,7 @@
   <line x1="60" y1="111.6" x2="710" y2="111.6" stroke="#e6e6e6" stroke-width="1" />
 </g>
 <defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="66" width="650" height="304" /></clipPath>
+<clipPath id="algraf-clip-0"><rect x="0" y="64.5" width="760" height="307" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-0)">
   <g class="algraf-layer algraf-geom-ribbon">
@@ -37,7 +37,7 @@
   </g>
 </g>
 <defs>
-<clipPath id="algraf-clip-1"><rect x="60" y="66" width="650" height="304" /></clipPath>
+<clipPath id="algraf-clip-1"><rect x="0" y="60" width="760" height="316" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-1)">
   <g class="algraf-layer algraf-geom-point">

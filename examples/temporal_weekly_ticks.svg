@@ -41,91 +41,86 @@
   <line x1="60" y1="118.731" x2="830" y2="118.731" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="79.024" x2="830" y2="79.024" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="66" width="770" height="304" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-line">
-    <path d="M60 293.444 L70.267 269.62 L80.533 146.527 L90.8 126.673 L101.067 106.819 L111.333 130.644 L121.6 114.761 L131.867 206.088 L142.133 198.146 L152.4 86.966 L162.667 126.673 L172.933 122.702 L183.2 126.673 L193.467 130.644 L203.733 237.854 L214 281.532 L224.267 186.234 L234.533 194.176 L244.8 198.146 L255.067 202.117 L265.333 245.795 L275.6 349.034 L285.867 345.064 L296.133 237.854 L306.4 229.912 L316.667 257.707 L326.933 245.795 L337.2 229.912 L347.467 313.298 L357.733 293.444 L368 210.059 L378.267 186.234 L388.533 166.38 L398.8 142.556 L409.067 122.702 L419.333 245.795 L429.6 229.912 L439.867 110.79 L450.133 98.878 L460.4 86.966 L470.667 118.731 L480.933 114.761 L491.2 218 L501.467 218 L511.733 114.761 L522 162.41 L532.267 166.38 L542.533 174.322 L552.8 178.293 L563.067 289.473 L573.333 333.152 L583.6 233.883 L593.867 233.883 L604.133 233.883 L614.4 229.912 L624.667 261.678 L634.933 349.034 L645.2 345.064 L655.467 225.941 L665.733 206.088 L676 229.912 L686.267 206.088 L696.533 186.234 L706.8 265.649 L717.067 245.795 L727.333 158.439 L737.6 138.585 L747.867 122.702 L758.133 106.819 L768.4 90.936 L778.667 221.971 L788.933 214.029 L799.2 106.819 L809.467 102.848 L819.733 102.848 L830 142.556" fill="none" stroke="#54a24b" stroke-width="1.5" opacity="1" />
-  </g>
-  <g class="algraf-layer algraf-geom-point">
-    <circle cx="60" cy="293.444" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="70.267" cy="269.62" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="80.533" cy="146.527" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="90.8" cy="126.673" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="101.067" cy="106.819" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="111.333" cy="130.644" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="121.6" cy="114.761" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="131.867" cy="206.088" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="142.133" cy="198.146" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="152.4" cy="86.966" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="162.667" cy="126.673" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="172.933" cy="122.702" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="183.2" cy="126.673" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="193.467" cy="130.644" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="203.733" cy="237.854" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="214" cy="281.532" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="224.267" cy="186.234" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="234.533" cy="194.176" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="244.8" cy="198.146" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="255.067" cy="202.117" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="265.333" cy="245.795" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="275.6" cy="349.034" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="285.867" cy="345.064" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="296.133" cy="237.854" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="306.4" cy="229.912" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="316.667" cy="257.707" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="326.933" cy="245.795" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="337.2" cy="229.912" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="347.467" cy="313.298" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="357.733" cy="293.444" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="368" cy="210.059" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="378.267" cy="186.234" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="388.533" cy="166.38" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="398.8" cy="142.556" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="409.067" cy="122.702" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="419.333" cy="245.795" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="429.6" cy="229.912" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="439.867" cy="110.79" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="450.133" cy="98.878" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="460.4" cy="86.966" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="470.667" cy="118.731" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="480.933" cy="114.761" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="491.2" cy="218" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="501.467" cy="218" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="511.733" cy="114.761" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="522" cy="162.41" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="532.267" cy="166.38" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="542.533" cy="174.322" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="552.8" cy="178.293" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="563.067" cy="289.473" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="573.333" cy="333.152" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="583.6" cy="233.883" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="593.867" cy="233.883" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="604.133" cy="233.883" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="614.4" cy="229.912" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="624.667" cy="261.678" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="634.933" cy="349.034" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="645.2" cy="345.064" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="655.467" cy="225.941" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="665.733" cy="206.088" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="676" cy="229.912" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="686.267" cy="206.088" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="696.533" cy="186.234" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="706.8" cy="265.649" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="717.067" cy="245.795" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="727.333" cy="158.439" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="737.6" cy="138.585" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="747.867" cy="122.702" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="758.133" cy="106.819" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="768.4" cy="90.936" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="778.667" cy="221.971" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="788.933" cy="214.029" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="799.2" cy="106.819" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="809.467" cy="102.848" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="819.733" cy="102.848" r="2" fill="#54a24b" opacity="1" />
-    <circle cx="830" cy="142.556" r="2" fill="#54a24b" opacity="1" />
-  </g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M60 293.444 L70.267 269.62 L80.533 146.527 L90.8 126.673 L101.067 106.819 L111.333 130.644 L121.6 114.761 L131.867 206.088 L142.133 198.146 L152.4 86.966 L162.667 126.673 L172.933 122.702 L183.2 126.673 L193.467 130.644 L203.733 237.854 L214 281.532 L224.267 186.234 L234.533 194.176 L244.8 198.146 L255.067 202.117 L265.333 245.795 L275.6 349.034 L285.867 345.064 L296.133 237.854 L306.4 229.912 L316.667 257.707 L326.933 245.795 L337.2 229.912 L347.467 313.298 L357.733 293.444 L368 210.059 L378.267 186.234 L388.533 166.38 L398.8 142.556 L409.067 122.702 L419.333 245.795 L429.6 229.912 L439.867 110.79 L450.133 98.878 L460.4 86.966 L470.667 118.731 L480.933 114.761 L491.2 218 L501.467 218 L511.733 114.761 L522 162.41 L532.267 166.38 L542.533 174.322 L552.8 178.293 L563.067 289.473 L573.333 333.152 L583.6 233.883 L593.867 233.883 L604.133 233.883 L614.4 229.912 L624.667 261.678 L634.933 349.034 L645.2 345.064 L655.467 225.941 L665.733 206.088 L676 229.912 L686.267 206.088 L696.533 186.234 L706.8 265.649 L717.067 245.795 L727.333 158.439 L737.6 138.585 L747.867 122.702 L758.133 106.819 L768.4 90.936 L778.667 221.971 L788.933 214.029 L799.2 106.819 L809.467 102.848 L819.733 102.848 L830 142.556" fill="none" stroke="#54a24b" stroke-width="1.5" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="60" cy="293.444" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="70.267" cy="269.62" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="80.533" cy="146.527" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="90.8" cy="126.673" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="101.067" cy="106.819" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="111.333" cy="130.644" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="121.6" cy="114.761" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="131.867" cy="206.088" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="142.133" cy="198.146" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="152.4" cy="86.966" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="162.667" cy="126.673" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="172.933" cy="122.702" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="183.2" cy="126.673" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="193.467" cy="130.644" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="203.733" cy="237.854" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="214" cy="281.532" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="224.267" cy="186.234" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="234.533" cy="194.176" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="244.8" cy="198.146" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="255.067" cy="202.117" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="265.333" cy="245.795" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="275.6" cy="349.034" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="285.867" cy="345.064" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="296.133" cy="237.854" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="306.4" cy="229.912" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="316.667" cy="257.707" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="326.933" cy="245.795" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="337.2" cy="229.912" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="347.467" cy="313.298" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="357.733" cy="293.444" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="368" cy="210.059" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="378.267" cy="186.234" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="388.533" cy="166.38" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="398.8" cy="142.556" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="409.067" cy="122.702" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="419.333" cy="245.795" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="429.6" cy="229.912" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="439.867" cy="110.79" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="450.133" cy="98.878" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="460.4" cy="86.966" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="470.667" cy="118.731" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="480.933" cy="114.761" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="491.2" cy="218" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="501.467" cy="218" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="511.733" cy="114.761" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="522" cy="162.41" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="532.267" cy="166.38" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="542.533" cy="174.322" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="552.8" cy="178.293" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="563.067" cy="289.473" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="573.333" cy="333.152" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="583.6" cy="233.883" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="593.867" cy="233.883" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="604.133" cy="233.883" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="614.4" cy="229.912" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="624.667" cy="261.678" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="634.933" cy="349.034" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="645.2" cy="345.064" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="655.467" cy="225.941" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="665.733" cy="206.088" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="676" cy="229.912" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="686.267" cy="206.088" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="696.533" cy="186.234" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="706.8" cy="265.649" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="717.067" cy="245.795" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="727.333" cy="158.439" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="737.6" cy="138.585" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="747.867" cy="122.702" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="758.133" cy="106.819" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="768.4" cy="90.936" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="778.667" cy="221.971" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="788.933" cy="214.029" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="799.2" cy="106.819" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="809.467" cy="102.848" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="819.733" cy="102.848" r="2" fill="#54a24b" opacity="1" />
+  <circle cx="830" cy="142.556" r="2" fill="#54a24b" opacity="1" />
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="370" x2="830" y2="370" stroke="#333333" stroke-width="1" />

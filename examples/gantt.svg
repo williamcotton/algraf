@@ -3,21 +3,16 @@
 <rect class="algraf-background" x="0" y="0" width="760" height="420" fill="#ffffff" />
 <text class="algraf-title" x="75.2" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Project Schedule</text>
 <rect class="algraf-plot-area" x="75.2" y="66" width="534.8" height="304" fill="#ffffff" />
-<defs>
-<clipPath id="algraf-clip-0"><rect x="75.2" y="66" width="534.8" height="304" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-rect">
-    <rect x="75.2" y="278.8" width="65.486" height="18.708" fill="#4E79A7" opacity="0.85" />
-    <rect x="140.686" y="299.586" width="141.886" height="18.708" fill="#F28E2B" opacity="0.85" />
-    <rect x="282.571" y="320.373" width="163.714" height="18.708" fill="#E15759" opacity="0.85" />
-    <rect x="97.029" y="177.467" width="76.4" height="18.708" fill="#4E79A7" opacity="0.85" />
-    <rect x="173.429" y="198.253" width="196.457" height="18.708" fill="#F28E2B" opacity="0.85" />
-    <rect x="402.629" y="239.826" width="76.4" height="18.708" fill="#76B7B2" opacity="0.85" />
-    <rect x="217.086" y="96.92" width="130.971" height="18.708" fill="#F28E2B" opacity="0.85" />
-    <rect x="348.057" y="117.706" width="174.629" height="18.708" fill="#E15759" opacity="0.85" />
-    <rect x="522.686" y="138.492" width="87.314" height="18.708" fill="#76B7B2" opacity="0.85" />
-  </g>
+<g class="algraf-layer algraf-geom-rect">
+  <rect x="75.2" y="278.8" width="65.486" height="18.708" fill="#4E79A7" opacity="0.85" />
+  <rect x="140.686" y="299.586" width="141.886" height="18.708" fill="#F28E2B" opacity="0.85" />
+  <rect x="282.571" y="320.373" width="163.714" height="18.708" fill="#E15759" opacity="0.85" />
+  <rect x="97.029" y="177.467" width="76.4" height="18.708" fill="#4E79A7" opacity="0.85" />
+  <rect x="173.429" y="198.253" width="196.457" height="18.708" fill="#F28E2B" opacity="0.85" />
+  <rect x="402.629" y="239.826" width="76.4" height="18.708" fill="#76B7B2" opacity="0.85" />
+  <rect x="217.086" y="96.92" width="130.971" height="18.708" fill="#F28E2B" opacity="0.85" />
+  <rect x="348.057" y="117.706" width="174.629" height="18.708" fill="#E15759" opacity="0.85" />
+  <rect x="522.686" y="138.492" width="87.314" height="18.708" fill="#76B7B2" opacity="0.85" />
 </g>
 <g class="algraf-axes">
   <line x1="75.2" y1="370" x2="610" y2="370" stroke="#333333" stroke-width="1" />

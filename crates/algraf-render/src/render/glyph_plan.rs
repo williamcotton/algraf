@@ -18,7 +18,7 @@ use crate::theme::Theme;
 
 use super::common::{merged_scales, resolve_space_theme, validate_scale_configs};
 use super::derived::active_table;
-use super::panels::{planned_panel, Panel};
+use super::panels::{planned_panel, resolve_panel_clips_in_bounds, Panel};
 use super::row_table::RowSubsetTable;
 use super::RenderLimits;
 
@@ -272,7 +272,7 @@ pub(super) fn plan_glyph<'t>(
         });
         contexts.extend_from_slice(ancestors);
 
-        let child_panels = glyph
+        let mut child_panels = glyph
             .child_spaces
             .iter()
             .filter_map(|child_space| {
@@ -295,6 +295,11 @@ pub(super) fn plan_glyph<'t>(
                 )
             })
             .collect::<Vec<_>>();
+        let blockers = child_panels
+            .iter()
+            .map(|panel| panel.plot)
+            .collect::<Vec<_>>();
+        resolve_panel_clips_in_bounds(&mut child_panels, viewport, &blockers);
         instances.push(PlannedGlyphInstance {
             host_row,
             viewport,
@@ -416,7 +421,6 @@ fn plan_child_panel<'t>(
         legend_rows,
         None,
         None,
-        matches!(space.coords, CoordsIr::Cartesian),
         panel_theme,
         space_guides,
         space_scales,

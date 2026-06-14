@@ -89,54 +89,39 @@
   <line x1="60.8" y1="295.225" x2="361.8" y2="295.225" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60.8" y1="278.998" x2="361.8" y2="278.998" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="60.8" y="90" width="301" height="96" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-point">
-    <circle cx="138.645" cy="163.152" r="4.662" fill="#4E79A7" opacity="0.8" />
-    <rect x="88.522" y="171.096" width="6.831" height="6.831" fill="#4E79A7" opacity="0.8" />
-    <circle cx="159.403" cy="158.284" r="4.766" fill="#4E79A7" opacity="0.8" />
-    <rect x="77.572" y="175.392" width="7.974" height="7.974" fill="#4E79A7" opacity="0.8" />
-    <circle cx="149.024" cy="161.529" r="4.403" fill="#4E79A7" opacity="0.8" />
-    <rect x="99.317" y="168.266" width="6" height="6" fill="#4E79A7" opacity="0.8" />
-  </g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="138.645" cy="163.152" r="4.662" fill="#4E79A7" opacity="0.8" />
+  <rect x="88.522" y="171.096" width="6.831" height="6.831" fill="#4E79A7" opacity="0.8" />
+  <circle cx="159.403" cy="158.284" r="4.766" fill="#4E79A7" opacity="0.8" />
+  <rect x="77.572" y="175.392" width="7.974" height="7.974" fill="#4E79A7" opacity="0.8" />
+  <circle cx="149.024" cy="161.529" r="4.403" fill="#4E79A7" opacity="0.8" />
+  <rect x="99.317" y="168.266" width="6" height="6" fill="#4E79A7" opacity="0.8" />
 </g>
-<defs>
-<clipPath id="algraf-clip-1"><rect x="433.8" y="90" width="301" height="96" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-1)">
-  <g class="algraf-layer algraf-geom-point">
-    <circle cx="506.455" cy="163.152" r="5.442" fill="#4E79A7" opacity="0.8" />
-    <rect x="455.813" y="174.633" width="7.87" height="7.87" fill="#4E79A7" opacity="0.8" />
-    <circle cx="537.593" cy="155.039" r="5.649" fill="#4E79A7" opacity="0.8" />
-    <rect x="476.468" y="170.472" width="8.078" height="8.078" fill="#4E79A7" opacity="0.8" />
-    <circle cx="667.334" cy="109.602" r="9.909" fill="#F28E2B" opacity="0.8" />
-    <rect x="612.329" y="122.399" width="16.597" height="16.597" fill="#F28E2B" opacity="0.8" />
-    <circle cx="688.093" cy="104.734" r="10.325" fill="#F28E2B" opacity="0.8" />
-    <rect x="628.365" y="119.621" width="15.662" height="15.662" fill="#F28E2B" opacity="0.8" />
-    <circle cx="714.041" cy="96.621" r="11" fill="#F28E2B" opacity="0.8" />
-    <rect x="618.142" y="124.645" width="15.351" height="15.351" fill="#F28E2B" opacity="0.8" />
-    <circle cx="703.662" cy="101.489" r="9.494" fill="#F28E2B" opacity="0.8" />
-    <rect x="632.88" y="115.7" width="17.013" height="17.013" fill="#F28E2B" opacity="0.8" />
-  </g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="506.455" cy="163.152" r="5.442" fill="#4E79A7" opacity="0.8" />
+  <rect x="455.813" y="174.633" width="7.87" height="7.87" fill="#4E79A7" opacity="0.8" />
+  <circle cx="537.593" cy="155.039" r="5.649" fill="#4E79A7" opacity="0.8" />
+  <rect x="476.468" y="170.472" width="8.078" height="8.078" fill="#4E79A7" opacity="0.8" />
+  <circle cx="667.334" cy="109.602" r="9.909" fill="#F28E2B" opacity="0.8" />
+  <rect x="612.329" y="122.399" width="16.597" height="16.597" fill="#F28E2B" opacity="0.8" />
+  <circle cx="688.093" cy="104.734" r="10.325" fill="#F28E2B" opacity="0.8" />
+  <rect x="628.365" y="119.621" width="15.662" height="15.662" fill="#F28E2B" opacity="0.8" />
+  <circle cx="714.041" cy="96.621" r="11" fill="#F28E2B" opacity="0.8" />
+  <rect x="618.142" y="124.645" width="15.351" height="15.351" fill="#F28E2B" opacity="0.8" />
+  <circle cx="703.662" cy="101.489" r="9.494" fill="#F28E2B" opacity="0.8" />
+  <rect x="632.88" y="115.7" width="17.013" height="17.013" fill="#F28E2B" opacity="0.8" />
 </g>
-<defs>
-<clipPath id="algraf-clip-2"><rect x="60.8" y="274" width="301" height="96" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-2)">
-  <g class="algraf-layer algraf-geom-point">
-    <circle cx="143.834" cy="347.963" r="5.026" fill="#4E79A7" opacity="0.8" />
-    <rect x="94.076" y="357.082" width="6.104" height="6.104" fill="#4E79A7" opacity="0.8" />
-    <circle cx="154.214" cy="343.907" r="5.234" fill="#4E79A7" opacity="0.8" />
-    <rect x="108.969" y="353.161" width="7.455" height="7.455" fill="#4E79A7" opacity="0.8" />
-    <circle cx="164.593" cy="345.529" r="9.545" fill="#E15759" opacity="0.8" />
-    <rect x="109.639" y="347.019" width="16.494" height="16.494" fill="#E15759" opacity="0.8" />
-    <circle cx="190.541" cy="340.661" r="10.688" fill="#E15759" opacity="0.8" />
-    <rect x="130.034" y="345.033" width="17.221" height="17.221" fill="#E15759" opacity="0.8" />
-    <circle cx="174.972" cy="343.907" r="9.961" fill="#E15759" opacity="0.8" />
-    <rect x="120.33" y="350.576" width="15.87" height="15.87" fill="#E15759" opacity="0.8" />
-  </g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="143.834" cy="347.963" r="5.026" fill="#4E79A7" opacity="0.8" />
+  <rect x="94.076" y="357.082" width="6.104" height="6.104" fill="#4E79A7" opacity="0.8" />
+  <circle cx="154.214" cy="343.907" r="5.234" fill="#4E79A7" opacity="0.8" />
+  <rect x="108.969" y="353.161" width="7.455" height="7.455" fill="#4E79A7" opacity="0.8" />
+  <circle cx="164.593" cy="345.529" r="9.545" fill="#E15759" opacity="0.8" />
+  <rect x="109.639" y="347.019" width="16.494" height="16.494" fill="#E15759" opacity="0.8" />
+  <circle cx="190.541" cy="340.661" r="10.688" fill="#E15759" opacity="0.8" />
+  <rect x="130.034" y="345.033" width="17.221" height="17.221" fill="#E15759" opacity="0.8" />
+  <circle cx="174.972" cy="343.907" r="9.961" fill="#E15759" opacity="0.8" />
+  <rect x="120.33" y="350.576" width="15.87" height="15.87" fill="#E15759" opacity="0.8" />
 </g>
 <g class="algraf-axes">
   <line x1="60.8" y1="186" x2="361.8" y2="186" stroke="#333333" stroke-width="1" />

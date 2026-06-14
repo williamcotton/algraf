@@ -23,21 +23,16 @@
   <line x1="60.8" y1="173.287" x2="570" y2="173.287" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60.8" y1="98.575" x2="570" y2="98.575" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="60.8" y="66" width="509.2" height="364" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-point">
-    <circle cx="95.917" cy="360.069" r="4" fill="#4E79A7" opacity="0.8" />
-    <circle cx="150.788" cy="352.598" r="4" fill="#4E79A7" opacity="0.8" />
-    <circle cx="249.555" cy="262.943" r="4" fill="#4E79A7" opacity="0.8" />
-    <circle cx="227.607" cy="404.897" r="4" fill="#F28E2B" opacity="0.8" />
-    <circle cx="271.503" cy="371.276" r="4" fill="#F28E2B" opacity="0.8" />
-    <circle cx="315.4" cy="277.885" r="4" fill="#F28E2B" opacity="0.8" />
-    <circle cx="414.167" cy="218.115" r="4" fill="#E15759" opacity="0.8" />
-    <circle cx="480.012" cy="173.287" r="4" fill="#E15759" opacity="0.8" />
-    <circle cx="534.883" cy="91.103" r="4" fill="#E15759" opacity="0.8" />
-  </g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="95.917" cy="360.069" r="4" fill="#4E79A7" opacity="0.8" />
+  <circle cx="150.788" cy="352.598" r="4" fill="#4E79A7" opacity="0.8" />
+  <circle cx="249.555" cy="262.943" r="4" fill="#4E79A7" opacity="0.8" />
+  <circle cx="227.607" cy="404.897" r="4" fill="#F28E2B" opacity="0.8" />
+  <circle cx="271.503" cy="371.276" r="4" fill="#F28E2B" opacity="0.8" />
+  <circle cx="315.4" cy="277.885" r="4" fill="#F28E2B" opacity="0.8" />
+  <circle cx="414.167" cy="218.115" r="4" fill="#E15759" opacity="0.8" />
+  <circle cx="480.012" cy="173.287" r="4" fill="#E15759" opacity="0.8" />
+  <circle cx="534.883" cy="91.103" r="4" fill="#E15759" opacity="0.8" />
 </g>
 <g class="algraf-axes">
   <line x1="60.8" y1="430" x2="570" y2="430" stroke="#333333" stroke-width="1" />

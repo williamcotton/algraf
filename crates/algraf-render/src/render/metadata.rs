@@ -21,7 +21,7 @@ use crate::svg::num;
 
 use super::backend::RenderScene;
 use super::glyph_plan::PlannedGlyph;
-use super::panels::{panel_slots, Panel, PlannedLayer};
+use super::panels::{panel_slots, Panel, PanelClip, PlannedLayer};
 
 /// Versioned interaction metadata emitted as a JSON sidecar and carried by the
 /// draw-list backend (spec §24.6).
@@ -196,7 +196,7 @@ pub(super) fn build_interaction_metadata(scene: &RenderScene<'_>) -> Interaction
                 plot_rect: slot.plot,
                 clip_rect: slot
                     .panel
-                    .and_then(|panel| panel.clip_marks.then_some(panel.plot)),
+                    .and_then(|panel| panel.clip.map(|clip| clip.rect)),
                 axes,
             }
         })
@@ -213,7 +213,7 @@ pub(super) fn build_interaction_metadata(scene: &RenderScene<'_>) -> Interaction
             panel.table,
             &panel.scaled,
             panel.rows.as_deref(),
-            panel.clip_marks.then_some(panel.plot),
+            panel.clip,
             &plot_id,
             &format!("p{panel_index}"),
         );
@@ -266,7 +266,7 @@ fn collect_layer_metadata(
     table: &dyn Table,
     scaled: &ScaledSpace,
     rows: Option<&[usize]>,
-    clip_rect: Option<Rect>,
+    clip: Option<PanelClip>,
     plot_id: &str,
     mark_prefix: &str,
 ) {
@@ -282,7 +282,7 @@ fn collect_layer_metadata(
                         table,
                         scaled,
                         rows,
-                        clip_rect,
+                        clip,
                         geo,
                         geometry_index,
                         plot_id,
@@ -306,7 +306,7 @@ fn collect_geometry_marks(
     table: &dyn Table,
     scaled: &ScaledSpace,
     rows: Option<&[usize]>,
-    clip_rect: Option<Rect>,
+    clip: Option<PanelClip>,
     geo: &GeometryIr,
     geometry_index: usize,
     plot_id: &str,
@@ -353,7 +353,7 @@ fn collect_geometry_marks(
             plot: plot_id.to_string(),
             x_px,
             y_px,
-            clipped: clip_rect.is_some_and(|rect| !rect_contains(rect, x_px, y_px)),
+            clipped: clip.is_some_and(|clip| clip.clips_point(x_px, y_px)),
             groups: mark_groups,
             interaction,
             tooltip,
@@ -370,16 +370,18 @@ fn collect_glyph_metadata(
     glyph_index: usize,
 ) {
     for instance in &glyph.instances {
-        let clip_rect = (!matches!(glyph.clip, GlyphClipIr::None)).then_some(instance.viewport);
+        let glyph_clip_rect =
+            (!matches!(glyph.clip, GlyphClipIr::None)).then_some(instance.viewport);
         for (space_index, child_panel) in instance.child_panels.iter().enumerate() {
             let child_plot_id = format!(
                 "{mark_prefix}:i{glyph_index}[{}]:s{space_index}",
                 instance.host_row
             );
+            let effective_clip = effective_child_clip(glyph_clip_rect, child_panel.clip);
             plots.push(InteractionPlot {
                 id: child_plot_id.clone(),
                 plot_rect: child_panel.plot,
-                clip_rect,
+                clip_rect: effective_clip.map(|clip| clip.rect),
                 axes: panel_axes(child_panel),
             });
             collect_layer_metadata(
@@ -390,7 +392,7 @@ fn collect_glyph_metadata(
                 child_panel.table,
                 &child_panel.scaled,
                 child_panel.rows.as_deref(),
-                clip_rect,
+                effective_clip,
                 &child_plot_id,
                 &child_plot_id,
             );
@@ -398,11 +400,44 @@ fn collect_glyph_metadata(
     }
 }
 
-fn rect_contains(rect: Rect, x: f64, y: f64) -> bool {
-    x >= rect.x - f64::EPSILON
-        && x <= rect.right() + f64::EPSILON
-        && y >= rect.y - f64::EPSILON
-        && y <= rect.bottom() + f64::EPSILON
+fn effective_child_clip(
+    glyph_clip: Option<Rect>,
+    panel_clip: Option<PanelClip>,
+) -> Option<PanelClip> {
+    match (glyph_clip, panel_clip) {
+        (Some(outer), Some(inner)) => Some(PanelClip {
+            edges: all_clip_edges(),
+            rect: intersect_rects(outer, inner.rect),
+        }),
+        (Some(rect), None) => Some(PanelClip {
+            edges: all_clip_edges(),
+            rect,
+        }),
+        (None, Some(clip)) => Some(clip),
+        (None, None) => None,
+    }
+}
+
+fn all_clip_edges() -> super::panels::ClipEdges {
+    super::panels::ClipEdges {
+        top: true,
+        right: true,
+        bottom: true,
+        left: true,
+    }
+}
+
+fn intersect_rects(a: Rect, b: Rect) -> Rect {
+    let x0 = a.x.max(b.x);
+    let y0 = a.y.max(b.y);
+    let x1 = a.right().min(b.right());
+    let y1 = a.bottom().min(b.bottom());
+    Rect {
+        x: x0,
+        y: y0,
+        width: (x1 - x0).max(0.0),
+        height: (y1 - y0).max(0.0),
+    }
 }
 
 fn render_rows(table: &dyn Table, rows: Option<&[usize]>) -> Vec<usize> {

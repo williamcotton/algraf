@@ -29,26 +29,21 @@
   <line x1="60" y1="112.536" x2="610" y2="112.536" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="66.912" x2="610" y2="66.912" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="66" width="550" height="344" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-line">
-    <path d="M60 295.029 L202.083 226.594 L330.417 158.159 L472.5 203.782 L610 89.724" fill="none" stroke="#888888" stroke-width="1.5" opacity="1" />
-    <path d="M60 386.276 L202.083 340.653 L330.417 363.464 L472.5 272.218 L610 180.971" fill="none" stroke="#888888" stroke-width="1.5" opacity="1" />
-  </g>
-  <g class="algraf-layer algraf-geom-point">
-    <circle cx="60" cy="295.029" r="4" fill="#4E79A7" opacity="1" />
-    <circle cx="202.083" cy="226.594" r="4" fill="#4E79A7" opacity="1" />
-    <circle cx="330.417" cy="158.159" r="4" fill="#4E79A7" opacity="1" />
-    <circle cx="472.5" cy="203.782" r="4" fill="#4E79A7" opacity="1" />
-    <circle cx="610" cy="89.724" r="4" fill="#4E79A7" opacity="1" />
-    <rect x="56" y="382.276" width="8" height="8" fill="#F28E2B" opacity="1" />
-    <rect x="198.083" y="336.653" width="8" height="8" fill="#F28E2B" opacity="1" />
-    <rect x="326.417" y="359.464" width="8" height="8" fill="#F28E2B" opacity="1" />
-    <rect x="468.5" y="268.218" width="8" height="8" fill="#F28E2B" opacity="1" />
-    <rect x="606" y="176.971" width="8" height="8" fill="#F28E2B" opacity="1" />
-  </g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M60 295.029 L202.083 226.594 L330.417 158.159 L472.5 203.782 L610 89.724" fill="none" stroke="#888888" stroke-width="1.5" opacity="1" />
+  <path d="M60 386.276 L202.083 340.653 L330.417 363.464 L472.5 272.218 L610 180.971" fill="none" stroke="#888888" stroke-width="1.5" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="60" cy="295.029" r="4" fill="#4E79A7" opacity="1" />
+  <circle cx="202.083" cy="226.594" r="4" fill="#4E79A7" opacity="1" />
+  <circle cx="330.417" cy="158.159" r="4" fill="#4E79A7" opacity="1" />
+  <circle cx="472.5" cy="203.782" r="4" fill="#4E79A7" opacity="1" />
+  <circle cx="610" cy="89.724" r="4" fill="#4E79A7" opacity="1" />
+  <rect x="56" y="382.276" width="8" height="8" fill="#F28E2B" opacity="1" />
+  <rect x="198.083" y="336.653" width="8" height="8" fill="#F28E2B" opacity="1" />
+  <rect x="326.417" y="359.464" width="8" height="8" fill="#F28E2B" opacity="1" />
+  <rect x="468.5" y="268.218" width="8" height="8" fill="#F28E2B" opacity="1" />
+  <rect x="606" y="176.971" width="8" height="8" fill="#F28E2B" opacity="1" />
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="610" y2="410" stroke="#333333" stroke-width="1" />

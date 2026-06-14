@@ -26,8 +26,8 @@ fn paint_panel(
     panel: &Panel<'_>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    if panel.clip_marks {
-        sink.open_clip(panel.plot);
+    if let Some(clip) = panel.clip {
+        sink.open_clip(clip.rect);
     }
     paint_layers(
         sink,
@@ -41,7 +41,7 @@ fn paint_panel(
         &panel.scales,
         diagnostics,
     );
-    if panel.clip_marks {
+    if panel.clip.is_some() {
         sink.close_clip();
     }
 }

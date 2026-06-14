@@ -29,38 +29,33 @@
   <line x1="60" y1="141.683" x2="750" y2="141.683" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="84.086" x2="750" y2="84.086" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="66" width="690" height="304" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-line">
-    <path d="M60 349.034 L77.692 314.476 L95.385 268.398 L113.077 216.56 L130.769 158.962 L183.846 138.803 L201.538 107.125 L219.231 92.725 L236.923 86.966 L254.615 95.605 L466.923 187.761 L484.615 135.923 L502.308 86.966 L555.385 127.284 L573.077 124.404 L590.769 133.044 L608.462 150.323 L626.154 170.482 L679.231 337.515 L696.923 334.635 L714.615 320.236 L732.308 291.437 L750 253.998" fill="none" stroke="#4c78a8" stroke-width="1.5" opacity="1" />
-  </g>
-  <g class="algraf-layer algraf-geom-point">
-    <circle cx="60" cy="349.034" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="77.692" cy="314.476" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="95.385" cy="268.398" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="113.077" cy="216.56" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="130.769" cy="158.962" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="183.846" cy="138.803" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="201.538" cy="107.125" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="219.231" cy="92.725" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="236.923" cy="86.966" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="254.615" cy="95.605" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="466.923" cy="187.761" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="484.615" cy="135.923" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="502.308" cy="86.966" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="555.385" cy="127.284" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="573.077" cy="124.404" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="590.769" cy="133.044" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="608.462" cy="150.323" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="626.154" cy="170.482" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="679.231" cy="337.515" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="696.923" cy="334.635" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="714.615" cy="320.236" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="732.308" cy="291.437" r="2.5" fill="#4c78a8" opacity="1" />
-    <circle cx="750" cy="253.998" r="2.5" fill="#4c78a8" opacity="1" />
-  </g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M60 349.034 L77.692 314.476 L95.385 268.398 L113.077 216.56 L130.769 158.962 L183.846 138.803 L201.538 107.125 L219.231 92.725 L236.923 86.966 L254.615 95.605 L466.923 187.761 L484.615 135.923 L502.308 86.966 L555.385 127.284 L573.077 124.404 L590.769 133.044 L608.462 150.323 L626.154 170.482 L679.231 337.515 L696.923 334.635 L714.615 320.236 L732.308 291.437 L750 253.998" fill="none" stroke="#4c78a8" stroke-width="1.5" opacity="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="60" cy="349.034" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="77.692" cy="314.476" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="95.385" cy="268.398" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="113.077" cy="216.56" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="130.769" cy="158.962" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="183.846" cy="138.803" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="201.538" cy="107.125" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="219.231" cy="92.725" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="236.923" cy="86.966" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="254.615" cy="95.605" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="466.923" cy="187.761" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="484.615" cy="135.923" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="502.308" cy="86.966" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="555.385" cy="127.284" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="573.077" cy="124.404" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="590.769" cy="133.044" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="608.462" cy="150.323" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="626.154" cy="170.482" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="679.231" cy="337.515" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="696.923" cy="334.635" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="714.615" cy="320.236" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="732.308" cy="291.437" r="2.5" fill="#4c78a8" opacity="1" />
+  <circle cx="750" cy="253.998" r="2.5" fill="#4c78a8" opacity="1" />
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="370" x2="750" y2="370" stroke="#333333" stroke-width="1" />

@@ -57,6 +57,7 @@ charts=(
     log_scale
     sqrt_scale
     scale_domain
+    domain_floor_clip
     categorical_domain_order
     numeric_categorical_axis
     coordinate_zoom

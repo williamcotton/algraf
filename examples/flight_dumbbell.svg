@@ -4,7 +4,7 @@
 <text class="algraf-title" x="96.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Flight Ticket Prices by Airline and Class</text>
 <rect class="algraf-plot-area" x="96.8" y="66" width="513.2" height="324" fill="#ffffff" />
 <defs>
-<clipPath id="algraf-clip-0"><rect x="96.8" y="66" width="513.2" height="324" /></clipPath>
+<clipPath id="algraf-clip-0"><rect x="89.8" y="0" width="527.2" height="440" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-0)">
   <g class="algraf-layer algraf-geom-line">

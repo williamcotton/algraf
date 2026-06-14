@@ -125,6 +125,32 @@ Chart(data: "weather_forecast.csv", width: 760, height: 420, title: "7-Day Weath
 
 ![weather_forecast](examples/weather_forecast.svg)
 
+### Domain-derived clipping
+
+A half-open axis domain pins only the bound you write. In this example,
+`domain: [0, null]` clips the lower y edge at zero so losses below the floor are
+masked, while the top edge stays data-trained and open.
+
+```algraf
+Chart(data: "monthly_profit.csv", width: 760, height: 420, title: "Pinned floor clips losses") {
+    Theme(name: "minimal")
+    Scale(axis: y, domain: [0, null],
+          breaks: [0, 10000, 20000, 30000, 40000],
+          labels: ["0", "10k", "20k", "30k", "40k"])
+    Guide(axis: x, label: "Month")
+    Guide(axis: y, label: "Monthly profit")
+
+    Space(month * profit) {
+        Area(baseline: 0, fill: "#9ecae1", alpha: 0.45)
+        Line(stroke: "#1f77b4", strokeWidth: 2.5)
+        Point(fill: "#1f77b4", size: 4)
+        HLine(y: 0, stroke: "#333333", strokeWidth: 1)
+    }
+}
+```
+
+![domain_floor_clip](examples/domain_floor_clip.svg)
+
 ## 5. Astronauts: blend fields, annotate the result
 
 `mission_age + selection_age` blends two numeric columns into one frame. The

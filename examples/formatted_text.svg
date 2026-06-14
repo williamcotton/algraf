@@ -23,26 +23,21 @@
   <line x1="60" y1="144.207" x2="570" y2="144.207" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="88.345" x2="570" y2="88.345" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="66" width="510" height="324" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-point">
-    <circle cx="534.828" cy="88.345" r="7" fill="#006BA4" opacity="0.86" />
-    <circle cx="424.914" cy="144.207" r="7" fill="#006BA4" opacity="0.86" />
-    <circle cx="369.957" cy="144.207" r="7" fill="#FF800E" opacity="0.86" />
-    <circle cx="479.871" cy="255.931" r="7" fill="#ABABAB" opacity="0.86" />
-    <circle cx="260.043" cy="255.931" r="7" fill="#595959" opacity="0.86" />
-    <circle cx="95.172" cy="367.655" r="7" fill="#595959" opacity="0.86" />
-  </g>
-  <g class="algraf-layer algraf-geom-text">
-    <text x="542.828" y="88.345" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$0.87</text>
-    <text x="432.914" y="144.207" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$0.94</text>
-    <text x="377.957" y="144.207" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$1.18</text>
-    <text x="487.871" y="255.931" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$1.97</text>
-    <text x="268.043" y="255.931" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$2.35</text>
-    <text x="103.172" y="367.655" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$1.43</text>
-  </g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="534.828" cy="88.345" r="7" fill="#006BA4" opacity="0.86" />
+  <circle cx="424.914" cy="144.207" r="7" fill="#006BA4" opacity="0.86" />
+  <circle cx="369.957" cy="144.207" r="7" fill="#FF800E" opacity="0.86" />
+  <circle cx="479.871" cy="255.931" r="7" fill="#ABABAB" opacity="0.86" />
+  <circle cx="260.043" cy="255.931" r="7" fill="#595959" opacity="0.86" />
+  <circle cx="95.172" cy="367.655" r="7" fill="#595959" opacity="0.86" />
+</g>
+<g class="algraf-layer algraf-geom-text">
+  <text x="542.828" y="88.345" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$0.87</text>
+  <text x="432.914" y="144.207" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$0.94</text>
+  <text x="377.957" y="144.207" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$1.18</text>
+  <text x="487.871" y="255.931" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$1.97</text>
+  <text x="268.043" y="255.931" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$2.35</text>
+  <text x="103.172" y="367.655" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">$1.43</text>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="390" x2="570" y2="390" stroke="#333333" stroke-width="1" />

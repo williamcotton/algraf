@@ -52,6 +52,19 @@ fn circles(list: &DrawList) -> Vec<(f64, f64)> {
         .collect()
 }
 
+fn mark_clip_rect(list: &DrawList) -> Option<(f64, f64, f64, f64)> {
+    list.ops.iter().find_map(|op| match op {
+        DrawOp::ClipStart {
+            role: DrawRole::Mark,
+            x,
+            y,
+            width,
+            height,
+        } => Some((*x, *y, *width, *height)),
+        _ => None,
+    })
+}
+
 #[test]
 fn visual_zoom_uses_clip_scope_and_sidecar_clip_flags() {
     let source = r#"Chart(data: "p.csv", width: 320, height: 240) {
@@ -76,12 +89,72 @@ fn visual_zoom_uses_clip_scope_and_sidecar_clip_flags() {
         metadata["plots"][0]["axes"]["y"]["domain"],
         serde_json::json!([2, 8])
     );
-    assert_eq!(
-        metadata["plots"][0]["clip_rect"],
-        metadata["plots"][0]["plot_rect"]
+    let clip = metadata["plots"][0]["clip_rect"].as_object().unwrap();
+    let plot = metadata["plots"][0]["plot_rect"].as_object().unwrap();
+    assert!(clip["x"].as_f64().unwrap() < plot["x"].as_f64().unwrap());
+    assert!(clip["y"].as_f64().unwrap() < plot["y"].as_f64().unwrap());
+    assert!(
+        clip["x"].as_f64().unwrap() + clip["width"].as_f64().unwrap()
+            > plot["x"].as_f64().unwrap() + plot["width"].as_f64().unwrap()
+    );
+    assert!(
+        clip["y"].as_f64().unwrap() + clip["height"].as_f64().unwrap()
+            > plot["y"].as_f64().unwrap() + plot["height"].as_f64().unwrap()
     );
     assert_eq!(metadata["marks"][0]["clipped"], true);
     assert!(metadata["marks"][1]["clipped"].is_null());
+}
+
+#[test]
+fn auto_fit_cartesian_panel_emits_no_mark_clip_scope_or_clip_rect() {
+    let source = r##"Chart(data: "p.csv", width: 320, height: 240) {
+  Space(x * y) {
+    Point()
+    Line()
+    Area(fill: "#cccccc")
+  }
+}"##;
+    let csv = "x,y\n0,0\n1,8\n2,18\n";
+
+    let list = draw_list(source, csv);
+    assert!(
+        mark_clip_rect(&list).is_none(),
+        "auto-fit Cartesian data marks should not open a mark clip scope"
+    );
+
+    let metadata = render_metadata_json(source, csv);
+    assert!(metadata["plots"][0]["clip_rect"].is_null());
+    for mark in metadata["marks"].as_array().unwrap() {
+        assert!(mark["clipped"].is_null(), "{mark:?}");
+    }
+}
+
+#[test]
+fn half_open_axis_domain_clips_only_the_pinned_edge() {
+    let source = r#"Chart(data: "p.csv", width: 320, height: 240) {
+  Scale(axis: y, domain: [0, null])
+  Space(x * y) {
+    Point()
+  }
+}"#;
+    let csv = "x,y\n0,-5\n1,0\n2,12\n";
+
+    let list = draw_list(source, csv);
+    let clip = mark_clip_rect(&list).expect("half-open domain opens a mark clip");
+    assert_eq!(clip, (0.0, 0.0, 320.0, 193.0));
+
+    let metadata = render_metadata_json(source, csv);
+    assert_eq!(
+        metadata["plots"][0]["clip_rect"],
+        serde_json::json!({"x":0,"y":0,"width":320,"height":193})
+    );
+    let marks = metadata["marks"].as_array().expect("marks");
+    assert_eq!(marks[0]["clipped"], true, "below the pinned floor");
+    assert!(marks[1]["clipped"].is_null(), "point on the floor is whole");
+    assert!(
+        marks[2]["clipped"].is_null(),
+        "data-trained top edge stays open"
+    );
 }
 
 #[test]
@@ -173,7 +246,7 @@ fn explicit_axis_domain_clips_cartesian_marks_by_default() {
     let metadata = render_metadata_json(source, csv);
     assert_eq!(
         metadata["plots"][0]["clip_rect"],
-        metadata["plots"][0]["plot_rect"]
+        serde_json::json!({"x":0,"y":37,"width":320,"height":156})
     );
     let marks = metadata["marks"].as_array().expect("marks");
     let clipped_for = |id: &str| {
@@ -186,6 +259,39 @@ fn explicit_axis_domain_clips_cartesian_marks_by_default() {
     assert_eq!(clipped_for("p0:g0:r0"), true);
     assert!(clipped_for("p0:g0:r1").is_null());
     assert_eq!(clipped_for("p0:g0:r2"), true);
+}
+
+#[test]
+fn clipped_edge_bleeds_by_boundary_mark_radius_but_still_masks_far_out_marks() {
+    let source = r#"Chart(data: "p.csv", width: 320, height: 240) {
+  Scale(axis: y, domain: [0, 10])
+  Space(x * y) {
+    Point(size: 8)
+  }
+}"#;
+    let csv = "x,y\n0,-5\n1,0\n2,10\n3,15\n";
+
+    let list = draw_list(source, csv);
+    let clip = mark_clip_rect(&list).expect("fully pinned y domain opens a mark clip");
+    assert_eq!(clip, (0.0, 32.0, 320.0, 166.0));
+    let points = circles(&list);
+    let bottom_boundary = points[1];
+    let top_boundary = points[2];
+    assert!(
+        bottom_boundary.1 + 8.0 <= clip.1 + clip.3 + f64::EPSILON,
+        "bottom boundary point should fit inside the bled clip"
+    );
+    assert!(
+        top_boundary.1 - 8.0 >= clip.1 - f64::EPSILON,
+        "top boundary point should fit inside the bled clip"
+    );
+
+    let metadata = render_metadata_json(source, csv);
+    let marks = metadata["marks"].as_array().expect("marks");
+    assert_eq!(marks[0]["clipped"], true);
+    assert!(marks[1]["clipped"].is_null());
+    assert!(marks[2]["clipped"].is_null());
+    assert_eq!(marks[3]["clipped"], true);
 }
 
 #[test]

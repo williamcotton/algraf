@@ -4,7 +4,7 @@
 <text class="algraf-title" x="10" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Revenue hierarchy</text>
 <rect class="algraf-plot-area" x="10" y="36" width="680" height="374" fill="#ffffff" />
 <defs>
-<clipPath id="algraf-clip-0"><rect x="10" y="36" width="680" height="374" /></clipPath>
+<clipPath id="algraf-clip-0"><rect x="9" y="35" width="682" height="376" /></clipPath>
 </defs>
 <g clip-path="url(#algraf-clip-0)">
   <g class="algraf-layer algraf-geom-rect">

@@ -21,13 +21,8 @@
   <line x1="60" y1="225.978" x2="730" y2="225.978" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="145.829" x2="730" y2="145.829" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<defs>
-<clipPath id="algraf-clip-0"><rect x="60" y="66" width="670" height="344" /></clipPath>
-</defs>
-<g clip-path="url(#algraf-clip-0)">
-  <g class="algraf-layer algraf-geom-line">
-    <path d="M106.207 354.216 L144.713 378.261 L183.218 322.157 L221.724 282.082 L260.23 298.112 L298.736 266.052 L337.241 177.888 L375.747 169.873 L414.253 113.769 L452.759 89.724 L491.264 193.918 L529.77 233.993 L568.276 250.022 L606.782 370.246 L645.287 386.276 L683.793 370.246" fill="none" stroke="steelblue" stroke-width="2" opacity="1" />
-  </g>
+<g class="algraf-layer algraf-geom-line">
+  <path d="M106.207 354.216 L144.713 378.261 L183.218 322.157 L221.724 282.082 L260.23 298.112 L298.736 266.052 L337.241 177.888 L375.747 169.873 L414.253 113.769 L452.759 89.724 L491.264 193.918 L529.77 233.993 L568.276 250.022 L606.782 370.246 L645.287 386.276 L683.793 370.246" fill="none" stroke="steelblue" stroke-width="2" opacity="1" />
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="730" y2="410" stroke="#333333" stroke-width="1" />
