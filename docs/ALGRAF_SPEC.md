@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.82.0
+Status: 0.83.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.82.0 specification.
+This working copy is the 0.83.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -7608,6 +7608,20 @@ non-string `caption:` or `source:` MUST emit the chart-argument type diagnostic.
 Badge sizing and these reserves use the deterministic approximate
 text-measurement model so output stays byte-stable.
 
+Version 0.83.0: the chart title, subtitle, caption, and source honor the
+`align` of their theme text token (§20.1, §20.8). Title and subtitle align to
+the plot rectangle's horizontal extent (`left` → plot left edge and no
+`text-anchor` attribute, preserving default output; `center` → plot center with
+`text-anchor="middle"`; `right` → plot right edge with `text-anchor="end"`).
+The caption and source block aligns to the viewport content box (`right`, the
+default, keeps the bottom-right placement at `width - 16`; `left` → `16` with
+`text-anchor="start"`; `center` → `width / 2`). When a title, subtitle, caption,
+or source token is `hidden` (§20.8), that text MUST NOT be emitted and its top
+or bottom reserve MUST be released so the plot reclaims the band. `font-weight`
+is emitted only for a non-`normal` resolved weight and `font-style` only for
+`italic`, so charts without typographic overrides render byte-for-byte as
+before.
+
 ### 17.4 Facet Layout
 
 Faceting uses nested spaces over a Cartesian plane.
@@ -7926,6 +7940,16 @@ equivalent op (§24.6). Because both backends observe the same primitive calls,
 they agree on coordinates and colors by construction, and a new geometry or
 guide primitive reaches every backend at once.
 
+Version 0.83.0: the text-mark primitive carries an optional `font-weight` and
+`font-style` so themed text tokens (§20.8) can be bold or italic. The SVG
+backend emits `font-weight` only for a non-`normal` resolved weight and
+`font-style` only for `italic`. The draw-list scene models text alignment
+through each text op's anchor and resolved x position (so SVG and draw-list
+agree on placement) but does not model per-run font weight/style — those remain
+SVG attributes. A `hidden` text token (§20.8) produces no text op in either
+backend, so hidden chrome is reflected by omission consistently across SVG,
+raster, and draw-list output.
+
 Glyph-mark planning is recursive over the same planned scene. For each glyph
 instance, planning MUST resolve the host anchor in pixel coordinates, match
 child rows explicitly, allocate the child viewport, train each child space using
@@ -8172,6 +8196,14 @@ Version 0.6.0 MUST support `Guide(axis: x, label: null)` (and `axis: y`) to
 suppress that axis's title, reusing the `null` = "suppress" convention. Axis
 ticks and grid lines are unaffected. `label` accepts a string literal or `null`;
 any other value MUST emit `E1204`.
+
+Version 0.83.0: a `hidden` axis text token (§20.8) suppresses axis text and
+reclaims its layout reserve. `axisTitle: Text(hidden: true)` suppresses both
+axis titles (composing with `Guide(axis:, label: null)`; either suppresses the
+title) and releases the title's share of the axis margin. `axisText:
+Text(hidden: true)` suppresses tick labels on both axes while keeping tick marks
+and the axis line, and releases the tick-label share of the margin. The two
+compose: hiding both collapses the axis band to the axis line.
 
 Version 0.20.0 MUST support `Guide(axis: x, timeFormat: "iso-minute")` and
 `Guide(axis: y, timeFormat: "iso-minute")` for temporal axes. `iso-minute`
@@ -8430,6 +8462,30 @@ pub struct TextStyle {
     pub font_family: String,
     pub size: f64,
     pub fill: String,
+    // Since 0.83.0 (spec §20.8). `weight`/`align` are `Option` so an unset
+    // value selects the element's natural default (title weight 600;
+    // caption/source right alignment) without divergent per-theme defaults.
+    pub weight: Option<FontWeight>,
+    pub style: FontStyle,
+    pub align: Option<TextAlign>,
+    pub hidden: bool,
+}
+
+pub enum FontWeight {
+    Normal,
+    Bold,
+    Numeric(u16), // 100–900, multiples of 100
+}
+
+pub enum FontStyle {
+    Normal,
+    Italic,
+}
+
+pub enum TextAlign {
+    Left,
+    Center,
+    Right,
 }
 
 pub struct LineStyle {
@@ -8462,6 +8518,22 @@ Version 0.82.0 adds editorial-chrome fields:
 - `axis_x_position` / `axis_y_position` — theme-level default axis side
   (`AxisPosition` is `Left`/`Right`/`Top`/`Bottom`), overridden per chart by
   `Guide(axis:, position:)` (§19.2, §19.3).
+
+Version 0.83.0 adds typographic fields to `TextStyle`, settable on every text
+token via the §20.8 `Text(...)` override form:
+
+- `weight: Option<FontWeight>` — font weight. `None` selects the token's natural
+  default; the chart title resolves `None` to `600` (so default output is
+  unchanged) and every other token to `normal`. A resolved `normal` weight emits
+  no `font-weight` attribute, so byte output is stable.
+- `style: FontStyle` — `normal` (default, no attribute) or `italic`.
+- `align: Option<TextAlign>` — horizontal alignment. `None` selects the token's
+  natural default: `left` for `plot_title`/`plot_subtitle`, `right` for
+  `plot_caption`/`plot_source`. Alignment governs the chart title, subtitle,
+  caption, and source blocks (§17.3); on axis, legend, and strip tokens the
+  property is accepted but does not move their already-anchored text.
+- `hidden: bool` — when `true`, the text element is suppressed entirely and its
+  layout reserve is reclaimed (§17.3, §19.4).
 
 ### 20.2 Minimal Theme
 
@@ -8586,8 +8658,21 @@ Grouped, geometry-style overrides reuse existing property value forms:
 
 - text styles: `plotTitle`, `plotSubtitle`, `plotCaption`, `plotSource`,
   `axisTitle`, `axisText`, `stripText`, `legendTitle`, and `legendText` accept
-  `Text(fontFamily?, size?, fill?)`. `plotSource` (since 0.82.0) styles the
-  `source:` line (§17.3).
+  `Text(fontFamily?, size?, fill?, weight?, style?, align?, hidden?)`.
+  `plotSource` (since 0.82.0) styles the `source:` line (§17.3). The typographic
+  properties (since 0.83.0) are:
+  - `weight` — `"normal"`, `"bold"`, or an integer in `100`–`900` (multiples of
+    `100`), mapping to SVG `font-weight`. A non-`100` multiple, an out-of-range
+    integer, or an unknown string MUST emit `E1705`.
+  - `style` — `"normal"` or `"italic"`, mapping to SVG `font-style`. Any other
+    value MUST emit `E1705`.
+  - `align` — `"left"`, `"center"`, or `"right"` (with `"start"`/`"middle"`/
+    `"end"` accepted as synonyms), selecting the horizontal placement of the
+    chart title, subtitle, caption, and source blocks (§17.3). Any other value
+    MUST emit `E1705`.
+  - `hidden` — a boolean; when `true` the text element is suppressed and its
+    layout reserve reclaimed (§17.3, §19.4). A non-boolean MUST emit `E1705`.
+  An unknown sub-property key inside `Text(...)` MUST emit `E1705`.
 - line styles: `gridMajor` and `gridMinor` accept
   `Line(stroke?, strokeWidth?)`.
 - rectangle styles: `panelBackground` accepts
@@ -11393,6 +11478,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.81.0 | [`V0_81_PLAN.md`](V0_81_PLAN.md) | LSP document-version test harness stability | Implemented |
 | 0.82.0 | [`V0_82_PLAN.md`](V0_82_PLAN.md) | Editorial chart primitives: opposite-side axes, multi-line caption/source, callout badges, per-axis grid, numeric axis format | Implemented |
 | 0.82.0 | [`V0_82_PLAN.md`](V0_82_PLAN.md) | Editorial chart design primitives: opposite-side axes, multi-line caption/source blocks, and annotation callout badges | Proposed |
+| 0.83.0 | [`V0_83_PLAN.md`](V0_83_PLAN.md) | Typographic control of chart text chrome: weight/style/alignment and visibility for title, subtitle, caption, source, and axis/legend/strip text | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

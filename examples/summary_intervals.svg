@@ -12,17 +12,27 @@
   <line x1="60" y1="201.515" x2="610" y2="201.515" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="107.468" x2="610" y2="107.468" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-segment">
-  <line x1="197.5" y1="334.687" x2="197.5" y2="294.054" stroke="#006BA4" stroke-width="2" opacity="1" />
-  <line x1="197.5" y1="386.276" x2="197.5" y2="336.511" stroke="#FF800E" stroke-width="2" opacity="1" />
-  <line x1="472.5" y1="144.022" x2="472.5" y2="89.724" stroke="#006BA4" stroke-width="2" opacity="1" />
-  <line x1="472.5" y1="202.541" x2="472.5" y2="144.061" stroke="#FF800E" stroke-width="2" opacity="1" />
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="66" width="550" height="344" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-segment">
+    <line x1="197.5" y1="334.687" x2="197.5" y2="294.054" stroke="#006BA4" stroke-width="2" opacity="1" />
+    <line x1="197.5" y1="386.276" x2="197.5" y2="336.511" stroke="#FF800E" stroke-width="2" opacity="1" />
+    <line x1="472.5" y1="144.022" x2="472.5" y2="89.724" stroke="#006BA4" stroke-width="2" opacity="1" />
+    <line x1="472.5" y1="202.541" x2="472.5" y2="144.061" stroke="#FF800E" stroke-width="2" opacity="1" />
+  </g>
 </g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="197.5" cy="314.37" r="4" fill="#006BA4" opacity="1" />
-  <circle cx="197.5" cy="361.394" r="4" fill="#FF800E" opacity="1" />
-  <circle cx="472.5" cy="116.873" r="4" fill="#006BA4" opacity="1" />
-  <circle cx="472.5" cy="173.301" r="4" fill="#FF800E" opacity="1" />
+<defs>
+<clipPath id="algraf-clip-1"><rect x="60" y="66" width="550" height="344" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-1)">
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="197.5" cy="314.37" r="4" fill="#006BA4" opacity="1" />
+    <circle cx="197.5" cy="361.394" r="4" fill="#FF800E" opacity="1" />
+    <circle cx="472.5" cy="116.873" r="4" fill="#006BA4" opacity="1" />
+    <circle cx="472.5" cy="173.301" r="4" fill="#FF800E" opacity="1" />
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="610" y2="410" stroke="#333333" stroke-width="1" />

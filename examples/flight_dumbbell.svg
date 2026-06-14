@@ -3,24 +3,29 @@
 <rect class="algraf-background" x="0" y="0" width="760" height="440" fill="#ffffff" />
 <text class="algraf-title" x="96.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Flight Ticket Prices by Airline and Class</text>
 <rect class="algraf-plot-area" x="96.8" y="66" width="513.2" height="324" fill="#ffffff" />
-<g class="algraf-layer algraf-geom-line">
-  <path d="M182.333 357.6 L524.467 357.6" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
-  <path d="M199.44 292.8 L564.382 292.8" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
-  <path d="M176.631 228 L495.956 228" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
-  <path d="M148.12 163.2 L410.422 163.2" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
-  <path d="M125.311 98.4 L279.271 98.4" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="182.333" cy="357.6" r="7" fill="#4E79A7" opacity="1" />
-  <circle cx="524.467" cy="357.6" r="7" fill="#F28E2B" opacity="1" />
-  <circle cx="199.44" cy="292.8" r="7" fill="#4E79A7" opacity="1" />
-  <circle cx="564.382" cy="292.8" r="7" fill="#F28E2B" opacity="1" />
-  <circle cx="176.631" cy="228" r="7" fill="#4E79A7" opacity="1" />
-  <circle cx="495.956" cy="228" r="7" fill="#F28E2B" opacity="1" />
-  <circle cx="148.12" cy="163.2" r="7" fill="#4E79A7" opacity="1" />
-  <circle cx="410.422" cy="163.2" r="7" fill="#F28E2B" opacity="1" />
-  <circle cx="125.311" cy="98.4" r="7" fill="#4E79A7" opacity="1" />
-  <circle cx="279.271" cy="98.4" r="7" fill="#F28E2B" opacity="1" />
+<defs>
+<clipPath id="algraf-clip-0"><rect x="96.8" y="66" width="513.2" height="324" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-line">
+    <path d="M182.333 357.6 L524.467 357.6" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
+    <path d="M199.44 292.8 L564.382 292.8" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
+    <path d="M176.631 228 L495.956 228" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
+    <path d="M148.12 163.2 L410.422 163.2" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
+    <path d="M125.311 98.4 L279.271 98.4" fill="none" stroke="#cccccc" stroke-width="4" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="182.333" cy="357.6" r="7" fill="#4E79A7" opacity="1" />
+    <circle cx="524.467" cy="357.6" r="7" fill="#F28E2B" opacity="1" />
+    <circle cx="199.44" cy="292.8" r="7" fill="#4E79A7" opacity="1" />
+    <circle cx="564.382" cy="292.8" r="7" fill="#F28E2B" opacity="1" />
+    <circle cx="176.631" cy="228" r="7" fill="#4E79A7" opacity="1" />
+    <circle cx="495.956" cy="228" r="7" fill="#F28E2B" opacity="1" />
+    <circle cx="148.12" cy="163.2" r="7" fill="#4E79A7" opacity="1" />
+    <circle cx="410.422" cy="163.2" r="7" fill="#F28E2B" opacity="1" />
+    <circle cx="125.311" cy="98.4" r="7" fill="#4E79A7" opacity="1" />
+    <circle cx="279.271" cy="98.4" r="7" fill="#F28E2B" opacity="1" />
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="96.8" y1="390" x2="610" y2="390" stroke="#333333" stroke-width="1" />

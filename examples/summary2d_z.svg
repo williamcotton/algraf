@@ -25,21 +25,26 @@
   <line x1="60" y1="200.069" x2="610" y2="200.069" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="117.31" x2="610" y2="117.31" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-rect">
-  <rect x="60" y="340.759" width="91.667" height="82.759" fill="#f7fbff" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="151.667" y="340.759" width="91.667" height="82.759" fill="#a4c6e2" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="151.667" y="258" width="91.667" height="82.759" fill="#5190c6" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="243.333" y="258" width="91.667" height="82.759" fill="#1f6bae" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="335" y="258" width="91.667" height="82.759" fill="#134d8c" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="151.667" y="175.241" width="91.667" height="82.759" fill="#7babd4" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="335" y="175.241" width="91.667" height="82.759" fill="#0c3a77" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="426.667" y="175.241" width="91.667" height="82.759" fill="#08306b" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="60" y="92.483" width="91.667" height="82.759" fill="#c0d7ec" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="151.667" y="92.483" width="91.667" height="82.759" fill="#4487c1" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="243.333" y="92.483" width="91.667" height="82.759" fill="#155291" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="335" y="92.483" width="91.667" height="82.759" fill="#0d3d79" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="426.667" y="92.483" width="91.667" height="82.759" fill="#0a3672" stroke="#ffffff" stroke-width="0.35" opacity="1" />
-  <rect x="518.333" y="92.483" width="91.667" height="82.759" fill="#18599a" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="66" width="550" height="384" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-rect">
+    <rect x="60" y="340.759" width="91.667" height="82.759" fill="#f7fbff" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="151.667" y="340.759" width="91.667" height="82.759" fill="#a4c6e2" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="151.667" y="258" width="91.667" height="82.759" fill="#5190c6" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="243.333" y="258" width="91.667" height="82.759" fill="#1f6bae" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="335" y="258" width="91.667" height="82.759" fill="#134d8c" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="151.667" y="175.241" width="91.667" height="82.759" fill="#7babd4" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="335" y="175.241" width="91.667" height="82.759" fill="#0c3a77" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="426.667" y="175.241" width="91.667" height="82.759" fill="#08306b" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="60" y="92.483" width="91.667" height="82.759" fill="#c0d7ec" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="151.667" y="92.483" width="91.667" height="82.759" fill="#4487c1" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="243.333" y="92.483" width="91.667" height="82.759" fill="#155291" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="335" y="92.483" width="91.667" height="82.759" fill="#0d3d79" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="426.667" y="92.483" width="91.667" height="82.759" fill="#0a3672" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+    <rect x="518.333" y="92.483" width="91.667" height="82.759" fill="#18599a" stroke="#ffffff" stroke-width="0.35" opacity="1" />
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="450" x2="610" y2="450" stroke="#333333" stroke-width="1" />

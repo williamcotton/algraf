@@ -86,69 +86,89 @@
   <line x1="391" y1="335.5" x2="650" y2="335.5" stroke="#e6e6e6" stroke-width="1" />
   <line x1="391" y1="304" x2="650" y2="304" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-line">
-  <path d="M60 153 L189.5 121.5 L319 134.1" fill="none" stroke="#006BA4" stroke-width="2.5" opacity="1" />
-  <path d="M60 190.8 L189.5 178.2 L319 181.35" fill="none" stroke="#FF800E" stroke-width="2.5" opacity="1" />
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="90" width="259" height="126" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-line">
+    <path d="M60 153 L189.5 121.5 L319 134.1" fill="none" stroke="#006BA4" stroke-width="2.5" opacity="1" />
+    <path d="M60 190.8 L189.5 178.2 L319 181.35" fill="none" stroke="#FF800E" stroke-width="2.5" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="60" cy="153" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="189.5" cy="121.5" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="319" cy="134.1" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="60" cy="190.8" r="5" fill="#FF800E" opacity="1" />
+    <circle cx="189.5" cy="178.2" r="5" fill="#FF800E" opacity="1" />
+    <circle cx="319" cy="181.35" r="5" fill="#FF800E" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-hline">
+    <line x1="60" y1="153" x2="319" y2="153" stroke="#ff4444" stroke-width="1.5" opacity="1" />
+    <text x="315" y="149" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Daily Target</text>
+  </g>
 </g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="60" cy="153" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="189.5" cy="121.5" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="319" cy="134.1" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="60" cy="190.8" r="5" fill="#FF800E" opacity="1" />
-  <circle cx="189.5" cy="178.2" r="5" fill="#FF800E" opacity="1" />
-  <circle cx="319" cy="181.35" r="5" fill="#FF800E" opacity="1" />
+<defs>
+<clipPath id="algraf-clip-1"><rect x="391" y="90" width="259" height="126" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-1)">
+  <g class="algraf-layer algraf-geom-line">
+    <path d="M391 115.2 L520.5 127.8 L650 108.9" fill="none" stroke="#006BA4" stroke-width="2.5" opacity="1" />
+    <path d="M391 165.6 L520.5 159.3 L650 146.7" fill="none" stroke="#FF800E" stroke-width="2.5" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="391" cy="115.2" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="520.5" cy="127.8" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="650" cy="108.9" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="391" cy="165.6" r="5" fill="#FF800E" opacity="1" />
+    <circle cx="520.5" cy="159.3" r="5" fill="#FF800E" opacity="1" />
+    <circle cx="650" cy="146.7" r="5" fill="#FF800E" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-hline">
+    <line x1="391" y1="153" x2="650" y2="153" stroke="#ff4444" stroke-width="1.5" opacity="1" />
+    <text x="646" y="149" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Daily Target</text>
+  </g>
 </g>
-<g class="algraf-layer algraf-geom-hline">
-  <line x1="60" y1="153" x2="319" y2="153" stroke="#ff4444" stroke-width="1.5" opacity="1" />
-  <text x="315" y="149" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Daily Target</text>
+<defs>
+<clipPath id="algraf-clip-2"><rect x="60" y="304" width="259" height="126" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-2)">
+  <g class="algraf-layer algraf-geom-line">
+    <path d="M60 385.9 L189.5 379.6 L319 373.3" fill="none" stroke="#006BA4" stroke-width="2.5" opacity="1" />
+    <path d="M60 411.1 L189.5 404.8 L319 398.5" fill="none" stroke="#FF800E" stroke-width="2.5" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="60" cy="385.9" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="189.5" cy="379.6" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="319" cy="373.3" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="60" cy="411.1" r="5" fill="#FF800E" opacity="1" />
+    <circle cx="189.5" cy="404.8" r="5" fill="#FF800E" opacity="1" />
+    <circle cx="319" cy="398.5" r="5" fill="#FF800E" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-hline">
+    <line x1="60" y1="367" x2="319" y2="367" stroke="#ff4444" stroke-width="1.5" opacity="1" />
+    <text x="315" y="363" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Daily Target</text>
+  </g>
 </g>
-<g class="algraf-layer algraf-geom-line">
-  <path d="M391 115.2 L520.5 127.8 L650 108.9" fill="none" stroke="#006BA4" stroke-width="2.5" opacity="1" />
-  <path d="M391 165.6 L520.5 159.3 L650 146.7" fill="none" stroke="#FF800E" stroke-width="2.5" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="391" cy="115.2" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="520.5" cy="127.8" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="650" cy="108.9" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="391" cy="165.6" r="5" fill="#FF800E" opacity="1" />
-  <circle cx="520.5" cy="159.3" r="5" fill="#FF800E" opacity="1" />
-  <circle cx="650" cy="146.7" r="5" fill="#FF800E" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-hline">
-  <line x1="391" y1="153" x2="650" y2="153" stroke="#ff4444" stroke-width="1.5" opacity="1" />
-  <text x="646" y="149" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Daily Target</text>
-</g>
-<g class="algraf-layer algraf-geom-line">
-  <path d="M60 385.9 L189.5 379.6 L319 373.3" fill="none" stroke="#006BA4" stroke-width="2.5" opacity="1" />
-  <path d="M60 411.1 L189.5 404.8 L319 398.5" fill="none" stroke="#FF800E" stroke-width="2.5" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="60" cy="385.9" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="189.5" cy="379.6" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="319" cy="373.3" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="60" cy="411.1" r="5" fill="#FF800E" opacity="1" />
-  <circle cx="189.5" cy="404.8" r="5" fill="#FF800E" opacity="1" />
-  <circle cx="319" cy="398.5" r="5" fill="#FF800E" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-hline">
-  <line x1="60" y1="367" x2="319" y2="367" stroke="#ff4444" stroke-width="1.5" opacity="1" />
-  <text x="315" y="363" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Daily Target</text>
-</g>
-<g class="algraf-layer algraf-geom-line">
-  <path d="M391 354.4 L520.5 348.1 L650 341.8" fill="none" stroke="#006BA4" stroke-width="2.5" opacity="1" />
-  <path d="M391 398.5 L520.5 392.2 L650 385.9" fill="none" stroke="#FF800E" stroke-width="2.5" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="391" cy="354.4" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="520.5" cy="348.1" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="650" cy="341.8" r="5" fill="#006BA4" opacity="1" />
-  <circle cx="391" cy="398.5" r="5" fill="#FF800E" opacity="1" />
-  <circle cx="520.5" cy="392.2" r="5" fill="#FF800E" opacity="1" />
-  <circle cx="650" cy="385.9" r="5" fill="#FF800E" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-hline">
-  <line x1="391" y1="367" x2="650" y2="367" stroke="#ff4444" stroke-width="1.5" opacity="1" />
-  <text x="646" y="363" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Daily Target</text>
+<defs>
+<clipPath id="algraf-clip-3"><rect x="391" y="304" width="259" height="126" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-3)">
+  <g class="algraf-layer algraf-geom-line">
+    <path d="M391 354.4 L520.5 348.1 L650 341.8" fill="none" stroke="#006BA4" stroke-width="2.5" opacity="1" />
+    <path d="M391 398.5 L520.5 392.2 L650 385.9" fill="none" stroke="#FF800E" stroke-width="2.5" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="391" cy="354.4" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="520.5" cy="348.1" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="650" cy="341.8" r="5" fill="#006BA4" opacity="1" />
+    <circle cx="391" cy="398.5" r="5" fill="#FF800E" opacity="1" />
+    <circle cx="520.5" cy="392.2" r="5" fill="#FF800E" opacity="1" />
+    <circle cx="650" cy="385.9" r="5" fill="#FF800E" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-hline">
+    <line x1="391" y1="367" x2="650" y2="367" stroke="#ff4444" stroke-width="1.5" opacity="1" />
+    <text x="646" y="363" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Daily Target</text>
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="216" x2="319" y2="216" stroke="#333333" stroke-width="1" />

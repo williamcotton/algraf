@@ -21,63 +21,68 @@
   <line x1="60" y1="154.5" x2="610" y2="154.5" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="66" x2="610" y2="66" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="548.889" cy="110.25" r="7.2" fill="#006BA4" opacity="0.85"><title>station_name: Central Station
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="66" width="550" height="354" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="548.889" cy="110.25" r="7.2" fill="#006BA4" opacity="0.85"><title>station_name: Central Station
 zone: Downtown
 capacity: 32
 trips: 7
 revenue: 27.9</title></circle>
-  <circle cx="487.778" cy="154.5" r="6.921" fill="#006BA4" opacity="0.85"><title>station_name: Library Plaza
+    <circle cx="487.778" cy="154.5" r="6.921" fill="#006BA4" opacity="0.85"><title>station_name: Library Plaza
 zone: Downtown
 capacity: 28
 trips: 6
 revenue: 26.4</title></circle>
-  <circle cx="457.222" cy="154.5" r="7.723" fill="#FF800E" opacity="0.85"><title>station_name: Market Hall
+    <circle cx="457.222" cy="154.5" r="7.723" fill="#FF800E" opacity="0.85"><title>station_name: Market Hall
 zone: Market
 capacity: 26
 trips: 6
 revenue: 30.7</title></circle>
-  <circle cx="426.667" cy="154.5" r="7.238" fill="#ABABAB" opacity="0.85"><title>station_name: North Campus
+    <circle cx="426.667" cy="154.5" r="7.238" fill="#ABABAB" opacity="0.85"><title>station_name: North Campus
 zone: Campus
 capacity: 24
 trips: 6
 revenue: 28.1</title></circle>
-  <circle cx="518.333" cy="243" r="13" fill="#595959" opacity="0.85"><title>station_name: Museum Loop
+    <circle cx="518.333" cy="243" r="13" fill="#595959" opacity="0.85"><title>station_name: Museum Loop
 zone: Cultural
 capacity: 30
 trips: 4
 revenue: 59</title></circle>
-  <circle cx="396.111" cy="243" r="11.657" fill="#5F9ED1" opacity="0.85"><title>station_name: River Park
+    <circle cx="396.111" cy="243" r="11.657" fill="#5F9ED1" opacity="0.85"><title>station_name: River Park
 zone: Riverfront
 capacity: 22
 trips: 4
 revenue: 51.8</title></circle>
-  <circle cx="335" cy="243" r="5" fill="#ABABAB" opacity="0.85"><title>station_name: Science Center
+    <circle cx="335" cy="243" r="5" fill="#ABABAB" opacity="0.85"><title>station_name: Science Center
 zone: Campus
 capacity: 18
 trips: 4
 revenue: 16.1</title></circle>
-  <circle cx="365.556" cy="287.25" r="6.734" fill="#5F9ED1" opacity="0.85"><title>station_name: Marina Gate
+    <circle cx="365.556" cy="287.25" r="6.734" fill="#5F9ED1" opacity="0.85"><title>station_name: Marina Gate
 zone: Riverfront
 capacity: 20
 trips: 3
 revenue: 25.4</title></circle>
-  <circle cx="304.444" cy="331.5" r="6.268" fill="#5F9ED1" opacity="0.85"><title>station_name: Harbor Point
+    <circle cx="304.444" cy="331.5" r="6.268" fill="#5F9ED1" opacity="0.85"><title>station_name: Harbor Point
 zone: Riverfront
 capacity: 16
 trips: 2
 revenue: 22.9</title></circle>
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="548.889" y="98.25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Central Station</text>
-  <text x="532.222" y="142.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Library Plaza</text>
-  <text x="456.222" y="142.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Market Hall</text>
-  <text x="383.222" y="142.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">North Campus</text>
-  <text x="518.333" y="231" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Museum Loop</text>
-  <text x="403.556" y="231" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">River Park</text>
-  <text x="327.556" y="231" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Science Center</text>
-  <text x="365.556" y="275.25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Marina Gate</text>
-  <text x="304.444" y="319.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Harbor Point</text>
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="548.889" y="98.25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Central Station</text>
+    <text x="532.222" y="142.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Library Plaza</text>
+    <text x="456.222" y="142.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Market Hall</text>
+    <text x="383.222" y="142.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">North Campus</text>
+    <text x="518.333" y="231" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Museum Loop</text>
+    <text x="403.556" y="231" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">River Park</text>
+    <text x="327.556" y="231" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Science Center</text>
+    <text x="365.556" y="275.25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Marina Gate</text>
+    <text x="304.444" y="319.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">Harbor Point</text>
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="420" x2="610" y2="420" stroke="#333333" stroke-width="1" />

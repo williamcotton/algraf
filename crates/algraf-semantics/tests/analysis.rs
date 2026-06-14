@@ -4,9 +4,10 @@ use algraf_core::Span;
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
     analyze_source, planning, AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef, DataSourceIr,
-    FrameIr, GeometryKind, GradientIr, GridBinsIr, IntervalOrientationIr, LevelSpecIr, PropertyKey,
-    QqDistributionIr, ScaleModeIr, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef,
-    StatKind, StatOptionsIr, StepDirectionIr, SummaryReducerIr, TemporalFormatIr,
+    FontStyleIr, FontWeightIr, FrameIr, GeometryKind, GradientIr, GridBinsIr,
+    IntervalOrientationIr, LevelSpecIr, PropertyKey, QqDistributionIr, ScaleModeIr, ScaleTargetIr,
+    ScaleTypeIr, SettingValue, SpaceDataRef, StatKind, StatOptionsIr, StepDirectionIr,
+    SummaryReducerIr, TemporalFormatIr, TextAlignIr,
 };
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
@@ -2273,6 +2274,101 @@ fn test_theme_grouped_override_wrong_shape_is_reported() {
 fn test_theme_invalid_legend_position_is_reported() {
     assert!(has(
         "Chart(data: \"p.csv\") {\n  Theme(legendPosition: \"inside\")\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+// --- v0.83.0: typographic text-token properties (spec §20.8) ---
+
+#[test]
+fn test_theme_text_typography_is_recorded() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\", plotTitle: Text(weight: \"bold\", style: \"italic\", align: \"center\"), plotCaption: Text(align: \"left\"), axisTitle: Text(weight: 700, hidden: true))\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let theme = analysis.ir.expect("ir").theme.expect("theme");
+    let title = theme.overrides.plot_title.as_ref().expect("plotTitle");
+    assert_eq!(title.weight, Some(FontWeightIr::Bold));
+    assert_eq!(title.style, Some(FontStyleIr::Italic));
+    assert_eq!(title.align, Some(TextAlignIr::Center));
+    assert_eq!(
+        theme.overrides.plot_caption.as_ref().and_then(|t| t.align),
+        Some(TextAlignIr::Left)
+    );
+    let axis_title = theme.overrides.axis_title.as_ref().expect("axisTitle");
+    assert_eq!(axis_title.weight, Some(FontWeightIr::Numeric(700)));
+    assert_eq!(axis_title.hidden, Some(true));
+}
+
+#[test]
+fn test_theme_align_synonyms_map_to_canonical() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\", plotTitle: Text(align: \"end\"), plotSubtitle: Text(align: \"middle\"))\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let theme = analysis.ir.expect("ir").theme.expect("theme");
+    assert_eq!(
+        theme.overrides.plot_title.as_ref().and_then(|t| t.align),
+        Some(TextAlignIr::Right)
+    );
+    assert_eq!(
+        theme.overrides.plot_subtitle.as_ref().and_then(|t| t.align),
+        Some(TextAlignIr::Center)
+    );
+}
+
+#[test]
+fn test_theme_invalid_weight_is_reported() {
+    // 150 is not a multiple of 100.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(plotTitle: Text(weight: 150))\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+    // A weight string outside normal/bold.
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(plotTitle: Text(weight: \"heavy\"))\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+#[test]
+fn test_theme_invalid_style_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(plotTitle: Text(style: \"oblique\"))\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+#[test]
+fn test_theme_invalid_align_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(plotTitle: Text(align: \"justify\"))\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+#[test]
+fn test_theme_non_boolean_hidden_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(plotTitle: Text(hidden: \"yes\"))\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+#[test]
+fn test_theme_unknown_text_property_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(plotTitle: Text(slant: 5))\n  Space(value) { Point() }\n}",
         "E1705",
     ));
 }

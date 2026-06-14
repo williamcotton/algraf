@@ -312,6 +312,40 @@ Chart(data: "strategic_reserves.csv", width: 600, height: 560,
 
 ![strategic_reserves](examples/strategic_reserves.svg)
 
+### Typographic control of chart text
+
+Every text token a chart draws — title, subtitle, caption, source, and the
+axis/legend/strip text — takes the same typographic vocabulary through the
+`Text(...)` theme override: `weight` (`"normal"`/`"bold"`/`100`–`900`), `style`
+(`"normal"`/`"italic"`), `align` (`"left"`/`"center"`/`"right"`), and `hidden`.
+Alignment moves the title, subtitle, caption, and source blocks; `hidden`
+removes a text element entirely and reclaims its space. Here the title is
+centered and bold, the subtitle centered and italic, the caption and source are
+left-aligned, and the axis titles are hidden so the plot reclaims the band.
+
+```algraf
+Chart(data: "strategic_reserves.csv", width: 640, height: 520,
+    title: "Oil spill",
+    subtitle: "Crude-oil strategic reserves, m barrels",
+    caption: "Excludes private reserves",
+    source: "Source: EIA") {
+    Theme(name: "minimal",
+        plotTitle: Text(size: 24, weight: "bold", align: "center", fill: "#111111"),
+        plotSubtitle: Text(size: 13, style: "italic", align: "center", fill: "#666666"),
+        plotCaption: Text(align: "left"),
+        plotSource: Text(align: "left", style: "italic", fill: "#9a9a9a"),
+        axisTitle: Text(hidden: true))
+    Scale(stroke: country, range: ["United States" => "#e3120b", "Japan" => "#f6a6a1"])
+    Guide(legend: false)
+
+    Space(year * reserves) {
+        Line(group: country, stroke: country, strokeWidth: 2)
+    }
+}
+```
+
+![text_chrome](examples/text_chrome.svg)
+
 ## Install and run
 
 From a checkout, build the native binary:

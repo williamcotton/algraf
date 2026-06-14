@@ -15,6 +15,8 @@
 //! Because both sinks see the same calls, the two backends agree on coordinates
 //! and colors by construction (spec §24.6).
 
+use algraf_semantics::{FontStyleIr, FontWeightIr};
+
 use crate::layout::Rect;
 use crate::render::{DrawOp, DrawRole, TextAnchor};
 use crate::svg::{escape_attr, escape_text, num, SvgWriter};
@@ -177,10 +179,22 @@ pub(crate) struct TextRun<'a> {
     pub(crate) rotate: Option<(f64, f64, f64)>,
     pub(crate) font_family: &'a str,
     pub(crate) font_size: f64,
+    /// Font weight; `None` emits no `font-weight` attribute (default `normal`).
+    /// Spec §20.8.
+    pub(crate) font_weight: Option<FontWeightIr>,
+    /// Font style; emits `font-style="italic"` only when italic. Spec §20.8.
+    pub(crate) font_style: FontStyleIr,
     pub(crate) fill: &'a str,
     pub(crate) opacity: Option<f64>,
     /// Logical text content. A `\n` splits into stacked tspans in SVG.
     pub(crate) content: &'a str,
+}
+
+impl TextRun<'_> {
+    /// The default typography (`normal` weight, upright) used by data-mark text
+    /// runs that are not styled by a theme text token.
+    pub(crate) const DEFAULT_WEIGHT: Option<FontWeightIr> = None;
+    pub(crate) const DEFAULT_STYLE: FontStyleIr = FontStyleIr::Normal;
 }
 
 /// A backend-neutral primitive sink (spec §24.6).
@@ -511,11 +525,17 @@ impl MarkSink for SvgSink<'_> {
             ));
         }
         s.push_str(&format!(
-            " font-family=\"{}\" font-size=\"{}\" fill=\"{}\"",
+            " font-family=\"{}\" font-size=\"{}\"",
             escape_attr(run.font_family),
             num(run.font_size),
-            escape_attr(run.fill),
         ));
+        if let Some(weight) = run.font_weight.and_then(FontWeightIr::svg_attr) {
+            s.push_str(&format!(" font-weight=\"{}\"", escape_attr(&weight)));
+        }
+        if let Some(style) = run.font_style.svg_attr() {
+            s.push_str(&format!(" font-style=\"{style}\""));
+        }
+        s.push_str(&format!(" fill=\"{}\"", escape_attr(run.fill)));
         if let Some(opacity) = run.opacity {
             s.push_str(&format!(" opacity=\"{}\"", num(opacity)));
         }

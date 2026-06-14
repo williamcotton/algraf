@@ -441,7 +441,9 @@ fn render_x_axis(
             &theme.axis_color,
             1.0,
         );
-        if !x_label_mask.get(index).copied().unwrap_or(true) {
+        // A hidden `axisText` token suppresses tick labels but keeps tick marks
+        // and the axis line (spec §20.8).
+        if theme.axis_text.hidden || !x_label_mask.get(index).copied().unwrap_or(true) {
             continue;
         }
         let tick_anchor = if x_angle < 0.0 {
@@ -468,8 +470,9 @@ fn render_x_axis(
         );
     }
     // An override of "" suppresses the axis title (`Guide(axis: x, label: null)`,
-    // spec §19.4); ticks and grid are unaffected.
-    if options.x_label_override != Some("") {
+    // spec §19.4); a hidden `axisTitle` token suppresses it too (spec §20.8).
+    // Ticks and grid are unaffected.
+    if options.x_label_override != Some("") && !theme.axis_title.hidden {
         let x_label = options
             .x_label_override
             .map(str::to_string)
@@ -537,6 +540,11 @@ fn render_y_axis(
         .enumerate()
     {
         grid_line(sink, tick_x1, *yp, tick_x2, *yp, &theme.axis_color, 1.0);
+        // A hidden `axisText` token suppresses tick labels but keeps tick marks
+        // and the axis line (spec §20.8).
+        if theme.axis_text.hidden {
+            continue;
+        }
         let row_offset = (index % y_rows) as f64 * row_gap;
         let label_x = if right {
             axis_x + Y_TICK_GAP + row_offset
@@ -553,7 +561,7 @@ fn render_y_axis(
             options.y_tick_label_angle.unwrap_or(0.0),
         );
     }
-    if options.y_label_override != Some("") {
+    if options.y_label_override != Some("") && !theme.axis_title.hidden {
         let cy = plot.y + plot.height / 2.0;
         let max_label_width = max_y_tick_label_width(
             space,
@@ -587,6 +595,8 @@ fn render_y_axis(
             rotate: Some((rotation, title_x, cy)),
             font_family: &theme.axis_title.font_family,
             font_size: theme.axis_title.size,
+            font_weight: theme.axis_title.weight,
+            font_style: theme.axis_title.style,
             fill: &theme.axis_title.fill,
             opacity: None,
             content: &y_label,
@@ -621,14 +631,18 @@ pub(crate) fn render_facet_label(sink: &mut dyn MarkSink, label: &str, area: Rec
             opacity: None,
         },
     );
-    styled_text(
-        sink,
-        area.x + area.width / 2.0,
-        area.y + area.height - 4.0,
-        "middle",
-        label,
-        &theme.strip_text,
-    );
+    // A hidden `stripText` token suppresses the label while keeping the strip
+    // background (spec §20.8).
+    if !theme.strip_text.hidden {
+        styled_text(
+            sink,
+            area.x + area.width / 2.0,
+            area.y + area.height - 4.0,
+            "middle",
+            label,
+            &theme.strip_text,
+        );
+    }
     sink.close_layer();
 }
 
@@ -647,6 +661,8 @@ fn styled_text(
         rotate: None,
         font_family: &style.font_family,
         font_size: style.size,
+        font_weight: style.weight,
+        font_style: style.style,
         fill: &style.fill,
         opacity: None,
         content,
@@ -669,6 +685,8 @@ fn tick_text(
         rotate: (angle != 0.0).then_some((angle, x, y)),
         font_family: &style.font_family,
         font_size: style.size,
+        font_weight: style.weight,
+        font_style: style.style,
         fill: &style.fill,
         opacity: None,
         content,
@@ -696,7 +714,9 @@ pub(crate) fn render_legends(
     }
     let mut y = area.y + 4.0;
     for legend in legends {
-        if !legend.title.is_empty() {
+        // A hidden `legendTitle`/`legendText` token suppresses the text while
+        // keeping the legend slot and swatches (spec §20.8).
+        if !legend.title.is_empty() && !theme.legend_title.hidden {
             styled_text(sink, area.x, y, "start", &legend.title, &theme.legend_title);
         }
         match legend.kind {
@@ -747,7 +767,9 @@ pub(crate) fn render_legends(
                             None => sink.rect(area.x, y - 10.0, 12.0, 12.0, &paint),
                         }
                     }
-                    styled_text(sink, area.x + 18.0, y, "start", label, &theme.legend_text);
+                    if !theme.legend_text.hidden {
+                        styled_text(sink, area.x + 18.0, y, "start", label, &theme.legend_text);
+                    }
                     y += theme.legend_text.size + 6.0;
                 }
             }
@@ -819,7 +841,9 @@ fn render_legends_horizontal(
 fn render_legend_compact(sink: &mut dyn MarkSink, legend: &Legend, x: f64, y: f64, theme: &Theme) {
     let mut cursor = x;
     if !legend.title.is_empty() {
-        styled_text(sink, cursor, y, "start", &legend.title, &theme.legend_title);
+        if !theme.legend_title.hidden {
+            styled_text(sink, cursor, y, "start", &legend.title, &theme.legend_title);
+        }
         cursor += estimate_text_width(&legend.title, theme.legend_title.size) + 14.0;
     }
     match legend.kind {
@@ -862,7 +886,9 @@ fn render_legend_compact(sink: &mut dyn MarkSink, legend: &Legend, x: f64, y: f6
                     }
                 }
                 cursor += 18.0;
-                styled_text(sink, cursor, y, "start", label, &theme.legend_text);
+                if !theme.legend_text.hidden {
+                    styled_text(sink, cursor, y, "start", label, &theme.legend_text);
+                }
                 cursor += estimate_text_width(label, theme.legend_text.size) + 12.0;
             }
         }

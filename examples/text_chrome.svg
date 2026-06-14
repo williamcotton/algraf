@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="520" viewBox="0 0 640 520" role="img" aria-label="Oil spill">
+<title>Oil spill</title>
+<desc>Crude-oil strategic reserves, m barrels
+Excludes private reserves</desc>
+<rect class="algraf-background" x="0" y="0" width="640" height="520" fill="#ffffff" />
+<text class="algraf-title" x="335" y="24" text-anchor="middle" font-family="system-ui, sans-serif" font-size="24" font-weight="bold" fill="#111111">Oil spill</text>
+<text class="algraf-subtitle" x="335" y="56" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-style="italic" fill="#666666">Crude-oil strategic reserves, m barrels</text>
+<text class="algraf-caption" x="16" y="494" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Excludes private reserves</text>
+<text class="algraf-source" x="16" y="508" text-anchor="start" font-family="system-ui, sans-serif" font-size="10" font-style="italic" fill="#9a9a9a">Source: EIA</text>
+<rect class="algraf-plot-area" x="60" y="89" width="550" height="343" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="143.521" y1="89" x2="143.521" y2="432" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="234.702" y1="89" x2="234.702" y2="432" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="325.882" y1="89" x2="325.882" y2="432" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="417.062" y1="89" x2="417.062" y2="432" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="508.243" y1="89" x2="508.243" y2="432" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="373.721" x2="610" y2="373.721" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="304.473" x2="610" y2="304.473" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="235.224" x2="610" y2="235.224" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="165.976" x2="610" y2="165.976" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="97.931" y1="89" x2="97.931" y2="432" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="189.111" y1="89" x2="189.111" y2="432" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="280.292" y1="89" x2="280.292" y2="432" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="371.472" y1="89" x2="371.472" y2="432" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="462.653" y1="89" x2="462.653" y2="432" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="553.833" y1="89" x2="553.833" y2="432" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="408.345" x2="610" y2="408.345" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="339.097" x2="610" y2="339.097" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="269.849" x2="610" y2="269.849" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="200.6" x2="610" y2="200.6" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="131.352" x2="610" y2="131.352" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="89" width="550" height="343" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-line">
+    <path d="M97.931 241.457 L116.167 238.687 L134.403 201.293 L152.639 174.286 L170.875 147.972 L189.111 141.739 L207.347 138.969 L225.584 133.43 L243.82 126.505 L262.056 112.655 L280.292 112.655 L298.528 134.122 L316.764 134.815 L335 134.122 L353.236 137.585 L371.472 134.815 L389.708 134.815 L407.944 156.974 L426.18 166.669 L444.416 176.363 L462.653 174.286 L480.889 204.755 L499.125 358.486 L517.361 370.258 L535.597 349.484 L553.833 339.097 L572.069 332.172" fill="none" stroke="#e3120b" stroke-width="2" opacity="1" />
+    <path d="M97.931 408.345 L116.167 404.882 L134.403 402.805 L152.639 400.035 L170.875 397.958 L189.111 395.88 L207.347 394.495 L225.584 393.11 L243.82 391.033 L262.056 388.955 L280.292 387.57 L298.528 390.34 L316.764 391.725 L335 393.11 L353.236 394.495 L371.472 393.11 L389.708 391.725 L407.944 391.033 L426.18 389.648 L444.416 387.57 L462.653 386.185 L480.889 387.57 L499.125 395.88 L517.361 401.42 L535.597 400.035 L553.833 397.958 L572.069 395.88" fill="none" stroke="#f6a6a1" stroke-width="2" opacity="1" />
+  </g>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="432" x2="610" y2="432" stroke="#333333" stroke-width="1" />
+  <line x1="97.931" y1="432" x2="97.931" y2="437" stroke="#333333" stroke-width="1" />
+  <text x="97.931" y="450" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2000</text>
+  <line x1="189.111" y1="432" x2="189.111" y2="437" stroke="#333333" stroke-width="1" />
+  <text x="189.111" y="450" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2005</text>
+  <line x1="280.292" y1="432" x2="280.292" y2="437" stroke="#333333" stroke-width="1" />
+  <text x="280.292" y="450" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2010</text>
+  <line x1="371.472" y1="432" x2="371.472" y2="437" stroke="#333333" stroke-width="1" />
+  <text x="371.472" y="450" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2015</text>
+  <line x1="462.653" y1="432" x2="462.653" y2="437" stroke="#333333" stroke-width="1" />
+  <text x="462.653" y="450" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2020</text>
+  <line x1="553.833" y1="432" x2="553.833" y2="437" stroke="#333333" stroke-width="1" />
+  <text x="553.833" y="450" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2025</text>
+  <line x1="60" y1="89" x2="60" y2="432" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="408.345" x2="60" y2="408.345" stroke="#333333" stroke-width="1" />
+  <text x="52" y="412.345" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">300</text>
+  <line x1="55" y1="339.097" x2="60" y2="339.097" stroke="#333333" stroke-width="1" />
+  <text x="52" y="343.097" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">400</text>
+  <line x1="55" y1="269.849" x2="60" y2="269.849" stroke="#333333" stroke-width="1" />
+  <text x="52" y="273.849" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">500</text>
+  <line x1="55" y1="200.6" x2="60" y2="200.6" stroke="#333333" stroke-width="1" />
+  <text x="52" y="204.6" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">600</text>
+  <line x1="55" y1="131.352" x2="60" y2="131.352" stroke="#333333" stroke-width="1" />
+  <text x="52" y="135.352" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">700</text>
+</g>
+</svg>

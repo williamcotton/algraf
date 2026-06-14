@@ -4,50 +4,55 @@
 <rect class="algraf-background" x="0" y="0" width="760" height="440" fill="#ffffff" />
 <text class="algraf-title" x="68" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Lines changed per month around the v2 cutover</text>
 <text class="algraf-subtitle" x="68" y="50" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Each stack cohort's legend reads top-to-bottom like the rendered bands</text>
-<rect class="algraf-plot-area" x="68" y="82" width="542" height="308" fill="#ffffff" />
+<rect class="algraf-plot-area" x="68" y="82" width="537.6" height="308" fill="#ffffff" />
 <g class="algraf-grid">
-  <line x1="123.27" y1="82" x2="123.27" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
-  <line x1="230.243" y1="82" x2="230.243" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
-  <line x1="337.217" y1="82" x2="337.217" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
-  <line x1="445.974" y1="82" x2="445.974" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
-  <line x1="554.73" y1="82" x2="554.73" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
-  <line x1="68" y1="355.887" x2="610" y2="355.887" stroke="#f2f2f2" stroke-width="0.6" />
-  <line x1="68" y1="287.661" x2="610" y2="287.661" stroke="#f2f2f2" stroke-width="0.6" />
-  <line x1="68" y1="219.435" x2="610" y2="219.435" stroke="#f2f2f2" stroke-width="0.6" />
-  <line x1="68" y1="151.209" x2="610" y2="151.209" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="122.821" y1="82" x2="122.821" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="228.926" y1="82" x2="228.926" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="335.032" y1="82" x2="335.032" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="442.905" y1="82" x2="442.905" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="550.779" y1="82" x2="550.779" y2="390" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="355.887" x2="605.6" y2="355.887" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="287.661" x2="605.6" y2="287.661" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="219.435" x2="605.6" y2="219.435" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="151.209" x2="605.6" y2="151.209" stroke="#f2f2f2" stroke-width="0.6" />
   <line x1="68" y1="82" x2="68" y2="390" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="178.539" y1="82" x2="178.539" y2="390" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="281.947" y1="82" x2="281.947" y2="390" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="392.487" y1="82" x2="392.487" y2="390" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="499.461" y1="82" x2="499.461" y2="390" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="610" y1="82" x2="610" y2="390" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="68" y1="390" x2="610" y2="390" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="68" y1="321.774" x2="610" y2="321.774" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="68" y1="253.548" x2="610" y2="253.548" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="68" y1="185.322" x2="610" y2="185.322" stroke="#e6e6e6" stroke-width="1" />
-  <line x1="68" y1="117.096" x2="610" y2="117.096" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="177.642" y1="82" x2="177.642" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="280.211" y1="82" x2="280.211" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="389.853" y1="82" x2="389.853" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="495.958" y1="82" x2="495.958" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="605.6" y1="82" x2="605.6" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="390" x2="605.6" y2="390" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="321.774" x2="605.6" y2="321.774" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="253.548" x2="605.6" y2="253.548" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="185.322" x2="605.6" y2="185.322" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="117.096" x2="605.6" y2="117.096" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-area">
-  <path d="M68 319.045 L178.539 306.764 L281.947 289.025 L392.487 390 L499.461 390 L610 390 L610 390 L499.461 390 L392.487 390 L281.947 390 L178.539 390 L68 390 Z" fill="#8ecae6" opacity="0.76" />
-  <path d="M68 190.78 L178.539 186.686 L281.947 181.228 L392.487 390 L499.461 390 L610 390 L610 390 L499.461 390 L392.487 390 L281.947 289.025 L178.539 306.764 L68 319.045 Z" fill="#1f77b4" opacity="0.76" />
-  <path d="M68 190.78 L178.539 186.686 L281.947 181.228 L392.487 269.922 L499.461 313.587 L610 323.138 L610 390 L499.461 390 L392.487 390 L281.947 181.228 L178.539 186.686 L68 190.78 Z" fill="#ffbf69" opacity="0.76" />
-  <path d="M68 190.78 L178.539 186.686 L281.947 181.228 L392.487 104.815 L499.461 123.918 L610 115.731 L610 323.138 L499.461 313.587 L392.487 269.922 L281.947 181.228 L178.539 186.686 L68 190.78 Z" fill="#ff7f0e" opacity="0.76" />
+<defs>
+<clipPath id="algraf-clip-0"><rect x="68" y="82" width="537.6" height="308" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-area">
+    <path d="M68 319.045 L177.642 306.764 L280.211 289.025 L389.853 390 L495.958 390 L605.6 390 L605.6 390 L495.958 390 L389.853 390 L280.211 390 L177.642 390 L68 390 Z" fill="#8ecae6" opacity="0.76" />
+    <path d="M68 190.78 L177.642 186.686 L280.211 181.228 L389.853 390 L495.958 390 L605.6 390 L605.6 390 L495.958 390 L389.853 390 L280.211 289.025 L177.642 306.764 L68 319.045 Z" fill="#1f77b4" opacity="0.76" />
+    <path d="M68 190.78 L177.642 186.686 L280.211 181.228 L389.853 269.922 L495.958 313.587 L605.6 323.138 L605.6 390 L495.958 390 L389.853 390 L280.211 181.228 L177.642 186.686 L68 190.78 Z" fill="#ffbf69" opacity="0.76" />
+    <path d="M68 190.78 L177.642 186.686 L280.211 181.228 L389.853 104.815 L495.958 123.918 L605.6 115.731 L605.6 323.138 L495.958 313.587 L389.853 269.922 L280.211 181.228 L177.642 186.686 L68 190.78 Z" fill="#ff7f0e" opacity="0.76" />
+  </g>
 </g>
 <g class="algraf-axes">
-  <line x1="68" y1="390" x2="610" y2="390" stroke="#333333" stroke-width="1" />
+  <line x1="68" y1="390" x2="605.6" y2="390" stroke="#333333" stroke-width="1" />
   <line x1="68" y1="390" x2="68" y2="395" stroke="#333333" stroke-width="1" />
   <text x="68" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024-01</text>
-  <line x1="178.539" y1="390" x2="178.539" y2="395" stroke="#333333" stroke-width="1" />
-  <text x="178.539" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024-02</text>
-  <line x1="281.947" y1="390" x2="281.947" y2="395" stroke="#333333" stroke-width="1" />
-  <text x="281.947" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024-03</text>
-  <line x1="392.487" y1="390" x2="392.487" y2="395" stroke="#333333" stroke-width="1" />
-  <text x="392.487" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024-04</text>
-  <line x1="499.461" y1="390" x2="499.461" y2="395" stroke="#333333" stroke-width="1" />
-  <text x="499.461" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024-05</text>
-  <line x1="610" y1="390" x2="610" y2="395" stroke="#333333" stroke-width="1" />
-  <text x="610" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024-06</text>
-  <text x="339" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Month</text>
+  <line x1="177.642" y1="390" x2="177.642" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="177.642" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024-02</text>
+  <line x1="280.211" y1="390" x2="280.211" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="280.211" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024-03</text>
+  <line x1="389.853" y1="390" x2="389.853" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="389.853" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024-04</text>
+  <line x1="495.958" y1="390" x2="495.958" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="495.958" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024-05</text>
+  <line x1="605.6" y1="390" x2="605.6" y2="395" stroke="#333333" stroke-width="1" />
+  <text x="605.6" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2024-06</text>
+  <text x="336.8" y="428" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Month</text>
   <line x1="68" y1="82" x2="68" y2="390" stroke="#333333" stroke-width="1" />
   <line x1="63" y1="390" x2="68" y2="390" stroke="#333333" stroke-width="1" />
   <text x="60" y="394" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
@@ -62,14 +67,14 @@
   <text x="12" y="236" text-anchor="middle" transform="rotate(-90 12 236)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Lines</text>
 </g>
 <g class="algraf-legends">
-  <text x="626" y="86" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Lines</text>
-  <rect x="626" y="94" width="12" height="12" fill="#1f77b4" />
-  <text x="644" y="104" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">v1 additions</text>
-  <rect x="626" y="112" width="12" height="12" fill="#8ecae6" />
-  <text x="644" y="122" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">v1 deletions</text>
-  <rect x="626" y="130" width="12" height="12" fill="#ff7f0e" />
-  <text x="644" y="140" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">v2 additions</text>
-  <rect x="626" y="148" width="12" height="12" fill="#ffbf69" />
-  <text x="644" y="158" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">v2 deletions</text>
+  <text x="621.6" y="86" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Lines</text>
+  <rect x="621.6" y="94" width="12" height="12" fill="#1f77b4" />
+  <text x="639.6" y="104" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">v1 additions</text>
+  <rect x="621.6" y="112" width="12" height="12" fill="#8ecae6" />
+  <text x="639.6" y="122" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">v1 deletions</text>
+  <rect x="621.6" y="130" width="12" height="12" fill="#ff7f0e" />
+  <text x="639.6" y="140" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">v2 additions</text>
+  <rect x="621.6" y="148" width="12" height="12" fill="#ffbf69" />
+  <text x="639.6" y="158" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">v2 deletions</text>
 </g>
 </svg>

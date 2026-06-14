@@ -1,11 +1,11 @@
 use algraf_core::Diagnostic;
-use algraf_semantics::ChartIr;
+use algraf_semantics::{ChartIr, TextAlignIr};
 
 use crate::guide;
-use crate::layout::Layout;
+use crate::layout::{Layout, Rect};
 use crate::sink::{MarkSink, SvgSink};
 use crate::svg::{escape_attr, escape_text, num, SvgAttr, SvgWriter};
-use crate::theme::Theme;
+use crate::theme::{TextStyle, Theme};
 
 use super::backend::RenderScene;
 use super::panels::{panel_slots, PanelSlot};
@@ -617,54 +617,120 @@ fn render_chart_text(
     layout: &Layout,
     theme: &Theme,
 ) {
-    let x = layout.plot.x;
     let mut y = 24.0;
     if let Some(title) = &ir.title {
-        w.line(&format!(
-            "<text class=\"algraf-title\" x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" font-weight=\"600\" fill=\"{}\">{}</text>",
-            num(x),
-            num(y),
-            escape_attr(&theme.plot_title.font_family),
-            num(theme.plot_title.size),
-            escape_attr(&theme.plot_title.fill),
-            escape_text(title),
-        ));
-        y += theme.plot_title.size + 8.0;
+        if !theme.plot_title.hidden {
+            let (x, anchor) =
+                title_x_anchor(theme.plot_title.align_or(TextAlignIr::Left), layout.plot);
+            w.line(&chrome_text_line(
+                "algraf-title",
+                x,
+                y,
+                anchor,
+                &theme.plot_title,
+                true,
+                title,
+            ));
+            y += theme.plot_title.size + 8.0;
+        }
     }
     if let Some(subtitle) = &ir.subtitle {
-        w.line(&format!(
-            "<text class=\"algraf-subtitle\" x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
-            num(x),
-            num(y),
-            escape_attr(&theme.plot_subtitle.font_family),
-            num(theme.plot_subtitle.size),
-            escape_attr(&theme.plot_subtitle.fill),
-            escape_text(subtitle),
-        ));
+        if !theme.plot_subtitle.hidden {
+            let (x, anchor) =
+                title_x_anchor(theme.plot_subtitle.align_or(TextAlignIr::Left), layout.plot);
+            w.line(&chrome_text_line(
+                "algraf-subtitle",
+                x,
+                y,
+                anchor,
+                &theme.plot_subtitle,
+                false,
+                subtitle,
+            ));
+        }
     }
     render_caption_block(w, ir, width, height, theme);
 }
 
+/// Title/subtitle alignment relative to the plot rectangle (spec §17.3, §20.8).
+/// `left` (the default) emits no `text-anchor` so default output is byte-stable.
+fn title_x_anchor(align: TextAlignIr, plot: Rect) -> (f64, Option<&'static str>) {
+    match align {
+        TextAlignIr::Left => (plot.x, None),
+        TextAlignIr::Center => (plot.x + plot.width / 2.0, Some("middle")),
+        TextAlignIr::Right => (plot.right(), Some("end")),
+    }
+}
+
+/// Caption/source alignment relative to the viewport content box (spec §17.3,
+/// §20.8). `right` (the default) keeps the historical bottom-right placement.
+fn caption_x_anchor(align: TextAlignIr, width: f64) -> (f64, &'static str) {
+    match align {
+        TextAlignIr::Left => (16.0, "start"),
+        TextAlignIr::Center => (width / 2.0, "middle"),
+        TextAlignIr::Right => (width - 16.0, "end"),
+    }
+}
+
+/// Build one chart-chrome `<text>` line, emitting `text-anchor`/`font-weight`/
+/// `font-style` only when they depart from the byte-stable default (spec §20.8).
+fn chrome_text_line(
+    class: &str,
+    x: f64,
+    y: f64,
+    anchor: Option<&str>,
+    style: &TextStyle,
+    title_default: bool,
+    content: &str,
+) -> String {
+    let mut s = format!("<text class=\"{class}\" x=\"{}\" y=\"{}\"", num(x), num(y));
+    if let Some(anchor) = anchor {
+        s.push_str(&format!(" text-anchor=\"{anchor}\""));
+    }
+    s.push_str(&format!(
+        " font-family=\"{}\" font-size=\"{}\"",
+        escape_attr(&style.font_family),
+        num(style.size),
+    ));
+    if let Some(weight) = style.weight_attr(title_default) {
+        s.push_str(&format!(" font-weight=\"{}\"", escape_attr(&weight)));
+    }
+    if let Some(font_style) = style.style_attr() {
+        s.push_str(&format!(" font-style=\"{font_style}\""));
+    }
+    s.push_str(&format!(
+        " fill=\"{}\">{}</text>",
+        escape_attr(&style.fill),
+        escape_text(content),
+    ));
+    s
+}
+
 /// Stack the caption lines and then the de-emphasized source line(s) at the
-/// bottom-right of the viewport, one row per `\n`-separated line in source order
+/// bottom of the viewport, one row per `\n`-separated line in source order
 /// (spec §17.3, §20.1 `plotSource`). The block grows upward so the final source
-/// line sits at the bottom.
+/// line sits at the bottom. A hidden caption/source token is skipped entirely
+/// (spec §20.8).
 fn render_caption_block(w: &mut SvgWriter, ir: &ChartIr, width: f64, height: f64, theme: &Theme) {
-    let mut lines: Vec<(&str, &crate::theme::TextStyle, &str)> = Vec::new();
+    let mut lines: Vec<(&str, &TextStyle, &str)> = Vec::new();
     if let Some(caption) = &ir.caption {
-        for line in caption.split('\n') {
-            lines.push((line, &theme.plot_caption, "algraf-caption"));
+        if !theme.plot_caption.hidden {
+            for line in caption.split('\n') {
+                lines.push((line, &theme.plot_caption, "algraf-caption"));
+            }
         }
     }
     if let Some(source) = &ir.source {
-        for line in source.split('\n') {
-            lines.push((line, &theme.plot_source, "algraf-source"));
+        if !theme.plot_source.hidden {
+            for line in source.split('\n') {
+                lines.push((line, &theme.plot_source, "algraf-source"));
+            }
         }
     }
     if lines.is_empty() {
         return;
     }
-    let line_height = |style: &crate::theme::TextStyle| style.size + 4.0;
+    let line_height = |style: &TextStyle| style.size + 4.0;
     // Baseline of the last line; earlier lines stack above it.
     let mut baseline = height - 12.0;
     let mut baselines = vec![0.0; lines.len()];
@@ -672,18 +738,29 @@ fn render_caption_block(w: &mut SvgWriter, ir: &ChartIr, width: f64, height: f64
         baselines[index] = baseline;
         baseline -= line_height(style);
     }
-    let x = width - 16.0;
     for (index, (text, style, class)) in lines.iter().enumerate() {
-        w.line(&format!(
-            "<text class=\"{}\" x=\"{}\" y=\"{}\" text-anchor=\"end\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>",
+        let (x, anchor) = caption_x_anchor(style.align_or(TextAlignIr::Right), width);
+        let mut s = format!(
+            "<text class=\"{}\" x=\"{}\" y=\"{}\" text-anchor=\"{}\" font-family=\"{}\" font-size=\"{}\"",
             class,
             num(x),
             num(baselines[index]),
+            anchor,
             escape_attr(&style.font_family),
             num(style.size),
+        );
+        if let Some(weight) = style.weight_attr(false) {
+            s.push_str(&format!(" font-weight=\"{}\"", escape_attr(&weight)));
+        }
+        if let Some(font_style) = style.style_attr() {
+            s.push_str(&format!(" font-style=\"{font_style}\""));
+        }
+        s.push_str(&format!(
+            " fill=\"{}\">{}</text>",
             escape_attr(&style.fill),
             escape_text(text),
         ));
+        w.line(&s);
     }
 }
 

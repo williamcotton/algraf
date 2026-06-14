@@ -304,6 +304,8 @@ fn emit_label(
         rotate: None,
         font_family,
         font_size: label.size,
+        font_weight: TextRun::DEFAULT_WEIGHT,
+        font_style: TextRun::DEFAULT_STYLE,
         fill: &label.color,
         opacity: Some(alpha),
         content: &label.text,

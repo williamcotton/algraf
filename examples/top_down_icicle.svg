@@ -3,29 +3,34 @@
 <rect class="algraf-background" x="0" y="0" width="820" height="420" fill="#ffffff" />
 <text class="algraf-title" x="10" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Revenue hierarchy</text>
 <rect class="algraf-plot-area" x="10" y="36" width="680" height="374" fill="#ffffff" />
-<g class="algraf-layer algraf-geom-rect">
-  <rect x="10" y="36" width="680" height="124.667" fill="#c7dcef" stroke="#ffffff" stroke-width="2" opacity="0.92" />
-  <rect x="10" y="160.667" width="312.8" height="124.667" fill="#f6b26b" stroke="#ffffff" stroke-width="2" opacity="0.92" />
-  <rect x="322.8" y="160.667" width="217.6" height="124.667" fill="#d9ead3" stroke="#ffffff" stroke-width="2" opacity="0.92" />
-  <rect x="540.4" y="160.667" width="149.6" height="124.667" fill="#d0d0d0" stroke="#ffffff" stroke-width="2" opacity="0.92" />
-  <rect x="10" y="285.333" width="190.4" height="124.667" fill="#f6b26b" stroke="#ffffff" stroke-width="2" opacity="0.92" />
-  <rect x="200.4" y="285.333" width="122.4" height="124.667" fill="#f6b26b" stroke="#ffffff" stroke-width="2" opacity="0.92" />
-  <rect x="322.8" y="285.333" width="108.8" height="124.667" fill="#d9ead3" stroke="#ffffff" stroke-width="2" opacity="0.92" />
-  <rect x="431.6" y="285.333" width="108.8" height="124.667" fill="#d9ead3" stroke="#ffffff" stroke-width="2" opacity="0.92" />
-  <rect x="540.4" y="285.333" width="95.2" height="124.667" fill="#d0d0d0" stroke="#ffffff" stroke-width="2" opacity="0.92" />
-  <rect x="635.6" y="285.333" width="54.4" height="124.667" fill="#d0d0d0" stroke="#ffffff" stroke-width="2" opacity="0.92" />
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="350" y="98.333" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Revenue</text>
-  <text x="166.4" y="223" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Product</text>
-  <text x="431.6" y="223" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Services</text>
-  <text x="615.2" y="223" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Support</text>
-  <text x="105.2" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Licenses</text>
-  <text x="261.6" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Hardware</text>
-  <text x="377.2" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Consulting</text>
-  <text x="486" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Training</text>
-  <text x="588" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Enterprise</text>
-  <text x="662.8" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Comm.</text>
+<defs>
+<clipPath id="algraf-clip-0"><rect x="10" y="36" width="680" height="374" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-rect">
+    <rect x="10" y="36" width="680" height="124.667" fill="#c7dcef" stroke="#ffffff" stroke-width="2" opacity="0.92" />
+    <rect x="10" y="160.667" width="312.8" height="124.667" fill="#f6b26b" stroke="#ffffff" stroke-width="2" opacity="0.92" />
+    <rect x="322.8" y="160.667" width="217.6" height="124.667" fill="#d9ead3" stroke="#ffffff" stroke-width="2" opacity="0.92" />
+    <rect x="540.4" y="160.667" width="149.6" height="124.667" fill="#d0d0d0" stroke="#ffffff" stroke-width="2" opacity="0.92" />
+    <rect x="10" y="285.333" width="190.4" height="124.667" fill="#f6b26b" stroke="#ffffff" stroke-width="2" opacity="0.92" />
+    <rect x="200.4" y="285.333" width="122.4" height="124.667" fill="#f6b26b" stroke="#ffffff" stroke-width="2" opacity="0.92" />
+    <rect x="322.8" y="285.333" width="108.8" height="124.667" fill="#d9ead3" stroke="#ffffff" stroke-width="2" opacity="0.92" />
+    <rect x="431.6" y="285.333" width="108.8" height="124.667" fill="#d9ead3" stroke="#ffffff" stroke-width="2" opacity="0.92" />
+    <rect x="540.4" y="285.333" width="95.2" height="124.667" fill="#d0d0d0" stroke="#ffffff" stroke-width="2" opacity="0.92" />
+    <rect x="635.6" y="285.333" width="54.4" height="124.667" fill="#d0d0d0" stroke="#ffffff" stroke-width="2" opacity="0.92" />
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="350" y="98.333" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Revenue</text>
+    <text x="166.4" y="223" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Product</text>
+    <text x="431.6" y="223" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Services</text>
+    <text x="615.2" y="223" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Support</text>
+    <text x="105.2" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Licenses</text>
+    <text x="261.6" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Hardware</text>
+    <text x="377.2" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Consulting</text>
+    <text x="486" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Training</text>
+    <text x="588" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Enterprise</text>
+    <text x="662.8" y="347.667" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Comm.</text>
+  </g>
 </g>
 <g class="algraf-legends">
   <text x="706" y="40" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">segment</text>

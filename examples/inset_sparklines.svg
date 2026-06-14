@@ -23,73 +23,108 @@
   <line x1="60" y1="165.505" x2="730" y2="165.505" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="84.369" x2="730" y2="84.369" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-glyph">
-  <defs>
-  <clipPath id="algraf-clip-0"><rect x="539.276" y="80.483" width="58" height="24" /></clipPath>
-  </defs>
-  <g clip-path="url(#algraf-clip-0)">
-    <g class="algraf-layer algraf-geom-line">
-      <path d="M545 88.154 L556.638 88.378 L568.276 87.855 L579.914 87.482 L591.552 87.221" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="66" width="670" height="384" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-glyph">
+    <defs>
+    <clipPath id="algraf-clip-1"><rect x="539.276" y="80.483" width="58" height="24" /></clipPath>
+    </defs>
+    <g clip-path="url(#algraf-clip-1)">
+      <defs>
+      <clipPath id="algraf-clip-2"><rect x="541.276" y="82.483" width="54" height="20" /></clipPath>
+      </defs>
+      <g clip-path="url(#algraf-clip-2)">
+        <g class="algraf-layer algraf-geom-line">
+          <path d="M545 88.154 L556.638 88.378 L568.276 87.855 L579.914 87.482 L591.552 87.221" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+        </g>
+      </g>
     </g>
   </g>
-</g>
-<g class="algraf-glyph">
-  <defs>
-  <clipPath id="algraf-clip-1"><rect x="654.793" y="134.032" width="58" height="24" /></clipPath>
-  </defs>
-  <g clip-path="url(#algraf-clip-1)">
-    <g class="algraf-layer algraf-geom-line">
-      <path d="M660.517 138.158 L672.155 138.681 L683.793 137.972 L695.431 137.598 L707.069 137.412" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+  <g class="algraf-glyph">
+    <defs>
+    <clipPath id="algraf-clip-3"><rect x="654.793" y="134.032" width="58" height="24" /></clipPath>
+    </defs>
+    <g clip-path="url(#algraf-clip-3)">
+      <defs>
+      <clipPath id="algraf-clip-4"><rect x="656.793" y="136.032" width="54" height="20" /></clipPath>
+      </defs>
+      <g clip-path="url(#algraf-clip-4)">
+        <g class="algraf-layer algraf-geom-line">
+          <path d="M660.517 138.158 L672.155 138.681 L683.793 137.972 L695.431 137.598 L707.069 137.412" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+        </g>
+      </g>
     </g>
   </g>
-</g>
-<g class="algraf-glyph">
-  <defs>
-  <clipPath id="algraf-clip-2"><rect x="179.889" y="220.037" width="58" height="24" /></clipPath>
-  </defs>
-  <g clip-path="url(#algraf-clip-2)">
-    <g class="algraf-layer algraf-geom-line">
-      <path d="M185.613 237.522 L197.251 237.821 L208.889 237.597 L220.527 237.373 L232.165 237.224" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+  <g class="algraf-glyph">
+    <defs>
+    <clipPath id="algraf-clip-5"><rect x="179.889" y="220.037" width="58" height="24" /></clipPath>
+    </defs>
+    <g clip-path="url(#algraf-clip-5)">
+      <defs>
+      <clipPath id="algraf-clip-6"><rect x="181.889" y="222.037" width="54" height="20" /></clipPath>
+      </defs>
+      <g clip-path="url(#algraf-clip-6)">
+        <g class="algraf-layer algraf-geom-line">
+          <path d="M185.613 237.522 L197.251 237.821 L208.889 237.597 L220.527 237.373 L232.165 237.224" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+        </g>
+      </g>
     </g>
   </g>
-</g>
-<g class="algraf-glyph">
-  <defs>
-  <clipPath id="algraf-clip-3"><rect x="160.636" y="411.517" width="58" height="24" /></clipPath>
-  </defs>
-  <g clip-path="url(#algraf-clip-3)">
-    <g class="algraf-layer algraf-geom-line">
-      <path d="M166.36 429.451 L177.998 429.75 L189.636 429.526 L201.274 429.376 L212.912 429.264" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+  <g class="algraf-glyph">
+    <defs>
+    <clipPath id="algraf-clip-7"><rect x="160.636" y="411.517" width="58" height="24" /></clipPath>
+    </defs>
+    <g clip-path="url(#algraf-clip-7)">
+      <defs>
+      <clipPath id="algraf-clip-8"><rect x="162.636" y="413.517" width="54" height="20" /></clipPath>
+      </defs>
+      <g clip-path="url(#algraf-clip-8)">
+        <g class="algraf-layer algraf-geom-line">
+          <path d="M166.36 429.451 L177.998 429.75 L189.636 429.526 L201.274 429.376 L212.912 429.264" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+        </g>
+      </g>
     </g>
   </g>
-</g>
-<g class="algraf-glyph">
-  <defs>
-  <clipPath id="algraf-clip-4"><rect x="77.207" y="312.531" width="58" height="24" /></clipPath>
-  </defs>
-  <g clip-path="url(#algraf-clip-4)">
-    <g class="algraf-layer algraf-geom-line">
-      <path d="M82.931 333.003 L94.569 333.152 L106.207 332.928 L117.845 332.779 L129.483 332.704" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+  <g class="algraf-glyph">
+    <defs>
+    <clipPath id="algraf-clip-9"><rect x="77.207" y="312.531" width="58" height="24" /></clipPath>
+    </defs>
+    <g clip-path="url(#algraf-clip-9)">
+      <defs>
+      <clipPath id="algraf-clip-10"><rect x="79.207" y="314.531" width="54" height="20" /></clipPath>
+      </defs>
+      <g clip-path="url(#algraf-clip-10)">
+        <g class="algraf-layer algraf-geom-line">
+          <path d="M82.931 333.003 L94.569 333.152 L106.207 332.928 L117.845 332.779 L129.483 332.704" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+        </g>
+      </g>
     </g>
   </g>
-</g>
-<g class="algraf-glyph">
-  <defs>
-  <clipPath id="algraf-clip-5"><rect x="231.23" y="233.018" width="58" height="24" /></clipPath>
-  </defs>
-  <g clip-path="url(#algraf-clip-5)">
-    <g class="algraf-layer algraf-geom-line">
-      <path d="M236.954 249.011 L248.592 249.422 L260.23 249.086 L271.868 248.825 L283.506 248.713" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+  <g class="algraf-glyph">
+    <defs>
+    <clipPath id="algraf-clip-11"><rect x="231.23" y="233.018" width="58" height="24" /></clipPath>
+    </defs>
+    <g clip-path="url(#algraf-clip-11)">
+      <defs>
+      <clipPath id="algraf-clip-12"><rect x="233.23" y="235.018" width="54" height="20" /></clipPath>
+      </defs>
+      <g clip-path="url(#algraf-clip-12)">
+        <g class="algraf-layer algraf-geom-line">
+          <path d="M236.954 249.011 L248.592 249.422 L260.23 249.086 L271.868 248.825 L283.506 248.713" fill="none" stroke="#1f77b4" stroke-width="1.2" opacity="1" />
+        </g>
+      </g>
     </g>
   </g>
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="568.276" y="70.483" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Japan</text>
-  <text x="683.793" y="124.032" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Germany</text>
-  <text x="208.889" y="210.037" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Brazil</text>
-  <text x="189.636" y="401.517" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">South Africa</text>
-  <text x="106.207" y="302.531" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">India</text>
-  <text x="260.23" y="223.018" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Mexico</text>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="568.276" y="70.483" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Japan</text>
+    <text x="683.793" y="124.032" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Germany</text>
+    <text x="208.889" y="210.037" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Brazil</text>
+    <text x="189.636" y="401.517" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">South Africa</text>
+    <text x="106.207" y="302.531" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">India</text>
+    <text x="260.23" y="223.018" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#222222" opacity="1">Mexico</text>
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="450" x2="730" y2="450" stroke="#333333" stroke-width="1" />

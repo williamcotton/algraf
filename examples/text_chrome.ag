@@ -1,0 +1,18 @@
+Chart(data: "strategic_reserves.csv", width: 640, height: 520,
+    title: "Oil spill",
+    subtitle: "Crude-oil strategic reserves, m barrels",
+    caption: "Excludes private reserves",
+    source: "Source: EIA") {
+    Theme(name: "minimal",
+        plotTitle: Text(size: 24, weight: "bold", align: "center", fill: "#111111"),
+        plotSubtitle: Text(size: 13, style: "italic", align: "center", fill: "#666666"),
+        plotCaption: Text(align: "left"),
+        plotSource: Text(align: "left", style: "italic", fill: "#9a9a9a"),
+        axisTitle: Text(hidden: true))
+    Scale(stroke: country, range: ["United States" => "#e3120b", "Japan" => "#f6a6a1"])
+    Guide(legend: false)
+
+    Space(year * reserves) {
+        Line(group: country, stroke: country, strokeWidth: 2)
+    }
+}

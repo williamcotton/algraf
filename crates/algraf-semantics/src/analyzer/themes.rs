@@ -8,8 +8,8 @@ use algraf_syntax::{node_span, unescape_string_literal as string_value};
 use super::args::DupGuard;
 use super::context::{Analyzer, ValueForm};
 use crate::ir::{
-    AxisPositionIr, LegendPositionIr, ThemeIr, ThemeLineIr, ThemeOverrides, ThemeRectIr,
-    ThemeTextIr,
+    AxisPositionIr, FontStyleIr, FontWeightIr, LegendPositionIr, TextAlignIr, ThemeIr, ThemeLineIr,
+    ThemeOverrides, ThemeRectIr, ThemeTextIr,
 };
 use crate::registry;
 use crate::util::closest;
@@ -234,6 +234,18 @@ impl Analyzer<'_> {
                 "fill" => {
                     out.fill = self.theme_scalar(&name, &value, "a color string", as_str);
                 }
+                "weight" => {
+                    out.weight = self.theme_font_weight(&name, &value);
+                }
+                "style" => {
+                    out.style = self.theme_font_style(&name, &value);
+                }
+                "align" => {
+                    out.align = self.theme_text_align(&name, &value);
+                }
+                "hidden" => {
+                    out.hidden = self.theme_scalar(&name, &value, "a boolean", as_bool);
+                }
                 _ => self.diag(Diagnostic::error(
                     codes::E1705,
                     format!("`{key}` Text property `{name}` is not supported"),
@@ -242,6 +254,68 @@ impl Analyzer<'_> {
             }
         }
         Some(out)
+    }
+
+    /// Resolve a `weight:` token to a font weight (spec §20.8). Accepts the
+    /// strings `"normal"`/`"bold"` or an integer in `100`–`900` (multiples of
+    /// `100`); anything else emits `E1705`.
+    fn theme_font_weight(&mut self, key: &str, value: &ValueExpr) -> Option<FontWeightIr> {
+        let expected = "\"normal\", \"bold\", or an integer 100-900 (multiple of 100)";
+        match self.substitute_var(ValueForm::of(value)) {
+            ValueForm::Str(s) if s == "normal" => Some(FontWeightIr::Normal),
+            ValueForm::Str(s) if s == "bold" => Some(FontWeightIr::Bold),
+            ValueForm::Number(n)
+                if n.fract() == 0.0 && (100.0..=900.0).contains(&n) && (n as u32) % 100 == 0 =>
+            {
+                Some(FontWeightIr::Numeric(n as u16))
+            }
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1705,
+                    format!("`{key}` expects {expected}"),
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+        }
+    }
+
+    /// Resolve a `style:` token to a font style (spec §20.8). Accepts
+    /// `"normal"`/`"italic"`; anything else emits `E1705`.
+    fn theme_font_style(&mut self, key: &str, value: &ValueExpr) -> Option<FontStyleIr> {
+        let raw = self.theme_scalar(key, value, "\"normal\" or \"italic\"", as_str)?;
+        match raw.as_str() {
+            "normal" => Some(FontStyleIr::Normal),
+            "italic" => Some(FontStyleIr::Italic),
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1705,
+                    format!("`{key}` expects \"normal\" or \"italic\""),
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+        }
+    }
+
+    /// Resolve an `align:` token to a horizontal text alignment (spec §20.8).
+    /// `start`/`middle`/`end` are accepted as synonyms of `left`/`center`/
+    /// `right`; anything else emits `E1705`.
+    fn theme_text_align(&mut self, key: &str, value: &ValueExpr) -> Option<TextAlignIr> {
+        let raw = self.theme_scalar(key, value, "\"left\", \"center\", or \"right\"", as_str)?;
+        match raw.as_str() {
+            "left" | "start" => Some(TextAlignIr::Left),
+            "center" | "middle" => Some(TextAlignIr::Center),
+            "right" | "end" => Some(TextAlignIr::Right),
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1705,
+                    format!("`{key}` expects \"left\", \"center\", or \"right\""),
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+        }
     }
 
     fn theme_line(&mut self, key: &str, value: &ValueExpr) -> Option<ThemeLineIr> {

@@ -1,18 +1,53 @@
 //! Themes and color palettes (spec §16.8–16.9, §20).
 
 use algraf_semantics::{
-    AxisPositionIr, LegendPositionIr, ThemeIr, ThemeLineIr, ThemeOverrides, ThemeRectIr,
-    ThemeTextIr,
+    AxisPositionIr, FontStyleIr, FontWeightIr, LegendPositionIr, TextAlignIr, ThemeIr, ThemeLineIr,
+    ThemeOverrides, ThemeRectIr, ThemeTextIr,
 };
 
 use crate::svg::num;
 
-/// Concrete text style for a theme element.
+/// Concrete text style for a theme element (spec §20.1).
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextStyle {
     pub font_family: String,
     pub size: f64,
     pub fill: String,
+    /// Font weight. `None` selects the element's natural default (`normal` for
+    /// most tokens; the chart title resolves `None` to `600`). Spec §20.8.
+    pub weight: Option<FontWeightIr>,
+    /// Font style; defaults to upright. Spec §20.8.
+    pub style: FontStyleIr,
+    /// Horizontal alignment. `None` selects the element's natural default
+    /// (`left` for titles/subtitles, `right` for caption/source). Spec §20.8.
+    pub align: Option<TextAlignIr>,
+    /// When `true`, the element is suppressed entirely and its layout reserve is
+    /// reclaimed. Spec §20.8.
+    pub hidden: bool,
+}
+
+impl TextStyle {
+    /// The resolved `font-weight` attribute string, or `None` when no attribute
+    /// should be emitted (default `normal`). `title_default` is used when this
+    /// style leaves the weight unset.
+    pub fn weight_attr(&self, title_default: bool) -> Option<String> {
+        let weight = self.weight.unwrap_or(if title_default {
+            FontWeightIr::Numeric(600)
+        } else {
+            FontWeightIr::Normal
+        });
+        weight.svg_attr()
+    }
+
+    /// The resolved `font-style` attribute string, or `None` for upright text.
+    pub fn style_attr(&self) -> Option<&'static str> {
+        self.style.svg_attr()
+    }
+
+    /// The resolved horizontal alignment, falling back to `default` when unset.
+    pub fn align_or(&self, default: TextAlignIr) -> TextAlignIr {
+        self.align.unwrap_or(default)
+    }
 }
 
 /// Concrete line style for guides.
@@ -427,6 +462,13 @@ fn text_style(font_family: &str, size: f64, fill: &str) -> TextStyle {
         font_family: font_family.to_string(),
         size,
         fill: fill.to_string(),
+        // All tokens share these neutral defaults so every named theme stays
+        // byte-stable; per-element natural defaults (title weight 600, caption
+        // right-alignment) are applied at the consumption site (spec §20.8).
+        weight: None,
+        style: FontStyleIr::Normal,
+        align: None,
+        hidden: false,
     }
 }
 
@@ -454,6 +496,18 @@ fn apply_text_override(style: &mut TextStyle, override_: &ThemeTextIr) {
     }
     if let Some(v) = &override_.fill {
         style.fill = v.clone();
+    }
+    if let Some(v) = override_.weight {
+        style.weight = Some(v);
+    }
+    if let Some(v) = override_.style {
+        style.style = v;
+    }
+    if let Some(v) = override_.align {
+        style.align = Some(v);
+    }
+    if let Some(v) = override_.hidden {
+        style.hidden = v;
     }
 }
 

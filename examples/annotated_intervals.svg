@@ -37,26 +37,31 @@
   <line x1="60" y1="112.716" x2="730" y2="112.716" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="70.247" x2="730" y2="70.247" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-rect">
-  <rect x="91.905" y="197.654" width="95.714" height="212.346" fill="#e2e2e2" opacity="0.6" />
-  <rect x="251.429" y="240.123" width="95.714" height="169.877" fill="#e2e2e2" opacity="0.6" />
-  <rect x="410.952" y="155.185" width="127.619" height="254.815" fill="#e2e2e2" opacity="0.6" />
-  <rect x="602.381" y="91.481" width="127.619" height="21.235" fill="#e2e2e2" opacity="0.6" />
-</g>
-<g class="algraf-layer algraf-geom-line">
-  <path d="M60 197.654 L219.524 240.123 L379.048 155.185 L570.476 112.716" fill="none" stroke="blue" stroke-width="2" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="60" cy="197.654" r="6" fill="blue" opacity="1" />
-  <circle cx="219.524" cy="240.123" r="6" fill="blue" opacity="1" />
-  <circle cx="379.048" cy="155.185" r="6" fill="blue" opacity="1" />
-  <circle cx="570.476" cy="112.716" r="6" fill="blue" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="60" y="189.654" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#333333" opacity="1">100</text>
-  <text x="219.524" y="232.123" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#333333" opacity="1">80</text>
-  <text x="379.048" y="147.185" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#333333" opacity="1">120</text>
-  <text x="570.476" y="104.716" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#333333" opacity="1">140</text>
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="66" width="670" height="344" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-rect">
+    <rect x="91.905" y="197.654" width="95.714" height="212.346" fill="#e2e2e2" opacity="0.6" />
+    <rect x="251.429" y="240.123" width="95.714" height="169.877" fill="#e2e2e2" opacity="0.6" />
+    <rect x="410.952" y="155.185" width="127.619" height="254.815" fill="#e2e2e2" opacity="0.6" />
+    <rect x="602.381" y="91.481" width="127.619" height="21.235" fill="#e2e2e2" opacity="0.6" />
+  </g>
+  <g class="algraf-layer algraf-geom-line">
+    <path d="M60 197.654 L219.524 240.123 L379.048 155.185 L570.476 112.716" fill="none" stroke="blue" stroke-width="2" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="60" cy="197.654" r="6" fill="blue" opacity="1" />
+    <circle cx="219.524" cy="240.123" r="6" fill="blue" opacity="1" />
+    <circle cx="379.048" cy="155.185" r="6" fill="blue" opacity="1" />
+    <circle cx="570.476" cy="112.716" r="6" fill="blue" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="60" y="189.654" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#333333" opacity="1">100</text>
+    <text x="219.524" y="232.123" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#333333" opacity="1">80</text>
+    <text x="379.048" y="147.185" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#333333" opacity="1">120</text>
+    <text x="570.476" y="104.716" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#333333" opacity="1">140</text>
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="730" y2="410" stroke="#333333" stroke-width="1" />

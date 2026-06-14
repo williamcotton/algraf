@@ -17,6 +17,7 @@
 use std::fmt::Write as _;
 
 use algraf_core::Diagnostic;
+use algraf_semantics::TextAlignIr;
 
 use crate::sink::{json_string, DrawListSink, Paint};
 use crate::svg::num;
@@ -519,32 +520,44 @@ impl RenderBackend for DrawListBackend {
             interaction: None,
         });
 
-        // Chart title/subtitle/caption, using the same coordinates as the SVG
-        // backend's render_chart_text.
-        let text_x = layout.plot.x;
+        // Chart title/subtitle/caption, using the same coordinates and
+        // alignment as the SVG backend's render_chart_text. A hidden token is
+        // omitted (spec §20.8).
         let mut text_y = 24.0;
         if let Some(title) = &ir.title {
-            ops.push(DrawOp::Text {
-                role: DrawRole::Title,
-                x: text_x,
-                y: text_y,
-                anchor: TextAnchor::Start,
-                fill: theme.plot_title.fill.clone(),
-                opacity: None,
-                content: title.clone(),
-            });
-            text_y += theme.plot_title.size + 8.0;
+            if !theme.plot_title.hidden {
+                let (x, anchor) = title_x_anchor(
+                    theme.plot_title.align.unwrap_or(TextAlignIr::Left),
+                    layout.plot,
+                );
+                ops.push(DrawOp::Text {
+                    role: DrawRole::Title,
+                    x,
+                    y: text_y,
+                    anchor,
+                    fill: theme.plot_title.fill.clone(),
+                    opacity: None,
+                    content: title.clone(),
+                });
+                text_y += theme.plot_title.size + 8.0;
+            }
         }
         if let Some(subtitle) = &ir.subtitle {
-            ops.push(DrawOp::Text {
-                role: DrawRole::Subtitle,
-                x: text_x,
-                y: text_y,
-                anchor: TextAnchor::Start,
-                fill: theme.plot_subtitle.fill.clone(),
-                opacity: None,
-                content: subtitle.clone(),
-            });
+            if !theme.plot_subtitle.hidden {
+                let (x, anchor) = title_x_anchor(
+                    theme.plot_subtitle.align.unwrap_or(TextAlignIr::Left),
+                    layout.plot,
+                );
+                ops.push(DrawOp::Text {
+                    role: DrawRole::Subtitle,
+                    x,
+                    y: text_y,
+                    anchor,
+                    fill: theme.plot_subtitle.fill.clone(),
+                    opacity: None,
+                    content: subtitle.clone(),
+                });
+            }
         }
 
         // Plot areas and facet strips, in scene order.
@@ -586,15 +599,17 @@ impl RenderBackend for DrawListBackend {
                     paint: Paint::fill(panel.theme.panel_background.fill.clone(), None),
                     interaction: None,
                 });
-                ops.push(DrawOp::Text {
-                    role: DrawRole::FacetLabel,
-                    x: strip.x + strip.width / 2.0,
-                    y: strip.y + strip.height - 4.0,
-                    anchor: TextAnchor::Middle,
-                    fill: panel.theme.strip_text.fill.clone(),
-                    opacity: None,
-                    content: slot.label.unwrap_or_default().to_string(),
-                });
+                if !panel.theme.strip_text.hidden {
+                    ops.push(DrawOp::Text {
+                        role: DrawRole::FacetLabel,
+                        x: strip.x + strip.width / 2.0,
+                        y: strip.y + strip.height - 4.0,
+                        anchor: TextAnchor::Middle,
+                        fill: panel.theme.strip_text.fill.clone(),
+                        opacity: None,
+                        content: slot.label.unwrap_or_default().to_string(),
+                    });
+                }
             }
         }
 
@@ -611,13 +626,17 @@ impl RenderBackend for DrawListBackend {
         // SVG backend's render_caption_block (spec §17.3, §20.1).
         let mut caption_lines: Vec<(String, DrawRole, &crate::theme::TextStyle)> = Vec::new();
         if let Some(caption) = &ir.caption {
-            for line in caption.split('\n') {
-                caption_lines.push((line.to_string(), DrawRole::Caption, &theme.plot_caption));
+            if !theme.plot_caption.hidden {
+                for line in caption.split('\n') {
+                    caption_lines.push((line.to_string(), DrawRole::Caption, &theme.plot_caption));
+                }
             }
         }
         if let Some(source) = &ir.source {
-            for line in source.split('\n') {
-                caption_lines.push((line.to_string(), DrawRole::Source, &theme.plot_source));
+            if !theme.plot_source.hidden {
+                for line in source.split('\n') {
+                    caption_lines.push((line.to_string(), DrawRole::Source, &theme.plot_source));
+                }
             }
         }
         if !caption_lines.is_empty() {
@@ -628,11 +647,13 @@ impl RenderBackend for DrawListBackend {
                 baseline -= style.size + 4.0;
             }
             for (index, (text, role, style)) in caption_lines.into_iter().enumerate() {
+                let (x, anchor) =
+                    caption_x_anchor(style.align.unwrap_or(TextAlignIr::Right), width);
                 ops.push(DrawOp::Text {
                     role,
-                    x: width - 16.0,
+                    x,
                     y: baselines[index],
-                    anchor: TextAnchor::End,
+                    anchor,
                     fill: style.fill.clone(),
                     opacity: None,
                     content: text,
@@ -646,5 +667,25 @@ impl RenderBackend for DrawListBackend {
             interactions: metadata.clone(),
             ops,
         }
+    }
+}
+
+/// Title/subtitle alignment relative to the plot rectangle, mirroring the SVG
+/// backend so both outputs agree on coordinates (spec §17.3, §20.8).
+fn title_x_anchor(align: TextAlignIr, plot: crate::layout::Rect) -> (f64, TextAnchor) {
+    match align {
+        TextAlignIr::Left => (plot.x, TextAnchor::Start),
+        TextAlignIr::Center => (plot.x + plot.width / 2.0, TextAnchor::Middle),
+        TextAlignIr::Right => (plot.right(), TextAnchor::End),
+    }
+}
+
+/// Caption/source alignment relative to the viewport content box (spec §17.3,
+/// §20.8).
+fn caption_x_anchor(align: TextAlignIr, width: f64) -> (f64, TextAnchor) {
+    match align {
+        TextAlignIr::Left => (16.0, TextAnchor::Start),
+        TextAlignIr::Center => (width / 2.0, TextAnchor::Middle),
+        TextAlignIr::Right => (width - 16.0, TextAnchor::End),
     }
 }

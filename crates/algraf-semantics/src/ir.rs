@@ -145,6 +145,76 @@ pub struct ThemeTextIr {
     pub font_family: Option<String>,
     pub size: Option<f64>,
     pub fill: Option<String>,
+    /// Font weight (spec §20.8, since 0.83.0).
+    pub weight: Option<FontWeightIr>,
+    /// Font style (spec §20.8, since 0.83.0).
+    pub style: Option<FontStyleIr>,
+    /// Horizontal alignment of the text block (spec §20.8, since 0.83.0).
+    pub align: Option<TextAlignIr>,
+    /// When `true`, the text element is suppressed entirely (spec §20.8, since
+    /// 0.83.0).
+    pub hidden: Option<bool>,
+}
+
+/// Font weight for a theme text token (spec §20.8). `Numeric` holds an SVG
+/// weight in the `100`–`900` range (multiples of `100`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FontWeightIr {
+    #[default]
+    Normal,
+    Bold,
+    Numeric(u16),
+}
+
+impl FontWeightIr {
+    /// The SVG `font-weight` attribute value, or `None` when the weight is the
+    /// default `normal` (so no attribute is emitted and output stays byte-stable).
+    pub fn svg_attr(self) -> Option<String> {
+        match self {
+            FontWeightIr::Normal => None,
+            FontWeightIr::Bold => Some("bold".to_string()),
+            FontWeightIr::Numeric(n) => Some(n.to_string()),
+        }
+    }
+}
+
+/// Font style for a theme text token (spec §20.8).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FontStyleIr {
+    #[default]
+    Normal,
+    Italic,
+}
+
+impl FontStyleIr {
+    /// The SVG `font-style` attribute value, or `None` for the default upright
+    /// style.
+    pub fn svg_attr(self) -> Option<&'static str> {
+        match self {
+            FontStyleIr::Normal => None,
+            FontStyleIr::Italic => Some("italic"),
+        }
+    }
+}
+
+/// Horizontal alignment of a theme text block (spec §20.8). `start`/`middle`/
+/// `end` are accepted as synonyms of `left`/`center`/`right`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextAlignIr {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
+impl TextAlignIr {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TextAlignIr::Left => "left",
+            TextAlignIr::Center => "center",
+            TextAlignIr::Right => "right",
+        }
+    }
 }
 
 /// A structured `Line(...)` theme-element override.

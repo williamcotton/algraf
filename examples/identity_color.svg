@@ -23,19 +23,24 @@
   <line x1="60" y1="155.328" x2="670" y2="155.328" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="87.655" x2="670" y2="87.655" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="102.069" cy="290.672" r="5" fill="#e74c3c" opacity="0.9" />
-  <circle cx="233.534" cy="155.328" r="5" fill="#3366cc" opacity="0.9" />
-  <circle cx="365" cy="223" r="5" fill="#00aa66" opacity="0.9" />
-  <circle cx="496.466" cy="87.655" r="5" fill="orange" opacity="0.9" />
-  <circle cx="627.931" cy="358.345" r="5" fill="purple" opacity="0.9" />
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="102.069" y="276.672" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Alpha</text>
-  <text x="233.534" y="141.328" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Beta</text>
-  <text x="365" y="209" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Gamma</text>
-  <text x="496.466" y="73.655" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Delta</text>
-  <text x="627.931" y="344.345" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Echo</text>
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="66" width="610" height="314" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="102.069" cy="290.672" r="5" fill="#e74c3c" opacity="0.9" />
+    <circle cx="233.534" cy="155.328" r="5" fill="#3366cc" opacity="0.9" />
+    <circle cx="365" cy="223" r="5" fill="#00aa66" opacity="0.9" />
+    <circle cx="496.466" cy="87.655" r="5" fill="orange" opacity="0.9" />
+    <circle cx="627.931" cy="358.345" r="5" fill="purple" opacity="0.9" />
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="102.069" y="276.672" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Alpha</text>
+    <text x="233.534" y="141.328" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Beta</text>
+    <text x="365" y="209" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Gamma</text>
+    <text x="496.466" y="73.655" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Delta</text>
+    <text x="627.931" y="344.345" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#222222" opacity="1">Echo</text>
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="380" x2="670" y2="380" stroke="#333333" stroke-width="1" />

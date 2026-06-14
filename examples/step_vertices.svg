@@ -27,16 +27,26 @@
   <line x1="60" y1="178.69" x2="730" y2="178.69" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="113.172" x2="730" y2="113.172" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-path">
-  <path d="M106.207 349.034 L188.719 349.034 L188.719 178.69 L353.744 178.69 L353.744 270.414" fill="none" stroke="#2f6fbb" stroke-width="2" opacity="1" stroke-dasharray="4 4" />
-  <path d="M601.281 86.966 L683.793 86.966 L683.793 231.103" fill="none" stroke="#2f6fbb" stroke-width="2" opacity="1" stroke-dasharray="4 4" />
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="66" width="670" height="304" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-path">
+    <path d="M106.207 349.034 L188.719 349.034 L188.719 178.69 L353.744 178.69 L353.744 270.414" fill="none" stroke="#2f6fbb" stroke-width="2" opacity="1" stroke-dasharray="4 4" />
+    <path d="M601.281 86.966 L683.793 86.966 L683.793 231.103" fill="none" stroke="#2f6fbb" stroke-width="2" opacity="1" stroke-dasharray="4 4" />
+  </g>
 </g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="106.207" cy="349.034" r="3" fill="#2f6fbb" opacity="1" />
-  <circle cx="188.719" cy="178.69" r="3" fill="#2f6fbb" opacity="1" />
-  <circle cx="353.744" cy="270.414" r="3" fill="#2f6fbb" opacity="1" />
-  <circle cx="601.281" cy="86.966" r="3" fill="#2f6fbb" opacity="1" />
-  <circle cx="683.793" cy="231.103" r="3" fill="#2f6fbb" opacity="1" />
+<defs>
+<clipPath id="algraf-clip-1"><rect x="60" y="66" width="670" height="304" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-1)">
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="106.207" cy="349.034" r="3" fill="#2f6fbb" opacity="1" />
+    <circle cx="188.719" cy="178.69" r="3" fill="#2f6fbb" opacity="1" />
+    <circle cx="353.744" cy="270.414" r="3" fill="#2f6fbb" opacity="1" />
+    <circle cx="601.281" cy="86.966" r="3" fill="#2f6fbb" opacity="1" />
+    <circle cx="683.793" cy="231.103" r="3" fill="#2f6fbb" opacity="1" />
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="370" x2="730" y2="370" stroke="#333333" stroke-width="1" />

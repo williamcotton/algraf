@@ -34,61 +34,71 @@
   <line x1="411" y1="270" x2="690" y2="270" stroke="#e6e6e6" stroke-width="1" />
   <line x1="411" y1="330" x2="690" y2="330" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="69.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Yankees</text>
-  <text x="69.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Red Sox</text>
-  <text x="69.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Blue Jays</text>
-  <text x="69.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Orioles</text>
-  <text x="69.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Rays</text>
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="90" width="279" height="240" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-text">
+    <text x="69.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Yankees</text>
+    <text x="69.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Red Sox</text>
+    <text x="69.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Blue Jays</text>
+    <text x="69.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Orioles</text>
+    <text x="69.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Rays</text>
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="139.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">95</text>
+    <text x="139.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">93</text>
+    <text x="139.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">83</text>
+    <text x="139.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">74</text>
+    <text x="139.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">64</text>
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="164.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">67</text>
+    <text x="164.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">69</text>
+    <text x="164.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">79</text>
+    <text x="164.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">88</text>
+    <text x="164.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">98</text>
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="199.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.586</text>
+    <text x="199.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.574</text>
+    <text x="199.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.512</text>
+    <text x="199.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.457</text>
+    <text x="199.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.395</text>
+  </g>
 </g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="139.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">95</text>
-  <text x="139.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">93</text>
-  <text x="139.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">83</text>
-  <text x="139.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">74</text>
-  <text x="139.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">64</text>
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="164.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">67</text>
-  <text x="164.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">69</text>
-  <text x="164.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">79</text>
-  <text x="164.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">88</text>
-  <text x="164.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">98</text>
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="199.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.586</text>
-  <text x="199.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.574</text>
-  <text x="199.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.512</text>
-  <text x="199.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.457</text>
-  <text x="199.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.395</text>
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="420.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Guardians</text>
-  <text x="420.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Tigers</text>
-  <text x="420.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Royals</text>
-  <text x="420.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">White Sox</text>
-  <text x="420.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Twins</text>
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="490.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">63</text>
-  <text x="490.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">59</text>
-  <text x="490.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">58</text>
-  <text x="490.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">51</text>
-  <text x="490.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">46</text>
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="515.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">99</text>
-  <text x="515.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">103</text>
-  <text x="515.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">104</text>
-  <text x="515.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">111</text>
-  <text x="515.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">116</text>
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="550.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.389</text>
-  <text x="550.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.364</text>
-  <text x="550.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.358</text>
-  <text x="550.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.315</text>
-  <text x="550.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.284</text>
+<defs>
+<clipPath id="algraf-clip-1"><rect x="411" y="90" width="279" height="240" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-1)">
+  <g class="algraf-layer algraf-geom-text">
+    <text x="420.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Guardians</text>
+    <text x="420.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Tigers</text>
+    <text x="420.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Royals</text>
+    <text x="420.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">White Sox</text>
+    <text x="420.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#111827" opacity="1">Twins</text>
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="490.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">63</text>
+    <text x="490.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">59</text>
+    <text x="490.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">58</text>
+    <text x="490.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">51</text>
+    <text x="490.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">46</text>
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="515.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">99</text>
+    <text x="515.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">103</text>
+    <text x="515.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">104</text>
+    <text x="515.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">111</text>
+    <text x="515.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">116</text>
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="550.5" y="81" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.389</text>
+    <text x="550.5" y="141" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.364</text>
+    <text x="550.5" y="201" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.358</text>
+    <text x="550.5" y="261" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.315</text>
+    <text x="550.5" y="321" text-anchor="start" font-family="system-ui, sans-serif" font-size="9.5" fill="#4b5563" opacity="1">0.284</text>
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="330" x2="339" y2="330" stroke="#333333" stroke-width="1" />

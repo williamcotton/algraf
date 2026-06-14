@@ -29,47 +29,52 @@
   <line x1="60" y1="125.608" x2="570" y2="125.608" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="68.73" x2="570" y2="68.73" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-rect">
-  <rect x="60" y="387.249" width="31.875" height="22.751" fill="#4E79A7" opacity="0.9" />
-  <rect x="60" y="375.873" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
-  <rect x="91.875" y="387.249" width="31.875" height="22.751" fill="#4E79A7" opacity="0.9" />
-  <rect x="91.875" y="375.873" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
-  <rect x="123.75" y="318.995" width="31.875" height="91.005" fill="#4E79A7" opacity="0.9" />
-  <rect x="123.75" y="284.868" width="31.875" height="34.127" fill="#F28E2B" opacity="0.9" />
-  <rect x="123.75" y="250.741" width="31.875" height="34.127" fill="#E15759" opacity="0.9" />
-  <rect x="155.625" y="353.122" width="31.875" height="56.878" fill="#4E79A7" opacity="0.9" />
-  <rect x="155.625" y="330.37" width="31.875" height="22.751" fill="#F28E2B" opacity="0.9" />
-  <rect x="155.625" y="318.995" width="31.875" height="11.376" fill="#E15759" opacity="0.9" />
-  <rect x="187.5" y="296.243" width="31.875" height="113.757" fill="#4E79A7" opacity="0.9" />
-  <rect x="187.5" y="239.365" width="31.875" height="56.878" fill="#F28E2B" opacity="0.9" />
-  <rect x="187.5" y="216.614" width="31.875" height="22.751" fill="#E15759" opacity="0.9" />
-  <rect x="219.375" y="273.492" width="31.875" height="136.508" fill="#4E79A7" opacity="0.9" />
-  <rect x="219.375" y="148.36" width="31.875" height="125.132" fill="#F28E2B" opacity="0.9" />
-  <rect x="219.375" y="102.857" width="31.875" height="45.503" fill="#E15759" opacity="0.9" />
-  <rect x="251.25" y="273.492" width="31.875" height="136.508" fill="#4E79A7" opacity="0.9" />
-  <rect x="251.25" y="227.989" width="31.875" height="45.503" fill="#F28E2B" opacity="0.9" />
-  <rect x="251.25" y="159.735" width="31.875" height="68.254" fill="#E15759" opacity="0.9" />
-  <rect x="283.125" y="330.37" width="31.875" height="79.63" fill="#4E79A7" opacity="0.9" />
-  <rect x="283.125" y="159.735" width="31.875" height="170.635" fill="#F28E2B" opacity="0.9" />
-  <rect x="283.125" y="91.481" width="31.875" height="68.254" fill="#E15759" opacity="0.9" />
-  <rect x="315" y="341.746" width="31.875" height="68.254" fill="#4E79A7" opacity="0.9" />
-  <rect x="315" y="182.487" width="31.875" height="159.259" fill="#F28E2B" opacity="0.9" />
-  <rect x="315" y="102.857" width="31.875" height="79.63" fill="#E15759" opacity="0.9" />
-  <rect x="346.875" y="387.249" width="31.875" height="22.751" fill="#4E79A7" opacity="0.9" />
-  <rect x="346.875" y="296.243" width="31.875" height="91.005" fill="#F28E2B" opacity="0.9" />
-  <rect x="346.875" y="227.989" width="31.875" height="68.254" fill="#E15759" opacity="0.9" />
-  <rect x="378.75" y="387.249" width="31.875" height="22.751" fill="#4E79A7" opacity="0.9" />
-  <rect x="378.75" y="341.746" width="31.875" height="45.503" fill="#F28E2B" opacity="0.9" />
-  <rect x="378.75" y="227.989" width="31.875" height="113.757" fill="#E15759" opacity="0.9" />
-  <rect x="410.625" y="398.624" width="31.875" height="11.376" fill="#4E79A7" opacity="0.9" />
-  <rect x="410.625" y="341.746" width="31.875" height="56.878" fill="#E15759" opacity="0.9" />
-  <rect x="442.5" y="398.624" width="31.875" height="11.376" fill="#4E79A7" opacity="0.9" />
-  <rect x="442.5" y="387.249" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
-  <rect x="442.5" y="341.746" width="31.875" height="45.503" fill="#E15759" opacity="0.9" />
-  <rect x="474.375" y="398.624" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
-  <rect x="474.375" y="387.249" width="31.875" height="11.376" fill="#E15759" opacity="0.9" />
-  <rect x="506.25" y="387.249" width="31.875" height="22.751" fill="#E15759" opacity="0.9" />
-  <rect x="538.125" y="375.873" width="31.875" height="34.127" fill="#E15759" opacity="0.9" />
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="66" width="510" height="344" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-rect">
+    <rect x="60" y="387.249" width="31.875" height="22.751" fill="#4E79A7" opacity="0.9" />
+    <rect x="60" y="375.873" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
+    <rect x="91.875" y="387.249" width="31.875" height="22.751" fill="#4E79A7" opacity="0.9" />
+    <rect x="91.875" y="375.873" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
+    <rect x="123.75" y="318.995" width="31.875" height="91.005" fill="#4E79A7" opacity="0.9" />
+    <rect x="123.75" y="284.868" width="31.875" height="34.127" fill="#F28E2B" opacity="0.9" />
+    <rect x="123.75" y="250.741" width="31.875" height="34.127" fill="#E15759" opacity="0.9" />
+    <rect x="155.625" y="353.122" width="31.875" height="56.878" fill="#4E79A7" opacity="0.9" />
+    <rect x="155.625" y="330.37" width="31.875" height="22.751" fill="#F28E2B" opacity="0.9" />
+    <rect x="155.625" y="318.995" width="31.875" height="11.376" fill="#E15759" opacity="0.9" />
+    <rect x="187.5" y="296.243" width="31.875" height="113.757" fill="#4E79A7" opacity="0.9" />
+    <rect x="187.5" y="239.365" width="31.875" height="56.878" fill="#F28E2B" opacity="0.9" />
+    <rect x="187.5" y="216.614" width="31.875" height="22.751" fill="#E15759" opacity="0.9" />
+    <rect x="219.375" y="273.492" width="31.875" height="136.508" fill="#4E79A7" opacity="0.9" />
+    <rect x="219.375" y="148.36" width="31.875" height="125.132" fill="#F28E2B" opacity="0.9" />
+    <rect x="219.375" y="102.857" width="31.875" height="45.503" fill="#E15759" opacity="0.9" />
+    <rect x="251.25" y="273.492" width="31.875" height="136.508" fill="#4E79A7" opacity="0.9" />
+    <rect x="251.25" y="227.989" width="31.875" height="45.503" fill="#F28E2B" opacity="0.9" />
+    <rect x="251.25" y="159.735" width="31.875" height="68.254" fill="#E15759" opacity="0.9" />
+    <rect x="283.125" y="330.37" width="31.875" height="79.63" fill="#4E79A7" opacity="0.9" />
+    <rect x="283.125" y="159.735" width="31.875" height="170.635" fill="#F28E2B" opacity="0.9" />
+    <rect x="283.125" y="91.481" width="31.875" height="68.254" fill="#E15759" opacity="0.9" />
+    <rect x="315" y="341.746" width="31.875" height="68.254" fill="#4E79A7" opacity="0.9" />
+    <rect x="315" y="182.487" width="31.875" height="159.259" fill="#F28E2B" opacity="0.9" />
+    <rect x="315" y="102.857" width="31.875" height="79.63" fill="#E15759" opacity="0.9" />
+    <rect x="346.875" y="387.249" width="31.875" height="22.751" fill="#4E79A7" opacity="0.9" />
+    <rect x="346.875" y="296.243" width="31.875" height="91.005" fill="#F28E2B" opacity="0.9" />
+    <rect x="346.875" y="227.989" width="31.875" height="68.254" fill="#E15759" opacity="0.9" />
+    <rect x="378.75" y="387.249" width="31.875" height="22.751" fill="#4E79A7" opacity="0.9" />
+    <rect x="378.75" y="341.746" width="31.875" height="45.503" fill="#F28E2B" opacity="0.9" />
+    <rect x="378.75" y="227.989" width="31.875" height="113.757" fill="#E15759" opacity="0.9" />
+    <rect x="410.625" y="398.624" width="31.875" height="11.376" fill="#4E79A7" opacity="0.9" />
+    <rect x="410.625" y="341.746" width="31.875" height="56.878" fill="#E15759" opacity="0.9" />
+    <rect x="442.5" y="398.624" width="31.875" height="11.376" fill="#4E79A7" opacity="0.9" />
+    <rect x="442.5" y="387.249" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
+    <rect x="442.5" y="341.746" width="31.875" height="45.503" fill="#E15759" opacity="0.9" />
+    <rect x="474.375" y="398.624" width="31.875" height="11.376" fill="#F28E2B" opacity="0.9" />
+    <rect x="474.375" y="387.249" width="31.875" height="11.376" fill="#E15759" opacity="0.9" />
+    <rect x="506.25" y="387.249" width="31.875" height="22.751" fill="#E15759" opacity="0.9" />
+    <rect x="538.125" y="375.873" width="31.875" height="34.127" fill="#E15759" opacity="0.9" />
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="410" x2="570" y2="410" stroke="#333333" stroke-width="1" />

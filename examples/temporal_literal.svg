@@ -29,12 +29,17 @@
   <line x1="60" y1="124.404" x2="790" y2="124.404" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="86.966" x2="790" y2="86.966" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-line">
-  <path d="M133 349.034 L279 311.596 L425 86.966 L571 236.719 L717 292.877" fill="none" stroke="#3b6ea5" stroke-width="1.5" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-vline">
-  <line x1="425" y1="66" x2="425" y2="370" stroke="#c0392b" stroke-width="1.5" opacity="1" stroke-dasharray="4 4" />
-  <text x="429" y="78" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">deploy</text>
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="66" width="730" height="304" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-line">
+    <path d="M133 349.034 L279 311.596 L425 86.966 L571 236.719 L717 292.877" fill="none" stroke="#3b6ea5" stroke-width="1.5" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-vline">
+    <line x1="425" y1="66" x2="425" y2="370" stroke="#c0392b" stroke-width="1.5" opacity="1" stroke-dasharray="4 4" />
+    <text x="429" y="78" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">deploy</text>
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="370" x2="790" y2="370" stroke="#333333" stroke-width="1" />

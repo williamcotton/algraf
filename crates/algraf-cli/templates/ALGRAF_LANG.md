@@ -501,6 +501,26 @@ booleans for per-axis grid-line defaults. `axisYPosition` is `"left"`/`"right"`
 and `axisXPosition` is `"top"`/`"bottom"`, setting the house default axis side
 that `Guide(axis:, position:)` overrides.
 
+Every `Text(...)` style token accepts typographic properties:
+
+```ag
+Theme(name: "minimal",
+    plotTitle: Text(size: 24, weight: "bold", align: "center"),
+    plotSubtitle: Text(style: "italic", align: "center"),
+    plotCaption: Text(align: "left"),
+    axisTitle: Text(hidden: true))
+```
+
+`Text(fontFamily?, size?, fill?, weight?, style?, align?, hidden?)`:
+
+- `weight` — `"normal"`, `"bold"`, or an integer `100`–`900` (multiples of `100`).
+- `style` — `"normal"` or `"italic"`.
+- `align` — `"left"`, `"center"`, or `"right"` (`"start"`/`"middle"`/`"end"`
+  synonyms). Alignment moves the chart title, subtitle, caption, and source
+  blocks; on axis/legend/strip tokens it is accepted but does not move the text.
+- `hidden` — a boolean; `true` removes the text element and reclaims its space
+  (e.g. `axisTitle: Text(hidden: true)` drops both axis titles).
+
 ### Scale
 
 ```ag

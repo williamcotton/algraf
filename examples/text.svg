@@ -31,10 +31,15 @@
   <line x1="60" y1="126" x2="770" y2="126" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="40" x2="770" y2="40" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="361.75" y="186.2" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222" opacity="1">Mean age at selection = 34</text>
-  <text x="450.5" y="259.3" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222" opacity="1">Mean age at mission = 44</text>
-  <text x="592.5" y="384" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222" opacity="1"><tspan x="592.5" dy="0">John Glenn was 77</tspan><tspan x="592.5" dy="1.2em">on his last mission -</tspan><tspan x="592.5" dy="1.2em">the oldest person to</tspan><tspan x="592.5" dy="1.2em">travel in space!</tspan></text>
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="40" width="710" height="430" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-text">
+    <text x="361.75" y="186.2" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222" opacity="1">Mean age at selection = 34</text>
+    <text x="450.5" y="259.3" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222" opacity="1">Mean age at mission = 44</text>
+    <text x="592.5" y="384" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222" opacity="1"><tspan x="592.5" dy="0">John Glenn was 77</tspan><tspan x="592.5" dy="1.2em">on his last mission -</tspan><tspan x="592.5" dy="1.2em">the oldest person to</tspan><tspan x="592.5" dy="1.2em">travel in space!</tspan></text>
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="470" x2="770" y2="470" stroke="#333333" stroke-width="1" />

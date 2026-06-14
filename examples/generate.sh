@@ -125,6 +125,7 @@ charts=(
     variables
     custom_theme
     strategic_reserves
+    text_chrome
     path
     step_vertices
     primitive_links

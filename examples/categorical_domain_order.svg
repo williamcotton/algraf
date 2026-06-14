@@ -18,15 +18,20 @@
   <line x1="68" y1="150.778" x2="690" y2="150.778" stroke="#e6e6e6" stroke-width="1" />
   <line x1="68" y1="106.933" x2="690" y2="106.933" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-bar">
-  <rect x="239.05" y="88.519" width="124.4" height="281.481" fill="#4E79A7" opacity="0.88" />
-  <rect x="83.55" y="316.948" width="124.4" height="53.052" fill="#4E79A7" opacity="0.88" />
-  <rect x="550.05" y="359.477" width="124.4" height="10.523" fill="#4E79A7" opacity="0.88" />
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="301.25" y="80.519" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">12840</text>
-  <text x="145.75" y="308.948" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">2420</text>
-  <text x="612.25" y="351.477" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">480</text>
+<defs>
+<clipPath id="algraf-clip-0"><rect x="68" y="66" width="622" height="304" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-bar">
+    <rect x="239.05" y="88.519" width="124.4" height="281.481" fill="#4E79A7" opacity="0.88" />
+    <rect x="83.55" y="316.948" width="124.4" height="53.052" fill="#4E79A7" opacity="0.88" />
+    <rect x="550.05" y="359.477" width="124.4" height="10.523" fill="#4E79A7" opacity="0.88" />
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="301.25" y="80.519" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">12840</text>
+    <text x="145.75" y="308.948" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">2420</text>
+    <text x="612.25" y="351.477" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">480</text>
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="68" y1="370" x2="690" y2="370" stroke="#333333" stroke-width="1" />

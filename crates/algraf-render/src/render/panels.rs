@@ -803,10 +803,25 @@ fn x_label_bottom_extra(
             ));
         }
     }
+    // A hidden `axisText`/`axisTitle` token reclaims its share of the band
+    // (spec §20.8): no tick labels means zero label height; no axis title means
+    // zero title height.
+    let title_hidden = theme.axis_title.hidden;
+    if theme.axis_text.hidden {
+        if title_hidden {
+            return 0.0;
+        }
+        return (guide::x_axis_bottom_margin(0.0, theme.axis_title.size) - MARGIN_BOTTOM).max(0.0);
+    }
     if max_label_height <= 0.0 {
         return 0.0;
     }
-    (guide::x_axis_bottom_margin(max_label_height, theme.axis_title.size) - MARGIN_BOTTOM).max(0.0)
+    let title_size = if title_hidden {
+        0.0
+    } else {
+        theme.axis_title.size
+    };
+    (guide::x_axis_bottom_margin(max_label_height, title_size) - MARGIN_BOTTOM).max(0.0)
 }
 
 /// Extra left margin needed so the widest y tick label and the rotated y-axis
@@ -851,28 +866,48 @@ fn y_label_left_extra(
             ));
         }
     }
+    // A hidden `axisText`/`axisTitle` token reclaims its share of the band
+    // (spec §20.8).
+    let title_hidden = theme.axis_title.hidden;
+    if theme.axis_text.hidden {
+        if title_hidden {
+            return 0.0;
+        }
+        return (guide::y_axis_left_margin(0.0, theme.axis_title.size) - MARGIN_LEFT).max(0.0);
+    }
     if max_label_width <= 0.0 {
         return 0.0;
     }
-    (guide::y_axis_left_margin(max_label_width, theme.axis_title.size) - MARGIN_LEFT).max(0.0)
+    let title_size = if title_hidden {
+        0.0
+    } else {
+        theme.axis_title.size
+    };
+    (guide::y_axis_left_margin(max_label_width, title_size) - MARGIN_LEFT).max(0.0)
 }
 
 fn chart_text_reserve(ir: &ChartIr, theme: &Theme) -> (f64, f64) {
+    // A hidden chrome token reserves nothing, so the plot reclaims the band
+    // (spec §20.8).
     let mut top = 0.0;
-    if ir.title.is_some() {
+    if ir.title.is_some() && !theme.plot_title.hidden {
         top += theme.plot_title.size + 8.0;
     }
-    if ir.subtitle.is_some() {
+    if ir.subtitle.is_some() && !theme.plot_subtitle.hidden {
         top += theme.plot_subtitle.size + 4.0;
     }
     // Stack one line per `\n`-separated caption line, then the source line(s)
     // (spec §17.3). Each line reserves its own height so nothing clips.
     let mut bottom = 0.0;
     if let Some(caption) = &ir.caption {
-        bottom += caption_line_count(caption) as f64 * (theme.plot_caption.size + 4.0) + 4.0;
+        if !theme.plot_caption.hidden {
+            bottom += caption_line_count(caption) as f64 * (theme.plot_caption.size + 4.0) + 4.0;
+        }
     }
     if let Some(source) = &ir.source {
-        bottom += caption_line_count(source) as f64 * (theme.plot_source.size + 4.0) + 4.0;
+        if !theme.plot_source.hidden {
+            bottom += caption_line_count(source) as f64 * (theme.plot_source.size + 4.0) + 4.0;
+        }
     }
     (top, bottom)
 }

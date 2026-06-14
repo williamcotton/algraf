@@ -29,25 +29,30 @@
   <line x1="60" y1="132.15" x2="570" y2="132.15" stroke="#e6e6e6" stroke-width="1" />
   <line x1="60" y1="86.966" x2="570" y2="86.966" stroke="#e6e6e6" stroke-width="1" />
 </g>
-<g class="algraf-layer algraf-geom-point">
-  <circle cx="95.172" cy="349.034" r="4" fill="#4E79A7" opacity="1" />
-  <circle cx="96.938" cy="339.998" r="4" fill="#4E79A7" opacity="1" />
-  <circle cx="98.704" cy="330.961" r="4" fill="#4E79A7" opacity="1" />
-  <circle cx="111.064" cy="321.924" r="4" fill="#4E79A7" opacity="1" />
-  <circle cx="269.975" cy="249.629" r="4" fill="#F28E2B" opacity="1" />
-  <circle cx="358.259" cy="195.408" r="4" fill="#F28E2B" opacity="1" />
-  <circle cx="446.543" cy="132.15" r="4" fill="#F28E2B" opacity="1" />
-  <circle cx="534.828" cy="86.966" r="4" fill="#F28E2B" opacity="1" />
-</g>
-<g class="algraf-layer algraf-geom-text">
-  <text x="108.235" y="345.034" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#4E79A7" opacity="1">A1</text>
-  <text x="110.001" y="335.998" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#4E79A7" opacity="1">A2</text>
-  <text x="111.767" y="326.961" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#4E79A7" opacity="1">A3</text>
-  <text x="124.126" y="317.924" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#4E79A7" opacity="1">A4</text>
-  <text x="283.038" y="245.629" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#F28E2B" opacity="1">B1</text>
-  <text x="371.322" y="191.408" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#F28E2B" opacity="1">B2</text>
-  <text x="459.606" y="128.15" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#F28E2B" opacity="1">B3</text>
-  <text x="547.89" y="82.966" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#F28E2B" opacity="1">B4</text>
+<defs>
+<clipPath id="algraf-clip-0"><rect x="60" y="66" width="510" height="304" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="95.172" cy="349.034" r="4" fill="#4E79A7" opacity="1" />
+    <circle cx="96.938" cy="339.998" r="4" fill="#4E79A7" opacity="1" />
+    <circle cx="98.704" cy="330.961" r="4" fill="#4E79A7" opacity="1" />
+    <circle cx="111.064" cy="321.924" r="4" fill="#4E79A7" opacity="1" />
+    <circle cx="269.975" cy="249.629" r="4" fill="#F28E2B" opacity="1" />
+    <circle cx="358.259" cy="195.408" r="4" fill="#F28E2B" opacity="1" />
+    <circle cx="446.543" cy="132.15" r="4" fill="#F28E2B" opacity="1" />
+    <circle cx="534.828" cy="86.966" r="4" fill="#F28E2B" opacity="1" />
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="108.235" y="345.034" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#4E79A7" opacity="1">A1</text>
+    <text x="110.001" y="335.998" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#4E79A7" opacity="1">A2</text>
+    <text x="111.767" y="326.961" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#4E79A7" opacity="1">A3</text>
+    <text x="124.126" y="317.924" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#4E79A7" opacity="1">A4</text>
+    <text x="283.038" y="245.629" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#F28E2B" opacity="1">B1</text>
+    <text x="371.322" y="191.408" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#F28E2B" opacity="1">B2</text>
+    <text x="459.606" y="128.15" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#F28E2B" opacity="1">B3</text>
+    <text x="547.89" y="82.966" text-anchor="start" font-family="system-ui, sans-serif" font-size="11" fill="#F28E2B" opacity="1">B4</text>
+  </g>
 </g>
 <g class="algraf-axes">
   <line x1="60" y1="370" x2="570" y2="370" stroke="#333333" stroke-width="1" />
