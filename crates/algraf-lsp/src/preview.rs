@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::{Component, Path, PathBuf};
 
 use algraf_core::Severity;
 use algraf_driver::{data_dependencies, prepare_chart, OsDriverIo, PrepareOptions, SourceInput};
@@ -59,7 +60,7 @@ impl Backend {
                     .map(|dependencies| {
                         dependencies
                             .into_iter()
-                            .map(|dependency| dependency.path.display().to_string())
+                            .map(|dependency| normalize_path(&dependency.path).display().to_string())
                             .collect()
                     })
                     .map_err(|err| err.to_string()),
@@ -100,6 +101,27 @@ fn preview_superseded(
     generations
         .get(uri)
         .is_some_and(|latest| *latest != generation)
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => match out.components().next_back() {
+                Some(Component::Normal(_)) => {
+                    out.pop();
+                }
+                Some(Component::RootDir) | Some(Component::Prefix(_)) => {}
+                _ => out.push(".."),
+            },
+            other => out.push(other.as_os_str()),
+        }
+    }
+    if out.as_os_str().is_empty() {
+        out.push(".");
+    }
+    out
 }
 
 /// Parameters for the `algraf/preview` custom request.

@@ -241,14 +241,16 @@ function scheduleRefresh(): void {
 // refresh when they change. File globs are resolved on the server, watched on
 // the client, so this works in remote workspaces too.
 function updateDataWatchers(paths: string[]): void {
+    const normalizedPaths = paths.map((filePath) => path.normalize(filePath));
     const unchanged =
-        paths.length === watchedPaths.length && paths.every((p, i) => p === watchedPaths[i]);
+        normalizedPaths.length === watchedPaths.length &&
+        normalizedPaths.every((p, i) => p === watchedPaths[i]);
     if (unchanged) {
         return;
     }
     disposeDataWatchers();
-    watchedPaths = [...paths];
-    for (const filePath of paths) {
+    watchedPaths = [...normalizedPaths];
+    for (const filePath of normalizedPaths) {
         const pattern = new vscode.RelativePattern(
             vscode.Uri.file(path.dirname(filePath)),
             path.basename(filePath),

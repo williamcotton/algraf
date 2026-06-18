@@ -1245,6 +1245,42 @@ async fn preview_renders_svg_through_render_pipeline() {
 }
 
 #[tokio::test]
+async fn preview_reports_normalized_data_dependency_paths() {
+    let dir = temp_project("preview-normalized-dependency");
+    let source_dir = dir.join("charts");
+    let output_dir = dir.join("outputs");
+    std::fs::create_dir_all(&source_dir).unwrap();
+    std::fs::create_dir_all(&output_dir).unwrap();
+    let source_path = source_dir.join("chart.ag");
+    let data_path = output_dir.join("data.csv");
+    std::fs::write(&data_path, "x,y\n1,2\n3,4\n").unwrap();
+    let source = "Chart(data: \"../outputs/data.csv\") {\n    Space(x * y) { Point() }\n}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let response = call(
+        &mut service,
+        Request::build("algraf/preview")
+            .params(json!({ "uri": uri }))
+            .id(24)
+            .finish(),
+    )
+    .await
+    .unwrap();
+    let value: serde_json::Value = response_result(response);
+    assert!(value["svg"].as_str().unwrap().contains("<svg"));
+    let data_paths = value["dataPaths"].as_array().expect("dataPaths");
+    assert_eq!(data_paths.len(), 1);
+    assert_eq!(
+        data_paths[0].as_str().unwrap(),
+        data_path.display().to_string()
+    );
+}
+
+#[tokio::test]
 async fn preview_preserves_multiline_text_labels() {
     let dir = temp_project("preview-multiline-text");
     let source_path = dir.join("chart.ag");

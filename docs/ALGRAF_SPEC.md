@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.84.0
+Status: 0.84.1
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.84.0 specification.
+This working copy is the 0.84.1 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9245,7 +9245,10 @@ analyzes against that schema, and renders to SVG.
 
 `dataPaths` reports the resolved data dependencies from the driver's chart
 dependency inventory so the client can watch them and re-request when the
-underlying data changes without a source edit. Path resolution stays on the
+underlying data changes without a source edit. These paths MUST be lexically
+normalized before serialization, removing `.` and reducible `..` segments
+without consulting the filesystem, so client file watchers observe the same path
+shape the host file system reports for writes. Path resolution stays on the
 server; the client watches (so remote workspaces work) and SHOULD also offer a
 manual refresh, which is the fallback for data sources that cannot signal
 change. `data: stdin` and a missing
@@ -11505,6 +11508,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.82.0 | [`V0_82_PLAN.md`](V0_82_PLAN.md) | Editorial chart design primitives: opposite-side axes, multi-line caption/source blocks, and annotation callout badges | Proposed |
 | 0.83.0 | [`V0_83_PLAN.md`](V0_83_PLAN.md) | Typographic control of chart text chrome: weight/style/alignment and visibility for title, subtitle, caption, source, and axis/legend/strip text | Implemented |
 | 0.84.0 | [`V0_84_PLAN.md`](V0_84_PLAN.md) | Cartesian clipping follows pinned domain bounds and zoom per edge, with mark-extent bleed | Implemented |
+| 0.84.1 | [`V0_84_1_PLAN.md`](V0_84_1_PLAN.md) | LSP preview data dependency paths are normalized before watcher registration | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
