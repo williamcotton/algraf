@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="374" viewBox="0 0 560 374" role="img" aria-label="Tall right legend">
+<title>Tall right legend</title>
+<rect class="algraf-background" x="0" y="0" width="560" height="374" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Tall right legend</text>
+<rect class="algraf-plot-area" x="60" y="66" width="244.8" height="44" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="115.253" y1="66" x2="115.253" y2="110" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="153.623" y1="66" x2="153.623" y2="110" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="191.992" y1="66" x2="191.992" y2="110" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="230.362" y1="66" x2="230.362" y2="110" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="268.732" y1="66" x2="268.732" y2="110" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="96.297" x2="304.8" y2="96.297" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="84.444" x2="304.8" y2="84.444" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="72.591" x2="304.8" y2="72.591" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="96.068" y1="66" x2="96.068" y2="110" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="134.438" y1="66" x2="134.438" y2="110" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="172.808" y1="66" x2="172.808" y2="110" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="211.177" y1="66" x2="211.177" y2="110" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="249.547" y1="66" x2="249.547" y2="110" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="287.917" y1="66" x2="287.917" y2="110" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="102.224" x2="304.8" y2="102.224" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="90.371" x2="304.8" y2="90.371" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="78.517" x2="304.8" y2="78.517" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="66.664" x2="304.8" y2="66.664" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<g class="algraf-layer algraf-geom-point">
+  <circle cx="76.883" cy="106.966" r="5" fill="#4E79A7" opacity="1" />
+  <circle cx="96.068" cy="99.853" r="5" fill="#F28E2B" opacity="1" />
+  <circle cx="115.253" cy="102.224" r="5" fill="#E15759" opacity="1" />
+  <circle cx="134.438" cy="92.741" r="5" fill="#76B7B2" opacity="1" />
+  <circle cx="153.623" cy="95.112" r="5" fill="#59A14F" opacity="1" />
+  <circle cx="172.808" cy="85.629" r="5" fill="#EDC948" opacity="1" />
+  <circle cx="191.992" cy="83.259" r="5" fill="#B07AA1" opacity="1" />
+  <circle cx="211.177" cy="78.517" r="5" fill="#FF9DA7" opacity="1" />
+  <circle cx="230.362" cy="80.888" r="5" fill="#9C755F" opacity="1" />
+  <circle cx="249.547" cy="73.776" r="5" fill="#BAB0AC" opacity="1" />
+  <circle cx="268.732" cy="76.147" r="5" fill="#4E79A7" opacity="1" />
+  <circle cx="287.917" cy="69.034" r="5" fill="#F28E2B" opacity="1" />
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="110" x2="304.8" y2="110" stroke="#333333" stroke-width="1" />
+  <line x1="96.068" y1="110" x2="96.068" y2="115" stroke="#333333" stroke-width="1" />
+  <text x="96.068" y="128" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">2</text>
+  <line x1="134.438" y1="110" x2="134.438" y2="115" stroke="#333333" stroke-width="1" />
+  <text x="134.438" y="128" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">4</text>
+  <line x1="172.808" y1="110" x2="172.808" y2="115" stroke="#333333" stroke-width="1" />
+  <text x="172.808" y="128" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">6</text>
+  <line x1="211.177" y1="110" x2="211.177" y2="115" stroke="#333333" stroke-width="1" />
+  <text x="211.177" y="128" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">8</text>
+  <line x1="249.547" y1="110" x2="249.547" y2="115" stroke="#333333" stroke-width="1" />
+  <text x="249.547" y="128" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="287.917" y1="110" x2="287.917" y2="115" stroke="#333333" stroke-width="1" />
+  <text x="287.917" y="128" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">12</text>
+  <text x="182.4" y="148" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Snapshot</text>
+  <line x1="60" y1="66" x2="60" y2="110" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="102.224" x2="60" y2="102.224" stroke="#333333" stroke-width="1" />
+  <text x="52" y="106.224" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="55" y1="90.371" x2="60" y2="90.371" stroke="#333333" stroke-width="1" />
+  <text x="52" y="94.371" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15</text>
+  <line x1="55" y1="78.517" x2="60" y2="78.517" stroke="#333333" stroke-width="1" />
+  <text x="52" y="82.517" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55" y1="66.664" x2="60" y2="66.664" stroke="#333333" stroke-width="1" />
+  <text x="52" y="70.664" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">25</text>
+  <text x="25.6" y="88" text-anchor="middle" transform="rotate(-90 25.6 88)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Lines</text>
+</g>
+<g class="algraf-legends">
+  <text x="320.8" y="70" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Origin bucket</text>
+  <rect x="320.8" y="78" width="12" height="12" fill="#4E79A7" />
+  <text x="338.8" y="88" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 19 frontend routes</text>
+  <rect x="320.8" y="96" width="12" height="12" fill="#F28E2B" />
+  <text x="338.8" y="106" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 20 API wiring</text>
+  <rect x="320.8" y="114" width="12" height="12" fill="#E15759" />
+  <text x="338.8" y="124" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 21 auth screens</text>
+  <rect x="320.8" y="132" width="12" height="12" fill="#76B7B2" />
+  <text x="338.8" y="142" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 22 state stores</text>
+  <rect x="320.8" y="150" width="12" height="12" fill="#59A14F" />
+  <text x="338.8" y="160" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 23 checkout flow</text>
+  <rect x="320.8" y="168" width="12" height="12" fill="#EDC948" />
+  <text x="338.8" y="178" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 24 profile editor</text>
+  <rect x="320.8" y="186" width="12" height="12" fill="#B07AA1" />
+  <text x="338.8" y="196" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 25 notification center</text>
+  <rect x="320.8" y="204" width="12" height="12" fill="#FF9DA7" />
+  <text x="338.8" y="214" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 26 billing panel</text>
+  <rect x="320.8" y="222" width="12" height="12" fill="#9C755F" />
+  <text x="338.8" y="232" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 27 analytics view</text>
+  <rect x="320.8" y="240" width="12" height="12" fill="#BAB0AC" />
+  <text x="338.8" y="250" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 28 export worker</text>
+  <rect x="320.8" y="258" width="12" height="12" fill="#4E79A7" />
+  <text x="338.8" y="268" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 29 preference sync</text>
+  <rect x="320.8" y="276" width="12" height="12" fill="#F28E2B" />
+  <text x="338.8" y="286" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 30 release polish</text>
+</g>
+</svg>

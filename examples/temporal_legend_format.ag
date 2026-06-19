@@ -1,0 +1,14 @@
+Chart(data: "temporal_legend_format.csv", width: 760, height: 420,
+      title: "Temporal legend labels",
+      subtitle: "Scale(timeFormat:) formats temporal color legend entries") {
+    Theme(name: "minimal")
+    Scale(axis: x, type: "temporal")
+    Scale(axis: y, domain: [0, null])
+    Scale(fill: origin_day, palette: "accent", label: "Origin day", timeFormat: "iso-date")
+    Guide(axis: x, label: "Snapshot", timeFormat: "%b %-d")
+    Guide(axis: y, label: "Surviving lines")
+
+    Space(snapshot_day * lines) {
+        Area(group: origin_day, fill: origin_day, alpha: 0.76, layout: "stack")
+    }
+}

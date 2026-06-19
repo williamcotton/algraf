@@ -803,6 +803,7 @@ mod tests {
             gradient: None,
             color_map: None,
             label_map: None,
+            time_format: None,
             label: None,
             train: None,
             span: Span::empty(0),

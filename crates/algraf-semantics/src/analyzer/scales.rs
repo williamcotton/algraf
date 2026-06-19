@@ -10,6 +10,7 @@ use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
 use super::args::DupGuard;
 use super::context::{ActiveTable, Analyzer, ValueForm};
+use super::guides::temporal_format;
 use super::properties::is_color_literal;
 use crate::ir::*;
 use crate::registry;
@@ -106,6 +107,8 @@ impl Analyzer<'_> {
         let mut gradient_span: Option<Span> = None;
         let mut label_map: Option<Vec<(String, String)>> = None;
         let mut labels_span: Option<Span> = None;
+        let mut time_format: Option<TemporalFormatIr> = None;
+        let mut time_format_span: Option<Span> = None;
         let mut label = None;
         let mut train = None;
 
@@ -291,6 +294,27 @@ impl Analyzer<'_> {
                         }
                     }
                 }
+                "timeFormat" => match arg.value() {
+                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                        let value = string_value(&lit.text().unwrap_or_default());
+                        let value_span = node_span(lit.syntax());
+                        time_format_span = Some(value_span);
+                        match temporal_format(&value) {
+                            Some(format) => time_format = Some(format),
+                            None => self.diag(Diagnostic::error(
+                                codes::E1907,
+                                format!("unknown or invalid temporal format `{value}`"),
+                                value_span,
+                            )),
+                        }
+                    }
+                    Some(value) => self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`timeFormat` expects a named temporal format or chrono-style format string",
+                        node_span(value.syntax()),
+                    )),
+                    None => {}
+                },
                 "reverse" => {
                     if let Some(b) =
                         self.expect_bool(&arg, codes::E1204, "`reverse` expects a boolean literal")
@@ -468,6 +492,14 @@ impl Analyzer<'_> {
                     ));
                     tick_interval = None;
                 }
+                if let Some(s) = time_format_span.filter(|_| time_format.is_some()) {
+                    self.diag(Diagnostic::error(
+                        codes::E1204,
+                        "`timeFormat` on a position scale belongs in `Guide(axis: ..., timeFormat: ...)`",
+                        s,
+                    ));
+                    time_format = None;
+                }
                 // Exact breaks win over a generated cadence (spec §16.11).
                 if let (Some(_), Some(s)) = (&breaks, tick_interval_span) {
                     self.diag(Diagnostic::warning(
@@ -630,6 +662,21 @@ impl Analyzer<'_> {
                         }
                         label_map = None;
                     }
+                    if let (Some(s), Some(column)) =
+                        (time_format_span.filter(|_| time_format.is_some()), column)
+                    {
+                        if !matches!(column.dtype, DataType::Temporal | DataType::Unknown) {
+                            self.diag(
+                                Diagnostic::error(
+                                    codes::E1907,
+                                    "`timeFormat` applies only to a temporal fill or stroke column",
+                                    s,
+                                )
+                                .with_help("map the color aesthetic to a date/datetime column, or remove `timeFormat`"),
+                            );
+                            time_format = None;
+                        }
+                    }
                 } else {
                     // size / strokeWidth: a continuous scale over a numeric column.
                     if !numeric_col {
@@ -646,6 +693,14 @@ impl Analyzer<'_> {
                             "`palette` and `gradient` apply only to fill or stroke scales",
                             span,
                         ));
+                    }
+                    if let Some(s) = time_format_span.filter(|_| time_format.is_some()) {
+                        self.diag(Diagnostic::error(
+                            codes::E1204,
+                            "`timeFormat` applies only to fill or stroke scales",
+                            s,
+                        ));
+                        time_format = None;
                     }
                     if mode.is_some() {
                         self.diag(Diagnostic::error(
@@ -738,6 +793,7 @@ impl Analyzer<'_> {
             gradient,
             color_map,
             label_map,
+            time_format,
             label,
             train,
             span,

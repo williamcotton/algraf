@@ -1,9 +1,12 @@
 //! Aesthetic resolution: turning geometry mappings and settings into per-row
 //! colors, opacity, and size (spec §16.8).
 
-use algraf_data::{DataType, DataValueRef, Table};
+use std::collections::HashMap;
+
+use algraf_data::{DataType, DataValueRef, DateTimeValue, Table};
 use algraf_semantics::{
     GeometryIr, GradientIr, PropertyKey, ScaleIr, ScaleModeIr, ScaleTargetIr, SettingValue,
+    TemporalFormatIr,
 };
 
 use crate::scale::{categorical_domain, cell_category, cell_f64, numeric_domain};
@@ -301,17 +304,11 @@ pub fn color_spec(
                 if let Some(map) = color_map_for(scales, aesthetic_name, col) {
                     let categories: Vec<String> = map.iter().map(|(k, _)| k.clone()).collect();
                     let colors: Vec<String> = map.iter().map(|(_, v)| v.clone()).collect();
-                    let labels = label_map_for(scales, aesthetic_name, col).map(|lm| {
-                        categories
-                            .iter()
-                            .map(|cat| {
-                                lm.iter()
-                                    .find(|(k, _)| k == cat)
-                                    .map(|(_, v)| v.clone())
-                                    .unwrap_or_else(|| cat.clone())
-                            })
-                            .collect()
-                    });
+                    let labels = label_map_for(scales, aesthetic_name, col)
+                        .map(|lm| labels_for_categories(&categories, lm))
+                        .or_else(|| {
+                            temporal_labels_for(scales, aesthetic_name, col, table, &categories)
+                        });
                     ColorSpec::Categorical {
                         col: col.clone(),
                         categories,
@@ -320,12 +317,15 @@ pub fn color_spec(
                         labels,
                     }
                 } else {
+                    let categories = categorical_domain(table, col);
+                    let labels =
+                        temporal_labels_for(scales, aesthetic_name, col, table, &categories);
                     ColorSpec::Categorical {
                         col: col.clone(),
-                        categories: categorical_domain(table, col),
+                        categories,
                         palette: palette_for(scales, aesthetic_name, col),
                         colors: None,
-                        labels: None,
+                        labels,
                     }
                 }
             }
@@ -498,8 +498,70 @@ fn label_map_for(
     aesthetic_scale(scales, aesthetic, column).and_then(|scale| scale.label_map.clone())
 }
 
+fn time_format_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<TemporalFormatIr> {
+    aesthetic_scale(scales, aesthetic, column).and_then(|scale| scale.time_format.clone())
+}
+
 fn palette_for(scales: &[ScaleIr], aesthetic: &str, column: &str) -> Option<String> {
     aesthetic_scale(scales, aesthetic, column).and_then(|scale| scale.palette.clone())
+}
+
+fn labels_for_categories(categories: &[String], label_map: Vec<(String, String)>) -> Vec<String> {
+    categories
+        .iter()
+        .map(|cat| {
+            label_map
+                .iter()
+                .find(|(key, _)| key == cat)
+                .map(|(_, value)| value.clone())
+                .unwrap_or_else(|| cat.clone())
+        })
+        .collect()
+}
+
+fn temporal_labels_for(
+    scales: &[ScaleIr],
+    aesthetic: &str,
+    column: &str,
+    table: &dyn Table,
+    categories: &[String],
+) -> Option<Vec<String>> {
+    let format = time_format_for(scales, aesthetic, column)?;
+    let index_by_category: HashMap<&str, usize> = categories
+        .iter()
+        .enumerate()
+        .map(|(index, category)| (category.as_str(), index))
+        .collect();
+    let mut labels = vec![None; categories.len()];
+
+    for row in 0..table.row_count() {
+        let Some(DataValueRef::Temporal(value)) = table.value(column, row) else {
+            continue;
+        };
+        let category = value.instant.and_utc().to_rfc3339();
+        let Some(index) = index_by_category.get(category.as_str()).copied() else {
+            continue;
+        };
+        if labels[index].is_none() {
+            labels[index] = Some(format_temporal_label(value, &format));
+        }
+    }
+
+    labels.iter().any(Option::is_some).then(|| {
+        labels
+            .into_iter()
+            .enumerate()
+            .map(|(index, label)| label.unwrap_or_else(|| categories[index].clone()))
+            .collect()
+    })
+}
+
+fn format_temporal_label(value: DateTimeValue, format: &TemporalFormatIr) -> String {
+    value
+        .instant
+        .and_utc()
+        .format(format.chrono_pattern())
+        .to_string()
 }
 
 /// How a numeric aesthetic (`size`/`strokeWidth`) resolves per row: a constant,

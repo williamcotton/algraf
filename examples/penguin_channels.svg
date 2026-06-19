@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420" role="img" aria-label="Palmer penguins across five channels">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="438.987" viewBox="0 0 900 438.987" role="img" aria-label="Palmer penguins across five channels">
 <title>Palmer penguins across five channels</title>
-<rect class="algraf-background" x="0" y="0" width="900" height="420" fill="#ffffff" />
+<rect class="algraf-background" x="0" y="0" width="900" height="438.987" fill="#ffffff" />
 <text class="algraf-title" x="60.8" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Palmer penguins across five channels</text>
 <rect class="algraf-plot-area algraf-facet-panel" x="60.8" y="90" width="301" height="96" fill="#ffffff" />
 <rect class="algraf-plot-area algraf-facet-panel" x="433.8" y="90" width="301" height="96" fill="#ffffff" />

@@ -529,6 +529,7 @@ Scale(axis: x, type: "temporal", tickInterval: "1 month")
 Scale(fill: species, palette: "default")
 Scale(fill: score, gradient: ["#3366cc", "#cc3333"])
 Scale(fill: score, gradient: [Stop(value: 0, color: "#3366cc"), Stop(value: 100, color: "#cc3333")])
+Scale(fill: day, timeFormat: "iso-date")
 ```
 
 Arguments:
@@ -552,6 +553,7 @@ palette        "default" | "accent"
 gradient       array of colors or array of Stop(...)
 range          array or map
 labels         array or map
+timeFormat     string
 label          string
 train          "shared" | "local"
 ```
@@ -565,6 +567,8 @@ color    color string
 
 Temporal `tickInterval` units are millisecond, second, minute, hour, day, week,
 month, quarter, and year, with plural forms accepted in interval strings.
+On categorical temporal `fill`/`stroke` scales, `timeFormat` formats legend
+entry labels using the same named or chrono-style formats accepted by guides.
 
 ### Guide
 

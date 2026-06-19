@@ -505,8 +505,8 @@ impl RenderBackend for DrawListBackend {
             theme,
             ..
         } = *scene;
-        let width = ir.width as f64;
-        let height = ir.height as f64;
+        let width = layout.svg.width;
+        let height = layout.svg.height;
         let mut ops = Vec::new();
 
         // Background (mirrors document.rs step order: background first).

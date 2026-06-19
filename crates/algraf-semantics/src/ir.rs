@@ -482,7 +482,8 @@ pub struct GuideOverridesIr {
     pub grid_shape: Option<GridShapeIr>,
 }
 
-/// Named temporal label formats accepted by `Guide(timeFormat: ...)`.
+/// Named temporal label formats accepted by `Guide(timeFormat: ...)`,
+/// `Text(timeFormat: ...)`, and temporal color legend formatting.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TemporalFormatIr {
     IsoDate,
@@ -578,6 +579,9 @@ pub struct ScaleIr {
     /// A manual category → display-label map (`labels: ["A" => "Advance"]`,
     /// spec §16.13). Aligned with `color_map` order when both are present.
     pub label_map: Option<Vec<(String, String)>>,
+    /// Temporal legend-entry label format for categorical `fill`/`stroke`
+    /// scales over temporal columns (spec §16.13).
+    pub time_format: Option<TemporalFormatIr>,
     /// An explicit legend title that overrides the column-derived default for a
     /// `fill`/`stroke` aesthetic scale (spec §16.13).
     pub label: Option<String>,

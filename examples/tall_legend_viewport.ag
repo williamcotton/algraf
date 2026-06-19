@@ -1,0 +1,11 @@
+Chart(data: "tall_legend_viewport.csv", width: 560, height: 160,
+      title: "Tall right legend") {
+    Theme(name: "minimal")
+    Scale(fill: origin_bucket, label: "Origin bucket")
+    Guide(axis: x, label: "Snapshot")
+    Guide(axis: y, label: "Lines")
+
+    Space(x * y) {
+        Point(fill: origin_bucket, size: 5)
+    }
+}

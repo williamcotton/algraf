@@ -270,18 +270,28 @@ impl Layout {
             height: (height - top - bottom - legend_top - legend_bottom).max(1.0),
         };
 
+        let vertical_legend_svg_height = if has_legend
+            && matches!(
+                legend_position,
+                LegendPositionIr::Right | LegendPositionIr::Left
+            ) {
+            plot.y + legend_size.height + bottom
+        } else {
+            height
+        };
+
         let legend = has_legend.then(|| match legend_position {
             LegendPositionIr::Right => Rect {
                 x: plot.right() + LEGEND_GAP,
                 y: plot.y,
                 width: legend_size.width,
-                height: plot.height,
+                height: legend_size.height,
             },
             LegendPositionIr::Left => Rect {
                 x: left,
                 y: plot.y,
                 width: legend_size.width,
-                height: plot.height,
+                height: legend_size.height,
             },
             LegendPositionIr::Bottom => Rect {
                 x: plot.x,
@@ -302,7 +312,7 @@ impl Layout {
                 x: 0.0,
                 y: 0.0,
                 width,
-                height,
+                height: height.max(vertical_legend_svg_height),
             },
             plot,
             legend,

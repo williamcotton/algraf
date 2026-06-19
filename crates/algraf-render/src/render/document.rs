@@ -456,8 +456,8 @@ pub(super) fn emit_document(
         theme,
         ..
     } = *scene;
-    let width = ir.width as f64;
-    let height = ir.height as f64;
+    let width = layout.svg.width;
+    let height = layout.svg.height;
 
     let mut w = SvgWriter::new();
     let aria = ir

@@ -270,6 +270,32 @@ Chart(data: "milestones.csv", width: 720, height: 360, title: "Release milestone
 
 ![off_axis_time](off_axis_time.svg)
 
+## Temporal legend labels
+
+When a temporal column drives a categorical color scale, `Scale(timeFormat:)`
+formats the legend entries without changing the temporal category keys or color
+binding. This is useful for daily or weekly cohort charts where the raw category
+key would otherwise be a full RFC3339 timestamp.
+
+```algraf
+Chart(data: "temporal_legend_format.csv", width: 760, height: 420,
+      title: "Temporal legend labels",
+      subtitle: "Scale(timeFormat:) formats temporal color legend entries") {
+    Theme(name: "minimal")
+    Scale(axis: x, type: "temporal")
+    Scale(axis: y, domain: [0, null])
+    Scale(fill: origin_day, palette: "accent", label: "Origin day", timeFormat: "iso-date")
+    Guide(axis: x, label: "Snapshot", timeFormat: "%b %-d")
+    Guide(axis: y, label: "Surviving lines")
+
+    Space(snapshot_day * lines) {
+        Area(group: origin_day, fill: origin_day, alpha: 0.76, layout: "stack")
+    }
+}
+```
+
+![temporal_legend_format](temporal_legend_format.svg)
+
 ## Time-only columns with an anchor date
 
 A time-only column (no date) parses when `Parse(...)` supplies an `anchor:` date;
@@ -2466,6 +2492,28 @@ Chart(data: "penguins.csv", width: 720, height: 480, title: "Merged fill and str
 ```
 
 ![legend_merge](legend_merge.svg)
+
+## Tall right legends expand the output
+
+Right and left legends reserve measured width, and when a vertical legend has
+more rows than the requested chart height, Algraf expands the SVG/draw-list
+height so every legend entry remains visible.
+
+```algraf
+Chart(data: "tall_legend_viewport.csv", width: 560, height: 160,
+      title: "Tall right legend") {
+    Theme(name: "minimal")
+    Scale(fill: origin_bucket, label: "Origin bucket")
+    Guide(axis: x, label: "Snapshot")
+    Guide(axis: y, label: "Lines")
+
+    Space(x * y) {
+        Point(fill: origin_bucket, size: 5)
+    }
+}
+```
+
+![tall_legend_viewport](tall_legend_viewport.svg)
 
 ## Log-scaled axes
 

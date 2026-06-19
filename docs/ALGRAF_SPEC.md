@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.84.1
+Status: 0.84.2
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.84.1 specification.
+This working copy is the 0.84.2 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -7309,6 +7309,24 @@ dedupes against any same-aesthetic, same-title chart-scope scale via the
 normal legend-merge rules. Glyph-body scales take precedence over chart-scope
 scales for the same `(aesthetic, column)` pair (§14.27).
 
+#### 16.13.2 Temporal Categorical Legend Labels
+
+A categorical `fill`/`stroke` scale over a temporal column MAY take
+`timeFormat:` to format legend entry labels:
+
+```ag
+Scale(fill: day, timeFormat: "iso-date")
+Scale(stroke: month, timeFormat: "%b %Y")
+```
+
+The accepted named and custom formats are the same as `Guide(timeFormat:)`
+(§19.4). The formatter MUST render each temporal category's UTC-equivalent
+instant with the requested format while preserving the underlying category key
+and color binding. Explicit `labels:` maps take precedence over `timeFormat:`.
+`timeFormat:` on non-temporal color columns MUST emit `E1907`; on axis, `size`,
+or `strokeWidth` scales it MUST emit a targeted semantic diagnostic. Unknown or
+invalid format strings MUST emit `E1907`.
+
 ### 16.14 Projection
 
 > Since version 0.8.
@@ -7564,6 +7582,10 @@ Version 0.79.0: the measured legend rectangle MUST be derived from the
 collected legend titles and entry labels before the final layout pass. Right
 and left legends reserve measured width plus the plot/legend gap; top and
 bottom legends reserve measured wrapped height plus the plot/legend gap.
+If a measured right or left legend is taller than the requested chart viewport,
+the renderer MUST expand the output SVG/draw-list height enough to include the
+legend and the bottom guide reserve. It MUST NOT clip legend entries merely
+because the vertical legend content is taller than the plot area.
 
 If title present, top margin increases.
 
@@ -11509,6 +11531,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.83.0 | [`V0_83_PLAN.md`](V0_83_PLAN.md) | Typographic control of chart text chrome: weight/style/alignment and visibility for title, subtitle, caption, source, and axis/legend/strip text | Implemented |
 | 0.84.0 | [`V0_84_PLAN.md`](V0_84_PLAN.md) | Cartesian clipping follows pinned domain bounds and zoom per edge, with mark-extent bleed | Implemented |
 | 0.84.1 | [`V0_84_1_PLAN.md`](V0_84_1_PLAN.md) | LSP preview data dependency paths are normalized before watcher registration | Implemented |
+| 0.84.2 | [`V0_84_2_PLAN.md`](V0_84_2_PLAN.md) | Tall vertical legends expand the output viewport, and temporal categorical color legends support formatted labels | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="560" height="380" viewBox="0 0 560 380" role="img" aria-label="Nested glyph marks">
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="536" viewBox="0 0 560 536" role="img" aria-label="Nested glyph marks">
 <title>Nested glyph marks</title>
-<rect class="algraf-background" x="0" y="0" width="560" height="380" fill="#ffffff" />
+<rect class="algraf-background" x="0" y="0" width="560" height="536" fill="#ffffff" />
 <text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Nested glyph marks</text>
 <rect class="algraf-plot-area" x="60" y="66" width="350" height="264" fill="#ffffff" />
 <g class="algraf-grid">

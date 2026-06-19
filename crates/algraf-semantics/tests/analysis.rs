@@ -742,6 +742,37 @@ fn test_scale_label_must_be_string() {
 }
 
 #[test]
+fn test_scale_time_format_is_recorded_for_temporal_color_legend() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: time, timeFormat: \"iso-date\")\n  Space(time * amount) { Point(fill: time) }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert_eq!(ir.scales[0].time_format, Some(TemporalFormatIr::IsoDate));
+}
+
+#[test]
+fn test_scale_time_format_rejects_non_temporal_and_wrong_targets() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: species, timeFormat: \"iso-date\")\n  Space(flipper_length * body_mass) { Point(fill: species) }\n}",
+        "E1907"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, timeFormat: \"iso-date\")\n  Space(time * amount) { Line() }\n}",
+        "E1204"
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: time, timeFormat: \"galactic\")\n  Space(time * amount) { Point(fill: time) }\n}",
+        "E1907"
+    ));
+}
+
+#[test]
 fn test_scale_gradient_is_recorded_for_continuous_fill() {
     let analysis = analyze_source(
         "Chart(data: \"p.csv\") {\n  Scale(fill: value, gradient: [\"#3366cc\", \"#cc3333\"], label: \"Value\")\n  Space(flipper_length * body_mass) { Point(fill: value) }\n}",

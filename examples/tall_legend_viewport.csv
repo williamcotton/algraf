@@ -1,0 +1,13 @@
+x,y,origin_bucket
+1,8,May 19 frontend routes
+2,11,May 20 API wiring
+3,10,May 21 auth screens
+4,14,May 22 state stores
+5,13,May 23 checkout flow
+6,17,May 24 profile editor
+7,18,May 25 notification center
+8,20,May 26 billing panel
+9,19,May 27 analytics view
+10,22,May 28 export worker
+11,21,May 29 preference sync
+12,24,May 30 release polish

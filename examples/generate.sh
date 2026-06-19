@@ -69,6 +69,7 @@ charts=(
     reversed_axis
     temporal_formats_auto
     temporal_parse_custom
+    temporal_legend_format
     temporal_histogram
     timeseries_gaps
     temporal_tick_interval
@@ -106,6 +107,7 @@ charts=(
     summary2d_z
     summaryhex_z
     legend_merge
+    tall_legend_viewport
     scale_label
     satisfaction_slope
     station_throughput

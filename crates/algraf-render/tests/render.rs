@@ -50,6 +50,13 @@ fn inside_defs(svg: &str, index: usize) -> bool {
     }
 }
 
+fn svg_root_attr(svg: &str, attr: &str) -> Option<f64> {
+    let needle = format!("{attr}=\"");
+    let start = svg.find(&needle)? + needle.len();
+    let end = svg[start..].find('"')? + start;
+    svg[start..end].parse().ok()
+}
+
 #[cfg(feature = "arrow-stream")]
 fn arrow_stream_fixture() -> Vec<u8> {
     let schema = Arc::new(Schema::new(vec![
@@ -714,6 +721,23 @@ fn test_scatter_has_legend_for_fill_mapping() {
 }
 
 #[test]
+fn test_temporal_fill_legend_uses_scale_time_format() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {
+  Scale(fill: day, timeFormat: \"iso-date\", label: \"Origin day\")
+  Space(x * y) { Point(fill: day) }
+}",
+        "x,y,day\n1,2,2026-05-19\n2,3,2026-05-20\n",
+    );
+    let legend = legend_layer(&svg);
+
+    assert!(legend.contains(">Origin day</text>"));
+    assert!(legend.contains(">2026-05-19</text>"));
+    assert!(legend.contains(">2026-05-20</text>"));
+    assert!(!legend.contains("2026-05-19T00:00:00+00:00"));
+}
+
+#[test]
 fn test_guide_legend_false_suppresses_legends() {
     let svg = render_svg(
         "Chart(data: \"p.csv\") { Guide(legend: false) Space(x * y) { Point(fill: g) } }",
@@ -808,6 +832,38 @@ fn test_long_right_legend_labels_reserve_width() {
     assert!(
         legend.right() <= 480.0 - 30.0 + 0.001,
         "legend should fit inside the computed right margin: {legend:?}"
+    );
+}
+
+#[test]
+fn test_tall_right_legend_expands_svg_height() {
+    let result = render_result(
+        "Chart(data: \"p.csv\", width: 360, height: 150) {
+  Space(x * y) { Point(fill: segment) }
+}",
+        "x,y,segment\n1,1,s01\n2,2,s02\n3,3,s03\n4,4,s04\n5,5,s05\n6,6,s06\n7,7,s07\n8,8,s08\n9,9,s09\n10,10,s10\n11,11,s11\n12,12,s12\n",
+    );
+    let legend = result.layout.legend.expect("legend area");
+
+    assert!(
+        legend.height > result.layout.plot.height,
+        "expected tall measured legend, got legend={legend:?} plot={:?}",
+        result.layout.plot
+    );
+    assert!(
+        result.layout.svg.height > 150.0,
+        "expected SVG viewport to grow, got {:?}",
+        result.layout.svg
+    );
+    assert!(
+        legend.bottom() <= result.layout.svg.height - 50.0 + 0.001,
+        "legend should fit above the bottom guide reserve: legend={legend:?} svg={:?}",
+        result.layout.svg
+    );
+    let serialized_height = svg_root_attr(&result.svg, "height").expect("root height");
+    assert!(
+        (serialized_height - result.layout.svg.height).abs() < 0.001,
+        "serialized height should match expanded layout"
     );
 }
 
