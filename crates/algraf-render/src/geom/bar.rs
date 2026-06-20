@@ -57,11 +57,16 @@ pub(super) fn render(
     }
 
     let Some(orientation) = categorical_value_orientation(space) else {
-        diagnostics.push(Diagnostic::warning(
-            codes::R0002,
-            "Bar requires one categorical position axis and one continuous value axis",
-            geo.span,
-        ));
+        diagnostics.push(
+            Diagnostic::warning(
+                codes::R0002,
+                "Bar requires one categorical position axis and one continuous value axis",
+                geo.span,
+            )
+            .with_help(
+                "Use `Scale(axis: x, type: \"categorical\")` or `Scale(axis: y, type: \"categorical\")` when a numeric or temporal bucket column should be drawn as discrete bars.",
+            ),
+        );
         return;
     };
 

@@ -12,7 +12,7 @@ use crate::scale::{
     categorical_domain, cell_category, cell_f64, cell_micros, numeric_domain, temporal_domain,
     BandScale, ContinuousScale, NestedBandScale, TemporalScale,
 };
-use algraf_data::{DataType, Table, TemporalPrecision};
+use algraf_data::{DataType, DataValueRef, DateTimeValue, Table, TemporalPrecision};
 use algraf_semantics::{
     AxisSelectorIr, AxisViewDomainIr, ColumnRef, CoordinateViewIr, FrameIr, PolarDirectionIr,
     PolarThetaIr, ScaleExpansionIr, ScaleIr, ScaleTargetIr, ScaleTypeIr, TemporalFormatIr,
@@ -207,17 +207,8 @@ impl AxisScale {
                     })
                     .collect()
             }
-            AxisScale::Band { scale, .. } => scale
-                .categories
-                .iter()
-                .filter_map(|c| scale.center(c).map(|x| (x, c.clone())))
-                .collect(),
-            AxisScale::NestedBand { scale, .. } => scale
-                .outer
-                .categories
-                .iter()
-                .filter_map(|c| scale.outer.center(c).map(|x| (x, c.clone())))
-                .collect(),
+            AxisScale::Band { scale, .. } => band_ticks(scale, format),
+            AxisScale::NestedBand { scale, .. } => band_ticks(&scale.outer, format),
         }
     }
 
@@ -293,6 +284,42 @@ impl AxisScale {
             }
         }
     }
+}
+
+fn band_ticks(scale: &BandScale, format: Option<&TemporalFormatIr>) -> Vec<(f64, String)> {
+    scale
+        .categories
+        .iter()
+        .enumerate()
+        .filter_map(|(index, category)| {
+            let label = temporal_band_label(scale, index, category, format);
+            scale.center(category).map(|x| (x, label))
+        })
+        .collect()
+}
+
+fn temporal_band_label(
+    scale: &BandScale,
+    index: usize,
+    category: &str,
+    format: Option<&TemporalFormatIr>,
+) -> String {
+    format
+        .and_then(|format| {
+            scale
+                .temporal_values
+                .as_ref()
+                .and_then(|values| values.get(index))
+                .and_then(|value| *value)
+                .map(|value| {
+                    format_temporal(
+                        value.instant.and_utc().timestamp_micros(),
+                        value.precision,
+                        Some(format),
+                    )
+                })
+        })
+        .unwrap_or_else(|| category.to_string())
 }
 
 fn midpoint(range: (f64, f64)) -> f64 {
@@ -796,6 +823,8 @@ fn build_axis(
                 let outer_cats = ordered_categorical_domain(table, &o.name, config);
                 let inner_cats = categorical_domain(table, &i.name);
                 let mut outer_band = BandScale::new(outer_cats, range);
+                outer_band.temporal_values =
+                    temporal_category_values(table, &o.name, &outer_band.categories);
                 if let Some(hints) = hints {
                     if let Some(pad) = hints.band_pad_inner() {
                         outer_band.pad_inner = pad;
@@ -977,6 +1006,7 @@ fn band_axis(
 ) -> AxisScale {
     let cats = ordered_categorical_domain(table, &col.name, config);
     let mut scale = BandScale::new(cats, range);
+    scale.temporal_values = temporal_category_values(table, &col.name, &scale.categories);
     if let Some(hints) = hints {
         if let Some(pad) = hints.band_pad_inner() {
             scale.pad_inner = pad;
@@ -1010,6 +1040,39 @@ fn ordered_categorical_domain(
         }
     }
     categories
+}
+
+fn temporal_category_values(
+    table: &dyn Table,
+    column: &str,
+    categories: &[String],
+) -> Option<Vec<Option<DateTimeValue>>> {
+    let mut values = vec![None; categories.len()];
+    let mut saw_temporal = false;
+    for row in 0..table.row_count() {
+        let Some(value) = temporal_cell(table, column, row) else {
+            continue;
+        };
+        saw_temporal = true;
+        let key = value.instant.and_utc().to_rfc3339();
+        let Some(index) = categories.iter().position(|category| category == &key) else {
+            continue;
+        };
+        if values[index].is_none() {
+            values[index] = Some(value);
+        }
+    }
+    saw_temporal.then_some(values)
+}
+
+fn temporal_cell(table: &dyn Table, column: &str, row: usize) -> Option<DateTimeValue> {
+    if let Some(view) = table.column(column) {
+        return view.temporal_at(row);
+    }
+    match table.value(column, row)? {
+        DataValueRef::Temporal(value) => Some(value),
+        _ => None,
+    }
 }
 
 #[derive(Debug, Clone, Default)]

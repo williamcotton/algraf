@@ -569,6 +569,10 @@ Temporal `tickInterval` units are millisecond, second, minute, hour, day, week,
 month, quarter, and year, with plural forms accepted in interval strings.
 On categorical temporal `fill`/`stroke` scales, `timeFormat` formats legend
 entry labels using the same named or chrono-style formats accepted by guides.
+On temporal columns forced to categorical position axes with
+`Scale(axis: x, type: "categorical")` or `Scale(axis: y, type: "categorical")`,
+use `Guide(axis:, timeFormat:)` to format tick labels. Without that guide,
+temporal category labels are deterministic RFC3339 strings.
 
 ### Guide
 
@@ -600,6 +604,9 @@ gridShape        "circle" | "polygon"
 Use `Guide(fill: null)` or `Guide(stroke: null)` to suppress legends.
 Use `Guide(axis: y, position: "right")` to move the value axis to the right edge,
 and `Guide(axis: x, position: "top")` to move the x axis to the top.
+Use `Guide(axis: x, timeFormat: "%b %Y")` or `Guide(axis: x, timeFormat: "year")`
+to format temporal tick labels, including temporal columns rendered as
+categorical bands via `Scale(axis: x, type: "categorical")`.
 Use `Guide(axis: y, format: ".0f")` for integer value-axis labels (numeric,
 non-temporal axes only). Use `Guide(axis: x, grid: false)` to hide vertical grid
 lines (or `axis: y` to hide horizontal lines); a bare `Guide(grid: false)` hides

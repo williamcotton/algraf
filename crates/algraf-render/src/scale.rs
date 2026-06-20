@@ -2,7 +2,9 @@
 
 use std::collections::HashSet;
 
-use algraf_data::{format_f64_category, ColumnView, DataValueRef, Table, TemporalPrecision};
+use algraf_data::{
+    format_f64_category, ColumnView, DataValueRef, DateTimeValue, Table, TemporalPrecision,
+};
 
 /// A linear continuous scale mapping a numeric domain to a pixel range
 /// (spec §16.3).
@@ -153,6 +155,10 @@ impl TemporalScale {
 #[derive(Debug, Clone)]
 pub struct BandScale {
     pub categories: Vec<String>,
+    /// Optional temporal values aligned with `categories`. These preserve the
+    /// category keys while allowing `Guide(timeFormat:)` to format labels for a
+    /// temporal column forced onto a categorical axis.
+    pub temporal_values: Option<Vec<Option<DateTimeValue>>>,
     pub range: (f64, f64),
     pub pad_inner: f64,
     pub pad_outer: f64,
@@ -162,6 +168,7 @@ impl BandScale {
     pub fn new(categories: Vec<String>, range: (f64, f64)) -> Self {
         BandScale {
             categories,
+            temporal_values: None,
             range,
             pad_inner: 0.2,
             pad_outer: 0.1,
@@ -219,6 +226,7 @@ impl NestedBandScale {
         let (outer_start, outer_width) = self.outer.band(outer_cat)?;
         let inner = BandScale {
             categories: self.inner_categories.clone(),
+            temporal_values: None,
             range: (0.0, outer_width),
             pad_inner: self.pad_inner,
             pad_outer: 0.0,

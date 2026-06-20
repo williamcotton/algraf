@@ -1079,6 +1079,73 @@ fn categorical_axis_type_allows_numeric_bar_position() {
 }
 
 #[test]
+fn categorical_axis_type_allows_temporal_bar_position() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Scale(axis: x, type: \"categorical\") Space(bucket_start * lines_changed) { Bar(fill: author_name, layout: \"stack\") } }",
+        "bucket_start,author_name,lines_changed\n2024-01-01,Ada,120\n2024-01-01,Lin,80\n2025-01-01,Ada,50\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.svg.matches("opacity=").count(), 3);
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+    assert_eq!(
+        metadata["axes"]["x"]["domain"],
+        serde_json::json!(["2024-01-01T00:00:00+00:00", "2025-01-01T00:00:00+00:00"])
+    );
+}
+
+#[test]
+fn temporal_categorical_axis_uses_custom_guide_time_format() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Scale(axis: x, type: \"categorical\") Guide(axis: x, timeFormat: \"%b %Y\") Space(bucket_start * lines_changed) { Bar() } }",
+        "bucket_start,lines_changed\n2024-01-01,120\n2024-02-01,80\n2024-03-01,50\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains(">Jan 2024</text>"), "{}", result.svg);
+    assert!(result.svg.contains(">Feb 2024</text>"), "{}", result.svg);
+    assert!(
+        !result.svg.contains(">2024-01-01T00:00:00+00:00</text>"),
+        "{}",
+        result.svg
+    );
+}
+
+#[test]
+fn temporal_categorical_axis_uses_named_year_guide_time_format() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Scale(axis: x, type: \"categorical\") Guide(axis: x, timeFormat: \"year\") Space(bucket_start * lines_changed) { Bar() } }",
+        "bucket_start,lines_changed\n2024-01-01,120\n2025-01-01,80\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains(">2024</text>"), "{}", result.svg);
+    assert!(result.svg.contains(">2025</text>"), "{}", result.svg);
+}
+
+#[test]
+fn temporal_categorical_axis_without_guide_keeps_rfc3339_labels() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Scale(axis: x, type: \"categorical\") Space(bucket_start * lines_changed) { Bar() } }",
+        "bucket_start,lines_changed\n2024-01-01,120\n2025-01-01,80\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.svg.contains(">2024-01-01T00:00:00+00:00</text>"),
+        "{}",
+        result.svg
+    );
+}
+
+#[test]
+fn non_temporal_categorical_axis_ignores_guide_time_format() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Guide(axis: x, timeFormat: \"year\") Space(bucket * lines_changed) { Bar() } }",
+        "bucket,lines_changed\nalpha,120\nbeta,80\n",
+    );
+    assert!(result.svg.contains(">alpha</text>"), "{}", result.svg);
+    assert!(result.svg.contains(">beta</text>"), "{}", result.svg);
+}
+
+#[test]
 fn categorical_axis_type_orders_numeric_categories_with_string_domain() {
     let result = render_result(
         "Chart(data: \"p.csv\") { Scale(axis: x, type: \"categorical\", domain: [\"3\", \"1\"]) Space(day * value) { Bar() } }",
@@ -2187,6 +2254,24 @@ fn test_w2002_when_geometry_produces_no_marks() {
         result.diagnostics.iter().any(|d| d.code == "W2002"),
         "expected W2002, got {:?}",
         result.diagnostics
+    );
+}
+
+#[test]
+fn bar_space_mismatch_diagnostic_suggests_categorical_axis_type() {
+    let result = render_result(
+        "Chart(data: \"p.csv\") { Space(bucket_start * lines_changed) { Bar() } }",
+        "bucket_start,lines_changed\n2024-01-01,120\n2025-01-01,50\n",
+    );
+    let diagnostic = result
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "R0002")
+        .expect("R0002 diagnostic");
+    let help = diagnostic.help.as_deref().unwrap_or_default();
+    assert!(
+        help.contains("Scale(axis: x, type: \"categorical\")"),
+        "{diagnostic:?}"
     );
 }
 

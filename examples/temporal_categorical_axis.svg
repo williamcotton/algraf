@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420" role="img" aria-label="Monthly commits as categories">
+<title>Monthly commits as categories</title>
+<desc>Guide(timeFormat:) formats temporal category labels</desc>
+<rect class="algraf-background" x="0" y="0" width="720" height="420" fill="#ffffff" />
+<text class="algraf-title" x="60" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Monthly commits as categories</text>
+<text class="algraf-subtitle" x="60" y="50" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Guide(timeFormat:) formats temporal category labels</text>
+<rect class="algraf-plot-area" x="60" y="82" width="630" height="257.132" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="60" y1="306.991" x2="690" y2="306.991" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="242.708" x2="690" y2="242.708" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="178.425" x2="690" y2="178.425" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="114.142" x2="690" y2="114.142" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="60" y1="339.132" x2="690" y2="339.132" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="274.849" x2="690" y2="274.849" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="210.566" x2="690" y2="210.566" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="146.283" x2="690" y2="146.283" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="60" y1="82" x2="690" y2="82" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<defs>
+<clipPath id="algraf-clip-0"><rect x="0" y="82" width="720" height="257.132" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-bar">
+    <rect x="70.5" y="223.423" width="84" height="115.709" fill="#0f766e" opacity="0.86"><title>bucket_start: 2024-01-01T00:00:00+00:00
+commit_count: 18</title></rect>
+    <rect x="175.5" y="171.996" width="84" height="167.136" fill="#0f766e" opacity="0.86"><title>bucket_start: 2024-02-01T00:00:00+00:00
+commit_count: 26</title></rect>
+    <rect x="280.5" y="204.138" width="84" height="134.994" fill="#0f766e" opacity="0.86"><title>bucket_start: 2024-03-01T00:00:00+00:00
+commit_count: 21</title></rect>
+    <rect x="385.5" y="120.57" width="84" height="218.562" fill="#0f766e" opacity="0.86"><title>bucket_start: 2024-04-01T00:00:00+00:00
+commit_count: 34</title></rect>
+    <rect x="490.5" y="152.711" width="84" height="186.421" fill="#0f766e" opacity="0.86"><title>bucket_start: 2024-05-01T00:00:00+00:00
+commit_count: 29</title></rect>
+    <rect x="595.5" y="101.285" width="84" height="237.847" fill="#0f766e" opacity="0.86"><title>bucket_start: 2024-06-01T00:00:00+00:00
+commit_count: 37</title></rect>
+  </g>
+  <g class="algraf-layer algraf-geom-text">
+    <text x="112.5" y="215.423" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">18</text>
+    <text x="217.5" y="163.996" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">26</text>
+    <text x="322.5" y="196.138" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">21</text>
+    <text x="427.5" y="112.57" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">34</text>
+    <text x="532.5" y="144.711" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">29</text>
+    <text x="637.5" y="93.285" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#222222" opacity="1">37</text>
+  </g>
+</g>
+<g class="algraf-axes">
+  <line x1="60" y1="339.132" x2="690" y2="339.132" stroke="#333333" stroke-width="1" />
+  <line x1="112.5" y1="339.132" x2="112.5" y2="344.132" stroke="#333333" stroke-width="1" />
+  <text x="112.5" y="357.132" text-anchor="end" transform="rotate(-35 112.5 357.132)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jan 2024</text>
+  <line x1="217.5" y1="339.132" x2="217.5" y2="344.132" stroke="#333333" stroke-width="1" />
+  <text x="217.5" y="357.132" text-anchor="end" transform="rotate(-35 217.5 357.132)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Feb 2024</text>
+  <line x1="322.5" y1="339.132" x2="322.5" y2="344.132" stroke="#333333" stroke-width="1" />
+  <text x="322.5" y="357.132" text-anchor="end" transform="rotate(-35 322.5 357.132)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 2024</text>
+  <line x1="427.5" y1="339.132" x2="427.5" y2="344.132" stroke="#333333" stroke-width="1" />
+  <text x="427.5" y="357.132" text-anchor="end" transform="rotate(-35 427.5 357.132)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Apr 2024</text>
+  <line x1="532.5" y1="339.132" x2="532.5" y2="344.132" stroke="#333333" stroke-width="1" />
+  <text x="532.5" y="357.132" text-anchor="end" transform="rotate(-35 532.5 357.132)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">May 2024</text>
+  <line x1="637.5" y1="339.132" x2="637.5" y2="344.132" stroke="#333333" stroke-width="1" />
+  <text x="637.5" y="357.132" text-anchor="end" transform="rotate(-35 637.5 357.132)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Jun 2024</text>
+  <text x="375" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Month</text>
+  <line x1="60" y1="82" x2="60" y2="339.132" stroke="#333333" stroke-width="1" />
+  <line x1="55" y1="339.132" x2="60" y2="339.132" stroke="#333333" stroke-width="1" />
+  <text x="52" y="343.132" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="55" y1="274.849" x2="60" y2="274.849" stroke="#333333" stroke-width="1" />
+  <text x="52" y="278.849" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10</text>
+  <line x1="55" y1="210.566" x2="60" y2="210.566" stroke="#333333" stroke-width="1" />
+  <text x="52" y="214.566" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">20</text>
+  <line x1="55" y1="146.283" x2="60" y2="146.283" stroke="#333333" stroke-width="1" />
+  <text x="52" y="150.283" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">30</text>
+  <line x1="55" y1="82" x2="60" y2="82" stroke="#333333" stroke-width="1" />
+  <text x="52" y="86" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">40</text>
+  <text x="25.6" y="210.566" text-anchor="middle" transform="rotate(-90 25.6 210.566)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Commits</text>
+</g>
+</svg>

@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.84.2
+Status: 0.84.3
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.84.2 specification.
+This working copy is the 0.84.3 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -4797,6 +4797,14 @@ Bar MUST treat negative values according to stack rules.
 
 Positive and negative stacks SHOULD be separated around baseline.
 
+Version 0.84.3: when a Cartesian `Bar` cannot render because the trained space
+does not contain exactly one categorical position axis and one continuous value
+axis, the `R0002` diagnostic SHOULD include help pointing authors to
+`Scale(axis: x, type: "categorical")` or `Scale(axis: y, type:
+"categorical")` for numeric or temporal bucket columns that should be rendered
+as discrete bars. This diagnostic help MUST NOT imply that data loading reshapes
+or retypes the backing column.
+
 Version 0.77.0: for `stack` and `fill` layouts, the default legend order for
 the stacked categorical aesthetic MUST follow rendered visual stack order
 rather than raw scale/domain order (§19.5). Stack accumulation order continues
@@ -6836,6 +6844,13 @@ band center
 
 band width
 
+Version 0.84.3: a categorical band axis whose backing column is temporal MAY
+format tick labels with `Guide(axis:, timeFormat:)` (§19.4). This formatting is
+presentation-only: the band domain and interaction metadata continue to use the
+deterministic category keys defined for `Scale(axis:, type: "categorical")`
+(UTC RFC3339 strings for temporals). Without `Guide(timeFormat:)`, temporal
+categorical axis labels MUST remain those RFC3339 category keys.
+
 ### 16.6 Nested Band Scale
 
 Nested band scale composes band scales.
@@ -8304,6 +8319,15 @@ string, `format` combined with `timeFormat`, or `format` without `axis: x` or
 `axis: y`, MUST emit `E1909`. A numeric `format` applied to a temporal or
 categorical axis has no effect (those axes use `timeFormat` and category labels
 respectively). Output is identical across SVG, raster, and draw-list backends.
+
+Version 0.84.3: `Guide(axis: x, timeFormat: "...")` and
+`Guide(axis: y, timeFormat: "...")` MUST also apply to categorical band axes
+whose backing column is temporal, including axes produced by
+`Scale(axis: x, type: "categorical")` or
+`Scale(axis: y, type: "categorical")`. The formatter MUST render each temporal
+category's UTC-equivalent instant with the requested named or custom format
+while preserving the underlying category key and band order. A categorical axis
+with no temporal backing values MUST keep its category labels unchanged.
 
 Version 0.82.0 MUST support per-axis grid-line visibility. `Guide(axis: x,
 grid: false)` suppresses the vertical grid lines at x ticks; `Guide(axis: y,
@@ -10896,6 +10920,10 @@ but they are implementation-oriented rather than authoring-rule diagnostics.
 
 `R0002 geometry is incompatible with the trained render space`
 
+Where the incompatible space has a known explicit axis override, such as
+categorical bars over numeric or temporal bucket columns, `R0002` SHOULD include
+targeted help for the relevant `Scale(...)` declaration.
+
 `R0003 space or facet could not be laid out`
 
 `R0004 scale declaration could not be applied during rendering`
@@ -11532,6 +11560,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.84.0 | [`V0_84_PLAN.md`](V0_84_PLAN.md) | Cartesian clipping follows pinned domain bounds and zoom per edge, with mark-extent bleed | Implemented |
 | 0.84.1 | [`V0_84_1_PLAN.md`](V0_84_1_PLAN.md) | LSP preview data dependency paths are normalized before watcher registration | Implemented |
 | 0.84.2 | [`V0_84_2_PLAN.md`](V0_84_2_PLAN.md) | Tall vertical legends expand the output viewport, and temporal categorical color legends support formatted labels | Implemented |
+| 0.84.3 | [`V0_84_3_PLAN.md`](V0_84_3_PLAN.md) | Temporal-backed categorical axes honor guide time formats, and Bar diagnostics point bucket columns at explicit categorical axis scales | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

@@ -2646,6 +2646,35 @@ Chart(data: "numeric_categorical_axis.csv", width: 620, height: 380, title: "Day
 
 ![numeric_categorical_axis](numeric_categorical_axis.svg)
 
+## Temporal categories on an axis
+
+Temporal buckets can be treated as discrete bands while keeping the source
+column temporal. `Guide(axis:, timeFormat:)` formats the visible tick labels;
+without it, the category labels remain deterministic RFC3339 strings.
+
+```algraf
+Chart(
+    data: "temporal_categorical_axis.csv",
+    width: 720,
+    height: 420,
+    title: "Monthly commits as categories",
+    subtitle: "Guide(timeFormat:) formats temporal category labels"
+) {
+    Theme(name: "minimal")
+    Scale(axis: x, type: "categorical")
+    Scale(axis: y, domain: [0, 40], breaks: [0, 10, 20, 30, 40])
+    Guide(axis: x, label: "Month", tickLabelAngle: -35, timeFormat: "%b %Y")
+    Guide(axis: y, label: "Commits")
+
+    Space(bucket_start * commit_count) {
+        Bar(fill: "#0f766e", alpha: 0.86, tooltip: [bucket_start, commit_count])
+        Text(label: commit_count, dy: -8, anchor: "middle", size: 10)
+    }
+}
+```
+
+![temporal_categorical_axis](temporal_categorical_axis.svg)
+
 ## Visual coordinate zoom
 
 `zoomX` and `zoomY` are coordinate controls on `Space`. They limit the visible

@@ -60,6 +60,7 @@ charts=(
     domain_floor_clip
     categorical_domain_order
     numeric_categorical_axis
+    temporal_categorical_axis
     coordinate_zoom
     fixed_aspect
     facet_grid

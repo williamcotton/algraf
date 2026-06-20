@@ -151,6 +151,36 @@ Chart(data: "monthly_profit.csv", width: 760, height: 420, title: "Pinned floor 
 
 ![domain_floor_clip](examples/domain_floor_clip.svg)
 
+### Temporal categories with formatted labels
+
+Temporal buckets can also be drawn as discrete bands with
+`Scale(axis: x, type: "categorical")`. The category keys stay deterministic
+RFC3339 strings internally, while `Guide(axis:, timeFormat:)` controls the
+visible tick labels.
+
+```algraf
+Chart(
+    data: "temporal_categorical_axis.csv",
+    width: 720,
+    height: 420,
+    title: "Monthly commits as categories",
+    subtitle: "Guide(timeFormat:) formats temporal category labels"
+) {
+    Theme(name: "minimal")
+    Scale(axis: x, type: "categorical")
+    Scale(axis: y, domain: [0, 40], breaks: [0, 10, 20, 30, 40])
+    Guide(axis: x, label: "Month", tickLabelAngle: -35, timeFormat: "%b %Y")
+    Guide(axis: y, label: "Commits")
+
+    Space(bucket_start * commit_count) {
+        Bar(fill: "#0f766e", alpha: 0.86, tooltip: [bucket_start, commit_count])
+        Text(label: commit_count, dy: -8, anchor: "middle", size: 10)
+    }
+}
+```
+
+![temporal_categorical_axis](examples/temporal_categorical_axis.svg)
+
 ## 5. Astronauts: blend fields, annotate the result
 
 `mission_age + selection_age` blends two numeric columns into one frame. The
