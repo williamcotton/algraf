@@ -5,6 +5,11 @@ use std::collections::HashSet;
 use algraf_data::{
     format_f64_category, ColumnView, DataValueRef, DateTimeValue, Table, TemporalPrecision,
 };
+use algraf_semantics::TemporalTickIntervalIr;
+
+pub const DEFAULT_BAND_PAD_INNER: f64 = 0.2;
+pub const DEFAULT_BAND_PAD_OUTER: f64 = 0.1;
+pub const DEFAULT_NESTED_BAND_PAD_INNER: f64 = 0.1;
 
 /// A linear continuous scale mapping a numeric domain to a pixel range
 /// (spec §16.3).
@@ -118,6 +123,9 @@ pub struct TemporalScale {
     pub max: i64,
     pub range: (f64, f64),
     pub precision: TemporalPrecision,
+    /// The explicit temporal cadence declared with `Scale(tickInterval: ...)`,
+    /// when available for marks that need a bucket interval.
+    pub tick_interval: Option<TemporalTickIntervalIr>,
     pub tick_values: Vec<i64>,
     pub tick_labels: Vec<String>,
     pub tick_span: Option<(i64, i64)>,
@@ -138,6 +146,7 @@ impl TemporalScale {
             max,
             range,
             precision,
+            tick_interval: None,
             tick_values: Vec::new(),
             tick_labels: Vec::new(),
             tick_span: None,
@@ -170,8 +179,8 @@ impl BandScale {
             categories,
             temporal_values: None,
             range,
-            pad_inner: 0.2,
-            pad_outer: 0.1,
+            pad_inner: DEFAULT_BAND_PAD_INNER,
+            pad_outer: DEFAULT_BAND_PAD_OUTER,
         }
     }
 
@@ -217,7 +226,7 @@ impl NestedBandScale {
         NestedBandScale {
             outer,
             inner_categories,
-            pad_inner: 0.1,
+            pad_inner: DEFAULT_NESTED_BAND_PAD_INNER,
         }
     }
 

@@ -133,6 +133,7 @@ pub(super) fn axis_is_continuousish(axis: &AxisScale) -> bool {
         axis,
         AxisScale::Continuous { .. }
             | AxisScale::Temporal { .. }
+            | AxisScale::TemporalNestedBand { .. }
             | AxisScale::Union { .. }
             | AxisScale::TemporalUnion { .. }
     )

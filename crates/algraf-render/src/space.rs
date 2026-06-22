@@ -10,7 +10,8 @@ use crate::layout::Rect;
 use crate::projection::SpatialScale;
 use crate::scale::{
     categorical_domain, cell_category, cell_f64, cell_micros, numeric_domain, temporal_domain,
-    BandScale, ContinuousScale, NestedBandScale, TemporalScale,
+    BandScale, ContinuousScale, NestedBandScale, TemporalScale, DEFAULT_BAND_PAD_INNER,
+    DEFAULT_NESTED_BAND_PAD_INNER,
 };
 use algraf_data::{DataType, DataValueRef, DateTimeValue, Table, TemporalPrecision};
 use algraf_semantics::{
@@ -34,6 +35,13 @@ pub enum AxisScale {
     Temporal {
         col: String,
         scale: TemporalScale,
+    },
+    TemporalNestedBand {
+        outer_col: String,
+        inner_col: String,
+        scale: TemporalScale,
+        inner_categories: Vec<String>,
+        pad_inner: f64,
     },
     Band {
         col: String,
@@ -61,6 +69,9 @@ impl AxisScale {
             AxisScale::Temporal { col, scale } => {
                 cell_micros(table, col, row).map(|v| scale.map(v))
             }
+            AxisScale::TemporalNestedBand {
+                outer_col, scale, ..
+            } => cell_micros(table, outer_col, row).map(|v| scale.map(v)),
             AxisScale::Band { col, scale } => {
                 cell_category(table, col, row).and_then(|c| scale.center(&c))
             }
@@ -89,6 +100,9 @@ impl AxisScale {
                 let inner = cell_category(table, inner_col, row)?;
                 scale.band(&outer, &inner).map(|(_, w)| w)
             }
+            AxisScale::TemporalNestedBand { .. } => self
+                .temporal_bucket_bounds(table, row)
+                .map(|(start, end)| (end - start).abs()),
             _ => None,
         }
     }
@@ -99,15 +113,143 @@ impl AxisScale {
             AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => {
                 Some(scale.map(value))
             }
-            AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
-                Some(scale.map(value as i64))
-            }
+            AxisScale::Temporal { scale, .. }
+            | AxisScale::TemporalNestedBand { scale, .. }
+            | AxisScale::TemporalUnion { scale, .. } => Some(scale.map(value as i64)),
             _ => None,
         }
     }
 
     pub(crate) fn map_value_public(&self, value: f64) -> Option<f64> {
         self.map_value(value)
+    }
+
+    /// The authored temporal bucket cadence on this axis, when present.
+    pub(crate) fn temporal_tick_interval(&self) -> Option<TemporalTickIntervalIr> {
+        match self {
+            AxisScale::Temporal { scale, .. }
+            | AxisScale::TemporalNestedBand { scale, .. }
+            | AxisScale::TemporalUnion { scale, .. } => scale.tick_interval,
+            _ => None,
+        }
+    }
+
+    /// Resolve the row's temporal value on this axis to raw UTC microseconds.
+    pub(crate) fn temporal_anchor(&self, table: &dyn Table, row: usize) -> Option<i64> {
+        match self {
+            AxisScale::Temporal { col, .. } => cell_micros(table, col, row),
+            AxisScale::TemporalNestedBand { outer_col, .. } => cell_micros(table, outer_col, row),
+            AxisScale::TemporalUnion { .. } => None,
+            _ => None,
+        }
+    }
+
+    /// Resolve the row's centered temporal bucket to pixel bounds on this axis.
+    pub(crate) fn temporal_bucket_bounds(
+        &self,
+        table: &dyn Table,
+        row: usize,
+    ) -> Option<(f64, f64)> {
+        let anchor = self.temporal_anchor(table, row)?;
+        let (start, end) =
+            temporal::centered_bucket_bounds(anchor, self.temporal_tick_interval()?)?;
+        let start_px = self.map_value(start as f64)?;
+        let end_px = self.map_value(end as f64)?;
+        match self {
+            AxisScale::TemporalNestedBand {
+                inner_col,
+                inner_categories,
+                pad_inner,
+                ..
+            } => {
+                let inner = cell_category(table, inner_col, row)?;
+                let (outer_start, outer_end) =
+                    inset_pixel_range(start_px, end_px, DEFAULT_BAND_PAD_INNER);
+                let inner_scale = BandScale {
+                    categories: inner_categories.clone(),
+                    temporal_values: None,
+                    range: (outer_start, outer_end),
+                    pad_inner: *pad_inner,
+                    pad_outer: 0.0,
+                };
+                inner_scale
+                    .band(&inner)
+                    .map(|(start, width)| (start, start + width))
+            }
+            _ => Some(inset_pixel_range(start_px, end_px, DEFAULT_BAND_PAD_INNER)),
+        }
+    }
+
+    /// Group key for stacking/fill within a temporal bucket position.
+    pub(crate) fn temporal_bucket_key(&self, table: &dyn Table, row: usize) -> Option<String> {
+        let anchor = self.temporal_anchor(table, row)?;
+        match self {
+            AxisScale::TemporalNestedBand { inner_col, .. } => Some(format!(
+                "{}\u{1f}{}",
+                anchor,
+                cell_category(table, inner_col, row)?
+            )),
+            _ => Some(anchor.to_string()),
+        }
+    }
+
+    /// Resolve the row's bar slot on this position axis. Categorical axes
+    /// return their trained band; temporal axes return the inset bucket supplied
+    /// by `tickInterval`.
+    pub(crate) fn bar_slot_bounds(&self, table: &dyn Table, row: usize) -> Option<(f64, f64)> {
+        match self {
+            AxisScale::Band { col, scale } => {
+                let category = cell_category(table, col, row)?;
+                scale
+                    .band(&category)
+                    .map(|(start, width)| (start, start + width))
+            }
+            AxisScale::NestedBand {
+                outer_col,
+                inner_col,
+                scale,
+            } => {
+                let outer = cell_category(table, outer_col, row)?;
+                let inner = cell_category(table, inner_col, row)?;
+                scale
+                    .band(&outer, &inner)
+                    .map(|(start, width)| (start, start + width))
+            }
+            AxisScale::Temporal { .. } | AxisScale::TemporalNestedBand { .. } => {
+                self.temporal_bucket_bounds(table, row)
+            }
+            _ => None,
+        }
+    }
+
+    /// Stable grouping key for bar stack/fill accumulation within a slot.
+    pub(crate) fn bar_slot_key(&self, table: &dyn Table, row: usize) -> Option<String> {
+        match self {
+            AxisScale::Band { col, .. } => cell_category(table, col, row),
+            AxisScale::NestedBand {
+                outer_col,
+                inner_col,
+                ..
+            } => Some(format!(
+                "{}\u{1f}{}",
+                cell_category(table, outer_col, row)?,
+                cell_category(table, inner_col, row)?
+            )),
+            AxisScale::Temporal { .. } | AxisScale::TemporalNestedBand { .. } => {
+                self.temporal_bucket_key(table, row)
+            }
+            _ => None,
+        }
+    }
+
+    pub(crate) fn is_bar_slot_axis(&self) -> bool {
+        matches!(
+            self,
+            AxisScale::Band { .. }
+                | AxisScale::NestedBand { .. }
+                | AxisScale::Temporal { .. }
+                | AxisScale::TemporalNestedBand { .. }
+        )
     }
 
     /// Resolve a row's value in `column` to a pixel position on this axis, using
@@ -123,7 +265,9 @@ impl AxisScale {
             AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => {
                 cell_f64(table, column, row).map(|v| scale.map(v))
             }
-            AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
+            AxisScale::Temporal { scale, .. }
+            | AxisScale::TemporalNestedBand { scale, .. }
+            | AxisScale::TemporalUnion { scale, .. } => {
                 cell_micros(table, column, row).map(|v| scale.map(v))
             }
             AxisScale::Band { scale, .. } => {
@@ -141,6 +285,7 @@ impl AxisScale {
             AxisScale::Continuous { col, .. }
             | AxisScale::Temporal { col, .. }
             | AxisScale::Band { col, .. } => col,
+            AxisScale::TemporalNestedBand { outer_col, .. } => outer_col,
             AxisScale::NestedBand { outer_col, .. } => outer_col,
             AxisScale::Union { label, .. } | AxisScale::TemporalUnion { label, .. } => label,
         };
@@ -153,6 +298,7 @@ impl AxisScale {
             AxisScale::Continuous { col, .. }
             | AxisScale::Temporal { col, .. }
             | AxisScale::Band { col, .. } => Some(col),
+            AxisScale::TemporalNestedBand { outer_col, .. } => Some(outer_col),
             AxisScale::NestedBand { outer_col, .. } => Some(outer_col),
             AxisScale::Union { .. } | AxisScale::TemporalUnion { .. } => None,
         }
@@ -183,7 +329,9 @@ impl AxisScale {
                     (scale.map(t), label)
                 })
                 .collect(),
-            AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
+            AxisScale::Temporal { scale, .. }
+            | AxisScale::TemporalNestedBand { scale, .. }
+            | AxisScale::TemporalUnion { scale, .. } => {
                 let ticks = temporal_ticks(scale);
                 // With no explicit timeFormat, adapt the default label
                 // pattern to the tick granularity: year-start ticks read
@@ -241,9 +389,9 @@ impl AxisScale {
             AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => {
                 Some((scale.max - scale.min).abs())
             }
-            AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
-                Some((scale.max - scale.min).abs() as f64)
-            }
+            AxisScale::Temporal { scale, .. }
+            | AxisScale::TemporalNestedBand { scale, .. }
+            | AxisScale::TemporalUnion { scale, .. } => Some((scale.max - scale.min).abs() as f64),
             AxisScale::Band { .. } | AxisScale::NestedBand { .. } => None,
         }
     }
@@ -259,7 +407,9 @@ impl AxisScale {
                 }
                 Some((scale.range.1 - scale.range.0) / span * value)
             }
-            AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
+            AxisScale::Temporal { scale, .. }
+            | AxisScale::TemporalNestedBand { scale, .. }
+            | AxisScale::TemporalUnion { scale, .. } => {
                 let span = (scale.max - scale.min) as f64;
                 if span.abs() <= f64::EPSILON {
                     return Some(0.0);
@@ -296,6 +446,11 @@ fn band_ticks(scale: &BandScale, format: Option<&TemporalFormatIr>) -> Vec<(f64,
             scale.center(category).map(|x| (x, label))
         })
         .collect()
+}
+
+fn inset_pixel_range(start: f64, end: f64, pad_inner: f64) -> (f64, f64) {
+    let inset = (end - start) * pad_inner.clamp(0.0, 0.95) / 2.0;
+    (start + inset, end - inset)
 }
 
 fn temporal_band_label(
@@ -820,6 +975,21 @@ fn build_axis(
         FrameIr::Vector(col) => Some(build_vector_axis(col, table, range, hints, config)),
         FrameIr::Nested { outer, inner } => {
             if let (FrameIr::Vector(o), FrameIr::Vector(i)) = (outer.as_ref(), inner.as_ref()) {
+                if config.scale_type != Some(ScaleTypeIr::Categorical)
+                    && (o.dtype == DataType::Temporal
+                        || config.scale_type == Some(ScaleTypeIr::Temporal))
+                {
+                    let scale = temporal_axis_scale(o, table, range, hints, config);
+                    return Some(AxisScale::TemporalNestedBand {
+                        outer_col: o.name.clone(),
+                        inner_col: i.name.clone(),
+                        scale,
+                        inner_categories: categorical_domain(table, &i.name),
+                        pad_inner: hints
+                            .and_then(AxisDomainHints::band_pad_inner)
+                            .unwrap_or(DEFAULT_NESTED_BAND_PAD_INNER),
+                    });
+                }
                 let outer_cats = ordered_categorical_domain(table, &o.name, config);
                 let inner_cats = categorical_domain(table, &i.name);
                 let mut outer_band = BandScale::new(outer_cats, range);
@@ -968,26 +1138,7 @@ fn build_vector_axis(
             }
         }
         DataType::Temporal => {
-            let (mut min, mut max, precision) =
-                temporal_domain(table, &col.name).unwrap_or((0, 1, TemporalPrecision::Date));
-            if let Some(hints) = hints {
-                hints.apply_temporal(&mut min, &mut max);
-            }
-            if config.domain.is_none() {
-                apply_temporal_expansion(config.expansion, &mut min, &mut max);
-            }
-            if let Some(bounds) = config.domain {
-                apply_temporal_domain_bounds(bounds, &mut min, &mut max);
-            }
-            if let Some(bounds) = config.view_domain {
-                apply_temporal_view_domain_bounds(bounds, &mut min, &mut max);
-            }
-            let mut scale = TemporalScale::new(min, max, range, precision);
-            if let Some(hints) = hints {
-                scale.tick_values = hints.temporal_tick_values();
-                scale.tick_span = hints.temporal_tick_span();
-            }
-            apply_axis_breaks_to_temporal(&mut scale, config);
+            let scale = temporal_axis_scale(col, table, range, hints, config);
             AxisScale::Temporal {
                 col: col.name.clone(),
                 scale,
@@ -995,6 +1146,36 @@ fn build_vector_axis(
         }
         _ => band_axis(col, table, range, hints, config),
     }
+}
+
+fn temporal_axis_scale(
+    col: &ColumnRef,
+    table: &dyn Table,
+    range: (f64, f64),
+    hints: Option<&AxisDomainHints>,
+    config: &AxisScaleConfig,
+) -> TemporalScale {
+    let (mut min, mut max, precision) =
+        temporal_domain(table, &col.name).unwrap_or((0, 1, TemporalPrecision::Date));
+    if let Some(hints) = hints {
+        hints.apply_temporal(&mut min, &mut max);
+    }
+    if config.domain.is_none() {
+        apply_temporal_expansion(config.expansion, &mut min, &mut max);
+    }
+    if let Some(bounds) = config.domain {
+        apply_temporal_domain_bounds(bounds, &mut min, &mut max);
+    }
+    if let Some(bounds) = config.view_domain {
+        apply_temporal_view_domain_bounds(bounds, &mut min, &mut max);
+    }
+    let mut scale = TemporalScale::new(min, max, range, precision);
+    if let Some(hints) = hints {
+        scale.tick_values = hints.temporal_tick_values();
+        scale.tick_span = hints.temporal_tick_span();
+    }
+    apply_axis_breaks_to_temporal(&mut scale, config);
+    scale
 }
 
 fn band_axis(
@@ -1224,6 +1405,7 @@ fn apply_axis_breaks_to_temporal(scale: &mut TemporalScale, config: &AxisScaleCo
         // overlap is handled by guide-planning label thinning.
         scale.exact_ticks = true;
     } else if let Some(interval) = config.tick_interval {
+        scale.tick_interval = Some(interval);
         // Generated calendar cadence (spec §16.11); exact breaks win above.
         let ticks = temporal::interval_ticks(scale.min, scale.max, interval);
         if ticks.len() >= 2 {

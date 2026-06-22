@@ -41,6 +41,25 @@ fn mark_rect_count(svg: &str) -> usize {
         .count()
 }
 
+fn mark_rect_attrs(svg: &str, first: &str, second: &str) -> Vec<(f64, f64)> {
+    svg.match_indices("<rect x=\"")
+        .filter(|(index, _)| !inside_defs(svg, *index))
+        .filter_map(|(index, _)| {
+            let rest = &svg[index..];
+            let end = rest.find('>')?;
+            let tag = &rest[..end];
+            Some((svg_tag_attr(tag, first)?, svg_tag_attr(tag, second)?))
+        })
+        .collect()
+}
+
+fn svg_tag_attr(tag: &str, attr: &str) -> Option<f64> {
+    let needle = format!("{attr}=\"");
+    let start = tag.find(&needle)? + needle.len();
+    let end = tag[start..].find('"')? + start;
+    tag[start..end].parse().ok()
+}
+
 fn inside_defs(svg: &str, index: usize) -> bool {
     let before = &svg[..index];
     match (before.rfind("<defs>"), before.rfind("</defs>")) {
@@ -1091,6 +1110,163 @@ fn categorical_axis_type_allows_temporal_bar_position() {
     assert_eq!(
         metadata["axes"]["x"]["domain"],
         serde_json::json!(["2024-01-01T00:00:00+00:00", "2025-01-01T00:00:00+00:00"])
+    );
+}
+
+#[test]
+fn temporal_bar_uses_tick_interval_bucket_width() {
+    let result = render_result(
+        r#"Chart(data: "p.csv", width: 640, height: 360) {
+  Scale(axis: x, type: "temporal", tickInterval: "1 day")
+  Guide(axis: x, timeFormat: "%b %d")
+  Space(day * value) { Bar(alpha: 0.86) }
+}"#,
+        "day,value\n2024-01-01,10\n2024-01-02,20\n2024-01-04,15\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(mark_rect_count(&result.svg), 3);
+    assert!(result.svg.contains(">Jan 01</text>"), "{}", result.svg);
+
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+    assert_eq!(metadata["axes"]["x"]["scale"], "time");
+
+    let mut rects = mark_rect_attrs(&result.svg, "x", "width");
+    rects.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    assert_eq!(rects.len(), 3, "{rects:?}\n{}", result.svg);
+    let first_gap = rects[1].0 - (rects[0].0 + rects[0].1);
+    let missing_day_gap = rects[2].0 - (rects[1].0 + rects[1].1);
+    assert!(
+        first_gap > rects[0].1 * 0.1,
+        "consecutive daily bars should keep regular bar spacing: {rects:?}"
+    );
+    assert!(
+        missing_day_gap > first_gap + rects[0].1,
+        "missing day should remain a larger temporal gap: {rects:?}"
+    );
+    let jan_01_x = text_x(&result.svg, "Jan 01");
+    let jan_01_center = rects[0].0 + rects[0].1 / 2.0;
+    assert!(
+        (jan_01_x - jan_01_center).abs() < 2.0,
+        "date tick should sit under the bar center: tick={jan_01_x} rect={:?}",
+        rects[0]
+    );
+}
+
+#[test]
+fn horizontal_temporal_bar_uses_tick_interval_bucket_width() {
+    let result = render_result(
+        r#"Chart(data: "p.csv", width: 640, height: 360) {
+  Scale(axis: y, type: "temporal", tickInterval: "1 day")
+  Guide(axis: y, timeFormat: "%b %d")
+  Space(value * day) { Bar(alpha: 0.86) }
+}"#,
+        "day,value\n2024-01-01,10\n2024-01-02,20\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(mark_rect_count(&result.svg), 2);
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+    assert_eq!(metadata["axes"]["y"]["scale"], "time");
+}
+
+#[test]
+fn grouped_temporal_bar_subdivides_each_elapsed_time_bucket() {
+    let result = render_result(
+        r##"Chart(data: "p.csv", width: 640, height: 360) {
+  Scale(axis: x, type: "temporal", tickInterval: "1 day")
+  Guide(axis: x, timeFormat: "%b %d")
+  Space(day / group * value) { Bar(fill: "#2563eb", alpha: 0.86) }
+}"##,
+        "day,group,value\n2024-01-01,A,10\n2024-01-01,B,20\n2024-01-03,A,15\n2024-01-03,B,12\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(mark_rect_count(&result.svg), 4);
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+    assert_eq!(metadata["axes"]["x"]["scale"], "time");
+    assert_eq!(
+        metadata["axes"]["x"]["innerDomain"],
+        serde_json::json!(["A", "B"])
+    );
+
+    let mut rects = mark_rect_attrs(&result.svg, "x", "width");
+    rects.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    assert_eq!(rects.len(), 4, "{rects:?}\n{}", result.svg);
+    assert!(
+        rects[1].0 < rects[0].0 + rects[0].1 * 2.5,
+        "first two bars should share one date bucket: {rects:?}"
+    );
+    let within_bucket_gap = rects[1].0 - (rects[0].0 + rects[0].1);
+    let missing_day_gap = rects[2].0 - (rects[1].0 + rects[1].1);
+    assert!(
+        missing_day_gap > within_bucket_gap + rects[0].1,
+        "missing date should remain a wider elapsed-time gap: {rects:?}"
+    );
+}
+
+#[test]
+fn stacked_temporal_bar_groups_by_bucket_anchor() {
+    let result = render_result(
+        r#"Chart(data: "p.csv", width: 640, height: 360) {
+  Scale(axis: x, type: "temporal", tickInterval: "1 day")
+  Space(day * value) { Bar(fill: group, layout: "stack", alpha: 0.86) }
+}"#,
+        "day,group,value\n2024-01-01,A,10\n2024-01-01,B,5\n2024-01-02,A,3\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.svg.matches("opacity=\"0.86\"").count(), 3);
+    let metadata: serde_json::Value =
+        serde_json::from_str(&result.metadata.to_json()).expect("metadata json");
+    assert!(
+        metadata["axes"]["y"]["domain"][1].as_f64().unwrap() >= 15.0,
+        "{metadata}"
+    );
+}
+
+#[test]
+fn temporal_bar_without_tick_interval_reports_targeted_diagnostic() {
+    let result = render_result(
+        r#"Chart(data: "p.csv") {
+  Scale(axis: x, type: "temporal")
+  Space(day * value) { Bar() }
+}"#,
+        "day,value\n2024-01-01,10\n2024-01-02,20\n",
+    );
+    let diagnostic = result
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "R0002")
+        .expect("R0002 diagnostic");
+    let help = diagnostic.help.as_deref().unwrap_or_default();
+    assert!(help.contains("tickInterval"), "{diagnostic:?}");
+    assert!(
+        help.contains("Scale(axis: x, type: \"categorical\")"),
+        "{diagnostic:?}"
+    );
+}
+
+#[test]
+fn temporal_bar_exact_breaks_do_not_supply_bucket_width() {
+    let result = render_result(
+        r#"Chart(data: "p.csv") {
+  Scale(axis: x, type: "temporal", breaks: [date("2024-01-01"), date("2024-01-02")], tickInterval: "1 day")
+  Space(day * value) { Bar() }
+}"#,
+        "day,value\n2024-01-01,10\n2024-01-02,20\n",
+    );
+    let diagnostic = result
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "R0002")
+        .expect("R0002 diagnostic");
+    assert!(
+        diagnostic
+            .help
+            .as_deref()
+            .unwrap_or_default()
+            .contains("tickInterval"),
+        "{diagnostic:?}"
     );
 }
 

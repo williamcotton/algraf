@@ -2675,6 +2675,63 @@ Chart(
 
 ![temporal_categorical_axis](temporal_categorical_axis.svg)
 
+## Temporal bars on an axis
+
+Use a temporal position axis with `tickInterval` when each row represents a
+calendar bucket. The interval supplies the centered time slot; the bar is inset
+inside that slot with regular spacing. The axis remains continuous so missing
+dates remain visible gaps.
+
+```algraf
+Chart(
+    data: "temporal_bar.csv",
+    width: 820,
+    height: 420,
+    title: "Daily additions as temporal bars",
+    subtitle: "Missing dates remain gaps on the time axis"
+) {
+    Theme(name: "minimal")
+    Scale(axis: x, type: "temporal", tickInterval: "1 day")
+    Scale(axis: y, domain: [0, null])
+    Guide(axis: x, label: "Date", timeFormat: "%b %-d", tickLabelAngle: -35)
+    Guide(axis: y, label: "Lines added")
+
+    Space(day * lines_added) {
+        Bar(fill: "#2563eb", alpha: 0.86, tooltip: [day, lines_added])
+    }
+}
+```
+
+![temporal_bar](temporal_bar.svg)
+
+## Grouped Temporal Bars
+
+Nested algebra groups bars inside each temporal slot without collapsing the
+outer time axis. Missing dates still occupy elapsed-time space.
+
+```algraf
+Chart(
+    data: "temporal_grouped_bar.csv",
+    width: 820,
+    height: 420,
+    title: "Grouped temporal bars",
+    subtitle: "Authors share each day bucket; missing days remain gaps"
+) {
+    Theme(name: "minimal")
+    Scale(axis: x, type: "temporal", tickInterval: "1 day")
+    Scale(axis: y, domain: [0, null])
+    Guide(axis: x, label: "Date", timeFormat: "%b %-d", tickLabelAngle: -35)
+    Guide(axis: y, label: "Lines added")
+    Scale(fill: author, palette: "accent", label: "Author")
+
+    Space(day / author * lines_added) {
+        Bar(fill: author, alpha: 0.86, tooltip: [day, author, lines_added])
+    }
+}
+```
+
+![temporal_grouped_bar](temporal_grouped_bar.svg)
+
 ## Visual coordinate zoom
 
 `zoomX` and `zoomY` are coordinate controls on `Space`. They limit the visible

@@ -851,6 +851,9 @@ fn test_temporal_nesting_warns_about_cardinality() {
         "Chart(data: \"p.csv\") {\n  Space((time / group) * value) {\n    Line()\n  }\n}",
         "W2008"
     ));
+    clean(
+        "Chart(data: \"p.csv\") {\n  Scale(axis: x, type: \"temporal\", tickInterval: \"1 day\")\n  Space((time / group) * value) {\n    Bar()\n  }\n}",
+    );
 }
 
 #[test]

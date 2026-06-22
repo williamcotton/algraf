@@ -1,0 +1,17 @@
+Chart(
+    data: "temporal_bar.csv",
+    width: 820,
+    height: 420,
+    title: "Daily additions as temporal bars",
+    subtitle: "Missing dates remain gaps on the time axis"
+) {
+    Theme(name: "minimal")
+    Scale(axis: x, type: "temporal", tickInterval: "1 day")
+    Scale(axis: y, domain: [0, null])
+    Guide(axis: x, label: "Date", timeFormat: "%b %-d", tickLabelAngle: -35)
+    Guide(axis: y, label: "Lines added")
+
+    Space(day * lines_added) {
+        Bar(fill: "#2563eb", alpha: 0.86, tooltip: [day, lines_added])
+    }
+}

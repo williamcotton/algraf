@@ -1560,7 +1560,9 @@ pub fn geometry_doc(name: &str) -> &'static str {
         "Point" => "Draws one point per row in the inherited space.",
         "Line" => "Draws connected line segments through row coordinates.",
         "Path" => "Draws an ungrouped connected path through row coordinates.",
-        "Bar" => "Draws bars in the inherited categorical or Cartesian space.",
+        "Bar" => {
+            "Draws bars as categorical bands or inset temporal slots, including grouped temporal slots, in the inherited Cartesian space."
+        }
         "Rect" => "Draws rectangles from explicit boundary properties.",
         "Histogram" => "Bins one continuous vector and draws count bars.",
         "FreqPoly" => "Bins one continuous vector and connects bin centers.",

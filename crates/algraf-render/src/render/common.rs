@@ -95,7 +95,7 @@ pub(super) fn validate_scale_configs(
             }
         }
         if scale.scale_type == Some(ScaleTypeIr::Temporal) {
-            let column = vector_column(axis_frame);
+            let column = axis_outer_vector_column(axis_frame);
             let temporal_column = column.is_some_and(|column| {
                 matches!(
                     column.dtype,
@@ -114,7 +114,7 @@ pub(super) fn validate_scale_configs(
             }
         }
         if let Some(interval) = scale.tick_interval {
-            let column = vector_column(axis_frame);
+            let column = axis_outer_vector_column(axis_frame);
             let temporal_column = column.is_some_and(|column| {
                 matches!(
                     column.dtype,
@@ -210,6 +210,13 @@ pub(super) fn validate_scale_configs(
             "scale declarations could not be matched to this space",
             span,
         ));
+    }
+}
+
+fn axis_outer_vector_column(frame: &FrameIr) -> Option<&algraf_semantics::ColumnRef> {
+    match frame {
+        FrameIr::Nested { outer, .. } => vector_column(outer),
+        _ => vector_column(frame),
     }
 }
 

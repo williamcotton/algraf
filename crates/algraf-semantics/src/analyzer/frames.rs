@@ -24,14 +24,19 @@ pub(super) struct SpaceAnalysis {
 impl Analyzer<'_> {
     // --- Space (spec §13.3, §13.17 phases 8–12) ---
 
-    pub(super) fn space(&mut self, space: &SpaceBlock) -> SpaceAnalysis {
-        self.space_with_default(space, None)
+    pub(super) fn space_with_chart_scales(
+        &mut self,
+        space: &SpaceBlock,
+        chart_scales: &[ScaleIr],
+    ) -> SpaceAnalysis {
+        self.space_with_default(space, None, chart_scales)
     }
 
     fn space_with_default(
         &mut self,
         space: &SpaceBlock,
         default_data: Option<(SpaceDataRef, ActiveTable)>,
+        inherited_scales: &[ScaleIr],
     ) -> SpaceAnalysis {
         let span = node_span(space.syntax());
         let (data_ref, table) = self.space_data(space, default_data);
@@ -63,7 +68,6 @@ impl Analyzer<'_> {
                 let frame = self.build_frame(expr, &table);
                 self.check_cartesian_arity(&frame, node_span(expr.syntax()));
                 self.check_facet_variable(&frame);
-                self.check_temporal_nesting(&frame);
                 frame
             }
             None => FrameIr::Invalid,
@@ -156,6 +160,13 @@ impl Analyzer<'_> {
             .filter(|geo| !is_lowered_geometry(geo))
             .cloned()
             .collect();
+        let temporal_bucket_bar = primitive_geometries
+            .iter()
+            .any(|geo| geo.kind == GeometryKind::Bar)
+            && inherited_scales.iter().chain(scales.iter()).any(|scale| {
+                matches!(scale.target, ScaleTargetIr::Axis(_)) && scale.tick_interval.is_some()
+            });
+        self.check_temporal_nesting(&frame, temporal_bucket_bar);
         self.check_spatial_geometries(&primitive_geometries, &frame, projection.is_some());
 
         let histogram_count = geometry_layers
@@ -1121,8 +1132,11 @@ impl Analyzer<'_> {
         let mut child_spaces = Vec::new();
         for item in glyph.items() {
             if let GlyphItem::Space(space) = item {
-                let mut analysis =
-                    self.space_with_default(&space, Some((data_ref.clone(), child_table.clone())));
+                let mut analysis = self.space_with_default(
+                    &space,
+                    Some((data_ref.clone(), child_table.clone())),
+                    &glyph_scales,
+                );
                 derived_out.extend(analysis.derived);
                 for child in &mut analysis.spaces {
                     if child.theme.is_none() {
@@ -1654,10 +1668,12 @@ impl Analyzer<'_> {
         }
     }
 
-    fn check_temporal_nesting(&mut self, frame: &FrameIr) {
+    fn check_temporal_nesting(&mut self, frame: &FrameIr, temporal_bucket_bar: bool) {
         match frame {
             FrameIr::Nested { outer, inner } => {
-                if direct_temporal_vector(outer) || direct_temporal_vector(inner) {
+                if !temporal_bucket_bar
+                    && (direct_temporal_vector(outer) || direct_temporal_vector(inner))
+                {
                     self.diag(
                         Diagnostic::warning(
                             codes::W2008,
@@ -1671,12 +1687,12 @@ impl Analyzer<'_> {
                         ),
                     );
                 }
-                self.check_temporal_nesting(outer);
-                self.check_temporal_nesting(inner);
+                self.check_temporal_nesting(outer, temporal_bucket_bar);
+                self.check_temporal_nesting(inner, temporal_bucket_bar);
             }
             FrameIr::Cartesian(axes) | FrameIr::Union(axes) => {
                 for axis in axes {
-                    self.check_temporal_nesting(axis);
+                    self.check_temporal_nesting(axis, temporal_bucket_bar);
                 }
             }
             FrameIr::Vector(_) | FrameIr::Invalid => {}

@@ -568,6 +568,24 @@ fn axis_metadata(
                 inner_domain: Vec::new(),
             }
         }
+        AxisScale::TemporalNestedBand {
+            scale,
+            inner_categories,
+            ..
+        } => InteractionAxis {
+            scale: "time",
+            domain: InteractionDomain::Integers([scale.min, scale.max]),
+            range: [scale.range.0, scale.range.1],
+            format: time_format
+                .map(|format| format.as_str().to_string())
+                .unwrap_or_else(|| "auto".to_string()),
+            label,
+            position: position.as_str(),
+            padding_inner: None,
+            padding_outer: None,
+            bandwidth: None,
+            inner_domain: inner_categories.clone(),
+        },
         AxisScale::Band { scale, .. } => band_axis("band", scale, label, Vec::new(), position),
         AxisScale::NestedBand { scale, .. } => nested_band_axis(scale, label, position),
     }

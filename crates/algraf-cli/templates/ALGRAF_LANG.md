@@ -262,6 +262,12 @@ Temporal axes are continuous over elapsed time. Use full date or datetime values
 for timelines; partial labels such as `"2024-03"` are categorical unless
 explicitly parsed by the language.
 
+For daily, weekly, monthly, or other elapsed-time bar charts, keep the position
+axis temporal and declare `tickInterval` as the centered slot width. Bars are
+inset inside that slot with regular bar spacing. Missing dates stay visible as
+gaps because the axis remains continuous. Use nested algebra such as
+`Space(day / group * value)` for grouped temporal bars.
+
 ## Guides
 
 ```ag
@@ -573,6 +579,10 @@ On temporal columns forced to categorical position axes with
 `Scale(axis: x, type: "categorical")` or `Scale(axis: y, type: "categorical")`,
 use `Guide(axis:, timeFormat:)` to format tick labels. Without that guide,
 temporal category labels are deterministic RFC3339 strings.
+For `Bar` with one temporal position axis and one continuous value axis,
+`tickInterval` also supplies the centered temporal slot width; missing buckets
+remain elapsed-time gaps instead of collapsed categories. Nested temporal
+positions subdivide each inset temporal slot into inner categorical group slots.
 
 ### Guide
 

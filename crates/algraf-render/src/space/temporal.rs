@@ -1,6 +1,6 @@
 use algraf_data::TemporalPrecision;
 use algraf_semantics::{TemporalFormatIr, TemporalTickIntervalIr, TemporalTickUnitIr};
-use chrono::{DateTime, Datelike, NaiveDate, Timelike};
+use chrono::{DateTime, Datelike, Months, NaiveDate, TimeDelta, Timelike};
 
 use crate::scale::TemporalScale;
 
@@ -265,6 +265,107 @@ pub(crate) fn interval_effective_count(
     interval: TemporalTickIntervalIr,
 ) -> i64 {
     interval_ticks_with_step(min, max, interval).1
+}
+
+/// Advance an arbitrary UTC-equivalent instant by the authored temporal
+/// interval. Temporal bars use this for bucket endpoints; unlike tick
+/// generation, the advance is relative to the row's anchor value rather than a
+/// global grid boundary.
+pub(crate) fn advance_by_interval(micros: i64, interval: TemporalTickIntervalIr) -> Option<i64> {
+    let count = i64::from(interval.count.max(1));
+    match interval.unit {
+        TemporalTickUnitIr::Millisecond => {
+            add_fixed_micros(micros, count.checked_mul(MICROS_PER_MILLISECOND)?)
+        }
+        TemporalTickUnitIr::Second => {
+            add_fixed_micros(micros, count.checked_mul(MICROS_PER_SECOND)?)
+        }
+        TemporalTickUnitIr::Minute => {
+            add_fixed_micros(micros, count.checked_mul(MICROS_PER_MINUTE)?)
+        }
+        TemporalTickUnitIr::Hour => add_fixed_micros(micros, count.checked_mul(MICROS_PER_HOUR)?),
+        TemporalTickUnitIr::Day => add_fixed_micros(micros, count.checked_mul(MICROS_PER_DAY)?),
+        TemporalTickUnitIr::Week => add_fixed_micros(micros, count.checked_mul(MICROS_PER_WEEK)?),
+        TemporalTickUnitIr::Month => add_calendar_months(micros, count),
+        TemporalTickUnitIr::Quarter => add_calendar_months(micros, count.checked_mul(3)?),
+        TemporalTickUnitIr::Year => add_calendar_months(micros, count.checked_mul(12)?),
+    }
+}
+
+/// Move an arbitrary UTC-equivalent instant backward by the authored temporal
+/// interval, using calendar arithmetic for month-like units.
+pub(crate) fn retreat_by_interval(micros: i64, interval: TemporalTickIntervalIr) -> Option<i64> {
+    let count = i64::from(interval.count.max(1));
+    match interval.unit {
+        TemporalTickUnitIr::Millisecond => add_fixed_micros(
+            micros,
+            count.checked_mul(MICROS_PER_MILLISECOND)?.checked_neg()?,
+        ),
+        TemporalTickUnitIr::Second => {
+            add_fixed_micros(micros, count.checked_mul(MICROS_PER_SECOND)?.checked_neg()?)
+        }
+        TemporalTickUnitIr::Minute => {
+            add_fixed_micros(micros, count.checked_mul(MICROS_PER_MINUTE)?.checked_neg()?)
+        }
+        TemporalTickUnitIr::Hour => {
+            add_fixed_micros(micros, count.checked_mul(MICROS_PER_HOUR)?.checked_neg()?)
+        }
+        TemporalTickUnitIr::Day => {
+            add_fixed_micros(micros, count.checked_mul(MICROS_PER_DAY)?.checked_neg()?)
+        }
+        TemporalTickUnitIr::Week => {
+            add_fixed_micros(micros, count.checked_mul(MICROS_PER_WEEK)?.checked_neg()?)
+        }
+        TemporalTickUnitIr::Month => subtract_calendar_months(micros, count),
+        TemporalTickUnitIr::Quarter => subtract_calendar_months(micros, count.checked_mul(3)?),
+        TemporalTickUnitIr::Year => subtract_calendar_months(micros, count.checked_mul(12)?),
+    }
+}
+
+/// Resolve a temporal bar bucket centered on the row anchor. Fixed intervals
+/// become anchor +/- half the interval; month/quarter/year intervals use the
+/// midpoint between neighboring calendar anchors.
+pub(crate) fn centered_bucket_bounds(
+    micros: i64,
+    interval: TemporalTickIntervalIr,
+) -> Option<(i64, i64)> {
+    let previous = retreat_by_interval(micros, interval)?;
+    let next = advance_by_interval(micros, interval)?;
+    Some((
+        midpoint_micros(previous, micros),
+        midpoint_micros(micros, next),
+    ))
+}
+
+fn add_fixed_micros(micros: i64, delta_micros: i64) -> Option<i64> {
+    Some(
+        DateTime::from_timestamp_micros(micros)?
+            .checked_add_signed(TimeDelta::microseconds(delta_micros))?
+            .timestamp_micros(),
+    )
+}
+
+fn add_calendar_months(micros: i64, months: i64) -> Option<i64> {
+    let months = u32::try_from(months).ok()?;
+    Some(
+        DateTime::from_timestamp_micros(micros)?
+            .checked_add_months(Months::new(months))?
+            .timestamp_micros(),
+    )
+}
+
+fn subtract_calendar_months(micros: i64, months: i64) -> Option<i64> {
+    let months = u32::try_from(months).ok()?;
+    Some(
+        DateTime::from_timestamp_micros(micros)?
+            .checked_sub_months(Months::new(months))?
+            .timestamp_micros(),
+    )
+}
+
+fn midpoint_micros(a: i64, b: i64) -> i64 {
+    let sum = i128::from(a) + i128::from(b);
+    (sum / 2) as i64
 }
 
 fn interval_ticks_with_step(

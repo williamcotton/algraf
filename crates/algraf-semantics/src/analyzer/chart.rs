@@ -92,13 +92,20 @@ impl Analyzer<'_> {
         let mut spaces = Vec::new();
         let primary_table = self.primary_table();
         for item in chart.items() {
+            if let ChartItem::Scale(decl) = item {
+                if let Some(scale) = self.scale_decl(&decl, &primary_table) {
+                    scales.push(scale);
+                }
+            }
+        }
+        for item in chart.items() {
             match item {
                 ChartItem::Derive(_) => {}
                 ChartItem::Table(_) => {}
                 ChartItem::Parse(_) => {}
                 ChartItem::Let(_) => {}
                 ChartItem::Space(s) => {
-                    let analysis = self.space(&s);
+                    let analysis = self.space_with_chart_scales(&s, &scales);
                     for ir in analysis.derived {
                         self.derived
                             .insert(ir.name.clone(), ir.output_schema.clone());
@@ -117,11 +124,7 @@ impl Analyzer<'_> {
                         theme = Some(t);
                     }
                 }
-                ChartItem::Scale(decl) => {
-                    if let Some(scale) = self.scale_decl(&decl, &primary_table) {
-                        scales.push(scale);
-                    }
-                }
+                ChartItem::Scale(_) => {}
                 ChartItem::Glyph(_) => {}
                 ChartItem::Error(_) => {}
             }

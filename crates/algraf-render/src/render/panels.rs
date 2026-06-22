@@ -621,9 +621,9 @@ fn bound_edges(selector: AxisSelectorIr, axis: &AxisScale) -> Option<(ClipEdge, 
 fn continuousish_axis_range(axis: &AxisScale) -> Option<(f64, f64)> {
     match axis {
         AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => Some(scale.range),
-        AxisScale::Temporal { scale, .. } | AxisScale::TemporalUnion { scale, .. } => {
-            Some(scale.range)
-        }
+        AxisScale::Temporal { scale, .. }
+        | AxisScale::TemporalNestedBand { scale, .. }
+        | AxisScale::TemporalUnion { scale, .. } => Some(scale.range),
         AxisScale::Band { .. } | AxisScale::NestedBand { .. } => None,
     }
 }

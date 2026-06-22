@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.84.3
+Status: 0.85.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.84.3 specification.
+This working copy is the 0.85.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -4725,6 +4725,16 @@ continuous x by categorical y
 
 continuous x by nested categorical y
 
+temporal x by continuous y when the temporal axis has active `tickInterval`
+
+continuous x by temporal y when the temporal axis has active `tickInterval`
+
+nested temporal x by continuous y when the outer temporal axis has active
+`tickInterval`
+
+continuous x by nested temporal y when the outer temporal axis has active
+`tickInterval`
+
 continuous x with explicit binning if stat count implemented
 
 Required inherited frame:
@@ -4797,13 +4807,58 @@ Bar MUST treat negative values according to stack rules.
 
 Positive and negative stacks SHOULD be separated around baseline.
 
+Version 0.85.0: a Cartesian `Bar` MUST render when exactly one physical
+position axis is temporal and the other physical axis is continuous numeric,
+provided the temporal axis has an active `tickInterval` (§16.11). The interval
+is the temporal slot width. `Bar` MUST paint an inset band inside that slot
+using the same default inner padding as ordinary categorical bars. A vertical
+temporal bar at row value `bucket_day` with `Scale(axis: x, type: "temporal",
+tickInterval: "1 day")` is equivalent to a one-day temporal slot centered on
+`bucket_day`, with the painted bar inset inside that slot and extending from
+the bar baseline to the numeric value on y. The horizontal form is analogous on
+y.
+
+Temporal bar bucket advancement MUST use the same deterministic UTC-equivalent
+calendar arithmetic as temporal interval ticks: fixed units advance by fixed
+durations, while month, quarter, and year advance as calendar units around the
+row anchor. For variable-duration calendar units, the bucket bounds are the
+midpoints between the previous anchor, the row anchor, and the next anchor.
+Renderers MUST normalize the resulting pixel bounds so reversed axes still
+produce positive rectangle dimensions.
+
+Temporal `Bar` MUST preserve continuous temporal spacing. Missing buckets in
+the data remain visible elapsed-time gaps; renderers MUST NOT infer bucket
+width from adjacent rows and MUST NOT insert zero-height bars for missing
+periods. `layout: "identity"`, `layout: "stack"`, and `layout: "fill"` MUST
+work for temporal bars. Stack and fill accumulation MUST group rows by the
+temporal bucket anchor and the active grouping/color semantics.
+
+When the temporal position axis is nested with an inner categorical axis, such
+as `Space(day / author * lines_added)`, `Bar` MUST keep the outer temporal axis
+continuous, inset the outer temporal slot, and subdivide that inset slot into
+inner categorical group slots. Missing outer temporal buckets still produce
+elapsed-time gaps.
+
+Domain training for temporal-position bars MUST include both temporal bucket
+bounds so the first and final bars are not clipped by an auto-trained domain.
+The numeric value axis MUST include the baseline. Exact `breaks:` are tick
+positions, not bucket widths; without an active
+`tickInterval`, breaks alone MUST NOT make a temporal `Bar` render.
+
+When a temporal-position `Bar` cannot render because no active bucket interval
+is available, `R0002` SHOULD include targeted help asking the author to declare
+`Scale(axis: ..., tickInterval: "...")` for elapsed-time bars or
+`Scale(axis: ..., type: "categorical")` for ordinal bucket bars. The v0.84.3
+categorical override path remains unchanged.
+
 Version 0.84.3: when a Cartesian `Bar` cannot render because the trained space
 does not contain exactly one categorical position axis and one continuous value
-axis, the `R0002` diagnostic SHOULD include help pointing authors to
-`Scale(axis: x, type: "categorical")` or `Scale(axis: y, type:
-"categorical")` for numeric or temporal bucket columns that should be rendered
-as discrete bars. This diagnostic help MUST NOT imply that data loading reshapes
-or retypes the backing column.
+axis, or a temporal position axis with an active bucket interval, the `R0002`
+diagnostic SHOULD include help pointing authors to `Scale(axis: x, type:
+"categorical")` or `Scale(axis: y, type: "categorical")` for numeric or
+temporal bucket columns that should be rendered as discrete bars. This
+diagnostic help MUST NOT imply that data loading reshapes or retypes the backing
+column.
 
 Version 0.77.0: for `stack` and `fill` layouts, the default legend order for
 the stacked categorical aesthetic MUST follow rendered visual stack order
@@ -7175,6 +7230,12 @@ keeps the ticks and grid lines.
 `timeFormat` (§19.4), `tickLabelAngle`, and `tickLabelRows` compose with
 `tickInterval` unchanged: the scale controls tick positions, the guide
 controls their presentation.
+
+Version 0.85.0: when `Bar` uses one temporal position axis and one continuous
+numeric value axis, the active temporal `tickInterval` also supplies the bar
+slot width centered on each row's temporal value (§14.6). The painted bar is
+inset inside that slot with regular bar spacing. Exact `breaks:` remain tick
+positions only and do not provide a temporal bar width by themselves.
 
 Version 0.40 MUST support scale expansion through `expand:` or `expansion:`.
 A single number is interpreted as multiplicative expansion with additive
@@ -10898,6 +10959,11 @@ same glyph mark, renderers SHOULD emit one summary warning of the form
 
 `W2008 high-cardinality temporal nesting may create excessive bands or panels`
 
+Version 0.85.0: this warning SHOULD NOT be emitted for a `Bar` space that uses
+a temporal axis with an active `tickInterval`; that form is an explicit temporal
+bucket bar, and nested categorical groups are laid out inside each temporal
+slot (§14.6).
+
 ### 26.4 Hint Diagnostics
 
 `H3001 use nested algebra for dodged bars`
@@ -10923,6 +10989,9 @@ but they are implementation-oriented rather than authoring-rule diagnostics.
 Where the incompatible space has a known explicit axis override, such as
 categorical bars over numeric or temporal bucket columns, `R0002` SHOULD include
 targeted help for the relevant `Scale(...)` declaration.
+For temporal-position bars without an active interval, this help SHOULD point to
+`Scale(axis: ..., tickInterval: "...")` for elapsed-time bars and
+`Scale(axis: ..., type: "categorical")` for ordinal bucket bars.
 
 `R0003 space or facet could not be laid out`
 
@@ -11561,6 +11630,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.84.1 | [`V0_84_1_PLAN.md`](V0_84_1_PLAN.md) | LSP preview data dependency paths are normalized before watcher registration | Implemented |
 | 0.84.2 | [`V0_84_2_PLAN.md`](V0_84_2_PLAN.md) | Tall vertical legends expand the output viewport, and temporal categorical color legends support formatted labels | Implemented |
 | 0.84.3 | [`V0_84_3_PLAN.md`](V0_84_3_PLAN.md) | Temporal-backed categorical axes honor guide time formats, and Bar diagnostics point bucket columns at explicit categorical axis scales | Implemented |
+| 0.85.0 | [`V0_85_PLAN.md`](V0_85_PLAN.md) | Temporal bars use `tickInterval` as temporal slot width while preserving continuous elapsed-time spacing | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

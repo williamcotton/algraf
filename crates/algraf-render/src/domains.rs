@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use algraf_data::{DataType, Table};
 use algraf_semantics::{
     AxisSelectorIr, FrameIr, GeometryIr, GeometryKind, PropertyKey, ScaleIr, ScaleTargetIr,
-    ScaleTypeIr,
+    ScaleTypeIr, TemporalTickIntervalIr,
 };
 
 use crate::helpers::{
@@ -17,6 +17,7 @@ use crate::helpers::{
     BarLayout,
 };
 use crate::scale::{cell_category, cell_f64, cell_micros};
+use crate::space::temporal::centered_bucket_bounds;
 use crate::stats;
 
 #[derive(Debug, Clone, Default)]
@@ -408,7 +409,9 @@ fn train_bar(
     hints: &mut SpaceDomainHints,
 ) {
     let Some((orientation, group_axis, value_col)) = categorical_value_axes(frame, scales) else {
-        hints.y.include_zero();
+        if !train_temporal_bar(frame, table, geometry, scales, hints) {
+            hints.y.include_zero();
+        }
         return;
     };
     match orientation {
@@ -428,6 +431,51 @@ fn train_bar(
         return;
     }
 
+    train_stacked_bar_value_domain(table, orientation, group_axis, value_col, hints);
+}
+
+fn train_temporal_bar(
+    frame: &FrameIr,
+    table: &dyn Table,
+    geometry: &GeometryIr,
+    scales: &[ScaleIr],
+    hints: &mut SpaceDomainHints,
+) -> bool {
+    let Some((orientation, position_axis, value_col, interval)) =
+        temporal_value_axes(frame, scales)
+    else {
+        return false;
+    };
+    match orientation {
+        DomainOrientation::Vertical => hints.y.include_zero(),
+        DomainOrientation::Horizontal => hints.x.include_zero(),
+    }
+
+    if let Some(interval) = interval {
+        train_temporal_bar_position_domain(table, position_axis, interval, orientation, hints);
+    }
+
+    if bar_layout(geometry) == BarLayout::Fill {
+        match orientation {
+            DomainOrientation::Vertical => hints.y.set_numeric_bounds(0.0, 1.0),
+            DomainOrientation::Horizontal => hints.x.set_numeric_bounds(0.0, 1.0),
+        }
+        return true;
+    }
+
+    if is_stacked(geometry) {
+        train_stacked_bar_value_domain(table, orientation, position_axis, value_col, hints);
+    }
+    true
+}
+
+fn train_stacked_bar_value_domain(
+    table: &dyn Table,
+    orientation: DomainOrientation,
+    group_axis: &FrameIr,
+    value_col: &str,
+    hints: &mut SpaceDomainHints,
+) {
     let mut positive: HashMap<String, f64> = HashMap::new();
     let mut negative: HashMap<String, f64> = HashMap::new();
     for row in 0..table.row_count() {
@@ -452,6 +500,29 @@ fn train_bar(
                 DomainOrientation::Horizontal => hints.x.add_numeric(*total),
             }
         }
+    }
+}
+
+fn train_temporal_bar_position_domain(
+    table: &dyn Table,
+    position_axis: &FrameIr,
+    interval: TemporalTickIntervalIr,
+    orientation: DomainOrientation,
+    hints: &mut SpaceDomainHints,
+) {
+    for row in 0..table.row_count() {
+        let Some(anchor) = frame_temporal_micros(position_axis, table, row) else {
+            continue;
+        };
+        let Some((start, end)) = centered_bucket_bounds(anchor, interval) else {
+            continue;
+        };
+        let axis = match orientation {
+            DomainOrientation::Vertical => &mut hints.x,
+            DomainOrientation::Horizontal => &mut hints.y,
+        };
+        axis.add_temporal(start);
+        axis.add_temporal(end);
     }
 }
 
@@ -531,6 +602,66 @@ fn categorical_value_axes<'a>(
     None
 }
 
+fn temporal_value_axes<'a>(
+    frame: &'a FrameIr,
+    scales: &[ScaleIr],
+) -> Option<(
+    DomainOrientation,
+    &'a FrameIr,
+    &'a str,
+    Option<TemporalTickIntervalIr>,
+)> {
+    let x_axis = frame_axis_index(frame, 0)?;
+    let y_axis = frame_axis_index(frame, 1)?;
+    if frame_axis_is_temporal(x_axis, scales, AxisSelectorIr::X) {
+        if let Some(value_col) = numeric_value_column(y_axis) {
+            return Some((
+                DomainOrientation::Vertical,
+                x_axis,
+                value_col,
+                tick_interval_for_axis(scales, AxisSelectorIr::X),
+            ));
+        }
+    }
+    if frame_axis_is_temporal(y_axis, scales, AxisSelectorIr::Y) {
+        if let Some(value_col) = numeric_value_column(x_axis) {
+            return Some((
+                DomainOrientation::Horizontal,
+                y_axis,
+                value_col,
+                tick_interval_for_axis(scales, AxisSelectorIr::Y),
+            ));
+        }
+    }
+    None
+}
+
+fn numeric_value_column(frame: &FrameIr) -> Option<&str> {
+    match frame {
+        FrameIr::Vector(column)
+            if matches!(
+                column.dtype,
+                DataType::Integer | DataType::Float | DataType::Unknown
+            ) =>
+        {
+            Some(column.name.as_str())
+        }
+        FrameIr::Union(_) => vector_column_name(frame),
+        _ => None,
+    }
+}
+
+fn frame_axis_is_temporal(frame: &FrameIr, scales: &[ScaleIr], axis: AxisSelectorIr) -> bool {
+    match frame {
+        FrameIr::Vector(column) => {
+            !categorical_axis_override(scales, axis)
+                && (column.dtype == DataType::Temporal || temporal_axis_override(scales, axis))
+        }
+        FrameIr::Nested { outer, .. } => frame_axis_is_temporal(outer, scales, axis),
+        FrameIr::Cartesian(_) | FrameIr::Union(_) | FrameIr::Invalid => false,
+    }
+}
+
 fn frame_axis_is_band(frame: &FrameIr, scales: &[ScaleIr], axis: AxisSelectorIr) -> bool {
     match frame {
         FrameIr::Vector(column) => {
@@ -538,7 +669,7 @@ fn frame_axis_is_band(frame: &FrameIr, scales: &[ScaleIr], axis: AxisSelectorIr)
                 || column.dtype == DataType::Unknown
                 || (column.dtype != DataType::Geometry && categorical_axis_override(scales, axis))
         }
-        FrameIr::Nested { .. } => true,
+        FrameIr::Nested { outer, .. } => !frame_axis_is_temporal(outer, scales, axis),
         FrameIr::Cartesian(_) | FrameIr::Union(_) | FrameIr::Invalid => false,
     }
 }
@@ -553,12 +684,49 @@ fn categorical_axis_override(scales: &[ScaleIr], axis: AxisSelectorIr) -> bool {
     forced
 }
 
+fn temporal_axis_override(scales: &[ScaleIr], axis: AxisSelectorIr) -> bool {
+    let mut forced = false;
+    for scale in scales {
+        if scale.target == ScaleTargetIr::Axis(axis) && scale.scale_type.is_some() {
+            forced = scale.scale_type == Some(ScaleTypeIr::Temporal);
+        }
+    }
+    forced
+}
+
+fn tick_interval_for_axis(
+    scales: &[ScaleIr],
+    axis: AxisSelectorIr,
+) -> Option<TemporalTickIntervalIr> {
+    let mut interval = None;
+    for scale in scales {
+        if scale.target == ScaleTargetIr::Axis(axis) && scale.tick_interval.is_some() {
+            interval = scale.tick_interval;
+        }
+    }
+    interval
+}
+
 fn axis_group_key(frame: &FrameIr, table: &dyn Table, row: usize) -> Option<String> {
     match frame {
         FrameIr::Vector(column) => cell_category(table, &column.name, row),
-        FrameIr::Nested { outer, .. } => {
-            vector_column_name(outer).and_then(|col| cell_category(table, col, row))
+        FrameIr::Nested { outer, inner } => {
+            let outer_col = vector_column_name(outer)?;
+            let inner_col = vector_column_name(inner)?;
+            Some(format!(
+                "{}\u{1f}{}",
+                cell_category(table, outer_col, row)?,
+                cell_category(table, inner_col, row)?
+            ))
         }
+        _ => None,
+    }
+}
+
+fn frame_temporal_micros(frame: &FrameIr, table: &dyn Table, row: usize) -> Option<i64> {
+    match frame {
+        FrameIr::Vector(column) => cell_micros(table, &column.name, row),
+        FrameIr::Nested { outer, .. } => frame_temporal_micros(outer, table, row),
         _ => None,
     }
 }

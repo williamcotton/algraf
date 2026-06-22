@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="420" viewBox="0 0 820 420" role="img" aria-label="Grouped temporal bars">
+<title>Grouped temporal bars</title>
+<desc>Authors share each day bucket; missing days remain gaps</desc>
+<rect class="algraf-background" x="0" y="0" width="820" height="420" fill="#ffffff" />
+<text class="algraf-title" x="68" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#222222">Grouped temporal bars</text>
+<text class="algraf-subtitle" x="68" y="50" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Authors share each day bucket; missing days remain gaps</text>
+<rect class="algraf-plot-area" x="68" y="82" width="602" height="265.392" fill="#ffffff" />
+<g class="algraf-grid">
+  <line x1="122.727" y1="82" x2="122.727" y2="347.392" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="177.455" y1="82" x2="177.455" y2="347.392" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="232.182" y1="82" x2="232.182" y2="347.392" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="286.909" y1="82" x2="286.909" y2="347.392" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="341.636" y1="82" x2="341.636" y2="347.392" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="396.364" y1="82" x2="396.364" y2="347.392" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="451.091" y1="82" x2="451.091" y2="347.392" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="505.818" y1="82" x2="505.818" y2="347.392" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="560.545" y1="82" x2="560.545" y2="347.392" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="615.273" y1="82" x2="615.273" y2="347.392" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="313.262" x2="670" y2="313.262" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="245.003" x2="670" y2="245.003" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="68" y1="176.744" x2="670" y2="176.744" stroke="#f2f2f2" stroke-width="0.6" />
+  <line x1="95.364" y1="82" x2="95.364" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="150.091" y1="82" x2="150.091" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="204.818" y1="82" x2="204.818" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="259.545" y1="82" x2="259.545" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="314.273" y1="82" x2="314.273" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="369" y1="82" x2="369" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="423.727" y1="82" x2="423.727" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="478.455" y1="82" x2="478.455" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="533.182" y1="82" x2="533.182" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="587.909" y1="82" x2="587.909" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="642.636" y1="82" x2="642.636" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="347.392" x2="670" y2="347.392" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="279.132" x2="670" y2="279.132" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="210.873" x2="670" y2="210.873" stroke="#e6e6e6" stroke-width="1" />
+  <line x1="68" y1="142.614" x2="670" y2="142.614" stroke="#e6e6e6" stroke-width="1" />
+</g>
+<defs>
+<clipPath id="algraf-clip-0"><rect x="0" y="0" width="820" height="347.392" /></clipPath>
+</defs>
+<g clip-path="url(#algraf-clip-0)">
+  <g class="algraf-layer algraf-geom-bar">
+    <rect x="73.473" y="340.293" width="20.739" height="7.099" fill="#006BA4" opacity="0.86"><title>day: 2026-03-05T00:00:00+00:00
+author: Ada
+lines_added: 520</title></rect>
+    <rect x="96.516" y="342.75" width="20.739" height="4.642" fill="#FF800E" opacity="0.86"><title>day: 2026-03-05T00:00:00+00:00
+author: Lin
+lines_added: 340</title></rect>
+    <rect x="128.2" y="101.659" width="20.739" height="245.733" fill="#006BA4" opacity="0.86"><title>day: 2026-03-06T00:00:00+00:00
+author: Ada
+lines_added: 18000</title></rect>
+    <rect x="151.243" y="131.693" width="20.739" height="215.699" fill="#FF800E" opacity="0.86"><title>day: 2026-03-06T00:00:00+00:00
+author: Lin
+lines_added: 15800</title></rect>
+    <rect x="182.927" y="262.75" width="20.739" height="84.641" fill="#006BA4" opacity="0.86"><title>day: 2026-03-07T00:00:00+00:00
+author: Ada
+lines_added: 6200</title></rect>
+    <rect x="205.97" y="291.419" width="20.739" height="55.973" fill="#FF800E" opacity="0.86"><title>day: 2026-03-07T00:00:00+00:00
+author: Lin
+lines_added: 4100</title></rect>
+    <rect x="292.382" y="128.962" width="20.739" height="218.429" fill="#006BA4" opacity="0.86"><title>day: 2026-03-09T00:00:00+00:00
+author: Ada
+lines_added: 16000</title></rect>
+    <rect x="315.425" y="120.771" width="20.739" height="226.62" fill="#FF800E" opacity="0.86"><title>day: 2026-03-09T00:00:00+00:00
+author: Lin
+lines_added: 16600</title></rect>
+    <rect x="347.109" y="183.57" width="20.739" height="163.822" fill="#006BA4" opacity="0.86"><title>day: 2026-03-10T00:00:00+00:00
+author: Ada
+lines_added: 12000</title></rect>
+    <rect x="370.152" y="156.266" width="20.739" height="191.126" fill="#FF800E" opacity="0.86"><title>day: 2026-03-10T00:00:00+00:00
+author: Lin
+lines_added: 14000</title></rect>
+    <rect x="620.745" y="328.279" width="20.739" height="19.113" fill="#006BA4" opacity="0.86"><title>day: 2026-03-15T00:00:00+00:00
+author: Ada
+lines_added: 1400</title></rect>
+    <rect x="643.789" y="333.74" width="20.739" height="13.652" fill="#FF800E" opacity="0.86"><title>day: 2026-03-15T00:00:00+00:00
+author: Lin
+lines_added: 1000</title></rect>
+  </g>
+</g>
+<g class="algraf-axes">
+  <line x1="68" y1="347.392" x2="670" y2="347.392" stroke="#333333" stroke-width="1" />
+  <line x1="95.364" y1="347.392" x2="95.364" y2="352.392" stroke="#333333" stroke-width="1" />
+  <text x="95.364" y="365.392" text-anchor="end" transform="rotate(-35 95.364 365.392)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 5</text>
+  <line x1="150.091" y1="347.392" x2="150.091" y2="352.392" stroke="#333333" stroke-width="1" />
+  <text x="150.091" y="365.392" text-anchor="end" transform="rotate(-35 150.091 365.392)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 6</text>
+  <line x1="204.818" y1="347.392" x2="204.818" y2="352.392" stroke="#333333" stroke-width="1" />
+  <text x="204.818" y="365.392" text-anchor="end" transform="rotate(-35 204.818 365.392)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 7</text>
+  <line x1="259.545" y1="347.392" x2="259.545" y2="352.392" stroke="#333333" stroke-width="1" />
+  <text x="259.545" y="365.392" text-anchor="end" transform="rotate(-35 259.545 365.392)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 8</text>
+  <line x1="314.273" y1="347.392" x2="314.273" y2="352.392" stroke="#333333" stroke-width="1" />
+  <text x="314.273" y="365.392" text-anchor="end" transform="rotate(-35 314.273 365.392)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 9</text>
+  <line x1="369" y1="347.392" x2="369" y2="352.392" stroke="#333333" stroke-width="1" />
+  <text x="369" y="365.392" text-anchor="end" transform="rotate(-35 369 365.392)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 10</text>
+  <line x1="423.727" y1="347.392" x2="423.727" y2="352.392" stroke="#333333" stroke-width="1" />
+  <text x="423.727" y="365.392" text-anchor="end" transform="rotate(-35 423.727 365.392)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 11</text>
+  <line x1="478.455" y1="347.392" x2="478.455" y2="352.392" stroke="#333333" stroke-width="1" />
+  <text x="478.455" y="365.392" text-anchor="end" transform="rotate(-35 478.455 365.392)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 12</text>
+  <line x1="533.182" y1="347.392" x2="533.182" y2="352.392" stroke="#333333" stroke-width="1" />
+  <text x="533.182" y="365.392" text-anchor="end" transform="rotate(-35 533.182 365.392)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 13</text>
+  <line x1="587.909" y1="347.392" x2="587.909" y2="352.392" stroke="#333333" stroke-width="1" />
+  <text x="587.909" y="365.392" text-anchor="end" transform="rotate(-35 587.909 365.392)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 14</text>
+  <line x1="642.636" y1="347.392" x2="642.636" y2="352.392" stroke="#333333" stroke-width="1" />
+  <text x="642.636" y="365.392" text-anchor="end" transform="rotate(-35 642.636 365.392)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Mar 15</text>
+  <text x="369" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Date</text>
+  <line x1="68" y1="82" x2="68" y2="347.392" stroke="#333333" stroke-width="1" />
+  <line x1="63" y1="347.392" x2="68" y2="347.392" stroke="#333333" stroke-width="1" />
+  <text x="60" y="351.392" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">0</text>
+  <line x1="63" y1="279.132" x2="68" y2="279.132" stroke="#333333" stroke-width="1" />
+  <text x="60" y="283.132" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">5000</text>
+  <line x1="63" y1="210.873" x2="68" y2="210.873" stroke="#333333" stroke-width="1" />
+  <text x="60" y="214.873" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">10000</text>
+  <line x1="63" y1="142.614" x2="68" y2="142.614" stroke="#333333" stroke-width="1" />
+  <text x="60" y="146.614" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#222222">15000</text>
+  <text x="12" y="214.696" text-anchor="middle" transform="rotate(-90 12 214.696)" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Lines added</text>
+</g>
+<g class="algraf-legends">
+  <text x="686" y="86" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Author</text>
+  <rect x="686" y="94" width="12" height="12" fill="#006BA4" />
+  <text x="704" y="104" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Ada</text>
+  <rect x="686" y="112" width="12" height="12" fill="#FF800E" />
+  <text x="704" y="122" text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">Lin</text>
+</g>
+</svg>

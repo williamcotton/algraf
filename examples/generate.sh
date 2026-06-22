@@ -61,6 +61,8 @@ charts=(
     categorical_domain_order
     numeric_categorical_axis
     temporal_categorical_axis
+    temporal_bar
+    temporal_grouped_bar
     coordinate_zoom
     fixed_aspect
     facet_grid

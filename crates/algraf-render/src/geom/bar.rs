@@ -9,12 +9,11 @@ use crate::helpers::{bar_layout, BarLayout};
 use crate::layout::Rect;
 use crate::scale::{categorical_domain, cell_category, cell_f64};
 use crate::sink::{Fill, MarkSink, Paint};
-use crate::space::{Polar, ScaledSpace};
+use crate::space::{AxisScale, Polar, ScaledSpace};
 
 use super::common::{
-    categorical_value_orientation, map_value_axis, mark_interaction, position_bandwidth,
-    position_center, position_group_key, render_rows, stroke_style, value_axis_data_column,
-    value_position, Orientation, DEFAULT_FILL,
+    map_value_axis, mark_interaction, render_rows, stroke_style, value_position, Orientation,
+    DEFAULT_FILL,
 };
 use super::polar::annular_segment_path;
 use super::GeometryRenderContext;
@@ -35,7 +34,6 @@ pub(super) fn render(
     let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
     let layout = bar_layout(geo);
-    let stacked = matches!(layout, BarLayout::Stack | BarLayout::Fill);
 
     // Polar bars draw wedges/annular segments instead of rectangles (spec §16.16).
     if let Some(polar) = space.polar() {
@@ -56,45 +54,91 @@ pub(super) fn render(
         return;
     }
 
-    let Some(orientation) = categorical_value_orientation(space) else {
-        diagnostics.push(
-            Diagnostic::warning(
-                codes::R0002,
-                "Bar requires one categorical position axis and one continuous value axis",
-                geo.span,
-            )
-            .with_help(
-                "Use `Scale(axis: x, type: \"categorical\")` or `Scale(axis: y, type: \"categorical\")` when a numeric or temporal bucket column should be drawn as discrete bars.",
-            ),
-        );
+    if let Some(plan) = bar_slot_plan(space) {
+        if plan.missing_temporal_interval {
+            let axis = match plan.orientation {
+                Orientation::Vertical => "x",
+                Orientation::Horizontal => "y",
+            };
+            diagnostics.push(
+                Diagnostic::warning(
+                    codes::R0002,
+                    "Bar on a temporal position axis requires a temporal bucket interval",
+                    geo.span,
+                )
+                .with_help(format!(
+                    "Add `Scale(axis: {axis}, type: \"temporal\", tickInterval: \"1 day\")` for elapsed-time bucket bars, or use `Scale(axis: {axis}, type: \"categorical\")` for ordinal bucket bars."
+                )),
+            );
+        } else {
+            render_slot_bars(
+                sink,
+                geo,
+                space,
+                table,
+                rows,
+                plot,
+                &fill,
+                &stroke,
+                stroke_width,
+                alpha,
+                layout,
+                plan,
+            );
+        }
         return;
-    };
+    }
 
-    let Some(value_col) = value_axis_data_column(space, orientation) else {
-        return;
-    };
-    let Some(baseline) = map_value_axis(space, 0.0, orientation) else {
+    diagnostics.push(
+        Diagnostic::warning(
+            codes::R0002,
+            "Bar requires one categorical or temporal bucket position axis and one continuous value axis",
+            geo.span,
+        )
+        .with_help(
+            "Use `Scale(axis: x, type: \"temporal\", tickInterval: \"1 day\")` for elapsed-time bucket bars, or `Scale(axis: x, type: \"categorical\")` / `Scale(axis: y, type: \"categorical\")` for ordinal bucket bars.",
+        ),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_slot_bars(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    space: &ScaledSpace,
+    table: &dyn Table,
+    rows: Option<&[usize]>,
+    plot: Rect,
+    fill: &ColorSpec,
+    stroke: &ColorSpec,
+    stroke_width: f64,
+    alpha: f64,
+    layout: BarLayout,
+    plan: BarSlotPlan<'_>,
+) {
+    let stacked = matches!(layout, BarLayout::Stack | BarLayout::Fill);
+    let Some(baseline) = map_value_axis(space, 0.0, plan.orientation) else {
         return;
     };
 
     if stacked {
         let totals = if layout == BarLayout::Fill {
-            fill_totals_by_position(table, rows, space, orientation, value_col)
+            fill_totals_by_slot(table, rows, space, plan.orientation, plan.value_col)
         } else {
             HashMap::new()
         };
         let mut cumulative: HashMap<String, f64> = HashMap::new();
         for row in render_rows(table, rows) {
-            let (Some(center), Some(bandwidth)) = (
-                position_center(space, table, row, orientation),
-                position_bandwidth(space, table, row, orientation),
-            ) else {
+            let Some((position0, position1)) = bar_slot_bounds(space, table, row, plan.orientation)
+            else {
                 continue;
             };
-            let Some(value) = cell_f64(table, value_col, row) else {
+            let Some(value) = cell_f64(table, plan.value_col, row) else {
                 continue;
             };
-            let key = position_group_key(space, table, row, orientation).unwrap_or_default();
+            let Some(key) = bar_slot_key(space, table, row, plan.orientation) else {
+                continue;
+            };
             let value = if layout == BarLayout::Fill {
                 let total = totals.get(&key).copied().unwrap_or(0.0);
                 if total.abs() <= f64::EPSILON {
@@ -108,21 +152,21 @@ pub(super) fn render(
             let top = base + value;
             cumulative.insert(key, top);
             let (Some(value0), Some(value1)) = (
-                map_value_axis(space, base, orientation),
-                map_value_axis(space, top, orientation),
+                map_value_axis(space, base, plan.orientation),
+                map_value_axis(space, top, plan.orientation),
             ) else {
                 continue;
             };
-            emit_oriented_bar(
+            emit_slot_bar(
                 sink,
-                center,
-                bandwidth,
+                position0,
+                position1,
                 value0,
                 value1,
-                orientation,
+                plan.orientation,
                 plot,
-                &fill,
-                &stroke,
+                fill,
+                stroke,
                 stroke_width,
                 table,
                 row,
@@ -132,25 +176,23 @@ pub(super) fn render(
         }
     } else {
         for row in render_rows(table, rows) {
-            let (Some(center), Some(bandwidth)) = (
-                position_center(space, table, row, orientation),
-                position_bandwidth(space, table, row, orientation),
-            ) else {
+            let Some((position0, position1)) = bar_slot_bounds(space, table, row, plan.orientation)
+            else {
                 continue;
             };
-            let Some(top) = value_position(space, table, row, orientation) else {
+            let Some(top) = value_position(space, table, row, plan.orientation) else {
                 continue;
             };
-            emit_oriented_bar(
+            emit_slot_bar(
                 sink,
-                center,
-                bandwidth,
+                position0,
+                position1,
                 baseline,
                 top,
-                orientation,
+                plan.orientation,
                 plot,
-                &fill,
-                &stroke,
+                fill,
+                stroke,
                 stroke_width,
                 table,
                 row,
@@ -159,6 +201,70 @@ pub(super) fn render(
             );
         }
     }
+}
+
+#[derive(Clone, Copy)]
+struct BarSlotPlan<'a> {
+    orientation: Orientation,
+    value_col: &'a str,
+    missing_temporal_interval: bool,
+}
+
+fn bar_slot_plan(space: &ScaledSpace) -> Option<BarSlotPlan<'_>> {
+    if space.x.is_bar_slot_axis() && numeric_value_axis(space.y.as_ref()?) {
+        return Some(BarSlotPlan {
+            orientation: Orientation::Vertical,
+            value_col: space.y.as_ref()?.data_column()?,
+            missing_temporal_interval: temporal_bucket_axis(&space.x)
+                && space.x.temporal_tick_interval().is_none(),
+        });
+    }
+    let y_axis = space.y.as_ref()?;
+    if y_axis.is_bar_slot_axis() && numeric_value_axis(&space.x) {
+        return Some(BarSlotPlan {
+            orientation: Orientation::Horizontal,
+            value_col: space.x.data_column()?,
+            missing_temporal_interval: temporal_bucket_axis(y_axis)
+                && y_axis.temporal_tick_interval().is_none(),
+        });
+    }
+    None
+}
+
+fn temporal_bucket_axis(axis: &AxisScale) -> bool {
+    matches!(
+        axis,
+        AxisScale::Temporal { .. } | AxisScale::TemporalNestedBand { .. }
+    )
+}
+
+fn numeric_value_axis(axis: &AxisScale) -> bool {
+    matches!(axis, AxisScale::Continuous { .. } | AxisScale::Union { .. })
+}
+
+fn bar_slot_axis(space: &ScaledSpace, orientation: Orientation) -> Option<&AxisScale> {
+    match orientation {
+        Orientation::Vertical => Some(&space.x),
+        Orientation::Horizontal => space.y.as_ref(),
+    }
+}
+
+fn bar_slot_bounds(
+    space: &ScaledSpace,
+    table: &dyn Table,
+    row: usize,
+    orientation: Orientation,
+) -> Option<(f64, f64)> {
+    bar_slot_axis(space, orientation)?.bar_slot_bounds(table, row)
+}
+
+fn bar_slot_key(
+    space: &ScaledSpace,
+    table: &dyn Table,
+    row: usize,
+    orientation: Orientation,
+) -> Option<String> {
+    bar_slot_axis(space, orientation)?.bar_slot_key(table, row)
 }
 
 /// Render polar bars (spec §16.16). Two forms, distinguished by whether the
@@ -464,7 +570,7 @@ fn fill_totals(
     totals
 }
 
-fn fill_totals_by_position(
+fn fill_totals_by_slot(
     table: &dyn Table,
     rows: Option<&[usize]>,
     space: &ScaledSpace,
@@ -476,17 +582,19 @@ fn fill_totals_by_position(
         let Some(value) = cell_f64(table, value_col, row) else {
             continue;
         };
-        let key = position_group_key(space, table, row, orientation).unwrap_or_default();
+        let Some(key) = bar_slot_key(space, table, row, orientation) else {
+            continue;
+        };
         *totals.entry(key).or_insert(0.0) += value;
     }
     totals
 }
 
 #[allow(clippy::too_many_arguments)]
-fn emit_oriented_bar(
+fn emit_slot_bar(
     sink: &mut dyn MarkSink,
-    center: f64,
-    bandwidth: f64,
+    position_a: f64,
+    position_b: f64,
     value_a: f64,
     value_b: f64,
     orientation: Orientation,
@@ -499,11 +607,16 @@ fn emit_oriented_bar(
     alpha: f64,
     geo: &GeometryIr,
 ) {
+    let position0 = position_a.min(position_b);
+    let width = (position_a - position_b).abs();
+    if width <= f64::EPSILON {
+        return;
+    }
     match orientation {
         Orientation::Vertical => emit_bar(
             sink,
-            center - bandwidth / 2.0,
-            bandwidth,
+            position0,
+            width,
             value_a,
             value_b,
             plot,
@@ -517,8 +630,8 @@ fn emit_oriented_bar(
         ),
         Orientation::Horizontal => emit_hbar(
             sink,
-            center - bandwidth / 2.0,
-            bandwidth,
+            position0,
+            width,
             value_a,
             value_b,
             plot,
