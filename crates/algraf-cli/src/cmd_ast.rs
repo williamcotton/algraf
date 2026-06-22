@@ -1,9 +1,8 @@
 //! `algraf ast` — print the parse tree (spec §22).
 
-use algraf_syntax::parse;
+use algraf_syntax::{ast_json, parse};
 use clap::Args;
 
-use crate::astjson;
 use crate::error::CliError;
 use crate::input::read_template_source;
 
@@ -25,7 +24,7 @@ pub(crate) fn ast_cmd(args: AstArgs) -> Result<(), CliError> {
     if args.json {
         println!(
             "{}",
-            serde_json::to_string_pretty(&astjson::node_to_json(&root)).unwrap()
+            serde_json::to_string_pretty(&ast_json::node_to_json(&root)).unwrap()
         );
     } else {
         print!("{root:#?}");

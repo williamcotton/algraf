@@ -28,7 +28,11 @@ use algraf_editor_services::service::{
     handle_feature_request, EditorFeatureRequest, EditorFeatureResponse,
 };
 use algraf_render::{load_image_assets_with_io, render_with_tables_and_assets, Theme};
+use algraf_syntax::ast_json;
 use serde::{Deserialize, Serialize};
+
+const LANGUAGE_REFERENCE_SOURCE: &str = "crates/algraf-cli/templates/ALGRAF_LANG.md";
+const LANGUAGE_REFERENCE: &str = include_str!("../../algraf-cli/templates/ALGRAF_LANG.md");
 
 /// Structured outcome of a render: the SVG (when one was produced) plus every
 /// diagnostic gathered along the way, in the same shape the LSP emits.
@@ -40,6 +44,15 @@ use serde::{Deserialize, Serialize};
 pub struct RenderOutcome {
     pub svg: Option<String>,
     pub sidecar: Option<String>,
+    pub diagnostics: Vec<algraf_core::Diagnostic>,
+    pub error: Option<String>,
+}
+
+/// Structured parse-tree outcome for browser hosts that need Algraf source
+/// structure without rendering or data loading.
+#[derive(Debug, Default)]
+pub struct AstOutcome {
+    pub ast: Option<serde_json::Value>,
     pub diagnostics: Vec<algraf_core::Diagnostic>,
     pub error: Option<String>,
 }
@@ -193,6 +206,19 @@ pub fn render_to_svg(source: &str, files: HashMap<String, Vec<u8>>) -> RenderOut
     outcome
 }
 
+/// Parse `.ag` source and return the same lossless CST JSON shape emitted by
+/// `algraf ast --json`.
+pub fn parse_to_ast_json(source: &str) -> AstOutcome {
+    let parse = parse_source(source);
+    let diagnostics = parse.diagnostics().to_vec();
+    let root = parse.syntax();
+    AstOutcome {
+        ast: Some(ast_json::node_to_json(&root)),
+        diagnostics,
+        error: None,
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 struct BrowserRenderRequest {
@@ -209,6 +235,30 @@ struct BrowserRenderResponse<'a> {
     sidecar: Option<&'a str>,
     diagnostics: &'a [algraf_core::Diagnostic],
     error: Option<&'a str>,
+}
+
+#[derive(Debug, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+struct BrowserAstRequest {
+    source: String,
+    #[serde(default)]
+    variables: HashMap<String, String>,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+struct BrowserAstResponse<'a> {
+    ast: Option<&'a serde_json::Value>,
+    diagnostics: &'a [algraf_core::Diagnostic],
+    error: Option<&'a str>,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+struct BrowserLanguageReferenceResponse<'a> {
+    markdown: &'a str,
+    version: &'a str,
+    source: &'a str,
 }
 
 #[derive(Debug, Deserialize)]
@@ -273,6 +323,66 @@ fn render_browser_json(input: &[u8]) -> String {
             "sidecar": null,
             "diagnostics": [],
             "error": format!("failed to serialize render response: {err}")
+        })
+        .to_string()
+    })
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn ast_browser_json(input: &[u8]) -> String {
+    let request = match serde_json::from_slice::<BrowserAstRequest>(input) {
+        Ok(request) => request,
+        Err(err) => {
+            return serde_json::json!({
+                "ast": null,
+                "diagnostics": [],
+                "error": format!("invalid AST request JSON: {err}")
+            })
+            .to_string();
+        }
+    };
+
+    let source = match expand_variables(&request.source, &request.variables) {
+        Ok(source) => source,
+        Err(err) => {
+            return serde_json::json!({
+                "ast": null,
+                "diagnostics": [],
+                "error": format!("variable substitution error: {err}")
+            })
+            .to_string();
+        }
+    };
+
+    let outcome = parse_to_ast_json(&source);
+    let response = BrowserAstResponse {
+        ast: outcome.ast.as_ref(),
+        diagnostics: &outcome.diagnostics,
+        error: outcome.error.as_deref(),
+    };
+    serde_json::to_string(&response).unwrap_or_else(|err| {
+        serde_json::json!({
+            "ast": null,
+            "diagnostics": [],
+            "error": format!("failed to serialize AST response: {err}")
+        })
+        .to_string()
+    })
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn language_reference_browser_json() -> String {
+    serde_json::to_string(&BrowserLanguageReferenceResponse {
+        markdown: LANGUAGE_REFERENCE,
+        version: env!("CARGO_PKG_VERSION"),
+        source: LANGUAGE_REFERENCE_SOURCE,
+    })
+    .unwrap_or_else(|err| {
+        serde_json::json!({
+            "markdown": "",
+            "version": env!("CARGO_PKG_VERSION"),
+            "source": LANGUAGE_REFERENCE_SOURCE,
+            "error": format!("failed to serialize language reference response: {err}")
         })
         .to_string()
     })
@@ -424,6 +534,45 @@ pub unsafe extern "C" fn algraf_render_json(ptr: *const u8, len: usize) -> u64 {
     leak_bytes(render_browser_json(input).into_bytes())
 }
 
+/// Parse browser-supplied source request JSON and return lossless CST JSON.
+///
+/// Input shape:
+///
+/// ```json
+/// {
+///   "source": "Chart(...)",
+///   "variables": { "color": "#3366cc" }
+/// }
+/// ```
+///
+/// The output is UTF-8 JSON:
+/// `{ "ast": object | null, "diagnostics": [...], "error": string | null }`.
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub unsafe extern "C" fn algraf_ast_json(ptr: *const u8, len: usize) -> u64 {
+    if ptr.is_null() {
+        return leak_bytes(
+            serde_json::json!({
+                "ast": null,
+                "diagnostics": [],
+                "error": "AST request pointer was null"
+            })
+            .to_string()
+            .into_bytes(),
+        );
+    }
+
+    let input = std::slice::from_raw_parts(ptr, len);
+    leak_bytes(ast_browser_json(input).into_bytes())
+}
+
+/// Return the embedded Algraf language reference Markdown.
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub extern "C" fn algraf_language_reference_json() -> u64 {
+    leak_bytes(language_reference_browser_json().into_bytes())
+}
+
 /// Serve a browser editor-service request through the shared Rust feature
 /// helpers used by the native LSP server.
 #[cfg(target_arch = "wasm32")]
@@ -460,6 +609,17 @@ mod tests {
         let mut files = HashMap::new();
         files.insert("penguins.csv".to_string(), CSV.as_bytes().to_vec());
         files
+    }
+
+    fn find_token<'a>(value: &'a serde_json::Value, text: &str) -> Option<&'a serde_json::Value> {
+        if value.get("text").and_then(|text| text.as_str()) == Some(text) {
+            return Some(value);
+        }
+
+        value
+            .get("children")
+            .and_then(|children| children.as_array())
+            .and_then(|children| children.iter().find_map(|child| find_token(child, text)))
     }
 
     #[test]
@@ -525,6 +685,90 @@ mod tests {
             error.contains("variable substitution error: undefined variable \"size\""),
             "{error}"
         );
+    }
+
+    #[test]
+    fn ast_json_returns_parse_tree_and_byte_spans() {
+        let source =
+            "Chart(data: \"penguins.csv\", title: \"Café lines\") { Space(x * y) { Point() } }\n";
+        let outcome = parse_to_ast_json(source);
+        assert!(outcome.error.is_none(), "{:?}", outcome.error);
+        assert!(outcome.diagnostics.is_empty(), "{:?}", outcome.diagnostics);
+        let ast = outcome.ast.expect("ast");
+        assert_eq!(ast["node"], "ROOT");
+        assert!(find_token(&ast, "Chart").is_some(), "{ast}");
+
+        let title = find_token(&ast, "\"Café lines\"").expect("title token");
+        let expected_start = source.find("\"Café lines\"").unwrap();
+        let expected_end = expected_start + "\"Café lines\"".len();
+        assert_eq!(title["span"]["start"].as_u64(), Some(expected_start as u64));
+        assert_eq!(title["span"]["end"].as_u64(), Some(expected_end as u64));
+    }
+
+    #[test]
+    fn ast_json_returns_resilient_tree_with_parse_diagnostics() {
+        let response = ast_browser_json(
+            serde_json::json!({
+                "source": "Chart(data: \"penguins.csv\") { Space(x * ) { Point() } }\n"
+            })
+            .to_string()
+            .as_bytes(),
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
+        assert!(parsed["error"].is_null(), "{parsed}");
+        assert_eq!(parsed["ast"]["node"], "ROOT");
+        assert!(
+            !parsed["diagnostics"].as_array().unwrap().is_empty(),
+            "{parsed}"
+        );
+    }
+
+    #[test]
+    fn ast_json_expands_invocation_variables() {
+        let response = ast_browser_json(
+            serde_json::json!({
+                "source": "Chart(data: \"penguins.csv\", title: \"$title\") { Space(x * y) { Point() } }\n",
+                "variables": { "title": "Injected" }
+            })
+            .to_string()
+            .as_bytes(),
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
+        assert!(parsed["error"].is_null(), "{parsed}");
+        assert!(
+            find_token(&parsed["ast"], "\"Injected\"").is_some(),
+            "{parsed}"
+        );
+    }
+
+    #[test]
+    fn ast_json_reports_variable_substitution_errors() {
+        let response = ast_browser_json(
+            serde_json::json!({
+                "source": "Chart(data: \"penguins.csv\", title: \"$title\") { Space(x * y) { Point() } }\n"
+            })
+            .to_string()
+            .as_bytes(),
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
+        assert!(parsed["ast"].is_null(), "{parsed}");
+        assert_eq!(parsed["diagnostics"].as_array().unwrap().len(), 0);
+        let error = parsed["error"].as_str().expect("error");
+        assert!(
+            error.contains("variable substitution error: undefined variable \"title\""),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn language_reference_json_embeds_current_template() {
+        let response = language_reference_browser_json();
+        let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
+        assert_eq!(parsed["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(parsed["source"], LANGUAGE_REFERENCE_SOURCE);
+        let markdown = parsed["markdown"].as_str().expect("markdown");
+        assert!(markdown.contains("# Algraf Language Reference"));
+        assert!(markdown.contains("algraf ast chart.ag"));
     }
 
     #[test]

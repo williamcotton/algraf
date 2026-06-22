@@ -15,9 +15,8 @@
 //! - `io` — output-path resolution and the render-output writer.
 //! - `svg_debug` — `--debug-layout` and `--emit-metadata` SVG augmentation.
 //! - `ir_json` — JSON serialization for `ir --json` and `schema --json`.
-//! - `astjson`, `diagnostics`, `error`, `png` — shared low-level helpers.
+//! - `diagnostics`, `error`, `png` — shared low-level helpers.
 
-mod astjson;
 mod cmd_ast;
 mod cmd_check;
 mod cmd_format;

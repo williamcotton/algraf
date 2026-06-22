@@ -10,3 +10,4 @@ rust-version.workspace = true
 algraf-core = { workspace = true }
 logos = { workspace = true }
 rowan = { workspace = true }
+serde_json = { workspace = true }

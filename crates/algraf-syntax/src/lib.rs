@@ -4,6 +4,7 @@
 //! and §21.10 (formatting).
 
 pub mod ast;
+pub mod ast_json;
 pub mod format;
 pub mod lexer;
 pub mod parser;

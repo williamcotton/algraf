@@ -1,9 +1,11 @@
-//! Serialize the CST to JSON for the `ast` command (spec §22.7).
+//! Lossless CST JSON serialization shared by CLI and browser/WASM APIs.
 
-use algraf_syntax::SyntaxNode;
 use serde_json::{json, Value};
 
-/// Convert a syntax node (and its tokens) to a JSON tree.
+use crate::SyntaxNode;
+
+/// Convert a syntax node and its tokens to the stable JSON tree shape used by
+/// `algraf ast --json`.
 pub fn node_to_json(node: &SyntaxNode) -> Value {
     let range = node.text_range();
     let mut children = Vec::new();

@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.85.0
+Status: 0.86.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.85.0 specification.
+This working copy is the 0.86.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9631,6 +9631,11 @@ Prints parse AST.
 
 Useful for parser debugging and tests.
 
+With `--json`, the command MUST print a lossless parse-tree JSON object. Syntax
+nodes contain `node`, byte-offset `span`, and `children`. Tokens contain
+`token`, source `text`, and byte-offset `span`. The JSON shape is shared with
+the browser/WASM AST API (§24.7).
+
 ### 22.8 IR Command
 
 Usage:
@@ -10292,6 +10297,11 @@ pointer/length JSON ABI, not generated `wasm-bindgen` bindings:
   and returns a pointer/length pair packed into a `u64` with the pointer in the
   low 32 bits and the byte length in the high 32 bits. The `variables` field is
   optional and defaults to an empty map.
+- `algraf_ast_json(ptr, len) -> packed_ptr_len` reads request JSON of the form
+  `{ "source": "...", "variables": { "title": "\"Chart title\"" } }` and
+  returns a pointer/length pair for parse-tree JSON.
+- `algraf_language_reference_json() -> packed_ptr_len` returns a pointer/length
+  pair for the embedded language-reference JSON response.
 
 The browser JSON ABI supports text data sources supplied as UTF-8 strings. The
 runtime MUST expand `${name}` and `$name` placeholders with
@@ -10300,10 +10310,40 @@ source-fragment substitution semantics as CLI `--var` (spec §22.3). Variable
 substitution failures MUST return the standard render response shape with `svg`
 and `sidecar` set to null, an empty diagnostics array, and a span-less `error`
 string; they MUST NOT panic.
-Convenience `check`, `parse`, and `format` exports are not part of the v0.34
-runtime contract; hosts that need diagnostics call `render` and consume the
-returned diagnostics. A future release MAY add convenience exports if their
-diagnostic and span behavior is specified.
+
+Since version 0.86.0, the AST browser response shape is:
+
+```json
+{
+  "ast": "lossless parse-tree object or null",
+  "diagnostics": [],
+  "error": "string or null"
+}
+```
+
+The AST API MUST use the same JSON tree shape as `algraf ast --json` (§22.7),
+MUST use byte-offset spans, MUST return resilient parse diagnostics alongside
+the AST, and MUST NOT load data or run semantic analysis. Variable substitution
+failures MUST return `ast` as null, an empty diagnostics array, and a span-less
+`error` string.
+
+Since version 0.86.0, the language-reference browser response shape is:
+
+```json
+{
+  "markdown": "...",
+  "version": "0.86.0",
+  "source": "crates/algraf-cli/templates/ALGRAF_LANG.md"
+}
+```
+
+The Markdown MUST be embedded from the same template that `algraf init` writes.
+The `algraf-wasm` TypeScript package MUST expose these ABI functions as
+`runtime.ast(source, variables?)` and `runtime.languageReference()`.
+
+Convenience `check` and `format` exports are not part of the v0.86 runtime
+contract. A future release MAY add convenience exports if their diagnostic and
+span behavior is specified.
 
 Since version 0.35.5, the WASM runtime also exposes a browser editor-service
 JSON ABI for Monaco-style clients. The ABI is an adapter over the same editor
@@ -11631,6 +11671,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.84.2 | [`V0_84_2_PLAN.md`](V0_84_2_PLAN.md) | Tall vertical legends expand the output viewport, and temporal categorical color legends support formatted labels | Implemented |
 | 0.84.3 | [`V0_84_3_PLAN.md`](V0_84_3_PLAN.md) | Temporal-backed categorical axes honor guide time formats, and Bar diagnostics point bucket columns at explicit categorical axis scales | Implemented |
 | 0.85.0 | [`V0_85_PLAN.md`](V0_85_PLAN.md) | Temporal bars use `tickInterval` as temporal slot width while preserving continuous elapsed-time spacing | Implemented |
+| 0.86.0 | [`V0_86_PLAN.md`](V0_86_PLAN.md) | Browser/WASM AST JSON and embedded language-reference APIs | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
