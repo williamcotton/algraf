@@ -12,8 +12,16 @@ use arrow_ipc::writer::StreamWriter;
 use arrow_schema::{DataType as ArrowDataType, Field, Schema};
 use parquet::arrow::ArrowWriter;
 
+const LANGUAGE_TEMPLATE: &str = include_str!("../templates/ALGRAF_LANGUAGE.md");
+const TOOLING_TEMPLATE: &str = include_str!("../templates/ALGRAF_TOOLING.md");
+const FULL_TEMPLATE: &str = include_str!("../templates/ALGRAF_LANG.md");
+
 fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_algraf")
+}
+
+fn composed_reference_template() -> String {
+    format!("{LANGUAGE_TEMPLATE}\n{TOOLING_TEMPLATE}")
 }
 
 fn temp_dir(test: &str) -> PathBuf {
@@ -828,11 +836,25 @@ fn init_codex_creates_language_reference_and_agents_file() {
 
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     let lang = fs::read_to_string(dir.join("ALGRAF_LANG.md")).unwrap();
+    assert_eq!(lang, composed_reference_template());
     assert!(lang.contains("# Algraf Language Reference"));
     assert!(lang.contains("Algraf is not JavaScript, Python"));
     let agents = fs::read_to_string(dir.join("AGENTS.md")).unwrap();
     assert!(agents.contains("ALGRAF_LANG.md"));
     assert!(!dir.join("CLAUDE.md").exists());
+}
+
+#[test]
+fn language_reference_templates_compose_full_reference_without_tooling_drift() {
+    assert_eq!(FULL_TEMPLATE, composed_reference_template());
+    assert!(LANGUAGE_TEMPLATE.contains("## Complete Geometry Property Reference"));
+    assert!(!LANGUAGE_TEMPLATE.contains("## CLI Commands"));
+    assert!(!LANGUAGE_TEMPLATE.contains("## Project Agent Setup"));
+    assert!(TOOLING_TEMPLATE.contains("## CLI Commands"));
+    assert!(TOOLING_TEMPLATE.contains("## Project Agent Setup"));
+    assert!(FULL_TEMPLATE.contains("## Complete Geometry Property Reference"));
+    assert!(FULL_TEMPLATE.contains("## CLI Commands"));
+    assert!(FULL_TEMPLATE.contains("## Project Agent Setup"));
 }
 
 #[test]

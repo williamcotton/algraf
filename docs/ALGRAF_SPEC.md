@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.86.0
+Status: 0.87.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.86.0 specification.
+This working copy is the 0.87.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9653,10 +9653,14 @@ Requires schema resolution.
 `algraf init --codex`, `algraf init --claude`, and `algraf init --agy` create
 project root guidance for LLM coding agents.
 
-The command MUST write an `ALGRAF_LANG.md` language reference in the target
-directory. It MUST NOT overwrite an existing `ALGRAF_LANG.md` with different
-content. If the file already matches the built-in template, the command is a
-no-op for that file.
+The command MUST write an `ALGRAF_LANG.md` full language+tooling reference in
+the target directory. That file MUST be composed, in deterministic order, from
+the maintained language template
+`crates/algraf-cli/templates/ALGRAF_LANGUAGE.md` followed by the maintained
+tooling template `crates/algraf-cli/templates/ALGRAF_TOOLING.md`. It MUST NOT
+overwrite an existing `ALGRAF_LANG.md` with different content. If the file
+already matches the built-in composed reference, the command is a no-op for that
+file.
 
 `--codex` and `--agy` target `AGENTS.md`. `--claude` targets `CLAUDE.md`.
 Existing agent files MUST NOT be overwritten. If an existing target file already
@@ -10301,7 +10305,12 @@ pointer/length JSON ABI, not generated `wasm-bindgen` bindings:
   `{ "source": "...", "variables": { "title": "\"Chart title\"" } }` and
   returns a pointer/length pair for parse-tree JSON.
 - `algraf_language_reference_json() -> packed_ptr_len` returns a pointer/length
-  pair for the embedded language-reference JSON response.
+  pair for the embedded full language-reference JSON response. This no-argument
+  export is the compatibility entry point introduced in 0.86.0.
+- `algraf_language_reference_part_json(ptr, len) -> packed_ptr_len` reads
+  request JSON of the form `{ "part": "language" | "tooling" | "full" }` and
+  returns a pointer/length pair for the selected embedded reference JSON
+  response.
 
 The browser JSON ABI supports text data sources supplied as UTF-8 strings. The
 runtime MUST expand `${name}` and `$name` placeholders with
@@ -10327,21 +10336,47 @@ the AST, and MUST NOT load data or run semantic analysis. Variable substitution
 failures MUST return `ast` as null, an empty diagnostics array, and a span-less
 `error` string.
 
-Since version 0.86.0, the language-reference browser response shape is:
+Since version 0.87.0, the language-reference browser response shape is:
 
 ```json
 {
   "markdown": "...",
-  "version": "0.86.0",
-  "source": "crates/algraf-cli/templates/ALGRAF_LANG.md"
+  "version": "0.87.0",
+  "part": "full",
+  "source": "crates/algraf-cli/templates/ALGRAF_LANG.md",
+  "sources": [
+    {
+      "part": "language",
+      "path": "crates/algraf-cli/templates/ALGRAF_LANGUAGE.md"
+    },
+    {
+      "part": "tooling",
+      "path": "crates/algraf-cli/templates/ALGRAF_TOOLING.md"
+    }
+  ],
+  "error": null
 }
 ```
 
-The Markdown MUST be embedded from the same template that `algraf init` writes.
-The `algraf-wasm` TypeScript package MUST expose these ABI functions as
-`runtime.ast(source, variables?)` and `runtime.languageReference()`.
+The `source` string remains present for 0.86 compatibility. For `part:
+"language"` and `part: "tooling"`, `markdown` MUST contain only the selected
+maintained template, `source` MUST name that template path, and `sources` MUST
+contain the selected source path metadata. For `part: "full"` and for
+`algraf_language_reference_json()`, `markdown` MUST be the composed
+language+tooling reference, `source` MUST remain
+`crates/algraf-cli/templates/ALGRAF_LANG.md`, and `sources` MUST list the
+language and tooling source templates in composition order. Malformed
+part-selection requests MUST return this response shape with empty `markdown`
+and a non-null `error`; they MUST NOT panic.
 
-Convenience `check` and `format` exports are not part of the v0.86 runtime
+The Markdown MUST be embedded from the maintained templates that compose the
+same full reference that `algraf init` writes. The `algraf-wasm` TypeScript
+package MUST expose these ABI functions as `runtime.ast(source, variables?)`
+and `runtime.languageReference(options?)`, where omitted options return the
+full composed reference and `options.part` MAY select `"language"`, `"tooling"`,
+or `"full"`.
+
+Convenience `check` and `format` exports are not part of the v0.87 runtime
 contract. A future release MAY add convenience exports if their diagnostic and
 span behavior is specified.
 
@@ -11672,6 +11707,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.84.3 | [`V0_84_3_PLAN.md`](V0_84_3_PLAN.md) | Temporal-backed categorical axes honor guide time formats, and Bar diagnostics point bucket columns at explicit categorical axis scales | Implemented |
 | 0.85.0 | [`V0_85_PLAN.md`](V0_85_PLAN.md) | Temporal bars use `tickInterval` as temporal slot width while preserving continuous elapsed-time spacing | Implemented |
 | 0.86.0 | [`V0_86_PLAN.md`](V0_86_PLAN.md) | Browser/WASM AST JSON and embedded language-reference APIs | Implemented |
+| 0.87.0 | [`V0_87_PLAN.md`](V0_87_PLAN.md) | Split language/tooling reference templates and WASM part-selection APIs | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

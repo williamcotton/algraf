@@ -31,8 +31,13 @@ use algraf_render::{load_image_assets_with_io, render_with_tables_and_assets, Th
 use algraf_syntax::ast_json;
 use serde::{Deserialize, Serialize};
 
-const LANGUAGE_REFERENCE_SOURCE: &str = "crates/algraf-cli/templates/ALGRAF_LANG.md";
-const LANGUAGE_REFERENCE: &str = include_str!("../../algraf-cli/templates/ALGRAF_LANG.md");
+const LANGUAGE_REFERENCE_FULL_SOURCE: &str = "crates/algraf-cli/templates/ALGRAF_LANG.md";
+const LANGUAGE_REFERENCE_LANGUAGE_SOURCE: &str = "crates/algraf-cli/templates/ALGRAF_LANGUAGE.md";
+const LANGUAGE_REFERENCE_TOOLING_SOURCE: &str = "crates/algraf-cli/templates/ALGRAF_TOOLING.md";
+const LANGUAGE_REFERENCE_LANGUAGE: &str =
+    include_str!("../../algraf-cli/templates/ALGRAF_LANGUAGE.md");
+const LANGUAGE_REFERENCE_TOOLING: &str =
+    include_str!("../../algraf-cli/templates/ALGRAF_TOOLING.md");
 
 /// Structured outcome of a render: the SVG (when one was produced) plus every
 /// diagnostic gathered along the way, in the same shape the LSP emits.
@@ -255,10 +260,45 @@ struct BrowserAstResponse<'a> {
 
 #[derive(Debug, Serialize)]
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
-struct BrowserLanguageReferenceResponse<'a> {
-    markdown: &'a str,
-    version: &'a str,
-    source: &'a str,
+struct BrowserLanguageReferenceResponse {
+    markdown: String,
+    version: &'static str,
+    part: &'static str,
+    source: &'static str,
+    sources: Vec<BrowserLanguageReferenceSource>,
+    error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+struct BrowserLanguageReferenceSource {
+    part: &'static str,
+    path: &'static str,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+enum BrowserLanguageReferencePart {
+    Language,
+    Tooling,
+    Full,
+}
+
+impl BrowserLanguageReferencePart {
+    fn as_str(self) -> &'static str {
+        match self {
+            BrowserLanguageReferencePart::Language => "language",
+            BrowserLanguageReferencePart::Tooling => "tooling",
+            BrowserLanguageReferencePart::Full => "full",
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+struct BrowserLanguageReferencePartRequest {
+    part: BrowserLanguageReferencePart,
 }
 
 #[derive(Debug, Deserialize)]
@@ -372,20 +412,105 @@ fn ast_browser_json(input: &[u8]) -> String {
 
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 fn language_reference_browser_json() -> String {
+    serialize_language_reference(BrowserLanguageReferencePart::Full)
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn language_reference_part_browser_json(input: &[u8]) -> String {
+    let request = match serde_json::from_slice::<BrowserLanguageReferencePartRequest>(input) {
+        Ok(request) => request,
+        Err(err) => {
+            return language_reference_error_json(format!(
+                "invalid language-reference request JSON: {err}"
+            ));
+        }
+    };
+
+    serialize_language_reference(request.part)
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn serialize_language_reference(part: BrowserLanguageReferencePart) -> String {
+    let response = language_reference_response(part);
+    serde_json::to_string(&response).unwrap_or_else(|err| {
+        language_reference_error_json(format!(
+            "failed to serialize language reference response: {err}"
+        ))
+    })
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn language_reference_error_json(error: String) -> String {
     serde_json::to_string(&BrowserLanguageReferenceResponse {
-        markdown: LANGUAGE_REFERENCE,
+        markdown: String::new(),
         version: env!("CARGO_PKG_VERSION"),
-        source: LANGUAGE_REFERENCE_SOURCE,
+        part: BrowserLanguageReferencePart::Full.as_str(),
+        source: LANGUAGE_REFERENCE_FULL_SOURCE,
+        sources: Vec::new(),
+        error: Some(error),
     })
     .unwrap_or_else(|err| {
         serde_json::json!({
             "markdown": "",
             "version": env!("CARGO_PKG_VERSION"),
-            "source": LANGUAGE_REFERENCE_SOURCE,
+            "part": "full",
+            "source": LANGUAGE_REFERENCE_FULL_SOURCE,
+            "sources": [],
             "error": format!("failed to serialize language reference response: {err}")
         })
         .to_string()
     })
+}
+
+fn language_reference_response(
+    part: BrowserLanguageReferencePart,
+) -> BrowserLanguageReferenceResponse {
+    let (markdown, source, sources) = match part {
+        BrowserLanguageReferencePart::Language => (
+            LANGUAGE_REFERENCE_LANGUAGE.to_string(),
+            LANGUAGE_REFERENCE_LANGUAGE_SOURCE,
+            vec![language_reference_source(
+                "language",
+                LANGUAGE_REFERENCE_LANGUAGE_SOURCE,
+            )],
+        ),
+        BrowserLanguageReferencePart::Tooling => (
+            LANGUAGE_REFERENCE_TOOLING.to_string(),
+            LANGUAGE_REFERENCE_TOOLING_SOURCE,
+            vec![language_reference_source(
+                "tooling",
+                LANGUAGE_REFERENCE_TOOLING_SOURCE,
+            )],
+        ),
+        BrowserLanguageReferencePart::Full => (
+            composed_language_reference(),
+            LANGUAGE_REFERENCE_FULL_SOURCE,
+            vec![
+                language_reference_source("language", LANGUAGE_REFERENCE_LANGUAGE_SOURCE),
+                language_reference_source("tooling", LANGUAGE_REFERENCE_TOOLING_SOURCE),
+            ],
+        ),
+    };
+
+    BrowserLanguageReferenceResponse {
+        markdown,
+        version: env!("CARGO_PKG_VERSION"),
+        part: part.as_str(),
+        source,
+        sources,
+        error: None,
+    }
+}
+
+fn language_reference_source(
+    part: &'static str,
+    path: &'static str,
+) -> BrowserLanguageReferenceSource {
+    BrowserLanguageReferenceSource { part, path }
+}
+
+fn composed_language_reference() -> String {
+    format!("{LANGUAGE_REFERENCE_LANGUAGE}\n{LANGUAGE_REFERENCE_TOOLING}")
 }
 
 pub fn editor_service_response(
@@ -571,6 +696,29 @@ pub unsafe extern "C" fn algraf_ast_json(ptr: *const u8, len: usize) -> u64 {
 #[no_mangle]
 pub extern "C" fn algraf_language_reference_json() -> u64 {
     leak_bytes(language_reference_browser_json().into_bytes())
+}
+
+/// Return a selected Algraf language-reference part.
+///
+/// Input shape:
+///
+/// ```json
+/// { "part": "language" | "tooling" | "full" }
+/// ```
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub unsafe extern "C" fn algraf_language_reference_part_json(ptr: *const u8, len: usize) -> u64 {
+    if ptr.is_null() {
+        return leak_bytes(
+            language_reference_error_json(
+                "language-reference request pointer was null".to_string(),
+            )
+            .into_bytes(),
+        );
+    }
+
+    let input = std::slice::from_raw_parts(ptr, len);
+    leak_bytes(language_reference_part_browser_json(input).into_bytes())
 }
 
 /// Serve a browser editor-service request through the shared Rust feature
@@ -765,10 +913,43 @@ mod tests {
         let response = language_reference_browser_json();
         let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
         assert_eq!(parsed["version"], env!("CARGO_PKG_VERSION"));
-        assert_eq!(parsed["source"], LANGUAGE_REFERENCE_SOURCE);
+        assert_eq!(parsed["part"], "full");
+        assert_eq!(parsed["source"], LANGUAGE_REFERENCE_FULL_SOURCE);
+        assert_eq!(
+            parsed["sources"][0]["path"],
+            LANGUAGE_REFERENCE_LANGUAGE_SOURCE
+        );
+        assert_eq!(
+            parsed["sources"][1]["path"],
+            LANGUAGE_REFERENCE_TOOLING_SOURCE
+        );
+        assert!(parsed["error"].is_null(), "{parsed}");
         let markdown = parsed["markdown"].as_str().expect("markdown");
+        assert_eq!(markdown, composed_language_reference());
         assert!(markdown.contains("# Algraf Language Reference"));
         assert!(markdown.contains("algraf ast chart.ag"));
+    }
+
+    #[test]
+    fn language_reference_part_json_selects_maintained_templates() {
+        let language_response = language_reference_part_browser_json(br#"{ "part": "language" }"#);
+        let language: serde_json::Value = serde_json::from_str(&language_response).unwrap();
+        assert_eq!(language["part"], "language");
+        assert_eq!(language["source"], LANGUAGE_REFERENCE_LANGUAGE_SOURCE);
+        assert_eq!(language["sources"][0]["part"], "language");
+        let markdown = language["markdown"].as_str().expect("markdown");
+        assert!(markdown.contains("## Complete Geometry Property Reference"));
+        assert!(!markdown.contains("## CLI Commands"));
+        assert!(!markdown.contains("## Project Agent Setup"));
+
+        let tooling_response = language_reference_part_browser_json(br#"{ "part": "tooling" }"#);
+        let tooling: serde_json::Value = serde_json::from_str(&tooling_response).unwrap();
+        assert_eq!(tooling["part"], "tooling");
+        assert_eq!(tooling["source"], LANGUAGE_REFERENCE_TOOLING_SOURCE);
+        let markdown = tooling["markdown"].as_str().expect("markdown");
+        assert!(markdown.contains("## CLI Commands"));
+        assert!(markdown.contains("## Project Agent Setup"));
+        assert!(!markdown.contains("## Complete Geometry Property Reference"));
     }
 
     #[test]

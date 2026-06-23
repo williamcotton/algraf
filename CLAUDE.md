@@ -69,17 +69,27 @@ Three artifacts govern behavior, and they must stay in sync:
   (`MAY`, "deferred") rather than describe it as though it exists. Diagnostic
   codes emitted by code must exist in the spec; the spec MAY reserve codes the
   code does not yet emit.
-- **Keep the language-reference template in sync.**
-  `crates/algraf-cli/templates/ALGRAF_LANG.md` is the agent-facing language
+- **Keep the language-reference templates in sync.**
+  `crates/algraf-cli/templates/ALGRAF_LANG.md` is the full agent-facing language
   reference that `algraf init` writes into a project, and it is a tracked
-  language-surface artifact like the TextMate grammar and `README.md`. Whenever
-  you add or change a geometry, geometry property, scale/guide key, theme token,
-  chart argument, CLI flag/subcommand, or enum value, update the template's
-  relevant reference sections (e.g. "Complete Declaration Reference", "Complete
-  Geometry Property Reference", "Property Value Forms And Enums", "CLI Commands")
-  in the same change. Like the spec, the template documents only the *implemented*
-  surface — update it alongside implementation, never ahead of it, so a project
-  on the current binary cannot be told about syntax that errors.
+  language-surface artifact like the TextMate grammar and `README.md`. When the
+  split language-reference templates exist, treat
+  `crates/algraf-cli/templates/ALGRAF_LANGUAGE.md` as the source for Algraf
+  syntax, declarations, algebra, geometries, properties, scales, guides, themes,
+  enum values, data-source forms, and rendering semantics; treat
+  `crates/algraf-cli/templates/ALGRAF_TOOLING.md` as the source for CLI
+  commands, caller-data workflows, package/WASM APIs, agent setup, workflow
+  guidance, and operational pitfalls. The full `ALGRAF_LANG.md` must be composed
+  from those parts and must not drift. Whenever you add or change a geometry,
+  geometry property, scale/guide key, theme token, chart argument, enum value,
+  grammar shape, CLI flag/subcommand, WASM API, package API, or generated agent
+  workflow, update the relevant template source section in the same change (for
+  example language sections such as "Complete Declaration Reference", "Complete
+  Geometry Property Reference", and "Property Value Forms And Enums", or tooling
+  sections such as "CLI Commands" and "Project Agent Setup"). Like the spec, the
+  templates document only the *implemented* surface — update them alongside
+  implementation, never ahead of it, so a project on the current binary cannot be
+  told about syntax or tooling that errors.
 - **Keep plan examples runnable.** `.ag` snippets in plan files must use only
   features the implementation actually accepts (e.g. `Smooth(method: "lm")`, not
   `"loess"` while loess is deferred).
@@ -96,16 +106,19 @@ Three artifacts govern behavior, and they must stay in sync:
   release, immediately align the workspace/spec/package version stamps for that
   release (`Cargo.toml`, `Cargo.lock`, `docs/ALGRAF_SPEC.md`,
   `editors/vscode/package.json`, `editors/vscode/package-lock.json`, and any
-  demo/package manifests that carry an Algraf release version). Always update
-  `docs/ALGRAF_SPEC.md` alongside the implementation.
+  demo/package manifests that carry an Algraf release version). When the release
+  changes implemented language, CLI, WASM, package, or agent workflow surface,
+  update the language/tooling reference templates in the same change. Always
+  update `docs/ALGRAF_SPEC.md` alongside the implementation.
 - **When a plan is completed, update every release version before you stop.**
   This is not optional housekeeping. Bump the workspace version in `Cargo.toml`,
   refresh `Cargo.lock`, update `docs/ALGRAF_SPEC.md`'s draft status and
   milestone table, and align package manifests/lockfiles that track the release
   (`editors/vscode/package.json`, `editors/vscode/package-lock.json`, and any
-  demo/package manifests that carry an Algraf release version). Do not mark a
-  plan `Implemented` while leaving the repository stamped with the previous
-  release.
+  demo/package manifests that carry an Algraf release version). Confirm the
+  language/tooling reference templates describe the implemented surface for that
+  release. Do not mark a plan `Implemented` while leaving the repository stamped
+  with the previous release.
 
 If you find the spec, a plan, and the code disagreeing, treat it as drift to
 fix — reconcile all three rather than picking one.

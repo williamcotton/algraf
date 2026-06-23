@@ -8,7 +8,8 @@ use clap::Args;
 use crate::error::CliError;
 
 const LANGUAGE_FILE: &str = "ALGRAF_LANG.md";
-const LANGUAGE_REFERENCE: &str = include_str!("../templates/ALGRAF_LANG.md");
+const LANGUAGE_TEMPLATE: &str = include_str!("../templates/ALGRAF_LANGUAGE.md");
+const TOOLING_TEMPLATE: &str = include_str!("../templates/ALGRAF_TOOLING.md");
 const MARKER: &str = "<!-- algraf-init-language-reference -->";
 
 #[derive(Args)]
@@ -52,9 +53,10 @@ fn init_agent_files(
         .map_err(|error| CliError::Io(format!("could not create `{}`: {error}", dir.display())))?;
 
     let mut actions = Vec::new();
+    let language_reference = composed_language_reference();
     actions.push(ensure_exact_file(
         &dir.join(LANGUAGE_FILE),
-        LANGUAGE_REFERENCE,
+        &language_reference,
     )?);
 
     if codex || agy {
@@ -92,6 +94,10 @@ fn ensure_exact_file(path: &Path, content: &str) -> Result<String, CliError> {
         })?;
         Ok(format!("wrote {}", path.display()))
     }
+}
+
+fn composed_language_reference() -> String {
+    format!("{LANGUAGE_TEMPLATE}\n{TOOLING_TEMPLATE}")
 }
 
 fn ensure_agent_reference(path: &Path, title: &str) -> Result<String, CliError> {

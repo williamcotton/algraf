@@ -48,10 +48,24 @@ export interface AlgrafAstResult {
   error: string | null;
 }
 
+export type AlgrafLanguageReferencePart = "language" | "tooling" | "full";
+
+export interface AlgrafLanguageReferenceSource {
+  part: Exclude<AlgrafLanguageReferencePart, "full">;
+  path: string;
+}
+
+export interface AlgrafLanguageReferenceOptions {
+  part?: AlgrafLanguageReferencePart;
+}
+
 export interface AlgrafLanguageReference {
   markdown: string;
   version: string;
+  part: AlgrafLanguageReferencePart;
   source: string;
+  sources: AlgrafLanguageReferenceSource[];
+  error?: string | null;
 }
 
 export interface LspPosition {
@@ -108,13 +122,14 @@ interface AlgrafWasmExports extends WebAssembly.Exports {
   algraf_render_json(ptr: number, len: number): bigint;
   algraf_ast_json(ptr: number, len: number): bigint;
   algraf_language_reference_json(): bigint;
+  algraf_language_reference_part_json(ptr: number, len: number): bigint;
   algraf_editor_service_json(ptr: number, len: number): bigint;
 }
 
 export interface AlgrafRuntime {
   render(source: string, files: Record<string, string>, variables?: Record<string, string>): AlgrafRenderResult;
   ast(source: string, variables?: Record<string, string>): AlgrafAstResult;
-  languageReference(): AlgrafLanguageReference;
+  languageReference(options?: AlgrafLanguageReferenceOptions): AlgrafLanguageReference;
   editorService<T = unknown>(
     source: string,
     files: Record<string, string>,
@@ -160,8 +175,8 @@ export async function loadAlgrafRuntime(options: LoadAlgrafRuntimeOptions | stri
     ast(source, variables) {
       return astWithExports(exports, source, variables);
     },
-    languageReference() {
-      return languageReferenceWithExports(exports);
+    languageReference(options) {
+      return languageReferenceWithExports(exports, options);
     },
     editorService<T = unknown>(source: string, files: Record<string, string>, request: AlgrafEditorFeatureRequest, uri = "inmemory://algraf/demo.ag") {
       return editorServiceWithExports<T>(exports, source, files, request, uri);
@@ -288,13 +303,42 @@ function astWithExports(
   }
 }
 
-function languageReferenceWithExports(exports: AlgrafWasmExports): AlgrafLanguageReference {
-  const packed = exports.algraf_language_reference_json();
+function languageReferenceWithExports(
+  exports: AlgrafWasmExports,
+  options: AlgrafLanguageReferenceOptions = {},
+): AlgrafLanguageReference {
+  const part = options.part ?? "full";
+  if (!isLanguageReferencePart(part)) {
+    throw new Error(`unknown Algraf language-reference part: ${String(part)}`);
+  }
+
+  if (options.part === undefined) {
+    const packed = exports.algraf_language_reference_json();
+    return readPackedJson<AlgrafLanguageReference>(exports, packed);
+  }
+
+  const inputBytes = encoder.encode(JSON.stringify({ part }));
+  const inputPtr = exports.algraf_alloc(inputBytes.length);
+
+  try {
+    new Uint8Array(exports.memory.buffer, inputPtr, inputBytes.length).set(inputBytes);
+    const packed = exports.algraf_language_reference_part_json(inputPtr, inputBytes.length);
+    return readPackedJson<AlgrafLanguageReference>(exports, packed);
+  } finally {
+    exports.algraf_dealloc(inputPtr, inputBytes.length);
+  }
+}
+
+function isLanguageReferencePart(part: unknown): part is AlgrafLanguageReferencePart {
+  return part === "language" || part === "tooling" || part === "full";
+}
+
+function readPackedJson<T>(exports: AlgrafWasmExports, packed: bigint): T {
   const outputPtr = Number(packed & 0xffffffffn);
   const outputLen = Number(packed >> 32n);
   const output = new Uint8Array(exports.memory.buffer, outputPtr, outputLen).slice();
   exports.algraf_dealloc(outputPtr, outputLen);
-  return JSON.parse(decoder.decode(output)) as AlgrafLanguageReference;
+  return JSON.parse(decoder.decode(output)) as T;
 }
 
 function editorServiceWithExports<T>(
@@ -328,6 +372,7 @@ function assertAlgrafExports(exports: WebAssembly.Exports): asserts exports is A
     typeof exports.algraf_render_json !== "function" ||
     typeof exports.algraf_ast_json !== "function" ||
     typeof exports.algraf_language_reference_json !== "function" ||
+    typeof exports.algraf_language_reference_part_json !== "function" ||
     typeof exports.algraf_editor_service_json !== "function"
   ) {
     throw new Error("algraf.wasm does not expose the expected browser ABI");
