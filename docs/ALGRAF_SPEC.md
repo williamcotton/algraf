@@ -1098,6 +1098,7 @@ ChartItem      ::= SpaceBlock
                  | GuideDecl
                  | ThemeDecl
                  | LayoutDecl
+                 | ParseDecl
                  | ErrorItem
 ```
 
@@ -1196,9 +1197,10 @@ An empty `Space` body SHOULD produce a warning in CLI render mode.
 `Space(..., data: name)` binds that space to a chart-scoped named table or
 derived table.
 
-`Space` MAY include `coords`, `theta`, and `innerRadius` arguments for a polar
-coordinate system (§4.2, §16.16). These are ordinary named `Arg` nodes — no
-grammar change — validated in semantics (`E1901`–`E1905`).
+`Space` MAY include `coords`, `theta`, `innerRadius`, `startAngle`, and
+`direction` arguments for a polar coordinate system (§4.2, §16.16). These are
+ordinary named `Arg` nodes — no grammar change — validated in semantics
+(`E1901`–`E1904`, `E1909`, and `E1910`).
 
 `Space` MAY include Cartesian coordinate-view arguments `zoomX`, `zoomY`, and
 `aspect` (§16.17). These are coordinate controls, not scale declarations:
@@ -1345,6 +1347,7 @@ ScaleDecl      ::= "Scale" "(" ArgList? ")"
 GuideDecl      ::= "Guide" "(" ArgList? ")"
 ThemeDecl      ::= "Theme" "(" ArgList? ")"
 LayoutDecl     ::= "Layout" "(" ArgList? ")"
+ParseDecl      ::= "Parse" "(" ArgList? ")"
 ```
 
 Declaration syntax is intentionally call-like.
@@ -1356,6 +1359,7 @@ Scale(axis: x, type: "log10")
 Guide(axis: x, label: "Flipper Length (mm)")
 Theme(name: "minimal")
 Layout(padding: 24)
+Parse(column: started_at, as: "datetime", format: "%m/%d/%Y %H:%M")
 ```
 
 ### 7.7 Algebra
@@ -2797,9 +2801,11 @@ different tables, their shared position scales MUST be unioned across all
 contributing tables so the layers align (spec §17.5).
 
 Diagnostics: a duplicate `Table` name is `E1105`; a name that conflicts with the
-derived table is `E1108`; a `Table` source file that cannot be
-found is `E1106`, and one that cannot be read is `E1107`. (`E1103` still covers
-an unknown identifier passed to a space's `data:`.)
+derived table is `E1108`; a `Table` source file that cannot be found follows the
+same driver/data source path as `Chart(data:)` and emits `E1005`, and one that
+cannot be read emits `E1006`. (`E1103` still covers an unknown identifier passed
+to a space's `data:`; `E1106`/`E1107` are reserved table-specific source
+diagnostics, not emitted by the current driver.)
 
 ### 10.11 Geometry Values (Simple Features)
 
@@ -2863,8 +2869,10 @@ future constructor means adding a table entry, not widening accepted syntax in
 scattered matches.
 
 Path resolution, `--base-dir`, and source security (§10.8) apply unchanged. A
-missing source file is `E1106`; an unreadable one is `E1107`. A malformed
-document or unsupported geometry type is `E1805`.
+missing source file follows the shared driver/data source path and emits
+`E1005`; an unreadable one emits `E1006`. A malformed document or unsupported
+geometry type is `E1805`. The table-specific source diagnostics `E1106` and
+`E1107` remain reserved.
 
 ### 10.12 SQLite Sources
 
@@ -8609,6 +8617,8 @@ A polar space (§16.16) replaces the Cartesian grid and axes with:
 
 `Guide(grid: false)` suppresses polar guides as it does Cartesian grids.
 
+## 20. Themes
+
 ### 20.1 Theme Object
 
 The render theme structure (colors are stored as SVG color strings):
@@ -10839,8 +10849,10 @@ Chart(data: "examples/heatmap_data.csv") {
 ## 26. Diagnostics Catalog
 
 Diagnostic codes are registered centrally in `algraf-core`. Implementations
-MUST emit registered codes, and JSON/LSP diagnostics MUST serialize the code as
-its stable string form.
+MUST use registered codes for every emitted diagnostic, and JSON/LSP diagnostics
+MUST serialize the code as its stable string form. Registered entries marked
+reserved or deferred allocate stable names for compatibility or planned behavior
+but are not emitted by the current implementation.
 
 ### 26.1 Parse Diagnostics
 
@@ -10943,7 +10955,8 @@ missing `=>`/stray separator in a map literal)
 
 `E1101 unknown column`
 
-`E1102 ambiguous column`
+`E1102 ambiguous column` (reserved; current name resolution reports unknown
+columns with `E1101` and deterministic suggestions)
 
 `E1103 unknown derived or named table`
 
@@ -10951,9 +10964,11 @@ missing `=>`/stray separator in a map literal)
 
 `E1105 duplicate Table declaration`
 
-`E1106 Table data file not found`
+`E1106 Table data file not found` (reserved; current table source loading uses
+the shared `E1005` file-not-found diagnostic)
 
-`E1107 Table data file could not be read`
+`E1107 Table data file could not be read` (reserved; current table source
+loading uses the shared `E1006` read diagnostic)
 
 `E1108 Table name conflicts with derived table`
 
@@ -10971,27 +10986,30 @@ missing `=>`/stray separator in a map literal)
 
 `E1207 invalid interaction property value`
 
-`E1301 unsupported algebraic space`
+`E1301 unsupported algebraic space` (reserved)
 
 `E1302 incompatible geometry and space`
 
 `E1303 unsupported data type for scale`
 
-`E1304 unsupported blend domains`
+`E1304 unsupported blend domains` (reserved; current blend validation uses
+targeted algebra, space, and scale diagnostics)
 
 `E1305 blend operator must be parenthesized`
 
 `E1306 3D Cartesian spaces are unsupported; use nesting for facets`
 
-`E1401 statistic failed`
+`E1401 statistic failed` (reserved for execution-time stat failures)
 
-`E1402 insufficient data for statistic`
+`E1402 insufficient data for statistic` (reserved)
 
 `E1403 unknown stat`
 
 `E1404 invalid stat input`
 
-`E1405 temporal binning is not supported in this version`
+`E1405 temporal binning is not supported in this version` (reserved; temporal
+binning support is implemented where documented, and invalid bin settings use
+`E1404`)
 
 `E1406 missing z-channel stat input`
 
@@ -11049,7 +11067,9 @@ missing `=>`/stray separator in a map literal)
 
 `E1904 polar coordinates require a 1D or 2D (a * b) frame`
 
-`E1905 3D+ polar frames are unsupported`
+`E1905 3D+ polar frames are unsupported` (reserved; current frame validation
+rejects 3D Cartesian frames with `E1306` before polar lowering, and faceted polar
+frames use `E1904`)
 
 `E1906 invalid polar gridShape (expected "circle" or "polygon")`
 
@@ -11104,15 +11124,15 @@ marks for a host row. A single unmatched host row uses
 same glyph mark, renderers SHOULD emit one summary warning of the form
 `Glyph matched no child rows for N of M host rows`.
 
-`W2003 rows dropped due to missing values`
+`W2003 rows dropped due to missing values` (reserved)
 
-`W2004 legend omitted because too many categories`
+`W2004 legend omitted because too many categories` (reserved)
 
-`W2005 axis labels may overlap`
+`W2005 axis labels may overlap` (reserved)
 
 `W2006 unsupported declaration ignored`
 
-`W2007 invalid values treated as missing`
+`W2007 invalid values treated as missing` (reserved)
 
 `W2008 high-cardinality temporal nesting may create excessive bands or panels`
 
@@ -11127,11 +11147,11 @@ slot (§14.6).
 
 `H3002 quote literal color names for clarity`
 
-`H3003 parenthesize blend expressions`
+`H3003 parenthesize blend expressions` (reserved)
 
-`H3004 use Guide to override axis label`
+`H3004 use Guide to override axis label` (reserved)
 
-`H3005 choose fill or stroke; colour is not a property alias`
+`H3005 choose fill or stroke; colour is not a property alias` (reserved)
 
 ### 26.5 Internal Render Diagnostics
 
@@ -12019,6 +12039,7 @@ ChartItem      ::= SpaceBlock
                  | GuideDecl
                  | ThemeDecl
                  | LayoutDecl
+                 | ParseDecl
                  | ErrorItem
 
 SpaceBlock     ::= "Space" "(" Algebra SpaceArgs? ")" "{" SpaceBody "}"
@@ -12060,6 +12081,7 @@ ScaleDecl      ::= "Scale" "(" ArgList? ")"
 GuideDecl      ::= "Guide" "(" ArgList? ")"
 ThemeDecl      ::= "Theme" "(" ArgList? ")"
 LayoutDecl     ::= "Layout" "(" ArgList? ")"
+ParseDecl      ::= "Parse" "(" ArgList? ")"
 
 ArgList        ::= Arg ("," Arg)* ","?
 Arg            ::= Ident ":" Value
@@ -12068,11 +12090,14 @@ Value          ::= Algebra
                  | Literal
                  | StdinSentinel
                  | Array
+                 | Map
                  | CallValue
 CallValue      ::= Ident "(" ArgList? ")"
 
 Array          ::= "[" ValueList? "]"
 ValueList      ::= Value ("," Value)* ","?
+Map            ::= "[" Entry ("," Entry)* ","? "]"
+Entry          ::= Value "=>" Value
 
 Literal        ::= String
                  | Number
@@ -12129,11 +12154,14 @@ pub struct ChartBlock {
 pub enum ChartItem {
     Space(Spanned<SpaceBlock>),
     Derive(Spanned<DeriveDecl>),
+    Table(Spanned<TableDecl>),
     Glyph(Spanned<GlyphDecl>),
+    Let(Spanned<LetDecl>),
     Scale(Spanned<Call>),
     Guide(Spanned<Call>),
     Theme(Spanned<Call>),
     Layout(Spanned<Call>),
+    Parse(Spanned<Call>),
     Error(ErrorNode),
 }
 
@@ -12151,6 +12179,18 @@ pub struct DeriveDecl {
 }
 
 #[derive(Debug, Clone)]
+pub struct TableDecl {
+    pub name: Spanned<String>,
+    pub source: Spanned<ValueExpr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LetDecl {
+    pub name: Spanned<String>,
+    pub value: Spanned<ValueExpr>,
+}
+
+#[derive(Debug, Clone)]
 pub struct StatCall {
     pub name: Spanned<String>,
     pub input: Option<Spanned<AlgebraExpr>>,
@@ -12160,6 +12200,7 @@ pub struct StatCall {
 #[derive(Debug, Clone)]
 pub enum SpaceItem {
     Geometry(Spanned<GeometryCall>),
+    Let(Spanned<LetDecl>),
     Scale(Spanned<Call>),
     Guide(Spanned<Call>),
     Theme(Spanned<Call>),
@@ -12207,6 +12248,8 @@ pub enum ValueExpr {
     Literal(Literal),
     Stdin,
     Array(Vec<Spanned<ValueExpr>>),
+    Map(Vec<(Spanned<ValueExpr>, Spanned<ValueExpr>)>),
+    Call(Spanned<Call>),
     Error(ErrorNode),
 }
 
@@ -12273,20 +12316,23 @@ Output shape:
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300" role="img">
-  <defs>
-    <clipPath id="algraf-clip-0">
-      <rect x="60" y="40" width="310" height="210" />
-    </clipPath>
-  </defs>
   <rect class="algraf-background" x="0" y="0" width="400" height="300" fill="#ffffff" />
-  <g class="algraf-plot" clip-path="url(#algraf-clip-0)">
-    <g class="algraf-layer algraf-geom-point">
-      <circle cx="..." cy="..." r="4" fill="#4E79A7" />
-    </g>
+  <rect class="algraf-plot-area" x="60" y="40" width="310" height="210" fill="#ffffff" />
+  <g class="algraf-grid">
+    <line x1="..." y1="..." x2="..." y2="..." stroke="#e6e6e6" stroke-width="1" />
   </g>
-  <g class="algraf-axis algraf-axis-x"></g>
-  <g class="algraf-axis algraf-axis-y"></g>
-  <g class="algraf-legend algraf-legend-fill"></g>
+  <g class="algraf-layer algraf-geom-point">
+    <circle cx="..." cy="..." r="4" fill="#4E79A7" />
+  </g>
+  <g class="algraf-axes">
+    <line x1="..." y1="..." x2="..." y2="..." stroke="#333333" stroke-width="1" />
+    <text x="..." y="..." text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#222222">x</text>
+  </g>
+  <g class="algraf-legends">
+    <text x="..." y="..." text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">group</text>
+    <rect x="..." y="..." width="12" height="12" fill="#4E79A7" />
+    <text x="..." y="..." text-anchor="start" font-family="system-ui, sans-serif" font-size="12" fill="#222222">A</text>
+  </g>
 </svg>
 ```
 
