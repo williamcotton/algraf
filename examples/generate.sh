@@ -23,6 +23,7 @@ charts=(
     horizontal_reversed_bar
     horizontal_lollipop
     heatmap
+    annotated_heatmap
     histogram
     histogram_direct
     horizontal_histogram

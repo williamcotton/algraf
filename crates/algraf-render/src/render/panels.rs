@@ -93,7 +93,7 @@ impl PanelClip {
 
 pub(super) enum PlannedLayer<'t> {
     Geometry(&'t GeometryIr),
-    Glyph(PlannedGlyph<'t>),
+    Glyph(Box<PlannedGlyph<'t>>),
 }
 
 pub(super) struct RenderPlan<'t> {
@@ -983,7 +983,7 @@ fn plan_layers<'t>(
         .iter()
         .map(|layer| match layer {
             SpaceLayerIr::Geometry(geo) => PlannedLayer::Geometry(geo),
-            SpaceLayerIr::Glyph(glyph) => PlannedLayer::Glyph(plan_glyph(
+            SpaceLayerIr::Glyph(glyph) => PlannedLayer::Glyph(Box::new(plan_glyph(
                 ir,
                 primary,
                 derived,
@@ -997,7 +997,7 @@ fn plan_layers<'t>(
                 ancestors,
                 depth,
                 diagnostics,
-            )),
+            ))),
         })
         .collect()
 }

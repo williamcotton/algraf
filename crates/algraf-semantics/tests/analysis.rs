@@ -104,6 +104,48 @@ fn coordinate_zoom_and_fixed_aspect_analyze() {
 }
 
 #[test]
+fn tile_fraction_and_layer_legend_settings_analyze() {
+    let src = r#"Chart(data: "p.csv") {
+  Scale(axis: x, type: "categorical")
+  Space(day * species) {
+    Tile(fill: value, width: 0.95, height: 0.9, legend: false)
+  }
+}"#;
+    let ir = analyze_source(src, &schema()).ir.expect("ir");
+    let tile = &ir.spaces[0].geometries[0];
+    assert_eq!(tile.kind, GeometryKind::Tile);
+    assert!(tile.settings.iter().any(|setting| {
+        setting.name == PropertyKey::Width && setting.value == SettingValue::Number(0.95)
+    }));
+    assert!(tile.settings.iter().any(|setting| {
+        setting.name == PropertyKey::Height && setting.value == SettingValue::Number(0.9)
+    }));
+    assert!(tile.settings.iter().any(|setting| {
+        setting.name == PropertyKey::Legend && setting.value == SettingValue::Bool(false)
+    }));
+}
+
+#[test]
+fn tile_fraction_settings_reject_out_of_range_values() {
+    let diagnostics = analyze_source(
+        r#"Chart(data: "p.csv") {
+  Scale(axis: x, type: "categorical")
+  Space(day * species) { Tile(fill: value, width: 0, height: 1.2) }
+}"#,
+        &schema(),
+    )
+    .diagnostics;
+    assert_eq!(
+        diagnostics
+            .iter()
+            .filter(|diag| diag.code == "E1204")
+            .count(),
+        2,
+        "{diagnostics:?}"
+    );
+}
+
+#[test]
 fn jitter_points_stat_analyzes() {
     let src = r#"Chart(data: "p.csv") {
   Derive jittered = JitterPoints(x, y, width: 0.2, height: 0.1)
@@ -790,6 +832,30 @@ fn test_scale_gradient_is_recorded_for_continuous_fill() {
             if stops == &vec!["#3366cc".to_string(), "#cc3333".to_string()]
     ));
     assert_eq!(ir.scales[0].label.as_deref(), Some("Value"));
+}
+
+#[test]
+fn test_named_viridis_gradient_is_recorded_for_continuous_fill() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Scale(fill: value, gradient: \"viridis\")\n  Space(flipper_length * body_mass) { Point(fill: value) }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    assert!(matches!(
+        ir.scales[0].gradient,
+        Some(GradientIr::Even(ref stops))
+            if stops == &vec![
+                "#440154".to_string(),
+                "#31688e".to_string(),
+                "#35b779".to_string(),
+                "#fde725".to_string(),
+            ]
+    ));
 }
 
 #[test]

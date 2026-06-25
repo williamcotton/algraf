@@ -181,6 +181,40 @@ Chart(
 
 ![temporal_categorical_axis](examples/temporal_categorical_axis.svg)
 
+### Annotated heatmap: tile gutters and contrast labels
+
+The air-passenger heatmap uses `Tile(width:, height:)` for narrow white gutters,
+`Text(..., legend: false)` for direct numeric labels that do not add a second
+legend, and a derived `Cut(...)` class to switch label color over the continuous
+passenger fill scale.
+
+```algraf
+Chart(data: "annotated_heatmap.csv", width: 1280, height: 900) {
+    Derive annotated = Cut(
+        passengers,
+        breaks: [0, 300],
+        labels: ["low", "high"],
+        output: "p_group"
+    )
+
+    Space(year * month, data: annotated, aspect: 1) {
+        Scale(axis: x, type: "categorical", expand: [0, 0])
+        Scale(axis: y, domain: [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December",
+        ], reverse: true, expand: [0, 0])
+        Scale(fill: passengers, gradient: "viridis", breaks: [200, 300, 400, 500, 600], label: "passengers")
+        Scale(fill: p_group, range: ["low" => "#ffffff", "high" => "#000000"])
+        Guide(grid: false)
+
+        Tile(fill: passengers, width: 0.95, height: 0.95)
+        Text(label: passengers, fill: p_group, size: 24, anchor: "middle", dy: 8, legend: false)
+    }
+}
+```
+
+![annotated_heatmap](examples/annotated_heatmap.svg)
+
 ## 5. Astronauts: blend fields, annotate the result
 
 `mission_age + selection_age` blends two numeric columns into one frame. The

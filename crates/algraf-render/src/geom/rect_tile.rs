@@ -89,6 +89,8 @@ pub(super) fn render_tile(
     let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
     let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
     let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
+    let width_fraction = tile_fraction_setting(geo, PropertyKey::Width);
+    let height_fraction = tile_fraction_setting(geo, PropertyKey::Height);
     for row in render_rows(table, rows) {
         // Annular tile (heatmap) in polar: angular band × radial band.
         if let Some(polar) = space.polar() {
@@ -101,12 +103,17 @@ pub(super) fn render_tile(
             let color = fill
                 .resolve(table, row)
                 .unwrap_or_else(|| DEFAULT_FILL.to_string());
+            let angle_width = bw * width_fraction;
+            let radius_width = r_w * height_fraction;
+            let angle_overlap = if width_fraction >= 1.0 { 0.001 } else { 0.0 };
+            let radius_overlap = if height_fraction >= 1.0 { 0.5 } else { 0.0 };
+            let r_mid = r_start + r_w / 2.0;
             let d = annular_segment_path(
                 polar,
-                center - bw / 2.0,
-                center + bw / 2.0,
-                r_start,
-                r_start + r_w,
+                center - angle_width / 2.0 - angle_overlap,
+                center + angle_width / 2.0 + angle_overlap,
+                (r_mid - radius_width / 2.0 - radius_overlap).max(0.0),
+                r_mid + radius_width / 2.0 + radius_overlap,
             );
             sink.begin_mark(mark_interaction(geo, table, row));
             sink.path(
@@ -131,12 +138,14 @@ pub(super) fn render_tile(
         let color = fill
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
+        let tile_width = bw * width_fraction;
+        let tile_height = bh * height_fraction;
         sink.begin_mark(mark_interaction(geo, table, row));
         sink.rect(
-            cx - bw / 2.0,
-            cy - bh / 2.0,
-            bw,
-            bh,
+            cx - tile_width / 2.0,
+            cy - tile_height / 2.0,
+            tile_width,
+            tile_height,
             &Paint {
                 fill: Fill::Color(color),
                 stroke: stroke_style(&stroke, stroke_width, table, row),
@@ -145,6 +154,10 @@ pub(super) fn render_tile(
         );
         sink.end_mark();
     }
+}
+
+fn tile_fraction_setting(geo: &GeometryIr, key: PropertyKey) -> f64 {
+    number_setting(geo, key, 1.0).clamp(f64::EPSILON, 1.0)
 }
 
 /// Render `Rect` cells as annular segments in polar (e.g. circular histogram):

@@ -559,6 +559,11 @@ fn declaration_value_items(
                 value_item("false", "Boolean literal"),
             ]
         }
+        (_, "legend") => vec![
+            value_item("false", "Suppress this layer's legends"),
+            value_item("true", "Keep this layer's legends"),
+        ],
+        ("Tile", "width" | "height") => vec![value_item("0.95", "Band fraction")],
         ("Guide", "fill") | ("Guide", "stroke") => vec![value_item("null", "Suppress guide")],
         ("Parse", "as") => vec![
             value_item("\"date\"", "Parse as date values"),
@@ -617,13 +622,18 @@ fn declaration_value_items(
             .map(|name| value_item(&format!("\"{name}\""), "Categorical palette"))
             .collect(),
         ("Scale", "gradient") => {
-            vec![
+            let mut items = registry::GRADIENT_NAMES
+                .iter()
+                .map(|name| value_item(&format!("\"{name}\""), "Named continuous gradient"))
+                .collect::<Vec<_>>();
+            items.extend([
                 value_item("[\"#3366cc\", \"#cc3333\"]", "Even color gradient stops"),
                 value_item(
                     "[Stop(value: 0, color: \"#3366cc\"), Stop(value: 100, color: \"#cc3333\")]",
                     "Positioned color gradient stops",
                 ),
-            ]
+            ]);
+            items
         }
         ("Stop", "value") => vec![value_item("0", "Domain value")],
         ("Stop", "color") => vec![color("\"#3366cc\"", "Gradient stop color")],

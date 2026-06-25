@@ -74,6 +74,9 @@ pub const SCALE_TYPE_NAMES: &[&str] = &["linear", "log10", "sqrt", "categorical"
 /// Named categorical palettes accepted by `Scale(palette: ...)`.
 pub const PALETTE_NAMES: &[&str] = &["default", "accent"];
 
+/// Named continuous gradients accepted by `Scale(gradient: ...)`.
+pub const GRADIENT_NAMES: &[&str] = &["viridis"];
+
 /// Recognized `On(...)` event-emitter arguments (spec §14.25).
 pub const EVENT_EMITTER_ARGS: &[&str] = &["event", "emit"];
 
@@ -507,9 +510,9 @@ const SCALE_DOC_ARGS: &[ArgDoc] = &[
     },
     ArgDoc {
         name: "gradient",
-        value: "array",
+        value: "array | \"viridis\"",
         default: None,
-        doc: "Continuous color gradient.",
+        doc: "Continuous color gradient stops or a named gradient.",
     },
     ArgDoc {
         name: "range",
@@ -844,7 +847,7 @@ pub fn geometry_example(name: &str) -> &'static str {
         "PointRange" => "PointRange(ymin: low, ymax: high)",
         "CrossBar" => "CrossBar(ymin: low, ymax: high)",
         "Ribbon" => "Ribbon(ymin: low, ymax: high)",
-        "Tile" => "Tile(fill: value)",
+        "Tile" => "Tile(fill: value, width: 0.95, height: 0.95)",
         "HLine" => "HLine(y: 0, label: \"baseline\")",
         "VLine" => "VLine(x: 0)",
         "Rug" => "Rug(sides: \"b\")",
@@ -1142,6 +1145,7 @@ const GENERATED_AXIS_ORIENTATION: &[Accept] = &[Accept::Enum(&["vertical", "hori
 const LINE_STROKE_WIDTH: &[Accept] = &[Accept::Number, Accept::Column];
 const POS: &[Accept] = &[Accept::Column, Accept::Number];
 const GROUP: &[Accept] = &[Accept::Column];
+const LEGEND_SETTING: PropSpec = opt(PropertyKey::Legend, &[Accept::Bool]);
 const BIN_INTERVAL: &[Accept] = &[Accept::Enum(&[
     "minute", "hour", "day", "week", "month", "quarter", "year",
 ])];
@@ -1156,6 +1160,7 @@ const POINT: &[PropSpec] = &[
     opt(PropertyKey::Jitter, POSITION_ADJUST),
     opt(PropertyKey::Nudge, POSITION_ADJUST),
     opt(PropertyKey::NudgeData, POSITION_ADJUST),
+    LEGEND_SETTING,
 ];
 
 const LINE: &[PropSpec] = &[
@@ -1165,6 +1170,7 @@ const LINE: &[PropSpec] = &[
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Group, GROUP),
     opt(PropertyKey::Taper, &[Accept::Bool]),
+    LEGEND_SETTING,
 ];
 
 const PATH: &[PropSpec] = &[
@@ -1174,6 +1180,7 @@ const PATH: &[PropSpec] = &[
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Group, GROUP),
     opt(PropertyKey::Taper, &[Accept::Bool]),
+    LEGEND_SETTING,
 ];
 
 const BAR: &[PropSpec] = &[
@@ -1189,6 +1196,7 @@ const BAR: &[PropSpec] = &[
     // A categorical `radius:` mapping selects concentric rings for the polar
     // `radial_bar` mode (spec §16.16); ignored for Cartesian bars.
     opt(PropertyKey::Radius, &[Accept::Column]),
+    LEGEND_SETTING,
 ];
 
 const RECT: &[PropSpec] = &[
@@ -1200,6 +1208,7 @@ const RECT: &[PropSpec] = &[
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
+    LEGEND_SETTING,
 ];
 
 const HISTOGRAM: &[PropSpec] = &[
@@ -1216,6 +1225,7 @@ const HISTOGRAM: &[PropSpec] = &[
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Group, GROUP),
+    LEGEND_SETTING,
 ];
 
 const FREQ_POLY: &[PropSpec] = &[
@@ -1229,6 +1239,7 @@ const FREQ_POLY: &[PropSpec] = &[
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Group, GROUP),
+    LEGEND_SETTING,
 ];
 
 const BIN2D: &[PropSpec] = &[
@@ -1237,6 +1248,7 @@ const BIN2D: &[PropSpec] = &[
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
+    LEGEND_SETTING,
 ];
 
 const HEXBIN: &[PropSpec] = &[
@@ -1245,6 +1257,7 @@ const HEXBIN: &[PropSpec] = &[
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
+    LEGEND_SETTING,
 ];
 
 const SMOOTH: &[PropSpec] = &[
@@ -1257,6 +1270,7 @@ const SMOOTH: &[PropSpec] = &[
     opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Group, GROUP),
+    LEGEND_SETTING,
 ];
 
 const DENSITY: &[PropSpec] = &[
@@ -1266,6 +1280,7 @@ const DENSITY: &[PropSpec] = &[
     opt(PropertyKey::Stroke, &[Accept::Color]),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
+    LEGEND_SETTING,
 ];
 
 const ERROR_BAR: &[PropSpec] = &[
@@ -1279,6 +1294,7 @@ const ERROR_BAR: &[PropSpec] = &[
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
+    LEGEND_SETTING,
 ];
 
 const LINE_RANGE: &[PropSpec] = &[
@@ -1291,6 +1307,7 @@ const LINE_RANGE: &[PropSpec] = &[
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
+    LEGEND_SETTING,
 ];
 
 const POINT_RANGE: &[PropSpec] = &[
@@ -1306,6 +1323,7 @@ const POINT_RANGE: &[PropSpec] = &[
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Size, SIZE),
     opt(PropertyKey::Shape, SHAPE),
+    LEGEND_SETTING,
 ];
 
 const CROSS_BAR: &[PropSpec] = &[
@@ -1320,6 +1338,7 @@ const CROSS_BAR: &[PropSpec] = &[
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
+    LEGEND_SETTING,
 ];
 
 const BOXPLOT: &[PropSpec] = &[
@@ -1329,6 +1348,7 @@ const BOXPLOT: &[PropSpec] = &[
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Width, &[Accept::Number]),
     opt(PropertyKey::Outliers, &[Accept::Bool]),
+    LEGEND_SETTING,
 ];
 
 const VIOLIN: &[PropSpec] = &[
@@ -1344,6 +1364,7 @@ const VIOLIN: &[PropSpec] = &[
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Width, &[Accept::Number]),
+    LEGEND_SETTING,
 ];
 
 const SINA: &[PropSpec] = &[
@@ -1357,6 +1378,7 @@ const SINA: &[PropSpec] = &[
     opt(PropertyKey::Alpha, ALPHA),
     opt(PropertyKey::Size, SIZE),
     opt(PropertyKey::Width, &[Accept::Number]),
+    LEGEND_SETTING,
 ];
 
 const RIBBON: &[PropSpec] = &[
@@ -1366,6 +1388,7 @@ const RIBBON: &[PropSpec] = &[
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
+    LEGEND_SETTING,
 ];
 
 const TILE: &[PropSpec] = &[
@@ -1373,6 +1396,9 @@ const TILE: &[PropSpec] = &[
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Width, &[Accept::Number]),
+    opt(PropertyKey::Height, &[Accept::Number]),
+    LEGEND_SETTING,
 ];
 
 const HLINE: &[PropSpec] = &[
@@ -1389,6 +1415,7 @@ const HLINE: &[PropSpec] = &[
     opt(PropertyKey::LabelShape, LABEL_SHAPE),
     opt(PropertyKey::LabelFill, &[Accept::Color]),
     opt(PropertyKey::LabelStroke, &[Accept::Color]),
+    LEGEND_SETTING,
 ];
 
 const VLINE: &[PropSpec] = &[
@@ -1405,6 +1432,7 @@ const VLINE: &[PropSpec] = &[
     opt(PropertyKey::LabelShape, LABEL_SHAPE),
     opt(PropertyKey::LabelFill, &[Accept::Color]),
     opt(PropertyKey::LabelStroke, &[Accept::Color]),
+    LEGEND_SETTING,
 ];
 
 const LABEL_SHAPE: &[Accept] = &[Accept::Enum(&["none", "circle", "square"])];
@@ -1414,6 +1442,7 @@ const RUG: &[PropSpec] = &[
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
+    LEGEND_SETTING,
 ];
 
 const AREA: &[PropSpec] = &[
@@ -1427,6 +1456,7 @@ const AREA: &[PropSpec] = &[
         &[Accept::Enum(&["identity", "stack", "fill"])],
     ),
     opt(PropertyKey::Group, GROUP),
+    LEGEND_SETTING,
 ];
 
 const TEXT: &[PropSpec] = &[
@@ -1448,6 +1478,7 @@ const TEXT: &[PropSpec] = &[
     opt(PropertyKey::Format, &[Accept::Str]),
     // Format a temporal `label:` column using the §19.4 named/custom model.
     opt(PropertyKey::TimeFormat, &[Accept::Str]),
+    LEGEND_SETTING,
 ];
 
 const LABEL: &[PropSpec] = &[
@@ -1464,6 +1495,7 @@ const LABEL: &[PropSpec] = &[
     opt(PropertyKey::Dx, &[Accept::Column, Accept::Number]),
     opt(PropertyKey::Dy, &[Accept::Column, Accept::Number]),
     opt(PropertyKey::Format, &[Accept::Str]),
+    LEGEND_SETTING,
 ];
 
 const IMAGE: &[PropSpec] = &[
@@ -1473,6 +1505,7 @@ const IMAGE: &[PropSpec] = &[
     opt(PropertyKey::Jitter, POSITION_ADJUST),
     opt(PropertyKey::Nudge, POSITION_ADJUST),
     opt(PropertyKey::NudgeData, POSITION_ADJUST),
+    LEGEND_SETTING,
 ];
 
 const GEO: &[PropSpec] = &[
@@ -1480,6 +1513,7 @@ const GEO: &[PropSpec] = &[
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
+    LEGEND_SETTING,
 ];
 
 const GRATICULE: &[PropSpec] = &[
@@ -1498,6 +1532,7 @@ const SEGMENT: &[PropSpec] = &[
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Dash, DASH),
     opt(PropertyKey::Alpha, ALPHA),
+    LEGEND_SETTING,
 ];
 
 const GEOMETRIES: &[GeometryDef] = &[
@@ -1661,7 +1696,9 @@ pub fn property_doc(name: &str) -> &'static str {
         "curvature" => "CurveSample bend amount; negative values bend the opposite way.",
         "points" => "CurveSample vertices per source row, from 2 to 1024.",
         "lengthScale" => "Scale factor applied to VectorEndpoints lengths.",
-        "width" => "Geometry width setting.",
+        "width" => "Geometry width setting. On Tile this is a band-width fraction in (0, 1].",
+        "height" => "Geometry height setting. On Tile this is a band-height fraction in (0, 1].",
+        "legend" => "Whether this geometry layer contributes mapped aesthetic legends.",
         "baseline" => "Area or bar baseline.",
         "label" => "Text label or reference-line label.",
         "labelPosition" => "Reference-line label placement: VLine `\"top\"`/`\"bottom\"`, HLine `\"start\"`/`\"end\"`.",

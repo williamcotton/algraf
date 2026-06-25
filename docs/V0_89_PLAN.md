@@ -1,6 +1,6 @@
 # Algraf v0.89.0 Plan
 
-Status: In Progress
+Status: Implemented
 Target version: 0.89.0
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)

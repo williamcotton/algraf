@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.88.0
+Status: 0.90.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.88.0 specification.
+This working copy is the 0.90.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -5444,7 +5444,7 @@ with the color aesthetic's categories, so it keeps scale/domain legend order.
 Syntax:
 
 ```ag
-Tile(fill: value)
+Tile(fill: value, width: 0.95, height: 0.95)
 ```
 
 Supported spaces:
@@ -5456,6 +5456,14 @@ categorical x by temporal y
 Tile maps fill to a fill scale.
 
 Tile computes cell rectangles from x and y band scales.
+
+Version 0.90.0 MUST support optional `width` and `height` numeric settings on
+`Tile`. Each setting is a finite band fraction in `(0, 1]`; omitted values
+default to `1.0`. Cartesian tiles MUST stay centered in their resolved x/y band
+cell and paint `bandwidth * width` by `bandheight * height`. Polar annular
+tiles MUST apply the same fractions symmetrically to angular and radial bands.
+Invalid fractions MUST emit `E1204` and MUST NOT panic; rendering falls back as
+though the invalid setting were omitted.
 
 ### 14.16 Text
 
@@ -7141,6 +7149,7 @@ Scale(axis: y, reverse: true)
 Scale(axis: y, integer: true)
 Scale(fill: species, palette: "accent")
 Scale(fill: value, gradient: ["#3366cc", "#cc3333"])
+Scale(fill: value, gradient: "viridis")
 Scale(strokeWidth: survivors, domain: [0, null], range: [0, 30])
 Scale(stroke: direction, range: ["A" => "burlywood", "R" => "black"])
 ```
@@ -7344,6 +7353,12 @@ literals.
 Gradient stops MUST be interpolated evenly across the trained continuous
 domain.
 
+Version 0.90.0 MUST accept the named gradient string `"viridis"` anywhere a
+continuous color scale accepts `gradient:`. The name lowers to the deterministic
+four-stop palette `#440154`, `#31688e`, `#35b779`, `#fde725` and uses the same
+validation, interpolation, domain, legend, and backend behavior as an explicit
+array of those color stops. Unknown gradient names MUST emit `E1601`.
+
 Version 0.20.0 MUST also support positioned gradient stops:
 
 ```ag
@@ -7423,6 +7438,11 @@ Scale(fill: species, label: "Penguin Species")
 When present, the label MUST be used as the legend title for that aesthetic
 instead of the column-derived default. `label` MUST be a string literal; a
 non-string value MUST emit `E1204`.
+
+Version 0.90.0: legend title lookup MUST match both the aesthetic and the mapped
+column. For example, `Scale(fill: passengers, label: "Passengers")` titles only
+the `fill: passengers` legend; a separate `Scale(fill: p_group, ...)` keeps its
+own title or the column-derived fallback.
 
 The named categorical palette registry recognizes `"default"` and `"accent"`.
 Unknown palette names MUST emit `E1204`.
@@ -7632,10 +7652,12 @@ clipped plot carries the resolved `clip_rect`. Host runtimes MAY use
 `aspect` is a positive finite number specifying the ratio of x pixels per data
 unit to y pixels per data unit. The renderer MUST preserve the chart viewport,
 margins, legends, facet strips, and facet grid allocation, then shrink and
-center the Cartesian plot rectangle inside its allocated panel when needed. It
-MUST apply only when both axes have continuous or temporal data-unit spans; it
-is ignored for categorical, polar, and spatial spaces. `aspect: 1` makes equal
-x/y data-unit distances visually equal after the final layout.
+center the Cartesian plot rectangle inside its allocated panel when needed.
+Continuous and temporal axes use data-domain spans. Version 0.90.0: categorical
+band axes use their trained band-step count as the span, and nested categorical
+axes use their trained outer-band count. `aspect: 1` makes equal x/y data-unit
+distances, or equal x/y band steps, visually equal after the final layout.
+`aspect` is ignored for polar and spatial spaces.
 
 ### 16.18 Scale Training Scope
 
@@ -8512,6 +8534,14 @@ identity-color legends, keep their existing order. Polar stacked marks
 (§16.16) keep scale/domain legend order. Legend suppression (`Guide(fill:
 null)`, `Guide(stroke: null)`, `Guide(legend: false)`) is unaffected.
 
+Version 0.90.0: continuous `fill` and `stroke` legends MUST render as compact
+colorbars. Right and left legend positions use a vertical colorbar; top and
+bottom legend positions use a horizontal colorbar. Tick labels come from exact
+`breaks:`/`labels:` when supplied and otherwise from the existing deterministic
+continuous legend tick generation. Colorbars MUST be emitted through the shared
+guide scene model so SVG, raster, and draw-list backends receive deterministic
+segmented colorbar primitives rather than backend-specific gradient defs.
+
 A `size` or `strokeWidth` mapping MUST create a size legend. The legend title
 follows the same rules as color legends — the scale's `label:` when declared,
 otherwise the mapped column's display name (see §16.13). Its entries are five
@@ -8571,6 +8601,14 @@ Version 0.2.0 MUST support grid suppression with `Guide(grid: false)`.
 `Guide` declarations MAY appear at chart scope or space scope.
 
 Space-local guide declarations override chart-level guide declarations for that space.
+
+Version 0.90.0 MUST support geometry-level `legend: false` on built-in
+geometries that can produce mapped aesthetic legends. The setting suppresses
+only legend candidates contributed by that one layer, including `fill`,
+`stroke`, `size`, `strokeWidth`, `shape`, and image legends. It MUST NOT affect
+mark rendering, scale training, interaction metadata, clipping, guides from
+other layers, or broader guide suppression controls such as `Guide(legend:
+false)`, `Guide(fill: null)`, and `Guide(stroke: null)`.
 
 ### 19.7 Legend Merging
 
@@ -10433,7 +10471,7 @@ Since version 0.87.0, the language-reference browser response shape is:
 ```json
 {
   "markdown": "...",
-  "version": "0.88.0",
+  "version": "0.90.0",
   "part": "full",
   "source": "crates/algraf-cli/templates/ALGRAF_LANG.md",
   "sources": [
@@ -11811,6 +11849,8 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.86.0 | [`V0_86_PLAN.md`](V0_86_PLAN.md) | Browser/WASM AST JSON and embedded language-reference APIs | Implemented |
 | 0.87.0 | [`V0_87_PLAN.md`](V0_87_PLAN.md) | Split language/tooling reference templates and WASM part-selection APIs | Implemented |
 | 0.88.0 | [`V0_88_PLAN.md`](V0_88_PLAN.md) | Ridgeline distributions with one-sided violins, Sina points, and guide-line theme styling | Implemented |
+| 0.89.0 | [`V0_89_PLAN.md`](V0_89_PLAN.md) | Normative specification drift cleanup | Implemented |
+| 0.90.0 | [`V0_90_PLAN.md`](V0_90_PLAN.md) | Annotated categorical heatmaps with first-class layer polish | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

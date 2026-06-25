@@ -17,6 +17,9 @@ pub(crate) const Y_TITLE_GAP: f64 = 12.0;
 pub(crate) const X_TICK_BASELINE: f64 = 18.0;
 /// Gap between x tick labels and the x-axis title.
 pub(crate) const X_TITLE_GAP: f64 = 8.0;
+pub(crate) const COLORBAR_LENGTH: f64 = 220.0;
+pub(crate) const COLORBAR_THICKNESS: f64 = 22.0;
+pub(crate) const COLORBAR_LABEL_GAP: f64 = 8.0;
 
 /// A coarse per-glyph width estimate for layout reservations. We have no font
 /// metrics at render time, so approximate every glyph as `0.6 * font_size`,
@@ -37,12 +40,18 @@ pub(crate) fn rotated_text_size(text: &str, font_size: f64, angle: f64) -> (f64,
 
 /// The y coordinate for the x-axis title, placed below the tallest tick label.
 pub(crate) fn x_axis_title_y(plot_bottom: f64, max_label_height: f64, font_size: f64) -> f64 {
-    plot_bottom + X_TICK_BASELINE + max_label_height.max(font_size) + X_TITLE_GAP
+    plot_bottom + x_tick_baseline(font_size) + max_label_height.max(font_size) + X_TITLE_GAP
 }
 
 /// The bottom margin an x axis needs so its tick labels and title fit.
 pub(crate) fn x_axis_bottom_margin(max_label_height: f64, font_size: f64) -> f64 {
-    X_TICK_BASELINE + max_label_height.max(font_size) + X_TITLE_GAP + font_size
+    x_tick_baseline(font_size) + max_label_height.max(font_size) + X_TITLE_GAP + font_size
+}
+
+/// Distance from the plot edge to the x tick-label baseline. Large tick labels
+/// need a larger baseline offset because SVG text is baseline-positioned.
+pub(crate) fn x_tick_baseline(font_size: f64) -> f64 {
+    X_TICK_BASELINE.max(font_size + 4.0)
 }
 
 /// The x coordinate for the (rotated) y-axis title, placed just left of the
@@ -134,42 +143,61 @@ pub(crate) fn horizontal_legend_width(legend: &Legend, theme: &Theme) -> f64 {
             .iter()
             .map(|(label, _)| 18.0 + estimate_text_width(label, theme.legend_text.size) + 12.0)
             .sum::<f64>(),
-        LegendKind::Continuous => 18.0 + max_entry_label_width(legend, theme) + 12.0,
+        LegendKind::Continuous => COLORBAR_LENGTH.max(max_entry_label_width(legend, theme)) + 12.0,
         LegendKind::Width | LegendKind::Radius => size_legend_width(legend, theme) + 12.0,
     };
     (title + entries).max(80.0)
 }
 
 fn horizontal_legend_size(legends: &[Legend], theme: &Theme, available_width: f64) -> LegendSize {
-    let row_height = theme.legend_text.size.max(theme.legend_title.size) + 10.0;
     let available_width = available_width.max(1.0);
-    let mut rows = 0usize;
+    let mut height = 0.0_f64;
     let mut row_width = 0.0;
+    let mut row_height = 0.0_f64;
 
     for legend in legends {
         let width = horizontal_legend_width(legend, theme).min(available_width);
+        let legend_height = horizontal_legend_height(legend, theme);
         let next_width = if row_width == 0.0 {
             width
         } else {
             row_width + theme.legend_spacing + width
         };
         if row_width > 0.0 && next_width > available_width {
-            rows += 1;
+            height += row_height + theme.legend_spacing;
             row_width = width;
+            row_height = legend_height;
         } else {
             if row_width > 0.0 {
                 row_width += theme.legend_spacing;
             }
             row_width += width;
+            row_height = row_height.max(legend_height);
         }
     }
     if row_width > 0.0 {
-        rows += 1;
+        height += row_height + theme.legend_spacing;
     }
 
     LegendSize {
         width: available_width,
-        height: rows as f64 * (row_height + theme.legend_spacing),
+        height,
+    }
+}
+
+pub(crate) fn horizontal_legend_height(legend: &Legend, theme: &Theme) -> f64 {
+    match legend.kind {
+        LegendKind::Continuous => {
+            theme
+                .legend_title
+                .size
+                .max(COLORBAR_THICKNESS + COLORBAR_LABEL_GAP + theme.legend_text.size)
+                + 12.0
+        }
+        LegendKind::Width | LegendKind::Radius => size_legend_metrics(legend, theme).1,
+        LegendKind::Discrete | LegendKind::Image => {
+            theme.legend_text.size.max(theme.legend_title.size) + 10.0
+        }
     }
 }
 
@@ -189,8 +217,10 @@ fn vertical_legend_size(legends: &[Legend], theme: &Theme) -> LegendSize {
                 }
             }
             LegendKind::Continuous => {
-                width = width.max(18.0 + max_entry_label_width(legend, theme));
-                height += 18.0 + legend.entries.len() as f64 * 16.0;
+                width = width.max(
+                    COLORBAR_THICKNESS + COLORBAR_LABEL_GAP + max_entry_label_width(legend, theme),
+                );
+                height += COLORBAR_LENGTH.max(1.0);
             }
             LegendKind::Width | LegendKind::Radius => {
                 let (size_width, size_height) = size_legend_metrics(legend, theme);

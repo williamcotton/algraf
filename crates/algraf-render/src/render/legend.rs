@@ -100,6 +100,9 @@ fn collect_geometry_legend_candidates(
     theme: &Theme,
     assets: &ImageAssets,
 ) {
+    if geometry_legend_suppressed(geo) {
+        return;
+    }
     let frame = panel.frame;
     let scales: &[ScaleIr] = &panel.scales;
     let guides = &panel.guides;
@@ -114,7 +117,7 @@ fn collect_geometry_legend_candidates(
             let spec = color_spec(geo, aesthetic, table, scales);
             // A `Scale(<aesthetic>: col, label: "...")` overrides the
             // column-derived legend title (spec §16.13).
-            let title = scale_label(scales, aesthetic.as_str())
+            let title = scale_label(scales, aesthetic.as_str(), Some(&mapping.column.name))
                 .unwrap_or_else(|| crate::svg::display_label(&mapping.column.name));
             if let Some(mut legend) = spec.legend(&title) {
                 // A stacked geometry's discrete legend follows the rendered
@@ -176,7 +179,7 @@ fn collect_geometry_legend_candidates(
             default_range,
             constant_default,
         );
-        let title = scale_label(scales, aesthetic.as_str())
+        let title = scale_label(scales, aesthetic.as_str(), Some(&mapping.column.name))
             .unwrap_or_else(|| crate::svg::display_label(&mapping.column.name));
         if let Some(legend) = spec.legend(&title, kind) {
             push_candidate(candidates, aesthetic, legend);
@@ -236,7 +239,7 @@ fn shape_legend(geo: &GeometryIr, table: &dyn Table, scales: &[ScaleIr]) -> Opti
     if categories.is_empty() {
         return None;
     }
-    let title = scale_label(scales, "shape")
+    let title = scale_label(scales, "shape", Some(&mapping.column.name))
         .unwrap_or_else(|| crate::svg::display_label(&mapping.column.name));
     let shapes = (0..categories.len()).map(marker_for_index).collect();
     let entries = categories
@@ -251,6 +254,7 @@ fn shape_legend(geo: &GeometryIr, table: &dyn Table, scales: &[ScaleIr]) -> Opti
         sizes: Vec::new(),
         shapes,
         images: Vec::new(),
+        colorbar: None,
     })
 }
 
@@ -289,7 +293,7 @@ fn image_legend(
     if entries.is_empty() {
         return None;
     }
-    let title = scale_label(scales, "src")
+    let title = scale_label(scales, "src", Some(&mapping.column.name))
         .unwrap_or_else(|| crate::svg::display_label(&mapping.column.name));
     Some(Legend {
         title,
@@ -299,6 +303,7 @@ fn image_legend(
         sizes: Vec::new(),
         shapes: Vec::new(),
         images,
+        colorbar: None,
     })
 }
 
@@ -351,15 +356,37 @@ fn hexbin_count_legend(
         breaks: None,
         labels: None,
     };
-    let title = scale_label(scales, "fill").unwrap_or_else(|| "count".to_string());
+    let title = scale_label(scales, "fill", None).unwrap_or_else(|| "count".to_string());
     spec.legend(&title)
 }
 
 /// The explicit `label` of a `fill`/`stroke` aesthetic scale, if declared.
-fn scale_label(scales: &[ScaleIr], aesthetic: &str) -> Option<String> {
-    scales.iter().find_map(|scale| match &scale.target {
-        ScaleTargetIr::Aesthetic { aesthetic: a, .. } if a == aesthetic => scale.label.clone(),
+fn scale_label(scales: &[ScaleIr], aesthetic: &str, column: Option<&str>) -> Option<String> {
+    scales.iter().rev().find_map(|scale| match &scale.target {
+        ScaleTargetIr::Aesthetic {
+            aesthetic: target,
+            column: scale_column,
+        } if target == aesthetic && scale_column_matches(column, scale_column.as_ref()) => {
+            scale.label.clone()
+        }
         _ => None,
+    })
+}
+
+fn scale_column_matches(
+    column: Option<&str>,
+    scale_column: Option<&algraf_semantics::ColumnRef>,
+) -> bool {
+    match (column, scale_column) {
+        (None, _) => true,
+        (Some(_), None) => true,
+        (Some(column), Some(scale_column)) => scale_column.name == column,
+    }
+}
+
+fn geometry_legend_suppressed(geo: &GeometryIr) -> bool {
+    geo.settings.iter().any(|setting| {
+        setting.name == PropertyKey::Legend && matches!(setting.value, SettingValue::Bool(false))
     })
 }
 

@@ -136,6 +136,7 @@ impl ColorSpec {
                 sizes: Vec::new(),
                 shapes: Vec::new(),
                 images: Vec::new(),
+                colorbar: None,
             }),
             ColorSpec::Gradient {
                 min,
@@ -145,9 +146,37 @@ impl ColorSpec {
                 labels,
                 ..
             } => {
-                let ticks = breaks
+                let tick_values = breaks
                     .clone()
                     .unwrap_or_else(|| gradient_legend_ticks(*min, *max));
+                let entries = tick_values
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .map(|(index, value)| {
+                        let t = if (max - min).abs() < f64::EPSILON {
+                            0.5
+                        } else {
+                            (value - min) / (max - min)
+                        };
+                        let label = labels
+                            .as_ref()
+                            .and_then(|labels| labels.get(index).cloned())
+                            .unwrap_or_else(|| num(value));
+                        (label, gradient_at(stops, value, *min, *max, t))
+                    })
+                    .collect::<Vec<_>>();
+                let colorbar_ticks = tick_values
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, value)| {
+                        let label = labels
+                            .as_ref()
+                            .and_then(|labels| labels.get(index).cloned())
+                            .unwrap_or_else(|| num(value));
+                        (value, label)
+                    })
+                    .collect();
                 Some(Legend {
                     title: title.to_string(),
                     kind: LegendKind::Continuous,
@@ -155,22 +184,13 @@ impl ColorSpec {
                     sizes: Vec::new(),
                     shapes: Vec::new(),
                     images: Vec::new(),
-                    entries: ticks
-                        .into_iter()
-                        .enumerate()
-                        .map(|(index, value)| {
-                            let t = if (max - min).abs() < f64::EPSILON {
-                                0.5
-                            } else {
-                                (value - min) / (max - min)
-                            };
-                            let label = labels
-                                .as_ref()
-                                .and_then(|labels| labels.get(index).cloned())
-                                .unwrap_or_else(|| num(value));
-                            (label, gradient_at(stops, value, *min, *max, t))
-                        })
-                        .collect(),
+                    entries,
+                    colorbar: Some(LegendColorbar {
+                        min: *min,
+                        max: *max,
+                        stops: stops.clone(),
+                        ticks: colorbar_ticks,
+                    }),
                 })
             }
             ColorSpec::Binned { labels, colors, .. } => Some(Legend {
@@ -181,6 +201,7 @@ impl ColorSpec {
                 sizes: Vec::new(),
                 shapes: Vec::new(),
                 images: Vec::new(),
+                colorbar: None,
             }),
             _ => None,
         }
@@ -227,6 +248,16 @@ pub struct Legend {
     pub sizes: Vec<f64>,
     pub shapes: Vec<crate::marker::MarkerShape>,
     pub images: Vec<LegendImage>,
+    pub colorbar: Option<LegendColorbar>,
+}
+
+/// Continuous colorbar payload for a gradient legend.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LegendColorbar {
+    pub min: f64,
+    pub max: f64,
+    pub stops: GradientIr,
+    pub ticks: Vec<(f64, String)>,
 }
 
 /// Embedded image data used by an image legend entry.
@@ -337,6 +368,15 @@ pub fn color_spec(
         }
     }
     ColorSpec::None
+}
+
+pub(crate) fn gradient_color_at(stops: &GradientIr, value: f64, min: f64, max: f64) -> String {
+    let t = if (max - min).abs() < f64::EPSILON {
+        0.5
+    } else {
+        (value - min) / (max - min)
+    };
+    gradient_at(stops, value, min, max, t)
 }
 
 fn gradient_at(stops: &GradientIr, value: f64, _min: f64, _max: f64, t: f64) -> String {
@@ -637,6 +677,7 @@ impl NumberSpec {
             sizes,
             shapes: Vec::new(),
             images: Vec::new(),
+            colorbar: None,
         })
     }
 }

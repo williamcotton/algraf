@@ -1225,6 +1225,49 @@ Chart(data: "heatmap.csv", width: 700, height: 460) {
 
 ![heatmap](heatmap.svg)
 
+## Annotated heatmap
+
+This air-passenger heatmap uses categorical years, reversed month order, tile
+gutters, and a text layer whose legend is suppressed independently from the
+passenger colorbar. `Cut` creates the low/high text-color class used for
+contrast against the continuous fill scale.
+
+```algraf
+Chart(data: "annotated_heatmap.csv", width: 1280, height: 900) {
+    Derive annotated = Cut(
+        passengers,
+        breaks: [0, 300],
+        labels: ["low", "high"],
+        output: "p_group"
+    )
+
+    Theme(
+        background: "#ffffff",
+        plotBackground: "#ffffff",
+        panelBackground: Rect(fill: "#ffffff", stroke: "#ffffff", strokeWidth: 0),
+        axisTitle: Text(hidden: true),
+        axisTicks: Line(strokeWidth: 0),
+        legendPosition: "right"
+    )
+
+    Space(year * month, data: annotated, aspect: 1) {
+        Scale(axis: x, type: "categorical", expand: [0, 0])
+        Scale(axis: y, domain: [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December",
+        ], reverse: true, expand: [0, 0])
+        Scale(fill: passengers, gradient: "viridis", breaks: [200, 300, 400, 500, 600], label: "passengers")
+        Scale(fill: p_group, range: ["low" => "#ffffff", "high" => "#000000"])
+        Guide(grid: false)
+
+        Tile(fill: passengers, width: 0.95, height: 0.95)
+        Text(label: passengers, fill: p_group, size: 24, anchor: "middle", dy: 8, legend: false)
+    }
+}
+```
+
+![annotated_heatmap](annotated_heatmap.svg)
+
 ## Custom continuous gradients
 
 `Scale(fill: ..., gradient: [...])` sets color stops for a continuous fill or

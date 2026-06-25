@@ -126,6 +126,7 @@ impl Analyzer<'_> {
         self.check_label_geometry(def, frame, span);
         self.check_polar_radius(def, coords, &mappings, span);
         self.check_image_src(def, &mappings, &settings);
+        self.check_tile_fraction_settings(def, &mut settings);
         self.check_numeric_format(def, &mappings, &settings);
         self.check_text_time_format(def, &mappings, &mut settings);
 
@@ -782,6 +783,38 @@ impl Analyzer<'_> {
                     .with_help("use a chart-relative local path such as \"logos/team.png\""),
                 );
             }
+        }
+    }
+
+    /// `Tile(width:, height:)` are fractions of the resolved x/y band sizes.
+    /// Keep invalid literals out of the IR so render-time defaults apply.
+    fn check_tile_fraction_settings(
+        &mut self,
+        def: &GeometryDef,
+        settings: &mut Vec<GeometrySetting>,
+    ) {
+        if def.kind != GeometryKind::Tile {
+            return;
+        }
+        let mut invalid = Vec::new();
+        for (index, setting) in settings.iter().enumerate() {
+            if !matches!(setting.name, PropertyKey::Width | PropertyKey::Height) {
+                continue;
+            }
+            let SettingValue::Number(value) = setting.value else {
+                continue;
+            };
+            if !value.is_finite() || value <= 0.0 || value > 1.0 {
+                self.diag(Diagnostic::error(
+                    codes::E1204,
+                    format!("`{}` expects a finite number in (0, 1]", setting.name),
+                    setting.span,
+                ));
+                invalid.push(index);
+            }
+        }
+        for index in invalid.into_iter().rev() {
+            settings.remove(index);
         }
     }
 

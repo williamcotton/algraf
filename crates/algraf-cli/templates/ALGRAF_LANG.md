@@ -446,6 +446,8 @@ aspect        positive number
 
 The first positional item in `Space(...)` is always algebra, not a named
 argument.
+On Cartesian spaces, `aspect: 1` equalizes continuous data units and categorical
+band steps after guide and legend layout.
 
 ### Derive
 
@@ -539,6 +541,7 @@ Scale(axis: x, type: "linear")
 Scale(axis: x, type: "temporal", tickInterval: "1 month")
 Scale(fill: species, palette: "default")
 Scale(fill: score, gradient: ["#3366cc", "#cc3333"])
+Scale(fill: score, gradient: "viridis")
 Scale(fill: score, gradient: [Stop(value: 0, color: "#3366cc"), Stop(value: 100, color: "#cc3333")])
 Scale(fill: day, timeFormat: "iso-date")
 ```
@@ -561,7 +564,7 @@ stroke         column
 size           column
 strokeWidth    column
 palette        "default" | "accent"
-gradient       array of colors or array of Stop(...)
+gradient       "viridis", array of colors, or array of Stop(...)
 range          array or map
 labels         array or map
 timeFormat     string
@@ -580,6 +583,8 @@ Temporal `tickInterval` units are millisecond, second, minute, hour, day, week,
 month, quarter, and year, with plural forms accepted in interval strings.
 On categorical temporal `fill`/`stroke` scales, `timeFormat` formats legend
 entry labels using the same named or chrono-style formats accepted by guides.
+Continuous `fill`/`stroke` legends render as compact colorbars; `breaks` and
+`labels` control their tick labels when supplied.
 On temporal columns forced to categorical position axes with
 `Scale(axis: x, type: "categorical")` or `Scale(axis: y, type: "categorical")`,
 use `Guide(axis:, timeFormat:)` to format tick labels. Without that guide,
@@ -800,7 +805,7 @@ Ribbon:
   ymin*, ymax*, fill, stroke, strokeWidth, alpha
 
 Tile:
-  fill, stroke, strokeWidth, alpha
+  fill, stroke, strokeWidth, alpha, width, height, legend
 
 HLine:
   y*, stroke, strokeWidth, dash, alpha, label, labelPosition, labelShape,
@@ -818,7 +823,7 @@ Area:
 
 Text:
   label*, x, y, fill, alpha, size, anchor, dx, dy, nudge, nudgeData, declutter,
-  format, timeFormat
+  format, timeFormat, legend
 
 Label:
   label*, at, group, fill, alpha, size, anchor, dx, dy, format
@@ -835,6 +840,11 @@ Geo:
 Graticule:
   stroke, strokeWidth, alpha, step
 ```
+
+`legend: false` suppresses mapped aesthetic legends from that one geometry layer
+while leaving marks, scale training, and other layers unchanged.
+For `Tile`, `width` and `height` are band fractions in `(0, 1]`; use values such
+as `0.95` for heatmap gutters.
 
 Interaction properties accepted by `Point`, `Image`, `Bar`, `Rect`, and `Tile`:
 

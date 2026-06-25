@@ -382,8 +382,8 @@ impl AxisScale {
         self.ticks_with_format(temporal)
     }
 
-    /// Domain span in data units for fixed-aspect layout. Returns `None` for
-    /// categorical axes, whose units are visual bands rather than data units.
+    /// Domain span in units for fixed-aspect layout. Continuous and temporal
+    /// axes use data units; categorical axes use one unit per trained band step.
     pub fn continuous_domain_span(&self) -> Option<f64> {
         match self {
             AxisScale::Continuous { scale, .. } | AxisScale::Union { scale, .. } => {
@@ -392,7 +392,8 @@ impl AxisScale {
             AxisScale::Temporal { scale, .. }
             | AxisScale::TemporalNestedBand { scale, .. }
             | AxisScale::TemporalUnion { scale, .. } => Some((scale.max - scale.min).abs() as f64),
-            AxisScale::Band { .. } | AxisScale::NestedBand { .. } => None,
+            AxisScale::Band { scale, .. } => Some(scale.categories.len().max(1) as f64),
+            AxisScale::NestedBand { scale, .. } => Some(scale.outer.categories.len().max(1) as f64),
         }
     }
 

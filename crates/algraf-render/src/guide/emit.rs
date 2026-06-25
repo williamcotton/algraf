@@ -6,7 +6,7 @@
 
 use algraf_semantics::{AxisPositionIr, GridShapeIr, GuideIr, LegendPositionIr, TemporalFormatIr};
 
-use crate::aes::{Legend, LegendKind};
+use crate::aes::{gradient_color_at, Legend, LegendKind};
 use crate::layout::Rect;
 use crate::marker::emit_marker;
 use crate::render::TextAnchor;
@@ -16,9 +16,10 @@ use crate::svg::num;
 use crate::theme::{LineStyle, TextStyle, Theme};
 
 use super::plan::{
-    estimate_text_width, horizontal_legend_width, max_x_tick_label_height, max_y_tick_label_width,
-    tick_label_row_count, tick_label_row_gap, x_axis_title_y, y_axis_title_x, X_TICK_BASELINE,
-    X_TITLE_GAP, Y_TICK_GAP, Y_TITLE_GAP,
+    estimate_text_width, horizontal_legend_height, horizontal_legend_width,
+    max_x_tick_label_height, max_y_tick_label_width, tick_label_row_count, tick_label_row_gap,
+    x_axis_title_y, x_tick_baseline, y_axis_title_x, COLORBAR_LABEL_GAP, COLORBAR_LENGTH,
+    COLORBAR_THICKNESS, X_TITLE_GAP, Y_TICK_GAP, Y_TITLE_GAP,
 };
 
 pub(crate) struct AxisRenderOptions<'a> {
@@ -470,7 +471,7 @@ fn render_x_axis(
         let label_y = if top {
             axis_y - X_TOP_TICK_GAP - row_offset
         } else {
-            axis_y + X_TICK_BASELINE + row_offset
+            axis_y + x_tick_baseline(theme.axis_text.size) + row_offset
         };
         tick_text(
             sink,
@@ -787,7 +788,11 @@ pub(crate) fn render_legends(
                 }
             }
             LegendKind::Continuous => {
-                y += 18.0;
+                y += if !legend.title.is_empty() {
+                    theme.legend_title.size + 12.0
+                } else {
+                    18.0
+                };
                 y = render_continuous_legend(sink, legend, area.x, y, theme);
             }
             LegendKind::Width | LegendKind::Radius => {
@@ -810,36 +815,39 @@ fn render_legends_horizontal(
     area: Rect,
     theme: &Theme,
 ) {
-    let row_height = theme.legend_text.size.max(theme.legend_title.size) + 10.0;
-    let mut rows: Vec<(Vec<usize>, f64)> = Vec::new();
+    let mut rows: Vec<(Vec<usize>, f64, f64)> = Vec::new();
     let mut row = Vec::new();
     let mut row_width = 0.0;
+    let mut row_height = 0.0_f64;
 
     for (index, legend) in legends.iter().enumerate() {
         let width = horizontal_legend_width(legend, theme).min(area.width);
+        let legend_height = horizontal_legend_height(legend, theme);
         let next_width = if row.is_empty() {
             width
         } else {
             row_width + theme.legend_spacing + width
         };
         if !row.is_empty() && next_width > area.width {
-            rows.push((row, row_width));
+            rows.push((row, row_width, row_height));
             row = vec![index];
             row_width = width;
+            row_height = legend_height;
         } else {
             if !row.is_empty() {
                 row_width += theme.legend_spacing;
             }
             row.push(index);
             row_width += width;
+            row_height = row_height.max(legend_height);
         }
     }
     if !row.is_empty() {
-        rows.push((row, row_width));
+        rows.push((row, row_width, row_height));
     }
 
     let mut y = area.y + theme.legend_text.size.max(theme.legend_title.size) + 2.0;
-    for (row, row_width) in rows {
+    for (row, row_width, row_height) in rows {
         let mut x = area.x + ((area.width - row_width).max(0.0) / 2.0);
         for index in row {
             let legend = &legends[index];
@@ -1008,11 +1016,121 @@ fn render_continuous_legend(
     if legend.entries.is_empty() {
         return y;
     }
-    let step = 16.0;
-    for (index, (label, color)) in legend.entries.iter().rev().enumerate() {
-        let y0 = y + index as f64 * step;
-        sink.rect(x, y0 - 10.0, 12.0, step, &Paint::fill(color.clone(), None));
-        styled_text(sink, x + 18.0, y0, "start", label, &theme.legend_text);
+    let Some(colorbar) = &legend.colorbar else {
+        let step = 16.0;
+        for (index, (label, color)) in legend.entries.iter().rev().enumerate() {
+            let y0 = y + index as f64 * step;
+            sink.rect(x, y0 - 10.0, 12.0, step, &Paint::fill(color.clone(), None));
+            styled_text(sink, x + 18.0, y0, "start", label, &theme.legend_text);
+        }
+        return y + legend.entries.len() as f64 * step;
+    };
+    if matches!(
+        theme.legend_position,
+        LegendPositionIr::Top | LegendPositionIr::Bottom
+    ) {
+        render_horizontal_colorbar(sink, colorbar, x, y, theme)
+    } else {
+        render_vertical_colorbar(sink, colorbar, x, y, theme)
     }
-    y + legend.entries.len() as f64 * step
+}
+
+fn render_vertical_colorbar(
+    sink: &mut dyn MarkSink,
+    colorbar: &crate::aes::LegendColorbar,
+    x: f64,
+    y: f64,
+    theme: &Theme,
+) -> f64 {
+    const SEGMENTS: usize = 220;
+    const OVERLAP: f64 = 0.75;
+    let top = y - 10.0;
+    let segment_height = COLORBAR_LENGTH / SEGMENTS as f64;
+    for index in 0..SEGMENTS {
+        let t = 1.0 - (index as f64 + 0.5) / SEGMENTS as f64;
+        let value = colorbar.min + (colorbar.max - colorbar.min) * t;
+        let y0 = top + index as f64 * segment_height;
+        let height = if index + 1 == SEGMENTS {
+            segment_height
+        } else {
+            segment_height + OVERLAP
+        };
+        sink.rect(
+            x,
+            y0,
+            COLORBAR_THICKNESS,
+            height,
+            &Paint::fill(
+                gradient_color_at(&colorbar.stops, value, colorbar.min, colorbar.max),
+                None,
+            ),
+        );
+    }
+    for (value, label) in &colorbar.ticks {
+        let t = normalized_tick(*value, colorbar.min, colorbar.max);
+        let y0 = top + (1.0 - t) * COLORBAR_LENGTH + 4.0;
+        styled_text(
+            sink,
+            x + COLORBAR_THICKNESS + COLORBAR_LABEL_GAP,
+            y0,
+            "start",
+            label,
+            &theme.legend_text,
+        );
+    }
+    top + COLORBAR_LENGTH + 10.0
+}
+
+fn render_horizontal_colorbar(
+    sink: &mut dyn MarkSink,
+    colorbar: &crate::aes::LegendColorbar,
+    x: f64,
+    y: f64,
+    theme: &Theme,
+) -> f64 {
+    const SEGMENTS: usize = 220;
+    const OVERLAP: f64 = 0.75;
+    let top = y - 10.0;
+    let segment_width = COLORBAR_LENGTH / SEGMENTS as f64;
+    for index in 0..SEGMENTS {
+        let t = (index as f64 + 0.5) / SEGMENTS as f64;
+        let value = colorbar.min + (colorbar.max - colorbar.min) * t;
+        let x0 = x + index as f64 * segment_width;
+        let width = if index + 1 == SEGMENTS {
+            segment_width
+        } else {
+            segment_width + OVERLAP
+        };
+        sink.rect(
+            x0,
+            top,
+            width,
+            COLORBAR_THICKNESS,
+            &Paint::fill(
+                gradient_color_at(&colorbar.stops, value, colorbar.min, colorbar.max),
+                None,
+            ),
+        );
+    }
+    let label_y = top + COLORBAR_THICKNESS + COLORBAR_LABEL_GAP + theme.legend_text.size;
+    for (value, label) in &colorbar.ticks {
+        let t = normalized_tick(*value, colorbar.min, colorbar.max);
+        styled_text(
+            sink,
+            x + t * COLORBAR_LENGTH,
+            label_y,
+            "middle",
+            label,
+            &theme.legend_text,
+        );
+    }
+    label_y
+}
+
+fn normalized_tick(value: f64, min: f64, max: f64) -> f64 {
+    if (max - min).abs() < f64::EPSILON {
+        0.5
+    } else {
+        ((value - min) / (max - min)).clamp(0.0, 1.0)
+    }
 }

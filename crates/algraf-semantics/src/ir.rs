@@ -1583,6 +1583,7 @@ pub enum PropertyKey {
     Outliers,
     Side,
     Width,
+    Height,
     CapWidth,
     Orientation,
     Baseline,
@@ -1613,6 +1614,7 @@ pub enum PropertyKey {
     Jitter,
     Nudge,
     NudgeData,
+    Legend,
 }
 
 /// Every [`PropertyKey`] variant, in declaration order. Used by registry
@@ -1643,6 +1645,7 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::Outliers,
     PropertyKey::Side,
     PropertyKey::Width,
+    PropertyKey::Height,
     PropertyKey::CapWidth,
     PropertyKey::Orientation,
     PropertyKey::Baseline,
@@ -1673,6 +1676,7 @@ pub const PROPERTY_KEYS: &[PropertyKey] = &[
     PropertyKey::Jitter,
     PropertyKey::Nudge,
     PropertyKey::NudgeData,
+    PropertyKey::Legend,
 ];
 
 impl PropertyKey {
@@ -1704,6 +1708,7 @@ impl PropertyKey {
             PropertyKey::Outliers => "outliers",
             PropertyKey::Side => "side",
             PropertyKey::Width => "width",
+            PropertyKey::Height => "height",
             PropertyKey::CapWidth => "capWidth",
             PropertyKey::Orientation => "orientation",
             PropertyKey::Baseline => "baseline",
@@ -1734,6 +1739,7 @@ impl PropertyKey {
             PropertyKey::Jitter => "jitter",
             PropertyKey::Nudge => "nudge",
             PropertyKey::NudgeData => "nudgeData",
+            PropertyKey::Legend => "legend",
         }
     }
 

@@ -909,11 +909,12 @@ fn stat_arg_value_hint(stat: &str, arg: &str) -> &'static str {
         "direction" if stat == "StepVertices" => "\"hv\" | \"vh\"",
         "orientation" => "\"vertical\" | \"horizontal\"",
         "reducer" => "\"count\" | \"mean\" | \"min\" | \"max\" | \"sum\" | \"median\"",
-        "se" => "boolean",
+        "se" | "legend" => "boolean",
         "table" => "table name",
         "z" => "column",
         "bins" | "binWidth" | "boundary" | "span" | "bandwidth" | "grid" | "levels"
-        | "lengthScale" | "curvature" | "points" | "capWidth" | "width" | "tolerance" => "number",
+        | "lengthScale" | "curvature" | "points" | "capWidth" | "width" | "height"
+        | "tolerance" => "number",
         _ => "argument",
     }
 }

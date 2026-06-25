@@ -1057,10 +1057,24 @@ impl Analyzer<'_> {
     }
 
     fn gradient_value(&mut self, value: &ValueExpr) -> Option<GradientIr> {
+        if let ValueExpr::Literal(lit) = value {
+            if lit.kind() == Some(LiteralKind::String) {
+                let name = string_value(&lit.text().unwrap_or_default());
+                if registry::GRADIENT_NAMES.contains(&name.as_str()) {
+                    return named_gradient(&name);
+                }
+                self.diag(Diagnostic::error(
+                    codes::E1601,
+                    format!("unknown gradient `{name}`"),
+                    node_span(lit.syntax()),
+                ));
+                return None;
+            }
+        }
         let ValueExpr::Array(array) = value else {
             self.diag(Diagnostic::error(
                 codes::E1601,
-                "`gradient` expects an array of two or more color strings or Stop(...) values",
+                "`gradient` expects a named gradient or an array of two or more color strings or Stop(...) values",
                 node_span(value.syntax()),
             ));
             return None;
@@ -1277,5 +1291,17 @@ impl Analyzer<'_> {
         } else {
             *target = Some(next);
         }
+    }
+}
+
+fn named_gradient(name: &str) -> Option<GradientIr> {
+    match name {
+        "viridis" => Some(GradientIr::Even(
+            ["#440154", "#31688e", "#35b779", "#fde725"]
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
+        )),
+        _ => None,
     }
 }

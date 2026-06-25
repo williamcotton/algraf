@@ -1,0 +1,53 @@
+Chart(
+    data: "annotated_heatmap.csv",
+    width: 1280,
+    height: 900,
+    marginTop: 24,
+    marginRight: 160,
+    marginBottom: 58,
+    marginLeft: 150
+) {
+    Derive annotated = Cut(
+        passengers,
+        breaks: [0, 300],
+        labels: ["low", "high"],
+        output: "p_group"
+    )
+
+    Theme(
+        background: "#ffffff",
+        plotBackground: "#ffffff",
+        panelBackground: Rect(fill: "#ffffff", stroke: "#ffffff", strokeWidth: 0),
+        axisTitle: Text(hidden: true),
+        axisText: Text(size: 24, fill: "#555555"),
+        axisLine: Line(strokeWidth: 0),
+        axisTicks: Line(strokeWidth: 0),
+        legendTitle: Text(size: 30, fill: "#000000"),
+        legendText: Text(size: 22, fill: "#000000"),
+        legendPosition: "right"
+    )
+
+    Space(year * month, data: annotated, aspect: 1) {
+        Scale(axis: x, type: "categorical", expand: [0, 0])
+        Scale(
+            axis: y,
+            domain: [
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December",
+            ],
+            reverse: true,
+            expand: [0, 0]
+        )
+        Scale(
+            fill: passengers,
+            gradient: "viridis",
+            breaks: [200, 300, 400, 500, 600],
+            label: "passengers"
+        )
+        Scale(fill: p_group, range: ["low" => "#ffffff", "high" => "#000000"])
+        Guide(grid: false)
+
+        Tile(fill: passengers, width: 0.95, height: 0.95)
+        Text(label: passengers, fill: p_group, size: 24, anchor: "middle", dy: 8, legend: false)
+    }
+}

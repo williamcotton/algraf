@@ -262,6 +262,22 @@ fn bottom_legend_is_reflected_in_layout_sidecar_and_draw_list() {
 }
 
 #[test]
+fn draw_list_records_continuous_colorbar_segments() {
+    let list = draw_list(
+        "Chart(data: \"p.csv\") {
+  Scale(fill: value, gradient: \"viridis\", breaks: [1, 5, 9])
+  Space(x * y) { Tile(fill: value) }
+}",
+        "x,y,value\nA,M,1\nB,M,9\n",
+    );
+    let legend_rects = rects(&list, DrawRole::Legend);
+    assert!(
+        legend_rects.len() > 20,
+        "continuous legend should be emitted as colorbar rect segments"
+    );
+}
+
+#[test]
 fn draw_list_has_one_panel_per_facet() {
     let list = draw_list(
         "Chart(data: \"p.csv\") { Space((x * y) / g) { Point() } }",

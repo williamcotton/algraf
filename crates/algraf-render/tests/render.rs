@@ -60,6 +60,27 @@ fn svg_tag_attr(tag: &str, attr: &str) -> Option<f64> {
     tag[start..end].parse().ok()
 }
 
+fn first_tile_rect_size(svg: &str) -> (f64, f64) {
+    let tile_layer = svg
+        .split_once("algraf-geom-tile")
+        .expect("tile layer")
+        .1
+        .split_once("</g>")
+        .expect("tile layer end")
+        .0;
+    let rect = tile_layer
+        .split("<rect ")
+        .nth(1)
+        .expect("tile rect")
+        .split_once('>')
+        .expect("rect end")
+        .0;
+    (
+        svg_tag_attr(rect, "width").expect("tile width"),
+        svg_tag_attr(rect, "height").expect("tile height"),
+    )
+}
+
 fn inside_defs(svg: &str, index: usize) -> bool {
     let before = &svg[..index];
     match (before.rfind("<defs>"), before.rfind("</defs>")) {
@@ -1792,6 +1813,39 @@ fn test_tile_heatmap_gradient() {
 }
 
 #[test]
+fn test_tile_width_height_fraction_shrinks_centered_cells() {
+    let csv = "day,hour,value\nMon,9am,1\nMon,10am,5\nTue,9am,3\nTue,10am,9\n";
+    let full = render_svg(
+        "Chart(data: \"h.csv\") { Space(day * hour) { Tile(fill: value) } }",
+        csv,
+    );
+    let shrunken = render_svg(
+        "Chart(data: \"h.csv\") { Space(day * hour) { Tile(fill: value, width: 0.5, height: 0.25) } }",
+        csv,
+    );
+    let (full_width, full_height) = first_tile_rect_size(&full);
+    let (tile_width, tile_height) = first_tile_rect_size(&shrunken);
+    assert!((tile_width - full_width * 0.5).abs() < 0.01);
+    assert!((tile_height - full_height * 0.25).abs() < 0.01);
+}
+
+#[test]
+fn test_categorical_aspect_equalizes_band_steps() {
+    let svg = render_svg(
+        "Chart(data: \"h.csv\", width: 640, height: 520) {
+  Space(day * hour, aspect: 1) { Tile(fill: value) }
+}",
+        "day,hour,value\nMon,9am,1\nMon,10am,5\nMon,11am,6\nMon,12pm,7\nTue,9am,3\nTue,10am,9\nTue,11am,2\nTue,12pm,4\n",
+    );
+    let (tile_width, tile_height) = first_tile_rect_size(&svg);
+    let ratio = tile_width / tile_height;
+    assert!(
+        (ratio - 1.0).abs() < 0.02,
+        "two x bands and four y bands should render square band steps, got {ratio}"
+    );
+}
+
+#[test]
 fn test_boxplot_renders_summary_marks() {
     let result = render_result(
         "Chart(data: \"b.csv\") { Space(group * value) { Boxplot(fill: group) } }",
@@ -1877,6 +1931,25 @@ fn test_gradient_legend_for_numeric_fill() {
 }
 
 #[test]
+fn test_gradient_legend_renders_colorbar_segments() {
+    let svg = render_svg(
+        "Chart(data: \"h.csv\") {
+  Scale(fill: value, gradient: \"viridis\", breaks: [1, 5, 9], labels: [\"low\", \"mid\", \"high\"])
+  Space(day * hour) { Tile(fill: value) }
+}",
+        "day,hour,value\nMon,9am,1\nMon,10am,5\nTue,9am,3\nTue,10am,9\n",
+    );
+    let legend = legend_layer(&svg);
+    assert!(
+        legend.matches("<rect").count() > 20,
+        "continuous legend should be a segmented colorbar: {legend}"
+    );
+    assert!(legend.contains(">low</text>"));
+    assert!(legend.contains(">mid</text>"));
+    assert!(legend.contains(">high</text>"));
+}
+
+#[test]
 fn test_source_gradient_controls_numeric_fill_colors() {
     let svg = render_svg(
         "Chart(data: \"h.csv\") { Scale(fill: value, gradient: [\"#3366cc\", \"#cc3333\"]) Space(day * hour) { Tile(fill: value) } }",
@@ -1884,6 +1957,16 @@ fn test_source_gradient_controls_numeric_fill_colors() {
     );
     assert!(svg.contains("fill=\"#3366cc\""));
     assert!(svg.contains("fill=\"#cc3333\""));
+}
+
+#[test]
+fn test_named_viridis_gradient_controls_numeric_fill_colors() {
+    let svg = render_svg(
+        "Chart(data: \"h.csv\") { Scale(fill: value, gradient: \"viridis\") Space(day * hour) { Tile(fill: value) } }",
+        "day,hour,value\nMon,9am,0\nMon,10am,10\n",
+    );
+    assert!(svg.contains("fill=\"#440154\""));
+    assert!(svg.contains("fill=\"#fde725\""));
 }
 
 #[test]
@@ -2130,6 +2213,47 @@ fn test_scale_label_overrides_legend_title() {
     assert!(svg.contains(">Group Name</text>"));
     // The bare column-derived title is not used.
     assert!(!svg.contains(">g</text>"));
+}
+
+#[test]
+fn test_scale_label_is_column_scoped_for_same_aesthetic() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {
+  Scale(fill: value, gradient: \"viridis\", label: \"Value\")
+  Scale(fill: group, range: [\"low\" => \"#ffffff\", \"high\" => \"#000000\"])
+  Space(x * y) {
+    Tile(fill: value)
+    Text(label: value, fill: group)
+  }
+}",
+        "x,y,value,group\nA,M,1,low\nB,M,9,high\n",
+    );
+    let legend = legend_layer(&svg);
+    assert_eq!(legend.matches(">Value</text>").count(), 1);
+    assert!(
+        legend.contains(">group</text>"),
+        "second fill scale should keep its own column title: {legend}"
+    );
+}
+
+#[test]
+fn test_geometry_legend_false_suppresses_only_that_layer() {
+    let svg = render_svg(
+        "Chart(data: \"p.csv\") {
+  Scale(fill: value, gradient: \"viridis\", label: \"Value\")
+  Scale(fill: group, range: [\"low\" => \"#ffffff\", \"high\" => \"#000000\"])
+  Space(x * y) {
+    Tile(fill: value)
+    Text(label: value, fill: group, legend: false)
+  }
+}",
+        "x,y,value,group\nA,M,1,low\nB,M,9,high\n",
+    );
+    let legend = legend_layer(&svg);
+    assert!(legend.contains(">Value</text>"));
+    assert!(!legend.contains(">group</text>"));
+    assert!(!legend.contains(">low</text>"));
+    assert!(!legend.contains(">high</text>"));
 }
 
 #[test]
