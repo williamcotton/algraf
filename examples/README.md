@@ -1475,8 +1475,9 @@ Chart(data: "sensor_readings.csv", width: 700, height: 460, title: "Sensor readi
 
 ## Violin distributions
 
-`Violin` mirrors a Gaussian KDE within each categorical band. Optional
-`quantiles` draw deterministic reference lines inside each violin.
+`Violin` mirrors a Gaussian KDE within each categorical band. Optional `side`
+and `quantiles` settings choose one-sided or mirrored density envelopes and draw
+deterministic reference lines inside each violin.
 
 ```algraf
 Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribution by group") {
@@ -1488,6 +1489,39 @@ Chart(data: "demographics.csv", width: 720, height: 460, title: "Height distribu
 ```
 
 ![violin](violin.svg)
+
+## Ridgeline distributions
+
+One-sided `Violin` layers build ridgeline density charts. `Sina` spreads raw
+observations inside the same density envelope, while theme line styles can hide
+axis chrome and keep dashed grid guides.
+
+```algraf
+Chart(data: "ridgeline_temperatures.csv", width: 760, height: 760, title: "Temperature over the Year") {
+    Theme(
+        name: "minimal",
+        plotTitle: Text(size: 26, weight: "normal", align: "center"),
+        axisTitle: Text(hidden: true),
+        axisLine: Line(stroke: "none", strokeWidth: 0),
+        axisTicks: Line(stroke: "none", strokeWidth: 0),
+        axisTickLength: 0,
+        panelBackground: Rect(fill: "#fafafa"),
+        gridMajor: Line(stroke: "#d2d2d2", strokeWidth: 0.25, dash: "dashed"),
+        gridMinor: Line(stroke: "#d2d2d2", strokeWidth: 0)
+    )
+    Scale(axis: x, domain: [0, 45], breaks: [0, 10, 20, 30, 40], labels: ["0°C", "10°C", "20°C", "30°C", "40°C"], expand: [0, 0.5])
+    Scale(axis: y, domain: ["December", "November", "October", "September", "August", "July", "June", "May", "April", "March", "February", "January"])
+    Scale(fill: mean_temperature, gradient: ["#2222bb", "#aa2222"])
+    Guide(fill: null)
+
+    Space(temperature * month) {
+        Violin(side: "top", fill: mean_temperature, width: 64, alpha: 0.85, n: 96)
+        Sina(side: "top", fill: "#aaaaaa", size: 1, width: 64, n: 96)
+    }
+}
+```
+
+![ridgeline_temperatures](ridgeline_temperatures.svg)
 
 ## Horizontal boxplots
 

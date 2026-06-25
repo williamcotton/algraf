@@ -10,10 +10,10 @@ use crate::aes::{Legend, LegendKind};
 use crate::layout::Rect;
 use crate::marker::emit_marker;
 use crate::render::TextAnchor;
-use crate::sink::{Fill, MarkSink, Paint, Stroke, TextRun};
+use crate::sink::{Dash, Fill, MarkSink, Paint, Stroke, TextRun};
 use crate::space::ScaledSpace;
 use crate::svg::num;
-use crate::theme::{TextStyle, Theme};
+use crate::theme::{LineStyle, TextStyle, Theme};
 
 use super::plan::{
     estimate_text_width, horizontal_legend_width, max_x_tick_label_height, max_y_tick_label_width,
@@ -89,47 +89,30 @@ pub(crate) fn render_grid(
     if minor.stroke_width > 0.0 {
         if draw_x && !space.x.is_band() {
             for x in minor_tick_positions(&space.x.ticks()) {
-                grid_line(
-                    sink,
-                    x,
-                    plot.y,
-                    x,
-                    plot.bottom(),
-                    &minor.stroke,
-                    minor.stroke_width,
-                );
+                themed_line(sink, x, plot.y, x, plot.bottom(), minor, None);
             }
         }
         if draw_y {
             if let Some(y) = &space.y {
                 if !y.is_band() {
                     for yp in minor_tick_positions(&y.ticks()) {
-                        grid_line(
-                            sink,
-                            plot.x,
-                            yp,
-                            plot.right(),
-                            yp,
-                            &minor.stroke,
-                            minor.stroke_width,
-                        );
+                        themed_line(sink, plot.x, yp, plot.right(), yp, minor, None);
                     }
                 }
             }
         }
     }
-    let color = &theme.grid_major.stroke;
-    let width = theme.grid_major.stroke_width;
+    let major = &theme.grid_major;
     if draw_x && !space.x.is_band() {
         for (x, _) in space.x.ticks() {
-            grid_line(sink, x, plot.y, x, plot.bottom(), color, width);
+            themed_line(sink, x, plot.y, x, plot.bottom(), major, None);
         }
     }
     if draw_y {
         if let Some(y) = &space.y {
             if !y.is_band() {
                 for (yp, _) in y.ticks() {
-                    grid_line(sink, plot.x, yp, plot.right(), yp, color, width);
+                    themed_line(sink, plot.x, yp, plot.right(), yp, major, None);
                 }
             }
         }
@@ -302,6 +285,32 @@ fn grid_line(sink: &mut dyn MarkSink, x1: f64, y1: f64, x2: f64, y2: f64, color:
     sink.line(x1, y1, x2, y2, color, width, false, None, None);
 }
 
+fn themed_line(
+    sink: &mut dyn MarkSink,
+    x1: f64,
+    y1: f64,
+    x2: f64,
+    y2: f64,
+    style: &LineStyle,
+    opacity: Option<f64>,
+) {
+    if style.stroke_width <= 0.0 || style.stroke == "none" {
+        return;
+    }
+    let dash = Dash::from_setting(style.dash.as_deref());
+    sink.line(
+        x1,
+        y1,
+        x2,
+        y2,
+        &style.stroke,
+        style.stroke_width,
+        false,
+        opacity,
+        dash,
+    );
+}
+
 fn minor_tick_positions(ticks: &[(f64, String)]) -> Vec<f64> {
     ticks
         .windows(2)
@@ -410,15 +419,19 @@ fn render_x_axis(
     let top = matches!(options.x_position, AxisPositionIr::Top);
     let axis_y = if top { plot.y } else { plot.bottom() };
     // Tick marks and labels point away from the plot rectangle.
-    let tick_dir = if top { -5.0 } else { 5.0 };
-    grid_line(
+    let tick_dir = if top {
+        -theme.axis_tick_length
+    } else {
+        theme.axis_tick_length
+    };
+    themed_line(
         sink,
         plot.x,
         axis_y,
         plot.right(),
         axis_y,
-        &theme.axis_color,
-        1.0,
+        &theme.axis_line,
+        None,
     );
     let x_ticks = space
         .x
@@ -432,14 +445,14 @@ fn render_x_axis(
     };
     let row_gap = tick_label_row_gap(theme.axis_text.size);
     for (index, (x, label)) in x_ticks.iter().enumerate() {
-        grid_line(
+        themed_line(
             sink,
             *x,
             axis_y,
             *x,
             axis_y + tick_dir,
-            &theme.axis_color,
-            1.0,
+            &theme.axis_ticks,
+            None,
         );
         // A hidden `axisText` token suppresses tick labels but keeps tick marks
         // and the axis line (spec §20.8).
@@ -519,18 +532,18 @@ fn render_y_axis(
     // Tick marks point away from the plot. For the left axis we keep the
     // original (outer → inner) coordinate order so default output is byte-stable.
     let (tick_x1, tick_x2) = if right {
-        (axis_x, axis_x + 5.0)
+        (axis_x, axis_x + theme.axis_tick_length)
     } else {
-        (axis_x - 5.0, axis_x)
+        (axis_x - theme.axis_tick_length, axis_x)
     };
-    grid_line(
+    themed_line(
         sink,
         axis_x,
         plot.y,
         axis_x,
         plot.bottom(),
-        &theme.axis_color,
-        1.0,
+        &theme.axis_line,
+        None,
     );
     let y_rows = tick_label_row_count(options.y_tick_label_rows);
     let row_gap = tick_label_row_gap(theme.axis_text.size);
@@ -539,7 +552,7 @@ fn render_y_axis(
         .iter()
         .enumerate()
     {
-        grid_line(sink, tick_x1, *yp, tick_x2, *yp, &theme.axis_color, 1.0);
+        themed_line(sink, tick_x1, *yp, tick_x2, *yp, &theme.axis_ticks, None);
         // A hidden `axisText` token suppresses tick labels but keeps tick marks
         // and the axis line (spec §20.8).
         if theme.axis_text.hidden {

@@ -84,6 +84,7 @@ charts=(
     density
     multiple_density
     violin
+    ridgeline_temperatures
     horizontal_boxplot
     horizontal_violin
     horizontal_violin_boxplot

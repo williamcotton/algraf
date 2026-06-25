@@ -418,7 +418,7 @@ fn setting_pair(geo: &GeometryIr, key: PropertyKey) -> Option<(f64, f64)> {
         })
 }
 
-fn deterministic_unit(row: usize, salt: u64) -> f64 {
+pub(super) fn deterministic_unit(row: usize, salt: u64) -> f64 {
     let mut x = (row as u64).wrapping_add(salt);
     x = x.wrapping_add(0x9e37_79b9_7f4a_7c15);
     x = (x ^ (x >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);

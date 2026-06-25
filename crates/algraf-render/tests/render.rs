@@ -2491,6 +2491,19 @@ fn test_horizontal_violin_uses_physical_frame_order() {
 }
 
 #[test]
+fn test_one_sided_violin_and_sina_render_density_ridges() {
+    let result = render_result(
+        "Chart(data: \"v.csv\") { Space(value * group) { Violin(side: \"top\", fill: group, quantiles: [0.5]) Sina(side: \"top\", fill: \"#aaaaaa\", size: 1) } }",
+        "group,value\na,1\na,2\na,2\na,3\na,4\nb,2\nb,3\nb,4\nb,4\nb,5\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-violin"));
+    assert!(result.svg.contains("algraf-geom-sina"));
+    assert_eq!(result.svg.matches("<circle").count(), 10);
+    assert_eq!(result.svg.matches("<path").count(), 2);
+}
+
+#[test]
 fn test_freqpoly_renders_bin_count_line() {
     let result = render_result(
         "Chart(data: \"d.csv\") { Space(v) { FreqPoly(bins: 4, stroke: \"steelblue\") } }",
@@ -3761,6 +3774,28 @@ fn per_axis_grid_hides_only_vertical_lines() {
         grid_line_count(&horizontal_only) < grid_line_count(&both),
         "hiding x grid should reduce grid line count"
     );
+}
+
+#[test]
+fn theme_line_dash_and_axis_styles_affect_guides() {
+    let svg = render_svg(
+        "Chart(data: \"d.csv\", width: 400, height: 300) { Space(year * reserves) { Theme(gridMajor: Line(stroke: \"#dddddd\", strokeWidth: 1, dash: \"dashed\"), axisLine: Line(stroke: \"none\", strokeWidth: 0), axisTicks: Line(stroke: \"none\", strokeWidth: 0), axisTickLength: 0) Line(group: country) } }",
+        EDITORIAL_CSV,
+    );
+    assert!(svg.contains("stroke-dasharray=\"4 4\""));
+    let axes = svg
+        .split_once("algraf-axes")
+        .map(|(_, after)| after)
+        .unwrap_or(svg.as_str());
+    let axes = axes
+        .split_once("</g>")
+        .map(|(before, _)| before)
+        .unwrap_or(axes);
+    assert!(
+        !axes.contains("<line"),
+        "axis line and ticks should be hidden"
+    );
+    assert!(axes.contains("<text"), "axis text should remain visible");
 }
 
 fn tick_label_x(svg: &str, label: &str) -> f64 {

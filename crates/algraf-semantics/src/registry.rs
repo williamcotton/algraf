@@ -32,6 +32,9 @@ pub const THEME_NAMES: &[&str] = &[
 pub const THEME_OVERRIDE_KEYS: &[&str] = &[
     "axisText",
     "axisTitle",
+    "axisLine",
+    "axisTicks",
+    "axisTickLength",
     "plotTitle",
     "plotSubtitle",
     "plotCaption",
@@ -834,6 +837,7 @@ pub fn geometry_example(name: &str) -> &'static str {
         "Smooth" => "Smooth(method: \"lm\", se: true)",
         "Boxplot" => "Boxplot(fill: group)",
         "Violin" => "Violin(fill: group, quantiles: [0.25, 0.5, 0.75])",
+        "Sina" => "Sina(fill: \"#aaaaaa\", side: \"top\")",
         "Density" => "Density(bandwidth: 0.8)",
         "ErrorBar" => "ErrorBar(ymin: low, ymax: high)",
         "LineRange" => "LineRange(ymin: low, ymax: high)",
@@ -1331,10 +1335,27 @@ const VIOLIN: &[PropSpec] = &[
     opt(PropertyKey::Bandwidth, &[Accept::Number]),
     opt(PropertyKey::N, &[Accept::Number]),
     opt(PropertyKey::Quantiles, &[Accept::NumberArray]),
+    opt(
+        PropertyKey::Side,
+        &[Accept::Enum(&["both", "left", "right", "top", "bottom"])],
+    ),
     opt(PropertyKey::Fill, FILL),
     opt(PropertyKey::Stroke, STROKE),
     opt(PropertyKey::StrokeWidth, STROKE_WIDTH),
     opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Width, &[Accept::Number]),
+];
+
+const SINA: &[PropSpec] = &[
+    opt(PropertyKey::Bandwidth, &[Accept::Number]),
+    opt(PropertyKey::N, &[Accept::Number]),
+    opt(
+        PropertyKey::Side,
+        &[Accept::Enum(&["both", "left", "right", "top", "bottom"])],
+    ),
+    opt(PropertyKey::Fill, FILL),
+    opt(PropertyKey::Alpha, ALPHA),
+    opt(PropertyKey::Size, SIZE),
     opt(PropertyKey::Width, &[Accept::Number]),
 ];
 
@@ -1492,6 +1513,7 @@ const GEOMETRIES: &[GeometryDef] = &[
     geo(GeometryKind::Smooth, SMOOTH),
     geo(GeometryKind::Boxplot, BOXPLOT),
     geo(GeometryKind::Violin, VIOLIN),
+    geo(GeometryKind::Sina, SINA),
     geo(GeometryKind::Density, DENSITY),
     geo(GeometryKind::ErrorBar, ERROR_BAR),
     geo(GeometryKind::LineRange, LINE_RANGE),
@@ -1570,7 +1592,8 @@ pub fn geometry_doc(name: &str) -> &'static str {
         "HexBin" => "Bins two continuous dimensions into hexagons.",
         "Smooth" => "Draws a fitted smooth line over a two-dimensional space.",
         "Boxplot" => "Draws distribution summaries for grouped values.",
-        "Violin" => "Draws mirrored KDE distributions per category.",
+        "Violin" => "Draws KDE distributions per category, mirrored or one-sided.",
+        "Sina" => "Draws observations with density-aware spread inside each category.",
         "Density" => "Draws a kernel density estimate over one continuous vector.",
         "ErrorBar" => "Lowers to IntervalSegments plus Segment rows with optional caps.",
         "LineRange" => "Lowers to IntervalSegments plus Segment rows without caps.",
@@ -1618,6 +1641,7 @@ pub fn property_doc(name: &str) -> &'static str {
         "n" => "Number of kernel density grid points.",
         "quantiles" => "Violin quantile line positions.",
         "outliers" => "Render Boxplot points beyond the 1.5·IQR whiskers (boolean, default true).",
+        "side" => "Distribution side: `\"both\"`, `\"left\"`, `\"right\"`, `\"top\"`, or `\"bottom\"`.",
         "orientation" => "Generated-axis or interval direction: `\"vertical\"` or `\"horizontal\"`.",
         "capWidth" => "ErrorBar cap width in position-axis data units.",
         "gradient" => "Continuous color gradient stops.",

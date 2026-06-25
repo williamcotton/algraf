@@ -940,6 +940,11 @@ fn test_smooth_se_extends_derived_schema() {
 #[test]
 fn test_violin_is_registered() {
     clean("Chart(data: \"p.csv\") {\n  Space(species * body_mass) {\n    Violin(quantiles: [0.25, 0.5, 0.75], fill: species)\n  }\n}");
+    clean("Chart(data: \"p.csv\") {\n  Space(body_mass * species) {\n    Violin(side: \"top\", fill: species)\n    Sina(side: \"top\", fill: \"#aaaaaa\", size: 1)\n  }\n}");
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(body_mass * species) {\n    Violin(side: \"inside\")\n  }\n}",
+        "E1204"
+    ));
 }
 
 #[test]
@@ -2226,7 +2231,7 @@ fn test_quoted_identifier_is_not_a_variable() {
 #[test]
 fn test_theme_overrides_are_recorded() {
     let analysis = analyze_source(
-        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\", axisText: Text(size: 12, fill: \"#333333\"), axisTitle: Text(size: 13), legendTitle: Text(fill: \"#111111\"), gridMajor: Line(stroke: \"#dddddd\", strokeWidth: 1), gridMinor: Line(stroke: \"#eeeeee\", strokeWidth: 0.5), panelBackground: Rect(fill: \"#fafafa\"), legendPosition: \"bottom\", legendSpacing: 24)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\", axisText: Text(size: 12, fill: \"#333333\"), axisTitle: Text(size: 13), axisLine: Line(stroke: \"none\", strokeWidth: 0), axisTicks: Line(stroke: \"#bbbbbb\", strokeWidth: 0.5), axisTickLength: 0, legendTitle: Text(fill: \"#111111\"), gridMajor: Line(stroke: \"#dddddd\", strokeWidth: 1, dash: \"dashed\"), gridMinor: Line(stroke: \"#eeeeee\", strokeWidth: 0.5), panelBackground: Rect(fill: \"#fafafa\"), legendPosition: \"bottom\", legendSpacing: 24)\n  Space(flipper_length * body_mass) { Point() }\n}",
         &schema(),
     );
     assert!(
@@ -2264,6 +2269,23 @@ fn test_theme_overrides_are_recorded() {
     );
     assert_eq!(theme.overrides.grid_major_color.as_deref(), Some("#dddddd"));
     assert_eq!(theme.overrides.grid_major_width, Some(1.0));
+    assert_eq!(
+        theme
+            .overrides
+            .grid_major
+            .as_ref()
+            .and_then(|line| line.dash.as_deref()),
+        Some("dashed")
+    );
+    assert_eq!(
+        theme
+            .overrides
+            .axis_line
+            .as_ref()
+            .and_then(|line| line.stroke.as_deref()),
+        Some("none")
+    );
+    assert_eq!(theme.overrides.axis_tick_length, Some(0.0));
     assert_eq!(theme.overrides.plot_background.as_deref(), Some("#fafafa"));
     assert_eq!(
         theme

@@ -55,6 +55,7 @@ impl TextStyle {
 pub struct LineStyle {
     pub stroke: String,
     pub stroke_width: f64,
+    pub dash: Option<String>,
 }
 
 /// Concrete rectangle style for backgrounds.
@@ -96,6 +97,9 @@ pub struct Theme {
     pub plot_source: TextStyle,
     pub axis_title: TextStyle,
     pub axis_text: TextStyle,
+    pub axis_line: LineStyle,
+    pub axis_ticks: LineStyle,
+    pub axis_tick_length: f64,
     pub strip_text: TextStyle,
     pub legend_title: TextStyle,
     pub legend_text: TextStyle,
@@ -161,6 +165,9 @@ impl Theme {
             plot_source: text_style(font_family, font_size - 2.0, "#7a7a7a"),
             axis_title: text_style(font_family, font_size, text_color),
             axis_text: text_style(font_family, font_size, text_color),
+            axis_line: line_style("#333333", 1.0),
+            axis_ticks: line_style("#333333", 1.0),
+            axis_tick_length: 5.0,
             strip_text: text_style(font_family, font_size, text_color),
             legend_title: text_style(font_family, font_size, text_color),
             legend_text: text_style(font_family, font_size, text_color),
@@ -210,6 +217,8 @@ impl Theme {
             plot_source: text_style("system-ui, sans-serif", 10.0, "#9a9a9a"),
             axis_title: text_style("system-ui, sans-serif", 12.0, "#eeeeee"),
             axis_text: text_style("system-ui, sans-serif", 12.0, "#eeeeee"),
+            axis_line: line_style("#cccccc", 1.0),
+            axis_ticks: line_style("#cccccc", 1.0),
             strip_text: text_style("system-ui, sans-serif", 12.0, "#eeeeee"),
             legend_title: text_style("system-ui, sans-serif", 12.0, "#eeeeee"),
             legend_text: text_style("system-ui, sans-serif", 12.0, "#eeeeee"),
@@ -235,6 +244,8 @@ impl Theme {
             background: "#ffffff".to_string(),
             plot_background: "#ebebeb".to_string(),
             axis_color: "#4d4d4d".to_string(),
+            axis_line: line_style("#4d4d4d", 1.0),
+            axis_ticks: line_style("#4d4d4d", 1.0),
             grid_major_color: "#ffffff".to_string(),
             grid_major_width: 1.0,
             text_color: "#1f1f1f".to_string(),
@@ -253,6 +264,8 @@ impl Theme {
             background: "#ffffff".to_string(),
             plot_background: "#ffffff".to_string(),
             axis_color: "#111111".to_string(),
+            axis_line: line_style("#111111", 1.0),
+            axis_ticks: line_style("#111111", 1.0),
             grid_major_color: "#d9d9d9".to_string(),
             text_color: "#111111".to_string(),
             panel_background: RectStyle {
@@ -274,6 +287,8 @@ impl Theme {
             background: "#ffffff".to_string(),
             plot_background: "#ffffff".to_string(),
             axis_color: "#000000".to_string(),
+            axis_line: line_style("#000000", 1.0),
+            axis_ticks: line_style("#000000", 1.0),
             grid_major_color: "#bdbdbd".to_string(),
             grid_major_width: 0.6,
             text_color: "#000000".to_string(),
@@ -321,6 +336,8 @@ impl Theme {
         }
         if let Some(v) = &ov.axis_color {
             self.axis_color = v.clone();
+            self.axis_line.stroke = v.clone();
+            self.axis_ticks.stroke = v.clone();
         }
         if let Some(v) = &ov.grid_major_color {
             self.grid_major_color = v.clone();
@@ -375,6 +392,15 @@ impl Theme {
         if let Some(v) = &ov.axis_text {
             apply_text_override(&mut self.axis_text, v);
             self.font_size = self.axis_text.size;
+        }
+        if let Some(v) = &ov.axis_line {
+            apply_line_override(&mut self.axis_line, v);
+        }
+        if let Some(v) = &ov.axis_ticks {
+            apply_line_override(&mut self.axis_ticks, v);
+        }
+        if let Some(v) = ov.axis_tick_length {
+            self.axis_tick_length = v.max(0.0);
         }
         if let Some(v) = &ov.strip_text {
             apply_text_override(&mut self.strip_text, v);
@@ -476,6 +502,7 @@ fn line_style(stroke: &str, stroke_width: f64) -> LineStyle {
     LineStyle {
         stroke: stroke.to_string(),
         stroke_width,
+        dash: None,
     }
 }
 
@@ -517,6 +544,9 @@ fn apply_line_override(style: &mut LineStyle, override_: &ThemeLineIr) {
     }
     if let Some(v) = override_.stroke_width {
         style.stroke_width = v;
+    }
+    if let Some(v) = &override_.dash {
+        style.dash = (v != "solid").then(|| v.clone());
     }
 }
 

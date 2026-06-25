@@ -88,6 +88,8 @@ impl Analyzer<'_> {
             "axisTitle" => {
                 overrides.axis_title = self.theme_text(key, &value);
             }
+            "axisLine" => overrides.axis_line = self.theme_line(key, &value),
+            "axisTicks" => overrides.axis_ticks = self.theme_line(key, &value),
             "plotTitle" => {
                 overrides.plot_title = self.theme_text(key, &value);
             }
@@ -148,6 +150,9 @@ impl Analyzer<'_> {
             }
             "lineWidth" => {
                 overrides.line_width = self.theme_scalar(key, &value, "a number", as_number)
+            }
+            "axisTickLength" => {
+                overrides.axis_tick_length = self.theme_scalar(key, &value, "a number", as_number)
             }
             "background" => {
                 overrides.background = self.theme_scalar(key, &value, "a color string", as_str)
@@ -331,6 +336,9 @@ impl Analyzer<'_> {
                 "strokeWidth" => {
                     out.stroke_width = self.theme_scalar(&name, &value, "a number", as_number);
                 }
+                "dash" => {
+                    out.dash = self.theme_line_dash(&name, &value);
+                }
                 _ => self.diag(Diagnostic::error(
                     codes::E1705,
                     format!("`{key}` Line property `{name}` is not supported"),
@@ -339,6 +347,21 @@ impl Analyzer<'_> {
             }
         }
         Some(out)
+    }
+
+    fn theme_line_dash(&mut self, key: &str, value: &ValueExpr) -> Option<String> {
+        let raw = self.theme_scalar(key, value, "\"solid\", \"dotted\", or \"dashed\"", as_str)?;
+        match raw.as_str() {
+            "solid" | "dotted" | "dashed" => Some(raw),
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1705,
+                    format!("`{key}` expects \"solid\", \"dotted\", or \"dashed\""),
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+        }
     }
 
     fn theme_rect(&mut self, key: &str, value: &ValueExpr) -> Option<ThemeRectIr> {

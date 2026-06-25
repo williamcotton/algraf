@@ -1,0 +1,22 @@
+Chart(data: "ridgeline_temperatures.csv", width: 760, height: 760, title: "Temperature over the Year") {
+    Theme(
+        name: "minimal",
+        plotTitle: Text(size: 26, weight: "normal", align: "center"),
+        axisTitle: Text(hidden: true),
+        axisLine: Line(stroke: "none", strokeWidth: 0),
+        axisTicks: Line(stroke: "none", strokeWidth: 0),
+        axisTickLength: 0,
+        panelBackground: Rect(fill: "#fafafa"),
+        gridMajor: Line(stroke: "#d2d2d2", strokeWidth: 0.25, dash: "dashed"),
+        gridMinor: Line(stroke: "#d2d2d2", strokeWidth: 0)
+    )
+    Scale(axis: x, domain: [0, 45], breaks: [0, 10, 20, 30, 40], labels: ["0°C", "10°C", "20°C", "30°C", "40°C"], expand: [0, 0.5])
+    Scale(axis: y, domain: ["December", "November", "October", "September", "August", "July", "June", "May", "April", "March", "February", "January"])
+    Scale(fill: mean_temperature, gradient: ["#2222bb", "#aa2222"])
+    Guide(fill: null)
+
+    Space(temperature * month) {
+        Violin(side: "top", fill: mean_temperature, width: 64, alpha: 0.85, n: 96)
+        Sina(side: "top", fill: "#aaaaaa", size: 1, width: 64, n: 96)
+    }
+}

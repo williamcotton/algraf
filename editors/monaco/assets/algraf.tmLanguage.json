@@ -131,7 +131,7 @@
       "patterns": [
         {
           "name": "entity.name.function.geometry.algraf",
-          "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Density|ErrorBar|LineRange|PointRange|CrossBar|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Label|Image|Segment|Geo|Graticule)\\b(?=\\s*\\()"
+          "match": "\\b(?:Point|Line|Path|Bar|Rect|Histogram|FreqPoly|Bin2D|HexBin|Smooth|Boxplot|Violin|Sina|Density|ErrorBar|LineRange|PointRange|CrossBar|Ribbon|Tile|HLine|VLine|Rug|Area|Text|Label|Image|Segment|Geo|Graticule)\\b(?=\\s*\\()"
         }
       ]
     },
@@ -175,7 +175,7 @@
       "patterns": [
         {
           "name": "variable.parameter.property.algraf",
-          "match": "\\b(?:version|features|data|match|width|height|minSize|maxSize|padding|placement|clip|title|subtitle|caption|alt|description|marginTop|marginRight|marginBottom|marginLeft|facetColumns|facetRows|facetCols|facetScales|facetLabel|facetLabels|panelSpacing|axis|legend|grid|timeFormat|tickLabelAngle|tickLabelRows|table|column|format|formats|unit|timezone|onError|coords|zoomX|zoomY|aspect|theta|innerRadius|startAngle|direction|radius|fill|stroke|strokeWidth|dash|alpha|size|shape|src|group|sort|layout|baseline|stat|xmin|xmax|ymin|ymax|bins|binWidth|boundary|closed|interval|bandwidth|n|quantiles|outliers|span|se|taper|curvature|points|lengthScale|type|mode|domain|breaks|expand|expansion|range|reverse|integer|palette|gradient|labels|reducer|by|distribution|reference|output|method|label|at|anchor|dx|dy|nudge|nudgeData|jitter|x|y|xend|yend|sides|tooltip|highlight|projection|name|plotTitle|plotSubtitle|plotCaption|axisTitle|axisText|stripText|legendTitle|legendText|panelBackground|gridMajor|gridMinor|legendPosition|legendSpacing|fontFamily|fontSize|titleSize|pointSize|lineWidth|background|plotBackground|axisColor|gridColor|textColor|axes|style|color|value)\\b(?=\\s*:)"
+          "match": "\\b(?:version|features|data|match|width|height|minSize|maxSize|padding|placement|clip|title|subtitle|caption|alt|description|marginTop|marginRight|marginBottom|marginLeft|facetColumns|facetRows|facetCols|facetScales|facetLabel|facetLabels|panelSpacing|axis|legend|grid|timeFormat|tickLabelAngle|tickLabelRows|table|column|format|formats|unit|timezone|onError|coords|zoomX|zoomY|aspect|theta|innerRadius|startAngle|direction|radius|fill|stroke|strokeWidth|dash|alpha|size|shape|src|group|sort|layout|baseline|stat|xmin|xmax|ymin|ymax|bins|binWidth|boundary|closed|interval|bandwidth|n|side|quantiles|outliers|span|se|taper|curvature|points|lengthScale|type|mode|domain|breaks|expand|expansion|range|reverse|integer|palette|gradient|labels|reducer|by|distribution|reference|output|method|label|at|anchor|dx|dy|nudge|nudgeData|jitter|x|y|xend|yend|sides|tooltip|highlight|projection|name|plotTitle|plotSubtitle|plotCaption|axisTitle|axisText|axisLine|axisTicks|axisTickLength|stripText|legendTitle|legendText|panelBackground|gridMajor|gridMinor|legendPosition|legendSpacing|fontFamily|fontSize|titleSize|pointSize|lineWidth|background|plotBackground|axisColor|gridColor|textColor|axes|style|color|value)\\b(?=\\s*:)"
         },
         {
           "name": "variable.parameter.property.unknown.algraf",

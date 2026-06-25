@@ -68,6 +68,7 @@ pub(crate) fn render(
         GeometryKind::Smooth => line::render_smooth(sink, geo, ctx, diagnostics),
         GeometryKind::Boxplot => distribution::render_boxplot(sink, geo, ctx, diagnostics),
         GeometryKind::Violin => distribution::render_violin(sink, geo, ctx, diagnostics),
+        GeometryKind::Sina => distribution::render_sina(sink, geo, ctx, diagnostics),
         GeometryKind::Ribbon => line::render_ribbon(sink, geo, ctx),
         GeometryKind::HLine => annotation::render_hline(sink, geo, ctx),
         GeometryKind::VLine => annotation::render_vline(sink, geo, ctx),
@@ -121,6 +122,7 @@ fn estimated_row_mark_count(kind: GeometryKind, ctx: &GeometryRenderContext<'_>)
     if !matches!(
         kind,
         GeometryKind::Point
+            | GeometryKind::Sina
             | GeometryKind::Bar
             | GeometryKind::Rect
             | GeometryKind::HexBin

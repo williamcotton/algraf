@@ -742,7 +742,7 @@ fn geometry_mark_extent(
     scales: &[ScaleIr],
 ) -> f64 {
     match geo.kind {
-        GeometryKind::Point => max_number_spec(
+        GeometryKind::Point | GeometryKind::Sina => max_number_spec(
             &number_spec(
                 geo,
                 PropertyKey::Size,

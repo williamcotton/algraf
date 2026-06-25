@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.87.0
+Status: 0.88.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.87.0 specification.
+This working copy is the 0.88.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -670,6 +670,18 @@ Chart(data: "demographics.csv") {
 Chart(data: "demographics.csv") {
     Space(gender * height) {
         Violin(fill: gender, quantiles: [0.25, 0.5, 0.75])
+    }
+}
+```
+
+Since version 0.88.0, one-sided violins and `Sina` points support ridgeline
+distribution charts:
+
+```ag
+Chart(data: "temperatures.csv") {
+    Space(temperature * month) {
+        Violin(side: "top", fill: mean_temperature)
+        Sina(side: "top", fill: "#aaaaaa", size: 1)
     }
 }
 ```
@@ -3210,6 +3222,8 @@ Examples:
 
 `Violin`
 
+`Sina`
+
 `Ribbon`
 
 `Tile`
@@ -4204,6 +4218,9 @@ Examples:
 `Smooth.method` accepts string literals `"lm"` and `"loess"` (see §14.10 and
 §15.7). `Smooth.span` accepts a number in `(0, 1]` and `Smooth.se` accepts a
 boolean.
+
+`Violin.side` and `Sina.side` accept string literals `"both"`, `"left"`,
+`"right"`, `"top"`, and `"bottom"` (see §14.12 and §14.12.1).
 
 Before a property value is checked against its accepted forms, an unquoted
 bare-identifier value MUST be resolved against in-scope `let` variables (spec
@@ -5245,6 +5262,7 @@ Syntax:
 
 ```ag
 Violin(fill: gender, quantiles: [0.25, 0.5, 0.75])
+Violin(side: "top", fill: mean_temperature)
 ```
 
 Supported spaces:
@@ -5266,14 +5284,59 @@ three-bandwidth extension.
 
 `bandwidth` and `n` MUST override those KDE defaults.
 
+`side` MUST accept `"both"`, `"left"`, `"right"`, `"top"`, or `"bottom"`, and
+defaults to `"both"`. `"both"` preserves the existing symmetric mirrored violin
+behavior. In a categorical-x by continuous-y frame, `"left"` and `"right"` draw
+one horizontal side of the envelope; `"top"` aliases `"left"` and `"bottom"`
+aliases `"right"`. In a continuous-x by categorical-y frame, `"top"` and
+`"bottom"` draw one vertical side of the envelope; `"left"` aliases `"bottom"`
+and `"right"` aliases `"top"` so common ridgeline source can follow physical
+screen-side naming. An unknown value MUST emit the standard enum diagnostic
+`E1204`.
+
 `quantiles` MUST accept an ordered numeric array. When omitted, no quantile
 lines are drawn.
 
-Violin MUST render a symmetric mirrored density area inside each category band.
-For horizontal orientation, the density extent mirrors along y while the
-distribution values map to x.
+Violin MUST render a symmetric mirrored density area inside each category band
+when `side` is `"both"`, and a one-sided density area inside the same category
+band otherwise. For horizontal orientation, the density extent maps along y
+while the distribution values map to x.
 
 If implemented, quantile lines MUST be deterministic.
+
+### 14.12.1 Sina
+
+Syntax:
+
+```ag
+Sina(fill: "#aaaaaa", size: 1)
+Sina(side: "top", bandwidth: 1.5, n: 96)
+```
+
+Supported spaces:
+
+categorical x by continuous y
+
+continuous x by categorical y
+
+Version 0.88.0 MUST advertise `Sina` in the registry.
+
+`Sina` MUST support the same grouped distribution frames as `Violin`. It
+computes one Gaussian KDE per category using the same deterministic defaults as
+`Density` and `Violin`: Silverman bandwidth, 256 grid points, and a
+three-bandwidth extension.
+
+`bandwidth` and `n` MUST override those KDE defaults. `width` MUST set the
+maximum point spread in screen pixels within each category band. `side` MUST
+accept the same enum values and orientation aliases as `Violin.side`.
+
+`Sina` MUST place one point per input row inside the corresponding density
+envelope. The offset within the envelope MUST be deterministic from row identity
+and MUST NOT depend on runtime randomness, locale, wall-clock time, or input
+hash-map iteration order.
+
+`Sina` accepts `fill`, `alpha`, and `size` visual settings. It draws circular
+markers and does not draw outlines.
 
 ### 14.13 Ribbon
 
@@ -8580,6 +8643,9 @@ pub struct Theme {
     pub panel_background: RectStyle,
     pub grid_major: LineStyle,
     pub grid_minor: LineStyle,
+    pub axis_line: LineStyle,
+    pub axis_ticks: LineStyle,
+    pub axis_tick_length: f64,
     pub legend_position: LegendPosition,
     pub legend_spacing: f64,
     pub axis_x_position: AxisPosition,
@@ -8619,6 +8685,7 @@ pub enum TextAlign {
 pub struct LineStyle {
     pub stroke: String,
     pub stroke_width: f64,
+    pub dash: Option<String>,
 }
 
 pub struct RectStyle {
@@ -8662,6 +8729,14 @@ token via the §20.8 `Text(...)` override form:
   property is accepted but does not move their already-anchored text.
 - `hidden: bool` — when `true`, the text element is suppressed entirely and its
   layout reserve is reclaimed (§17.3, §19.4).
+
+Version 0.88.0 adds guide-line styling fields:
+
+- `LineStyle.dash` — optional named SVG dash style for grid and axis guide
+  lines. `None` means solid.
+- `axis_line: LineStyle` — the style for Cartesian axis baseline strokes.
+- `axis_ticks: LineStyle` — the style for Cartesian axis tick strokes.
+- `axis_tick_length: f64` — the Cartesian axis tick length in pixels.
 
 ### 20.2 Minimal Theme
 
@@ -8802,7 +8877,9 @@ Grouped, geometry-style overrides reuse existing property value forms:
     layout reserve reclaimed (§17.3, §19.4). A non-boolean MUST emit `E1705`.
   An unknown sub-property key inside `Text(...)` MUST emit `E1705`.
 - line styles: `gridMajor` and `gridMinor` accept
-  `Line(stroke?, strokeWidth?)`.
+  `Line(stroke?, strokeWidth?, dash?)`. Since 0.88.0, `axisLine` and
+  `axisTicks` accept the same `Line(...)` style, and `dash` accepts `"solid"`,
+  `"dotted"`, or `"dashed"`. `"solid"` clears any dash pattern.
 - rectangle styles: `panelBackground` accepts
   `Rect(fill?, stroke?, strokeWidth?)`.
 
@@ -8812,6 +8889,8 @@ The remaining overrides are direct scalar values mapping to the theme fields
 - color strings: `background`, `plotBackground`, `axisColor`, `gridColor`,
   `textColor`
 - numbers: `fontSize`, `titleSize`, `pointSize`, `lineWidth`
+- axis tick length (since 0.88.0): `axisTickLength` number in pixels, clamped
+  to a non-negative value by the renderer
 - string: `fontFamily`
 - booleans: `grid`, `axes`, and (since 0.82.0) `gridX`/`gridY` for per-axis
   grid-line defaults (§19.4)
@@ -8825,6 +8904,9 @@ Legacy scalar fields remain compatibility shorthands. For example,
 `plotBackground: "#fafafa"` sets the panel fill, while the structured
 `panelBackground: Rect(fill: "#fafafa", stroke: "#333333", strokeWidth: 1)`
 also controls the panel border.
+
+Since 0.88.0, `axisColor` also updates the default stroke color used by
+`axisLine` and `axisTicks` unless those structured styles override it.
 
 Override values reuse the standard property value forms and MAY reference `let`
 variables (spec §9.6).
@@ -10341,7 +10423,7 @@ Since version 0.87.0, the language-reference browser response shape is:
 ```json
 {
   "markdown": "...",
-  "version": "0.87.0",
+  "version": "0.88.0",
   "part": "full",
   "source": "crates/algraf-cli/templates/ALGRAF_LANG.md",
   "sources": [
@@ -11708,6 +11790,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.85.0 | [`V0_85_PLAN.md`](V0_85_PLAN.md) | Temporal bars use `tickInterval` as temporal slot width while preserving continuous elapsed-time spacing | Implemented |
 | 0.86.0 | [`V0_86_PLAN.md`](V0_86_PLAN.md) | Browser/WASM AST JSON and embedded language-reference APIs | Implemented |
 | 0.87.0 | [`V0_87_PLAN.md`](V0_87_PLAN.md) | Split language/tooling reference templates and WASM part-selection APIs | Implemented |
+| 0.88.0 | [`V0_88_PLAN.md`](V0_88_PLAN.md) | Ridgeline distributions with one-sided violins, Sina points, and guide-line theme styling | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

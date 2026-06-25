@@ -185,7 +185,7 @@ Space(x * y) {
 ```
 
 Common geometries include `Point`, `Line`, `Path`, `Bar`, `Rect`, `Text`,
-`Label`, `Area`, `Ribbon`, `Boxplot`, `Violin`, `Smooth`, `Histogram`,
+`Label`, `Area`, `Ribbon`, `Boxplot`, `Violin`, `Sina`, `Smooth`, `Histogram`,
 `FreqPoly`, `Density`, `Image`, `Geo`, `Tile`, `Segment`, `ErrorBar`,
 `LineRange`, `PointRange`, `CrossBar`, `HLine`, `VLine`, `Rug`, and
 `Graticule` depending on the current release.
@@ -494,10 +494,11 @@ minimal classic light dark void gray bw linedraw
 Theme override keys:
 
 ```text
-axisText axisTitle plotTitle plotSubtitle plotCaption plotSource stripText
-legendTitle legendText panelBackground gridMajor gridMinor legendPosition
-legendSpacing fontFamily fontSize titleSize pointSize lineWidth background
-plotBackground axisColor gridColor textColor grid gridX gridY axes
+axisText axisTitle axisLine axisTicks axisTickLength plotTitle plotSubtitle
+plotCaption plotSource stripText legendTitle legendText panelBackground
+gridMajor gridMinor legendPosition legendSpacing fontFamily fontSize titleSize
+pointSize lineWidth background plotBackground axisColor gridColor textColor grid
+gridX gridY axes
 axisYPosition axisXPosition
 ```
 
@@ -526,6 +527,10 @@ Theme(name: "minimal",
   blocks; on axis/legend/strip tokens it is accepted but does not move the text.
 - `hidden` — a boolean; `true` removes the text element and reclaims its space
   (e.g. `axisTitle: Text(hidden: true)` drops both axis titles).
+- `Line(stroke?, strokeWidth?, dash?)` styles `gridMajor`, `gridMinor`,
+  `axisLine`, and `axisTicks`. `dash` accepts `"solid"`, `"dotted"`, or
+  `"dashed"`.
+- `axisTickLength` is a number in pixels.
 
 ### Scale
 
@@ -768,7 +773,10 @@ Boxplot:
   fill, stroke, strokeWidth, alpha, width, outliers
 
 Violin:
-  bandwidth, n, quantiles, fill, stroke, strokeWidth, alpha, width
+  bandwidth, n, side, quantiles, fill, stroke, strokeWidth, alpha, width
+
+Sina:
+  bandwidth, n, side, fill, alpha, size, width
 
 Density:
   bandwidth, n, fill, stroke, strokeWidth, alpha
@@ -852,6 +860,7 @@ alpha              number or column mapping
 size               number or column mapping
 shape              string or column mapping
 strokeWidth        number; Line/Path also accept a column mapping
+side               "both" | "left" | "right" | "top" | "bottom" for Violin/Sina
 group              column mapping
 label              string or column mapping where accepted
 labelFill, labelStroke   color string (HLine/VLine callout badge)
@@ -871,6 +880,7 @@ Known enum values:
 layout:       "identity" | "stack" | "fill"
 stat:         "identity" | "count"
 dash:         "solid" | "dotted" | "dashed"
+side:         "both" | "left" | "right" | "top" | "bottom"
 closed:       "left" | "right"
 method:       "lm" | "loess"
 orientation:  "vertical" | "horizontal"

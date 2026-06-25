@@ -4,19 +4,54 @@ use std::fmt::Write;
 use algraf_core::{codes, Diagnostic};
 use algraf_semantics::{GeometryIr, PropertyKey};
 
-use crate::aes::{color_spec, number_setting, ColorSpec};
-use crate::helpers::{bool_setting, number_array_setting, number_setting_opt};
+use crate::aes::{color_spec, number_setting, number_spec, ColorSpec};
+use crate::helpers::{bool_setting, number_array_setting, number_setting_opt, string_setting};
+use crate::marker::{emit_marker, MarkerShape};
 use crate::scale::cell_f64;
 use crate::sink::{Fill, MarkSink, Paint, Stroke};
 use crate::stats;
 use crate::svg::num;
 
 use super::common::{
-    axis_is_continuousish, categorical_value_orientation, emit_svg_line, map_value_axis,
-    position_bandwidth, position_center, position_group_key, quantile_type7, render_rows,
-    stroke_style, value_axis_data_column, Orientation, DEFAULT_FILL, DEFAULT_STROKE,
+    axis_is_continuousish, categorical_value_orientation, deterministic_unit, emit_svg_line,
+    map_value_axis, position_bandwidth, position_center, position_group_key, quantile_type7,
+    render_rows, stroke_style, value_axis_data_column, Orientation, DEFAULT_FILL,
+    DEFAULT_SIZE_RANGE, DEFAULT_STROKE,
 };
 use super::GeometryRenderContext;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DistributionSide {
+    Both,
+    Left,
+    Right,
+    Top,
+    Bottom,
+}
+
+impl DistributionSide {
+    fn from_geometry(geo: &GeometryIr) -> Self {
+        match string_setting(geo, PropertyKey::Side).as_deref() {
+            Some("left") => DistributionSide::Left,
+            Some("right") => DistributionSide::Right,
+            Some("top") => DistributionSide::Top,
+            Some("bottom") => DistributionSide::Bottom,
+            _ => DistributionSide::Both,
+        }
+    }
+
+    fn normalized(self, orientation: Orientation) -> Self {
+        match (orientation, self) {
+            (_, DistributionSide::Both) => DistributionSide::Both,
+            (Orientation::Vertical, DistributionSide::Left | DistributionSide::Right) => self,
+            (Orientation::Vertical, DistributionSide::Top) => DistributionSide::Left,
+            (Orientation::Vertical, DistributionSide::Bottom) => DistributionSide::Right,
+            (Orientation::Horizontal, DistributionSide::Top | DistributionSide::Bottom) => self,
+            (Orientation::Horizontal, DistributionSide::Left) => DistributionSide::Bottom,
+            (Orientation::Horizontal, DistributionSide::Right) => DistributionSide::Top,
+        }
+    }
+}
 
 pub(super) fn render_boxplot(
     sink: &mut dyn MarkSink,
@@ -291,6 +326,7 @@ pub(super) fn render_violin(
     let alpha = number_setting(geo, PropertyKey::Alpha, 0.55);
     let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
     let quantiles = number_array_setting(geo, PropertyKey::Quantiles).unwrap_or_default();
+    let side = DistributionSide::from_geometry(geo).normalized(orientation);
     let mut groups: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
     let mut order = Vec::new();
     for row in render_rows(table, rows) {
@@ -347,12 +383,28 @@ pub(super) fn render_violin(
                 continue;
             };
             let offset = point.density / max_density * half_width;
-            match orientation {
-                Orientation::Vertical => {
+            match (orientation, side) {
+                (Orientation::Vertical, DistributionSide::Left) => {
+                    side_a.push((center - offset, value_pos));
+                    side_b.push((center, value_pos));
+                }
+                (Orientation::Vertical, DistributionSide::Right) => {
+                    side_a.push((center + offset, value_pos));
+                    side_b.push((center, value_pos));
+                }
+                (Orientation::Vertical, _) => {
                     side_a.push((center + offset, value_pos));
                     side_b.push((center - offset, value_pos));
                 }
-                Orientation::Horizontal => {
+                (Orientation::Horizontal, DistributionSide::Top) => {
+                    side_a.push((value_pos, center - offset));
+                    side_b.push((value_pos, center));
+                }
+                (Orientation::Horizontal, DistributionSide::Bottom) => {
+                    side_a.push((value_pos, center + offset));
+                    side_b.push((value_pos, center));
+                }
+                (Orientation::Horizontal, _) => {
                     side_a.push((value_pos, center - offset));
                     side_b.push((value_pos, center + offset));
                 }
@@ -396,8 +448,28 @@ pub(super) fn render_violin(
             };
             let density = interpolate_density(&curve, value);
             let offset = density / max_density * half_width;
-            match orientation {
-                Orientation::Vertical => emit_svg_line(
+            match (orientation, side) {
+                (Orientation::Vertical, DistributionSide::Left) => emit_svg_line(
+                    sink,
+                    center - offset,
+                    value_pos,
+                    center,
+                    value_pos,
+                    &stroke_color,
+                    stroke_width,
+                    1.0,
+                ),
+                (Orientation::Vertical, DistributionSide::Right) => emit_svg_line(
+                    sink,
+                    center,
+                    value_pos,
+                    center + offset,
+                    value_pos,
+                    &stroke_color,
+                    stroke_width,
+                    1.0,
+                ),
+                (Orientation::Vertical, _) => emit_svg_line(
                     sink,
                     center - offset,
                     value_pos,
@@ -407,7 +479,27 @@ pub(super) fn render_violin(
                     stroke_width,
                     1.0,
                 ),
-                Orientation::Horizontal => emit_svg_line(
+                (Orientation::Horizontal, DistributionSide::Top) => emit_svg_line(
+                    sink,
+                    value_pos,
+                    center - offset,
+                    value_pos,
+                    center,
+                    &stroke_color,
+                    stroke_width,
+                    1.0,
+                ),
+                (Orientation::Horizontal, DistributionSide::Bottom) => emit_svg_line(
+                    sink,
+                    value_pos,
+                    center,
+                    value_pos,
+                    center + offset,
+                    &stroke_color,
+                    stroke_width,
+                    1.0,
+                ),
+                (Orientation::Horizontal, _) => emit_svg_line(
                     sink,
                     value_pos,
                     center - offset,
@@ -418,6 +510,118 @@ pub(super) fn render_violin(
                     1.0,
                 ),
             }
+        }
+    }
+}
+
+pub(super) fn render_sina(
+    sink: &mut dyn MarkSink,
+    geo: &GeometryIr,
+    ctx: GeometryRenderContext<'_>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let space = ctx.space;
+    let table = ctx.table;
+    let rows = ctx.rows;
+    let scales = ctx.scales;
+    let Some(orientation) = categorical_value_orientation(space) else {
+        diagnostics.push(Diagnostic::warning(
+            codes::R0002,
+            "Sina requires one categorical position axis and one continuous value axis",
+            geo.span,
+        ));
+        return;
+    };
+    let Some(value_col) = value_axis_data_column(space, orientation) else {
+        return;
+    };
+
+    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
+    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
+    let size = number_spec(
+        geo,
+        PropertyKey::Size,
+        table,
+        scales,
+        DEFAULT_SIZE_RANGE,
+        ctx.theme.point_size,
+    );
+    let side = DistributionSide::from_geometry(geo).normalized(orientation);
+    let mut groups: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
+    let mut order = Vec::new();
+    for row in render_rows(table, rows) {
+        let Some(key) = position_group_key(space, table, row, orientation) else {
+            continue;
+        };
+        let Some(value) = cell_f64(table, value_col, row) else {
+            continue;
+        };
+        if !groups.contains_key(&key) {
+            order.push(key.clone());
+        }
+        groups.entry(key).or_default().push((row, value));
+    }
+
+    let options = stats::DensityOptions {
+        bandwidth: number_setting_opt(geo, PropertyKey::Bandwidth).filter(|value| *value > 0.0),
+        grid_points: number_setting_opt(geo, PropertyKey::N)
+            .filter(|value| *value >= 2.0)
+            .map(|value| value.round() as usize)
+            .unwrap_or(256),
+    };
+
+    for key in order {
+        let Some(group) = groups.get_mut(&key) else {
+            continue;
+        };
+        group.sort_by(|a, b| a.1.total_cmp(&b.1));
+        let first_row = group[0].0;
+        let mut values: Vec<f64> = group.iter().map(|(_, value)| *value).collect();
+        let curve = stats::density_values(&mut values, options);
+        if curve.len() < 2 {
+            continue;
+        }
+        let max_density = curve
+            .iter()
+            .map(|point| point.density)
+            .fold(0.0_f64, f64::max);
+        if max_density <= f64::EPSILON {
+            continue;
+        }
+        let (Some(center), Some(bandwidth)) = (
+            position_center(space, table, first_row, orientation),
+            position_bandwidth(space, table, first_row, orientation),
+        ) else {
+            continue;
+        };
+        let half_width =
+            number_setting(geo, PropertyKey::Width, bandwidth * 0.9).clamp(1.0, bandwidth) / 2.0;
+
+        for (row, value) in group.iter().copied() {
+            let Some(value_pos) = map_value_axis(space, value, orientation) else {
+                continue;
+            };
+            let density = interpolate_density(&curve, value);
+            let max_offset = density / max_density * half_width;
+            let unit = deterministic_unit(row, 0xd1b5_4a32_d192_ed03);
+            let unsigned = (unit + 0.5) * max_offset;
+            let centered = unit * 2.0 * max_offset;
+            let (cx, cy) = match (orientation, side) {
+                (Orientation::Vertical, DistributionSide::Left) => (center - unsigned, value_pos),
+                (Orientation::Vertical, DistributionSide::Right) => (center + unsigned, value_pos),
+                (Orientation::Vertical, _) => (center + centered, value_pos),
+                (Orientation::Horizontal, DistributionSide::Top) => (value_pos, center - unsigned),
+                (Orientation::Horizontal, DistributionSide::Bottom) => {
+                    (value_pos, center + unsigned)
+                }
+                (Orientation::Horizontal, _) => (value_pos, center + centered),
+            };
+            let color = fill
+                .resolve(table, row)
+                .unwrap_or_else(|| DEFAULT_FILL.to_string());
+            let radius = size.at(table, row, ctx.theme.point_size);
+            let paint = Paint::fill(color, Some(alpha));
+            emit_marker(sink, MarkerShape::Circle, cx, cy, radius, &paint);
         }
     }
 }
