@@ -783,7 +783,7 @@ pub fn declaration_doc(name: &str) -> Option<CallDoc> {
             description:
                 "Selects a built-in or document-bound base theme and optional source-level overrides.",
             args: THEME_DOC_ARGS,
-            example: "Theme(base: house, grid: false)",
+            example: "Theme(base: $house, grid: false)",
         }),
         "Scale" => Some(CallDoc {
             name: "Scale",

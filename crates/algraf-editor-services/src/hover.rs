@@ -13,9 +13,20 @@ use algraf_syntax::{
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
 
 use crate::document::{DocumentState, SourcePreview};
+use crate::navigation::let_binding_reference_at;
 use crate::positions::span_to_range;
 
 pub fn hover_at(state: &DocumentState, offset: usize) -> Option<Hover> {
+    if let Some((span, binding)) = let_binding_reference_at(&state.text, offset) {
+        return Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: let_binding_hover(&binding),
+            }),
+            range: Some(span_to_range(&state.text, span)),
+        });
+    }
+
     let lexed = tokenize(&state.text);
     let tokens: Vec<_> = lexed
         .tokens
@@ -1088,6 +1099,15 @@ fn operator_hover(title: &str, body: &str) -> String {
     format!("**{title}**\n\n{body}")
 }
 
+fn let_binding_hover(binding: &crate::navigation::LetBindingInfo) -> String {
+    format!(
+        "**Let binding {}**\n\nScope: `{}`\n\nValue: `{}`",
+        inline_code(&format!("${}", binding.name)),
+        binding.scope_label,
+        binding.value_kind
+    )
+}
+
 pub fn dtype_name(dtype: DataType) -> &'static str {
     match dtype {
         DataType::Boolean => "boolean",
@@ -1182,6 +1202,23 @@ mod tests {
         let offset = text.find("fill").unwrap() + 1;
         let md = markdown(hover_at(&state(text), offset).expect("hover"));
         assert!(md.contains("Property `fill`"));
+    }
+
+    #[test]
+    fn hovers_sigiled_let_reference_with_full_reference_range() {
+        let text =
+            "Chart(data: \"p.csv\") {\n  let accent = \"#3366cc\"\n  Space(x * y) { Point(fill: $accent) }\n}";
+        let offset = text.find("$accent").unwrap() + 2;
+        let hover = hover_at(&state(text), offset).expect("hover");
+        let md = markdown(hover.clone());
+        assert!(md.contains("Let binding `$accent`"), "{md}");
+        assert!(md.contains("Scope: `chart`"), "{md}");
+        assert!(md.contains("Value: `string`"), "{md}");
+        let range = range(hover);
+        assert_eq!(
+            range.start,
+            crate::positions::offset_to_position(text, text.find("$accent").unwrap())
+        );
     }
 
     #[test]

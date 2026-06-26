@@ -103,6 +103,11 @@ pub fn code_actions_for(state: &DocumentState, params: CodeActionParams) -> Code
                     }
                 }
             }
+            codes::E1707 if diagnostic.message.contains("requires `$`") => {
+                if let Some(action) = add_let_sigil_action(&uri, &state.text, &diagnostic) {
+                    actions.push(action);
+                }
+            }
             codes::E1912 => {
                 if let Some(action) = transpose_rewrite_action(&uri, &state.text, &diagnostic) {
                     actions.push(action);
@@ -397,6 +402,26 @@ fn quote_range_action(
     ))
 }
 
+fn add_let_sigil_action(
+    uri: &Url,
+    source: &str,
+    diagnostic: &Diagnostic,
+) -> Option<CodeActionOrCommand> {
+    let range = first_ident_range(source, diagnostic.range)?;
+    let (start, end) = range_to_offsets(source, range)?;
+    let text = source[start..end].trim();
+    if text.is_empty() || text.starts_with('$') {
+        return None;
+    }
+    Some(edit_action(
+        "Add `$` to let reference",
+        uri,
+        range,
+        format!("${text}"),
+        diagnostic.clone(),
+    ))
+}
+
 fn edit_action(
     title: &str,
     uri: &Url,
@@ -495,6 +520,29 @@ mod tests {
                 let serialized = serde_json::to_string(&action).unwrap();
                 assert!(serialized.contains("(amount * quarter)"), "{serialized}");
                 assert!(serialized.contains("Rewrite transpose"), "{serialized}");
+            }
+            _ => panic!("expected a code action"),
+        }
+    }
+
+    #[test]
+    fn missing_let_sigil_action_prefixes_identifier() {
+        let source =
+            "Chart(data: \"p.csv\") {\n  let accent = \"#3366cc\"\n  Space(x * y) { Point(fill: accent) }\n}";
+        let start = source.rfind("accent").unwrap();
+        let diagnostic = Diagnostic {
+            range: span_to_range(source, Span::new(start, start + "accent".len())),
+            code: Some(NumberOrString::String(codes::E1707.as_str().to_string())),
+            message: "let binding reference `accent` requires `$`".to_string(),
+            ..Diagnostic::default()
+        };
+        let action =
+            add_let_sigil_action(&uri(), source, &diagnostic).expect("missing sigil quick fix");
+        match action {
+            CodeActionOrCommand::CodeAction(action) => {
+                let serialized = serde_json::to_string(&action).unwrap();
+                assert!(serialized.contains("Add `$`"), "{serialized}");
+                assert!(serialized.contains("$accent"), "{serialized}");
             }
             _ => panic!("expected a code action"),
         }

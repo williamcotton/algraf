@@ -565,8 +565,8 @@ fn check_stdin_source_conflict_does_not_report_unknown_columns() {
 fn render_eval_uses_stdin_for_json_input_and_variables() {
     let source = r##"Chart(data: input, width: 320, height: 220) {
   Space(x * y) {
-    Line(stroke: "$color", strokeWidth: $size)
-    Point(fill: "$color", size: $size)
+    Line(stroke: "${color}", strokeWidth: ${size})
+    Point(fill: "${color}", size: ${size})
   }
 }
 "##;
@@ -616,6 +616,26 @@ fn render_eval_uses_stdin_for_json_input_and_variables() {
     )
     .unwrap();
     assert_eq!(out, facade.svg().unwrap());
+}
+
+#[test]
+fn source_placeholders_require_cli_variables() {
+    let source = "Chart(data: \"p.csv\") {\n  Space(x * y) { Point(stroke: ${color}) }\n}\n";
+    let output = Command::new(bin())
+        .arg("ast")
+        .arg("--eval")
+        .arg(source)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    let err = stderr(&output);
+
+    assert_eq!(output.status.code(), Some(2), "stderr: {err}");
+    assert!(
+        err.contains("undefined variable \"color\""),
+        "stderr: {err}"
+    );
 }
 
 #[test]

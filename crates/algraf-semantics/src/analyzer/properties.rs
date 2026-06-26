@@ -480,6 +480,9 @@ impl Analyzer<'_> {
         let Some(value) = arg.value() else {
             return PropOutcome::Invalid;
         };
+        if matches!(value, ValueExpr::Error(_)) {
+            return PropOutcome::Invalid;
+        }
         // A `datetime("…")` / `date("…")` temporal literal (spec §7.8, §10.3) is
         // a typed value usable wherever a numeric position is accepted (e.g. a
         // reference-mark `x:`/`y:`); it lowers to a UTC-equivalent instant in
@@ -501,9 +504,18 @@ impl Analyzer<'_> {
             }
         }
 
-        // Resolve `let` variables in property value positions before type
-        // checking, so a bound constant is checked as its value (spec §9.6).
-        let form = self.substitute_var(ValueForm::of(&value));
+        if let Some((name, span)) = self.bare_let_reference(&value) {
+            let can_be_column = prop.accepts.contains(&Accept::Column)
+                && (table.has_unknown_columns() || table.get(&name).is_some());
+            if !can_be_column {
+                self.diag_bare_let_reference(&name, span);
+                return PropOutcome::Invalid;
+            }
+        }
+
+        // Resolve only sigiled `$name` let references in property value
+        // positions. Bare identifiers remain column references.
+        let form = self.value_form(&value);
 
         // Color literals written as bare identifiers (e.g. `fill: red`) are a
         // common mistake. If this property accepts a color and the value is a

@@ -803,7 +803,7 @@ mod tests {
     #[test]
     fn browser_render_json_expands_invocation_variables() {
         let request = serde_json::json!({
-            "source": "Chart(data: \"penguins.csv\", width: 760, height: 500) {\n    Space(flipper_length * body_mass) { Point(fill: \"$color\", size: $size) }\n}\n",
+            "source": "Chart(data: \"penguins.csv\", width: 760, height: 500) {\n    Space(flipper_length * body_mass) { Point(fill: \"${color}\", size: ${size}) }\n}\n",
             "files": { "penguins.csv": CSV },
             "variables": {
                 "color": "#3366cc",
@@ -820,7 +820,7 @@ mod tests {
     #[test]
     fn browser_render_json_reports_variable_substitution_errors() {
         let request = serde_json::json!({
-            "source": "Chart(data: \"penguins.csv\") {\n    Space(flipper_length * body_mass) { Point(size: $size) }\n}\n",
+            "source": "Chart(data: \"penguins.csv\") {\n    Space(flipper_length * body_mass) { Point(size: ${size}) }\n}\n",
             "files": { "penguins.csv": CSV }
         });
         let response = render_browser_json(request.to_string().as_bytes());
@@ -875,7 +875,7 @@ mod tests {
     fn ast_json_expands_invocation_variables() {
         let response = ast_browser_json(
             serde_json::json!({
-                "source": "Chart(data: \"penguins.csv\", title: \"$title\") { Space(x * y) { Point() } }\n",
+                "source": "Chart(data: \"penguins.csv\", title: \"${title}\") { Space(x * y) { Point() } }\n",
                 "variables": { "title": "Injected" }
             })
             .to_string()
@@ -893,7 +893,7 @@ mod tests {
     fn ast_json_reports_variable_substitution_errors() {
         let response = ast_browser_json(
             serde_json::json!({
-                "source": "Chart(data: \"penguins.csv\", title: \"$title\") { Space(x * y) { Point() } }\n"
+                "source": "Chart(data: \"penguins.csv\", title: \"${title}\") { Space(x * y) { Point() } }\n"
             })
             .to_string()
             .as_bytes(),

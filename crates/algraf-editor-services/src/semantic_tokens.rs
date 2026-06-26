@@ -1,3 +1,4 @@
+use algraf_core::Span;
 use algraf_semantics::registry;
 use algraf_syntax::tokenize;
 use lsp_types::{SemanticToken, SemanticTokenType, SemanticTokensLegend};
@@ -29,11 +30,23 @@ pub fn semantic_tokens_for(source: &str) -> Vec<SemanticToken> {
     let mut prev_line = 0u32;
     let mut prev_start = 0u32;
 
-    for (idx, token) in tokens.iter().enumerate() {
-        let Some(token_type) = semantic_token_type(&tokens, idx) else {
+    let mut idx = 0usize;
+    while idx < tokens.len() {
+        let (token_type, span, advance) =
+            if let Some((span, token_type)) = variable_reference_semantic_token(&tokens, idx) {
+                (token_type, span, 2)
+            } else {
+                let Some(token_type) = semantic_token_type(&tokens, idx) else {
+                    idx += 1;
+                    continue;
+                };
+                (token_type, tokens[idx].span, 1)
+            };
+        if span.start == span.end {
+            idx += advance;
             continue;
-        };
-        let range = span_to_range(source, token.span);
+        }
+        let range = span_to_range(source, span);
 
         // The semantic-tokens protocol forbids tokens that span multiple lines.
         // A single-line token emits once; a multi-line block comment emits one
@@ -75,9 +88,30 @@ pub fn semantic_tokens_for(source: &str) -> Vec<SemanticToken> {
             prev_line = line;
             prev_start = start_char;
         }
+        idx += advance;
     }
 
     semantic
+}
+
+fn variable_reference_semantic_token(
+    tokens: &[algraf_syntax::TokenWithSpan],
+    idx: usize,
+) -> Option<(Span, u32)> {
+    use algraf_syntax::TokenKind;
+    let dollar = tokens.get(idx)?;
+    let ident = tokens.get(idx + 1)?;
+    if matches!(dollar.kind, TokenKind::Dollar)
+        && matches!(ident.kind, TokenKind::Ident(_))
+        && dollar.span.end == ident.span.start
+    {
+        Some((
+            Span::new(dollar.span.start, ident.span.end),
+            token_type_index(SemanticTokenType::VARIABLE),
+        ))
+    } else {
+        None
+    }
 }
 
 fn semantic_token_type(tokens: &[algraf_syntax::TokenWithSpan], idx: usize) -> Option<u32> {
@@ -252,5 +286,33 @@ mod semantic_token_tests {
             .expect("comment token");
         // "// café 𝄞" is "// café " (8 UTF-16 units) plus `𝄞` (2 units) => 10.
         assert_eq!(comment.length, 10);
+    }
+
+    #[test]
+    fn sigiled_let_reference_is_one_variable_token() {
+        let source =
+            "Chart(data: \"p.csv\") {\n  let c = \"#3366cc\"\n  Space(x * y) { Point(fill: $c) }\n}";
+        let tokens = semantic_tokens_for(source);
+        let variable_type = token_type_index(SemanticTokenType::VARIABLE);
+        let target = crate::positions::offset_to_position(source, source.find("$c").unwrap());
+        let mut line = 0u32;
+        let mut start = 0u32;
+        let mut found = false;
+        for token in tokens {
+            line += token.delta_line;
+            if token.delta_line == 0 {
+                start += token.delta_start;
+            } else {
+                start = token.delta_start;
+            }
+            if token.token_type == variable_type
+                && line == target.line
+                && start == target.character
+                && token.length == 2
+            {
+                found = true;
+            }
+        }
+        assert!(found, "expected one variable token spanning `$c`");
     }
 }

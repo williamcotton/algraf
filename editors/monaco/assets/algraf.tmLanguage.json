@@ -40,6 +40,9 @@
       "include": "#properties"
     },
     {
+      "include": "#variables"
+    },
+    {
       "include": "#columns"
     },
     {
@@ -188,6 +191,14 @@
         {
           "name": "variable.other.column.algraf",
           "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b(?!\\s*[:(])"
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.other.let-reference.algraf",
+          "match": "\\$[A-Za-z_][A-Za-z0-9_]*"
         }
       ]
     },

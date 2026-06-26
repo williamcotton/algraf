@@ -40,6 +40,7 @@ pub enum SyntaxKind {
     COMMA,
     EQ,
     FAT_ARROW,
+    DOLLAR,
     DOT,
     STAR,
     SLASH,
@@ -115,6 +116,8 @@ pub enum SyntaxKind {
     LITERAL,
     /// The bare caller-provided input sentinel in a value position.
     STDIN_VALUE,
+    /// A sigiled `let` binding reference such as `$primary`.
+    VARIABLE_REF,
     /// An array value.
     ARRAY_VALUE,
     /// A map value such as `["A" => "burlywood"]` (spec §7.8).
@@ -154,6 +157,7 @@ impl SyntaxKind {
             TokenKind::Comma => SyntaxKind::COMMA,
             TokenKind::Equal => SyntaxKind::EQ,
             TokenKind::FatArrow => SyntaxKind::FAT_ARROW,
+            TokenKind::Dollar => SyntaxKind::DOLLAR,
             TokenKind::Dot => SyntaxKind::DOT,
             TokenKind::Star => SyntaxKind::STAR,
             TokenKind::Slash => SyntaxKind::SLASH,

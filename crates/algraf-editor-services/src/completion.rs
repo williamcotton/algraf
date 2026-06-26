@@ -7,7 +7,7 @@ use lsp_types::{CompletionItem, CompletionItemKind, InsertTextFormat, MarkupCont
 
 use crate::document::DocumentState;
 use crate::hover::dtype_name;
-use crate::navigation::build_name_index;
+use crate::navigation::visible_let_bindings;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompletionContext {
@@ -30,6 +30,9 @@ pub enum CompletionContext {
     DeclArgs {
         decl: String,
         active_key: Option<String>,
+    },
+    VariableReference {
+        offset: usize,
     },
     Unknown,
 }
@@ -103,6 +106,9 @@ pub fn completion_context(text: &str, offset: usize) -> CompletionContext {
 
     let active_key = active_arg_key(&tokens);
     let last_kind = last_token_kind(&tokens);
+    if active_key.as_deref() != Some("data") && is_variable_reference_completion(&tokens, offset) {
+        return CompletionContext::VariableReference { offset };
+    }
     if in_derive_source_position(&tokens) {
         return CompletionContext::DeriveSource;
     }
@@ -316,7 +322,34 @@ pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Ve
                 declaration_arg_items(&decl)
             }
         }
+        CompletionContext::VariableReference { offset } => variable_items(state, offset),
         CompletionContext::Unknown => Vec::new(),
+    }
+}
+
+fn is_variable_reference_completion(
+    tokens: &[algraf_syntax::TokenWithSpan],
+    offset: usize,
+) -> bool {
+    use algraf_syntax::TokenKind;
+    let significant = tokens
+        .iter()
+        .filter(|token| !matches!(token.kind, TokenKind::Eof))
+        .collect::<Vec<_>>();
+    let Some(last) = significant.last() else {
+        return false;
+    };
+    match &last.kind {
+        TokenKind::Dollar => last.span.end == offset,
+        TokenKind::Ident(_) => {
+            if last.span.end != offset {
+                return false;
+            }
+            significant.iter().rev().nth(1).is_some_and(|prev| {
+                matches!(prev.kind, TokenKind::Dollar) && prev.span.end == last.span.start
+            })
+        }
+        _ => false,
     }
 }
 
@@ -427,7 +460,6 @@ fn property_value_items(
     let mut items = Vec::new();
 
     if property_name == "style" {
-        items.extend(variable_items(state));
         items.push(value_item("Style()", "Inline style fragment"));
         return dedupe_by_label(items);
     }
@@ -442,9 +474,6 @@ fn property_value_items(
     if accepts_columns {
         items.extend(column_items_matching(state, |_| true));
     }
-
-    // `let` variables resolve in property value positions (spec §9.6).
-    items.extend(variable_items(state));
 
     if let Some(spec) = spec {
         for accept in spec.accepts {
@@ -501,14 +530,10 @@ fn declaration_value_items(
             .iter()
             .map(|value| value_item(&format!("\"{value}\""), "Built-in theme name"))
             .collect(),
-        ("Theme", "base") => {
-            let mut items = registry::THEME_NAMES
-                .iter()
-                .map(|value| value_item(&format!("\"{value}\""), "Built-in theme base"))
-                .collect::<Vec<_>>();
-            items.extend(variable_items(state));
-            dedupe_by_label(items)
-        }
+        ("Theme", "base") => registry::THEME_NAMES
+            .iter()
+            .map(|value| value_item(&format!("\"{value}\""), "Built-in theme base"))
+            .collect(),
         ("Theme", "plotTitle")
         | ("Theme", "plotSubtitle")
         | ("Theme", "plotCaption")
@@ -786,15 +811,20 @@ const CHART_BODY_ITEMS: &[&str] = &[
 ];
 
 /// Variable-name completions for every in-document `let` binding (spec §9.6).
-fn variable_items(state: &DocumentState) -> Vec<CompletionItem> {
-    let root = parse(&state.text).syntax();
-    let index = build_name_index(&root);
-    let mut names: Vec<String> = index.lets.iter().map(|site| site.name.clone()).collect();
-    names.sort();
-    names.dedup();
-    names
+fn variable_items(state: &DocumentState, offset: usize) -> Vec<CompletionItem> {
+    visible_let_bindings(&state.text, offset)
         .into_iter()
-        .map(|name| field(&name, "let binding"))
+        .map(|binding| CompletionItem {
+            label: binding.name.clone(),
+            kind: Some(CompletionItemKind::VARIABLE),
+            detail: Some(format!(
+                "let {}: {}",
+                binding.scope_label, binding.value_kind
+            )),
+            insert_text: Some(binding.name),
+            documentation: Some(markup("Visible `let` binding; use as `$name`.")),
+            ..CompletionItem::default()
+        })
         .collect()
 }
 
@@ -929,6 +959,12 @@ mod tests {
         }
     }
 
+    fn state_with_text(text: &str) -> DocumentState {
+        let mut state = empty_state();
+        state.text = text.to_string();
+        state
+    }
+
     fn labels(items: &[CompletionItem]) -> Vec<&str> {
         items.iter().map(|i| i.label.as_str()).collect()
     }
@@ -1061,5 +1097,47 @@ mod tests {
             },
         );
         assert!(labels(&items).contains(&"base"));
+    }
+
+    #[test]
+    fn dollar_context_completes_visible_let_bindings() {
+        let source =
+            "let accent = \"#3366cc\"\nChart(data: \"p.csv\") {\n  Space(x * y) { Point(fill: $";
+        let state = state_with_text(source);
+        let context = completion_context(source, source.len());
+        assert!(matches!(
+            context,
+            CompletionContext::VariableReference { .. }
+        ));
+        let items = completion_items(&state, context);
+        assert!(labels(&items).contains(&"accent"));
+    }
+
+    #[test]
+    fn dollar_prefix_context_completes_visible_let_bindings() {
+        let source = "Chart(data: \"p.csv\") {\n  let accent = \"#3366cc\"\n  Space(x * y) { Point(fill: $ac";
+        let state = state_with_text(source);
+        let context = completion_context(source, source.len());
+        assert!(matches!(
+            context,
+            CompletionContext::VariableReference { .. }
+        ));
+        let items = completion_items(&state, context);
+        assert!(labels(&items).contains(&"accent"));
+    }
+
+    #[test]
+    fn ordinary_property_value_completion_does_not_offer_bare_let_bindings() {
+        let state = state_with_text(
+            "Chart(data: \"p.csv\") {\n  let accent = \"#3366cc\"\n  Space(x * y) { Point(fill: ",
+        );
+        let items = completion_items(
+            &state,
+            CompletionContext::GeometryArgs {
+                geometry: Some("Point".to_string()),
+                active_key: Some("fill".to_string()),
+            },
+        );
+        assert!(!labels(&items).contains(&"accent"));
     }
 }

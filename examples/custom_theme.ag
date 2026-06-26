@@ -4,8 +4,8 @@ Chart(data: "penguins.csv") {
 
     Theme(
         name: "minimal",
-        axisText: Text(size: 12, fill: ink),
-        gridMajor: Line(stroke: faint, strokeWidth: 1),
+        axisText: Text(size: 12, fill: $ink),
+        gridMajor: Line(stroke: $faint, strokeWidth: 1),
         plotBackground: "#fafafa"
     )
 

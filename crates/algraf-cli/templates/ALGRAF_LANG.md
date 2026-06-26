@@ -470,18 +470,20 @@ let muted = Style(fill: "#6b7280", alpha: 0.55)
 let house = Theme(name: "minimal", gridMajor: Line(stroke: "#d8d4cc"))
 
 Chart(data: "points.csv") {
-    Theme(base: house, gridX: false)
+    Theme(base: $house, gridX: false)
 
     Space(x * y) {
-        Point(style: muted)
+        Point(style: $muted)
     }
 }
 ```
 
 `let` declarations are valid at document, chart, and space scope. Inner scopes
 shadow outer scopes. Document-scope `let` declarations may bind `Theme(...)`
-values for reuse with `Theme(base: name)`. Chart-scope and space-scope `let`
-declarations may bind constants and `Style(...)`, but not `Theme(...)`.
+values for reuse with `Theme(base: $name)`. Chart-scope and space-scope `let`
+declarations may bind constants and `Style(...)`, but not `Theme(...)`. Use
+`$name` at every binding use site; bare identifiers remain columns, selectors,
+sentinels, or language symbols.
 
 `Style(...)` is a literal property bag, not a function. Accepted style keys:
 
@@ -497,7 +499,7 @@ Do not put `style:` inside `Style(...)`.
 Theme(name: "minimal")
 Theme(name: "minimal", grid: false, fontSize: 12)
 Theme(base: "minimal")
-Theme(base: house, gridX: false)
+Theme(base: $house, gridX: false)
 ```
 
 Built-in theme base names:
@@ -507,7 +509,7 @@ minimal classic light dark void gray bw linedraw
 ```
 
 Use `name: "minimal"` or `base: "minimal"` for built-in bases. Use
-`base: house` to inherit a document-scope `let house = Theme(...)` binding. Do
+`base: $house` to inherit a document-scope `let house = Theme(...)` binding. Do
 not provide both `name:` and `base:` in the same `Theme(...)` call.
 
 Theme override keys:

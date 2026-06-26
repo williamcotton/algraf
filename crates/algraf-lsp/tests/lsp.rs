@@ -1153,7 +1153,7 @@ async fn rename_updates_let_binding_declaration_and_uses() {
     let dir = temp_project("rename-let");
     let source_path = dir.join("chart.ag");
     std::fs::write(dir.join("data.csv"), "x,y\n1,2\n3,4\n").unwrap();
-    let source = "Chart(data: \"data.csv\") {\n    let primary = \"#3366cc\"\n    Space(x * y) {\n        Point(fill: primary)\n        Line(stroke: primary)\n    }\n}";
+    let source = "Chart(data: \"data.csv\") {\n    let primary = \"#3366cc\"\n    Space(x * y) {\n        Point(fill: $primary)\n        Line(stroke: $primary)\n    }\n}";
     std::fs::write(&source_path, source).unwrap();
     let uri = Url::from_file_path(&source_path).unwrap();
 
@@ -1180,7 +1180,8 @@ async fn rename_updates_let_binding_declaration_and_uses() {
     let edit = result.expect("rename edit");
     let edits = edit.changes.unwrap().remove(&uri).unwrap();
     assert_eq!(edits.len(), 3, "declaration plus two property-value uses");
-    assert!(edits.iter().all(|e| e.new_text == "brand"));
+    assert!(edits.iter().any(|e| e.new_text == "brand"));
+    assert_eq!(edits.iter().filter(|e| e.new_text == "$brand").count(), 2);
 }
 
 #[tokio::test]

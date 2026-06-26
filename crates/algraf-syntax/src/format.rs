@@ -405,6 +405,10 @@ fn render_value(value: &ValueExpr) -> String {
         ValueExpr::Algebra(expr) => render_algebra(expr),
         ValueExpr::Literal(lit) => lit.text().unwrap_or_default(),
         ValueExpr::Stdin(stdin) => stdin.syntax().text().to_string(),
+        ValueExpr::Variable(var) => var
+            .name()
+            .map(|name| format!("${name}"))
+            .unwrap_or_else(|| var.syntax().text().to_string().trim().to_string()),
         ValueExpr::Array(array) => {
             let items = array
                 .values()

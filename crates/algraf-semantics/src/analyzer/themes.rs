@@ -151,24 +151,40 @@ impl Analyzer<'_> {
             ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::String) => self
                 .theme_builtin_name_arg(arg, "base")
                 .map(ThemeBaseSpec::BuiltIn),
+            ValueExpr::Variable(var) => var.name().map(|name| ThemeBaseSpec::User {
+                name,
+                span: var.reference_span(),
+            }),
             ValueExpr::Algebra(AlgebraExpr::Name(name)) if !name.is_quoted() => {
                 let Some(base_name) = name.name() else {
                     self.diag(Diagnostic::error(
                         codes::E1705,
-                        "`base` expects a built-in theme string or document theme name",
+                        "`base` expects a built-in theme string or `$theme` reference",
                         node_span(value.syntax()),
                     ));
                     return None;
                 };
-                Some(ThemeBaseSpec::User {
-                    name: base_name,
-                    span: node_span(value.syntax()),
-                })
+                if self.lookup_var(&base_name).is_some()
+                    || self.document_theme_names.contains(&base_name)
+                {
+                    self.diag_bare_let_reference(
+                        &base_name,
+                        name.ident_span()
+                            .unwrap_or_else(|| node_span(name.syntax())),
+                    );
+                } else {
+                    self.diag(Diagnostic::error(
+                        codes::E1705,
+                        "`base` expects a built-in theme string or `$theme` reference",
+                        node_span(value.syntax()),
+                    ));
+                }
+                None
             }
             _ => {
                 self.diag(Diagnostic::error(
                     codes::E1705,
-                    "`base` expects a built-in theme string or document theme name",
+                    "`base` expects a built-in theme string or `$theme` reference",
                     node_span(value.syntax()),
                 ));
                 None
@@ -189,11 +205,11 @@ impl Analyzer<'_> {
             ThemeBaseSpec::User { name, span } => {
                 let Some(LetVar {
                     value: ConstValue::Theme(theme),
-                }) = self.document_vars.get(name)
+                }) = self.lookup_var(name)
                 else {
                     self.diag(Diagnostic::error(
                         codes::E1705,
-                        format!("`base` references unknown document theme `{name}`"),
+                        format!("`base` references unknown theme binding `${name}`"),
                         *span,
                     ));
                     return None;
@@ -460,7 +476,11 @@ impl Analyzer<'_> {
     /// `100`); anything else emits `E1705`.
     fn theme_font_weight(&mut self, key: &str, value: &ValueExpr) -> Option<FontWeightIr> {
         let expected = "\"normal\", \"bold\", or an integer 100-900 (multiple of 100)";
-        match self.substitute_var(ValueForm::of(value)) {
+        if let Some((name, span)) = self.bare_let_reference(value) {
+            self.diag_bare_let_reference(&name, span);
+            return None;
+        }
+        match self.value_form(value) {
             ValueForm::Str(s) if s == "normal" => Some(FontWeightIr::Normal),
             ValueForm::Str(s) if s == "bold" => Some(FontWeightIr::Bold),
             ValueForm::Number(n)
@@ -643,7 +663,7 @@ impl Analyzer<'_> {
         resolved
     }
 
-    /// Resolve one scalar theme override value (after `let` substitution),
+    /// Resolve one scalar theme override value (after `$name` resolution),
     /// classifying it with `extract`. On mismatch, emit `E1705` describing the
     /// `expected` shape at the value span.
     fn theme_scalar<T>(
@@ -653,7 +673,11 @@ impl Analyzer<'_> {
         expected: &str,
         extract: fn(ValueForm) -> Option<T>,
     ) -> Option<T> {
-        match extract(self.substitute_var(ValueForm::of(value))) {
+        if let Some((name, span)) = self.bare_let_reference(value) {
+            self.diag_bare_let_reference(&name, span);
+            return None;
+        }
+        match extract(self.value_form(value)) {
             Some(v) => Some(v),
             None => {
                 self.diag(Diagnostic::error(

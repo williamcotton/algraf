@@ -1,5 +1,6 @@
 //! Block grammar parser tests (spec §7, §12.7–12.14, §27.3–27.4).
 
+use algraf_core::Severity;
 use algraf_syntax::ast::{ChartItem, LiteralKind, Root, RootItem, SpaceItem, ValueExpr};
 use algraf_syntax::{parse, SyntaxNode};
 
@@ -133,6 +134,61 @@ fn test_bare_identifier_value_is_algebra() {
     };
     let value = point.args()[0].value().unwrap();
     assert!(matches!(value, ValueExpr::Algebra(_)));
+}
+
+#[test]
+fn test_sigiled_variable_reference_value() {
+    let source = "Chart(data: \"p.csv\") {\n    let primary = \"#3366cc\"\n    Space(a * b) {\n        Point(fill: $primary)\n    }\n}";
+    no_errors(source);
+    let chart = root(source).chart().unwrap();
+    let ChartItem::Space(space) = &chart.items()[1] else {
+        panic!()
+    };
+    let SpaceItem::Geometry(point) = &space.items()[0] else {
+        panic!()
+    };
+    let value = point.args()[0].value().unwrap();
+    let ValueExpr::Variable(var) = value else {
+        panic!("expected a sigiled variable reference");
+    };
+    assert_eq!(var.name().as_deref(), Some("primary"));
+    assert_eq!(
+        &source[var.reference_span().start..var.reference_span().end],
+        "$primary"
+    );
+}
+
+#[test]
+fn test_malformed_sigiled_variable_reference_recovers() {
+    let parsed = parse("Chart(data: \"p.csv\") {\n  Space(a * b) { Point(fill: $) }\n}");
+    assert!(parsed.diagnostics().iter().any(|d| d.code == "E0010"));
+    parses_without_panic("Chart(data: \"p.csv\") {\n  Space(a * b) { Point(fill: $) }\n}");
+}
+
+#[test]
+fn test_external_placeholder_value_recovers_without_arg_cascade() {
+    let source =
+        "Chart(data: \"p.csv\") {\n  Space(a * b) { Point(stroke: ${primary}, fill: species) }\n}";
+    let parsed = parse(source);
+    let codes: Vec<_> = parsed.diagnostics().iter().map(|d| d.code).collect();
+    assert_eq!(codes, vec!["H3006"]);
+    assert_eq!(parsed.diagnostics()[0].severity, Severity::Information);
+
+    let chart = root(source).chart().unwrap();
+    let ChartItem::Space(space) = &chart.items()[0] else {
+        panic!()
+    };
+    let SpaceItem::Geometry(point) = &space.items()[0] else {
+        panic!()
+    };
+    let value = point.args()[0].value().unwrap();
+    assert!(matches!(value, ValueExpr::Error(_)));
+}
+
+#[test]
+fn test_spaced_sigiled_variable_reference_is_diagnostic() {
+    let parsed = parse("Chart(data: \"p.csv\") {\n  Space(a * b) { Point(fill: $ primary) }\n}");
+    assert!(parsed.diagnostics().iter().any(|d| d.code == "E0010"));
 }
 
 #[test]
@@ -460,7 +516,7 @@ fn test_let_binding_parses_at_chart_and_space_scope() {
     let primary = "#3366cc"
     Space(flipper_length * body_mass) {
         let dim = 0.4
-        Point(fill: primary, alpha: dim)
+        Point(fill: $primary, alpha: $dim)
     }
 }"##;
     no_errors(source);
@@ -490,11 +546,11 @@ fn test_document_scope_let_parses_around_tables_and_charts() {
 let ink = "#333333"
 Table main = "p.csv"
 Chart(data: main) {
-    Space(x * y) { Point(fill: ink) }
+    Space(x * y) { Point(fill: $ink) }
 }
 let faint = "#dddddd"
 Chart(data: main) {
-    Space(x * y) { Line(stroke: faint) }
+    Space(x * y) { Line(stroke: $faint) }
 }"##;
     no_errors(source);
     let root = root(source);

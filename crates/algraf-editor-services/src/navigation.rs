@@ -4,8 +4,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use algraf_core::Span;
-use algraf_syntax::ast::{AlgebraName, Arg, DeriveDecl, LetDecl, LiteralKind, Root, ValueExpr};
-use algraf_syntax::{parse, SyntaxKind, SyntaxNode};
+use algraf_syntax::ast::{
+    AlgebraName, Arg, DeriveDecl, LetDecl, LiteralKind, Root, ValueExpr, VariableRef,
+};
+use algraf_syntax::{node_span, parse, SyntaxKind, SyntaxNode};
 use lsp_types::{GotoDefinitionResponse, Location, Range, TextEdit, Url, WorkspaceEdit};
 
 use crate::document::DocumentState;
@@ -29,8 +31,18 @@ pub struct LetSite {
     pub name: String,
     /// Span of the variable-name identifier token (the navigation target).
     name_span: Span,
+    value_kind: String,
     /// The lexical scope that owns this binding.
     scope: LetScope,
+}
+
+/// A visible `let` binding for completion and hover surfaces.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LetBindingInfo {
+    pub name: String,
+    pub name_span: Span,
+    pub scope_label: &'static str,
+    pub value_kind: String,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -93,6 +105,7 @@ pub fn build_name_index(root: &SyntaxNode) -> NameIndex {
                         index.lets.push(LetSite {
                             name,
                             name_span: span,
+                            value_kind: let_value_kind(&decl),
                             scope: binding_scope(&node),
                         });
                     }
@@ -122,34 +135,64 @@ pub fn build_name_index(root: &SyntaxNode) -> NameIndex {
         }
     }
 
-    // Second pass: classify identifier occurrences. A bare identifier in a
-    // property value position that names an in-scope `let` is a variable
-    // reference; otherwise it is a column reference (spec §9.6).
+    // Second pass: classify identifier occurrences. Bare identifiers are data
+    // table or column references; only `$name` nodes are `let` references
+    // (spec §9.6).
     for node in root.descendants() {
-        if node.kind() != SyntaxKind::ALGEBRA_NAME {
-            continue;
-        }
-        let Some(algebra) = AlgebraName::cast(node.clone()) else {
-            continue;
-        };
-        let (Some(name), Some(span)) = (algebra.name(), algebra.ident_span()) else {
-            continue;
-        };
-        if is_data_arg_value(&node) {
-            index.table_refs.push(NameRef { name, span });
-            continue;
-        }
-        let scope = reference_scope(&node);
-        if !algebra.is_quoted()
-            && is_property_value(&node)
-            && resolve_binding_scope(&index.lets, &name, scope).is_some()
-        {
-            index.var_refs.push(VarRefSite { name, span, scope });
-        } else {
-            index.column_refs.push(NameRef { name, span });
+        match node.kind() {
+            SyntaxKind::ALGEBRA_NAME => {
+                let Some(algebra) = AlgebraName::cast(node.clone()) else {
+                    continue;
+                };
+                let (Some(name), Some(span)) = (algebra.name(), algebra.ident_span()) else {
+                    continue;
+                };
+                if is_data_arg_value(&node) {
+                    index.table_refs.push(NameRef { name, span });
+                } else {
+                    index.column_refs.push(NameRef { name, span });
+                }
+            }
+            SyntaxKind::VARIABLE_REF => {
+                let Some(var) = VariableRef::cast(node.clone()) else {
+                    continue;
+                };
+                let Some(name) = var.name() else { continue };
+                index.var_refs.push(VarRefSite {
+                    name,
+                    span: var.reference_span(),
+                    scope: reference_scope(&node),
+                });
+            }
+            _ => {}
         }
     }
     index
+}
+
+fn let_value_kind(decl: &LetDecl) -> String {
+    match decl.value() {
+        Some(ValueExpr::Literal(lit)) => match lit.kind() {
+            Some(LiteralKind::Number) => "number",
+            Some(LiteralKind::String) => "string",
+            Some(LiteralKind::Bool) => "boolean",
+            Some(LiteralKind::Null) => "null",
+            None => "literal",
+        },
+        Some(ValueExpr::Array(_)) => "array",
+        Some(ValueExpr::Call(call)) => match call.name().as_deref() {
+            Some("Style") => "style fragment",
+            Some("Theme") => "theme",
+            Some(_) => "call",
+            None => "call",
+        },
+        Some(ValueExpr::Algebra(_)) => "column or algebra",
+        Some(ValueExpr::Stdin(_)) => "input",
+        Some(ValueExpr::Variable(_)) => "let reference",
+        Some(ValueExpr::Map(_)) => "map",
+        Some(ValueExpr::Error(_)) | None => "value",
+    }
+    .to_string()
 }
 
 fn binding_scope(node: &SyntaxNode) -> LetScope {
@@ -183,23 +226,6 @@ fn reference_scope(node: &SyntaxNode) -> RefScope {
     RefScope { chart, space }
 }
 
-/// Whether an `ALGEBRA_NAME` sits in a property value position (the value of an
-/// argument other than `data:`), as opposed to a `Space` frame or stat input.
-fn is_property_value(node: &SyntaxNode) -> bool {
-    let mut current = node.parent();
-    while let Some(parent) = current {
-        match parent.kind() {
-            SyntaxKind::ARG => {
-                return Arg::cast(parent).and_then(|arg| arg.key()).as_deref() != Some("data");
-            }
-            SyntaxKind::SPACE_BLOCK | SyntaxKind::STAT_CALL => return false,
-            _ => {}
-        }
-        current = parent.parent();
-    }
-    false
-}
-
 /// Resolve which `let` binding a reference named `name` in scope `ref_scope`
 /// binds to: space scope shadows chart scope, which shadows document scope
 /// (spec §9.6). Returns the binding's scope, or `None` if undefined.
@@ -231,6 +257,101 @@ fn resolve_binding_scope(lets: &[LetSite], name: &str, ref_scope: RefScope) -> O
             )
     }) {
         return Some(LetScope::Document);
+    }
+    None
+}
+
+fn reference_scope_at(root: &SyntaxNode, offset: usize) -> RefScope {
+    let mut chart = None;
+    let mut space = None;
+    for node in root.descendants() {
+        let span = node_span(&node);
+        if !span.contains(offset) && span.end != offset {
+            continue;
+        }
+        match node.kind() {
+            SyntaxKind::SPACE_BLOCK => {
+                space = Some(u32::from(node.text_range().start()) as usize);
+            }
+            SyntaxKind::CHART_BLOCK => {
+                chart = Some(u32::from(node.text_range().start()) as usize);
+            }
+            _ => {}
+        }
+    }
+    RefScope { chart, space }
+}
+
+fn let_scope_label(scope: LetScope) -> &'static str {
+    match scope {
+        LetScope::Document => "document",
+        LetScope::Chart(_) => "chart",
+        LetScope::Space(_) => "space",
+    }
+}
+
+fn binding_info(site: &LetSite) -> LetBindingInfo {
+    LetBindingInfo {
+        name: site.name.clone(),
+        name_span: site.name_span,
+        scope_label: let_scope_label(site.scope),
+        value_kind: site.value_kind.clone(),
+    }
+}
+
+fn visible_let_sites(index: &NameIndex, scope: RefScope) -> Vec<&LetSite> {
+    let mut by_name: HashMap<String, &LetSite> = HashMap::new();
+    for site in &index.lets {
+        if site.scope == LetScope::Document {
+            by_name.insert(site.name.clone(), site);
+        }
+    }
+    if let Some(chart) = scope.chart {
+        for site in &index.lets {
+            if site.scope == LetScope::Chart(chart) {
+                by_name.insert(site.name.clone(), site);
+            }
+        }
+    }
+    if let Some(space) = scope.space {
+        for site in &index.lets {
+            if site.scope == LetScope::Space(space) {
+                by_name.insert(site.name.clone(), site);
+            }
+        }
+    }
+    let mut sites = by_name.into_values().collect::<Vec<_>>();
+    sites.sort_by(|a, b| a.name.cmp(&b.name));
+    sites
+}
+
+pub fn visible_let_bindings(text: &str, offset: usize) -> Vec<LetBindingInfo> {
+    let root = parse(text).syntax();
+    let index = build_name_index(&root);
+    visible_let_sites(&index, reference_scope_at(&root, offset))
+        .into_iter()
+        .map(binding_info)
+        .collect()
+}
+
+pub fn let_binding_at_reference(text: &str, offset: usize) -> Option<LetBindingInfo> {
+    let (_, info) = let_binding_reference_at(text, offset)?;
+    Some(info)
+}
+
+pub fn let_binding_reference_at(text: &str, offset: usize) -> Option<(Span, LetBindingInfo)> {
+    let root = parse(text).syntax();
+    let index = build_name_index(&root);
+    for reference in &index.var_refs {
+        if !reference.span.contains(offset) && reference.span.end != offset {
+            continue;
+        }
+        let scope = resolve_binding_scope(&index.lets, &reference.name, reference.scope)?;
+        let site = index
+            .lets
+            .iter()
+            .find(|site| site.name == reference.name && site.scope == scope)?;
+        return Some((reference.span, binding_info(site)));
     }
     None
 }
@@ -277,8 +398,7 @@ fn target_at(index: &NameIndex, root: &SyntaxNode, offset: usize) -> Option<Targ
     }
     for reference in &index.var_refs {
         if reference.span.contains(offset) {
-            let scope = resolve_binding_scope(&index.lets, &reference.name, reference.scope)
-                .unwrap_or_else(|| binding_scope(root));
+            let scope = resolve_binding_scope(&index.lets, &reference.name, reference.scope)?;
             return Some(Target::Variable {
                 name: reference.name.clone(),
                 scope,
@@ -570,9 +690,17 @@ pub fn rename_edits(
     }
     let edits: Vec<TextEdit> = sites
         .into_iter()
-        .map(|site| TextEdit {
-            range: span_to_range(&state.text, site.span),
-            new_text: new_name.to_string(),
+        .map(|site| {
+            let source_text = &state.text[site.span.start..site.span.end];
+            let new_text = if !site.is_decl && source_text.trim_start().starts_with('$') {
+                format!("${new_name}")
+            } else {
+                new_name.to_string()
+            };
+            TextEdit {
+                range: span_to_range(&state.text, site.span),
+                new_text,
+            }
         })
         .collect();
     let mut changes = HashMap::new();
@@ -612,7 +740,7 @@ mod tests {
     #[test]
     fn build_name_index_records_let_declaration() {
         let text =
-            "Chart(data: \"p.csv\") {\n  let c = \"#111\"\n  Space(x * y) { Point(fill: c) }\n}";
+            "Chart(data: \"p.csv\") {\n  let c = \"#111\"\n  Space(x * y) { Point(fill: $c) }\n}";
         let index = build_name_index(&parse(text).syntax());
         assert!(index.lets.iter().any(|site| site.name == "c"));
         assert!(!index.var_refs.is_empty());
@@ -621,15 +749,16 @@ mod tests {
     #[test]
     fn rename_let_rewrites_declaration_and_use() {
         let text =
-            "Chart(data: \"p.csv\") {\n  let c = \"#111\"\n  Space(x * y) { Point(fill: c) }\n}";
+            "Chart(data: \"p.csv\") {\n  let c = \"#111\"\n  Space(x * y) { Point(fill: $c) }\n}";
         let state = state(text);
         let offset = text.find("let c").unwrap() + 4; // on the `c` of the decl
         assert!(renameable_at(&state, offset).is_some());
         let edit = rename_edits(&state, &uri(), offset, "color").expect("rename");
         let edits = &edit.changes.unwrap()[&uri()];
-        // Declaration plus the one `fill: c` use are both rewritten.
+        // Declaration plus the one `fill: $c` use are both rewritten.
         assert_eq!(edits.len(), 2);
-        assert!(edits.iter().all(|e| e.new_text == "color"));
+        assert!(edits.iter().any(|e| e.new_text == "color"));
+        assert!(edits.iter().any(|e| e.new_text == "$color"));
     }
 
     #[test]

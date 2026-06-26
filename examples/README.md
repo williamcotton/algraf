@@ -2921,9 +2921,8 @@ Chart(data: "timeseries.csv", width: 760, height: 420) {
 A `let` binding names a constant value so it can be reused across a chart
 instead of repeating the literal. Bindings are valid at document scope (visible
 to every chart), chart scope (visible everywhere in that chart), and space scope
-(visible in that space). Inner bindings shadow outer bindings. They resolve in
-property value positions; a bare identifier matching a binding wins over a
-column of the same name, while a backtick-quoted identifier is always a column.
+(visible in that space). Inner bindings shadow outer bindings. Use `$name` to
+reference a binding; bare identifiers such as `species` remain column mappings.
 
 ```algraf
 Chart(data: "penguins.csv") {
@@ -2931,7 +2930,7 @@ Chart(data: "penguins.csv") {
     let muted = Style(fill: "#6b7280", alpha: 0.55)
 
     Space(flipper_length * body_mass) {
-        Point(style: muted, stroke: primary)
+        Point(style: $muted, stroke: $primary, fill: species)
     }
 }
 ```
@@ -2947,7 +2946,7 @@ geometry-style overrides such as `axisText: Text(...)`, `legendTitle: Text(...)`
 `panelBackground: Rect(...)`, and `gridMajor: Line(...)` sit alongside direct
 scalar keys such as `plotBackground`, `axisColor`, `textColor`, `fontSize`,
 `lineWidth`, `grid`, and `axes`. Override values reuse the usual value forms and
-may reference `let` variables for shared colors.
+may reference `let` variables for shared colors with `$name`.
 
 ```algraf
 Chart(data: "penguins.csv") {
@@ -2956,8 +2955,8 @@ Chart(data: "penguins.csv") {
 
     Theme(
         name: "minimal",
-        axisText: Text(size: 12, fill: ink),
-        gridMajor: Line(stroke: faint, strokeWidth: 1),
+        axisText: Text(size: 12, fill: $ink),
+        gridMajor: Line(stroke: $faint, strokeWidth: 1),
         plotBackground: "#fafafa"
     )
 
@@ -2971,7 +2970,7 @@ Chart(data: "penguins.csv") {
 
 ## Reusable document theme
 
-A document-scope `let` can bind a `Theme(...)` value. Use `Theme(base: house)`
+A document-scope `let` can bind a `Theme(...)` value. Use `Theme(base: $house)`
 inside a chart or space to inherit that reusable house style, then layer local
 overrides on top. The document-bound theme can itself reference document-scope
 color constants.
@@ -2985,11 +2984,11 @@ let accent = "#126c73"
 
 let house = Theme(
     name: "minimal",
-    background: paper,
-    plotBackground: panel,
-    axisText: Text(size: 11, fill: ink),
-    axisTitle: Text(size: 12, fill: ink),
-    gridMajor: Line(stroke: faint, strokeWidth: 1),
+    background: $paper,
+    plotBackground: $panel,
+    axisText: Text(size: 11, fill: $ink),
+    axisTitle: Text(size: 12, fill: $ink),
+    gridMajor: Line(stroke: $faint, strokeWidth: 1),
     legendPosition: "bottom",
     legendSpacing: 16,
     axisYPosition: "right"
@@ -3001,9 +3000,9 @@ Chart(data: "penguins.csv", width: 760, height: 520,
       caption: "Top-level let bindings supply the shared colors and theme.",
       source: "Source: sample penguin measurements") {
     Theme(
-        base: house,
+        base: $house,
         gridX: false,
-        plotTitle: Text(size: 22, weight: "bold", fill: accent),
+        plotTitle: Text(size: 22, weight: "bold", fill: $accent),
         plotSource: Text(size: 10, fill: "#6f7d84")
     )
     Scale(fill: species, label: "Species")

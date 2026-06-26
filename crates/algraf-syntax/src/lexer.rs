@@ -44,6 +44,7 @@ pub enum TokenKind {
     Comma,
     Equal,
     FatArrow,
+    Dollar,
     Dot,
     Star,
     Slash,
@@ -191,6 +192,8 @@ enum RawToken {
     // over `=` because logos prefers the longer match.
     #[token("=>")]
     FatArrow,
+    #[token("$")]
+    Dollar,
     #[token(".")]
     Dot,
     #[token("=")]
@@ -225,6 +228,7 @@ impl RawToken {
             RawToken::Colon => TokenKind::Colon,
             RawToken::Comma => TokenKind::Comma,
             RawToken::FatArrow => TokenKind::FatArrow,
+            RawToken::Dollar => TokenKind::Dollar,
             RawToken::Dot => TokenKind::Dot,
             RawToken::Equal => TokenKind::Equal,
             RawToken::Star => TokenKind::Star,

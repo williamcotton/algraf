@@ -50,13 +50,9 @@ pub(crate) fn read_template_source(
 ) -> Result<(String, SourceInput), CliError> {
     let (source, input) = read_source(arg, eval)?;
     let variables = parse_variable_assignments(vars).map_err(driver_error)?;
-    if variables.is_empty() {
-        Ok((source, input))
-    } else {
-        expand_variables(&source, &variables)
-            .map(|expanded| (expanded, input))
-            .map_err(driver_error)
-    }
+    expand_variables(&source, &variables)
+        .map(|expanded| (expanded, input))
+        .map_err(driver_error)
 }
 
 pub(crate) fn driver_error(err: DriverError) -> CliError {

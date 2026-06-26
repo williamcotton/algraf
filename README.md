@@ -357,13 +357,13 @@ Chart(data: "station_throughput.csv", width: 760, height: 470, title: "Station t
 
 ## 8. Reusable house theme: document-scoped theme reuse
 
-Document-scope `let` bindings are visible to every chart in a file. In v0.91,
+Document-scope `let` bindings are visible to every chart in a file. In v0.92,
 one of those bindings can hold a reusable `Theme(...)`, so a team can define a
-house style once and apply it with `Theme(base: house, ...)` wherever a chart or
+house style once and apply it with `Theme(base: $house, ...)` wherever a chart or
 space needs it. The local `Theme(...)` call still wins for fields it sets.
 
 New features: document-scope `let`, document-bound `Theme(...)` values,
-`Theme(base: house)` for reusable custom themes, and local theme overrides
+`Theme(base: $house)` for reusable custom themes, and local theme overrides
 layered on a shared base.
 
 ```algraf
@@ -375,11 +375,11 @@ let accent = "#126c73"
 
 let house = Theme(
     name: "minimal",
-    background: paper,
-    plotBackground: panel,
-    axisText: Text(size: 11, fill: ink),
-    axisTitle: Text(size: 12, fill: ink),
-    gridMajor: Line(stroke: faint, strokeWidth: 1),
+    background: $paper,
+    plotBackground: $panel,
+    axisText: Text(size: 11, fill: $ink),
+    axisTitle: Text(size: 12, fill: $ink),
+    gridMajor: Line(stroke: $faint, strokeWidth: 1),
     legendPosition: "bottom",
     legendSpacing: 16,
     axisYPosition: "right"
@@ -391,9 +391,9 @@ Chart(data: "penguins.csv", width: 760, height: 520,
       caption: "Top-level let bindings supply the shared colors and theme.",
       source: "Source: sample penguin measurements") {
     Theme(
-        base: house,
+        base: $house,
         gridX: false,
-        plotTitle: Text(size: 22, weight: "bold", fill: accent),
+        plotTitle: Text(size: 22, weight: "bold", fill: $accent),
         plotSource: Text(size: 10, fill: "#6f7d84")
     )
     Scale(fill: species, label: "Species")

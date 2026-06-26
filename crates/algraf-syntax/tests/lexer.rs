@@ -130,7 +130,7 @@ fn test_negative_number_lexes_as_signed() {
 #[test]
 fn test_punctuation() {
     assert_eq!(
-        significant("(){}[]:,=*/+"),
+        significant("(){}[]:,= =>$*/+"),
         vec![
             TokenKind::LParen,
             TokenKind::RParen,
@@ -141,6 +141,8 @@ fn test_punctuation() {
             TokenKind::Colon,
             TokenKind::Comma,
             TokenKind::Equal,
+            TokenKind::FatArrow,
+            TokenKind::Dollar,
             TokenKind::Star,
             TokenKind::Slash,
             TokenKind::Plus,

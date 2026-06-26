@@ -506,6 +506,7 @@ pub enum ValueExpr {
     Algebra(AlgebraExpr),
     Literal(Literal),
     Stdin(StdinValue),
+    Variable(VariableRef),
     Array(ArrayValue),
     Map(MapValue),
     Call(CallValue),
@@ -521,6 +522,7 @@ impl ValueExpr {
             | SyntaxKind::ALGEBRA_PAREN => AlgebraExpr::cast(node).map(ValueExpr::Algebra),
             SyntaxKind::LITERAL => Literal::cast(node).map(ValueExpr::Literal),
             SyntaxKind::STDIN_VALUE => StdinValue::cast(node).map(ValueExpr::Stdin),
+            SyntaxKind::VARIABLE_REF => VariableRef::cast(node).map(ValueExpr::Variable),
             SyntaxKind::ARRAY_VALUE => ArrayValue::cast(node).map(ValueExpr::Array),
             SyntaxKind::MAP_VALUE => MapValue::cast(node).map(ValueExpr::Map),
             SyntaxKind::CALL_VALUE => CallValue::cast(node).map(ValueExpr::Call),
@@ -534,6 +536,7 @@ impl ValueExpr {
             ValueExpr::Algebra(it) => it.syntax(),
             ValueExpr::Literal(it) => it.syntax(),
             ValueExpr::Stdin(it) => it.syntax(),
+            ValueExpr::Variable(it) => it.syntax(),
             ValueExpr::Array(it) => it.syntax(),
             ValueExpr::Map(it) => it.syntax(),
             ValueExpr::Call(it) => it.syntax(),
@@ -597,6 +600,54 @@ ast_node!(
     /// (spec sections 11.10, 10.1).
     StdinValue = STDIN_VALUE
 );
+
+ast_node!(
+    /// A sigiled `let` binding reference such as `$primary`.
+    VariableRef = VARIABLE_REF
+);
+
+impl VariableRef {
+    fn dollar_token(&self) -> Option<SyntaxToken> {
+        first_token(&self.syntax, SyntaxKind::DOLLAR)
+    }
+
+    fn ident_token(&self) -> Option<SyntaxToken> {
+        first_token(&self.syntax, SyntaxKind::IDENT)
+    }
+
+    /// The referenced binding name, without the `$` sigil.
+    pub fn name(&self) -> Option<String> {
+        self.ident_token().map(|token| token.text().to_string())
+    }
+
+    /// The span of the full `$name` reference, including the `$` sigil.
+    pub fn reference_span(&self) -> Span {
+        let Some(dollar) = self.dollar_token() else {
+            let range = self.syntax.text_range();
+            return Span::new(
+                u32::from(range.start()) as usize,
+                u32::from(range.end()) as usize,
+            );
+        };
+        let start = dollar.text_range().start();
+        let end = self
+            .ident_token()
+            .map(|token| token.text_range().end())
+            .unwrap_or_else(|| dollar.text_range().end());
+        Span::new(u32::from(start) as usize, u32::from(end) as usize)
+    }
+
+    /// The span of the identifier token, excluding the `$` sigil.
+    pub fn name_span(&self) -> Option<Span> {
+        self.ident_token().map(|token| {
+            let range = token.text_range();
+            Span::new(
+                u32::from(range.start()) as usize,
+                u32::from(range.end()) as usize,
+            )
+        })
+    }
+}
 
 ast_node!(
     /// An array value (spec sections 11.10, 7.8).

@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.91.0
+Status: 0.92.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.91.0 specification.
+This working copy is the 0.92.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -1324,9 +1324,11 @@ Arg            ::= Ident ":" Value
 Value          ::= Algebra
                  | Literal
                  | StdinSentinel
+                 | VariableRef
                  | Array
                  | Map
                  | CallValue
+VariableRef    ::= "$" Ident
 CallValue      ::= Ident "(" ArgList? ")"
 ```
 
@@ -1437,6 +1439,7 @@ Array          ::= "[" ValueList? "]"
 ValueList      ::= Value ("," Value)* ","?
 Map            ::= "[" Entry ("," Entry)* ","? "]"
 Entry          ::= Value "=>" Value
+VariableRef    ::= "$" Ident
 ```
 
 Arrays MAY be nested.
@@ -1451,6 +1454,12 @@ iteration (and legend-entry) order. A malformed map entry — a missing `=>` or 
 stray separator — MUST produce diagnostic `E0021`. Maps are accepted only where
 a property documents map support (currently a categorical color `Scale`'s
 `range:` and `labels:`, spec §16.13); used elsewhere they produce `E1606`.
+
+Since version 0.92.0, a `VariableRef` is the only value-position spelling for
+referencing a `let` binding. The `$` MUST be followed immediately by an
+identifier; `$ name` is malformed. The reference span used by diagnostics and
+editor features MUST include the `$`. `$name` is not accepted in algebra frames,
+stat input lists, table names, or declaration names.
 
 **Temporal literals (since version 0.31).** `datetime("…")` and `date("…")` are
 typed value constructors written as a call value with a single quoted string
@@ -1516,10 +1525,10 @@ explicit properties or later style fragments override earlier expanded
 properties.
 
 Version 0.91.0 permits document-scope `let` bindings to hold `Theme(...)`
-values. A document-bound theme is a data-independent theme value that can be
-referenced by bare identifier from `Theme(base: name)`. `Theme(...)` values in
-chart-scope and space-scope `let` declarations remain invalid constants and
-MUST emit `E1701`.
+values. Since version 0.92.0, a document-bound theme is referenced with the
+same sigiled value syntax as other bindings: `Theme(base: $name)`.
+`Theme(...)` values in chart-scope and space-scope `let` declarations remain
+invalid constants and MUST emit `E1701`.
 
 The bound name lives in a variable namespace separate from columns and derived
 tables (spec §9.6). A variable name MUST be unique within its scope; a second
@@ -1536,7 +1545,7 @@ Chart(data: "penguins.csv") {
     let dim_alpha = 0.4
 
     Space(flipper_length * body_mass) {
-        Point(fill: primary, alpha: dim_alpha)
+        Point(fill: $primary, alpha: $dim_alpha)
     }
 }
 ```
@@ -2101,18 +2110,25 @@ A space-scope `let` MUST shadow a chart-scope or document-scope `let` of the
 same name for the duration of that space. A chart-scope `let` MUST shadow a
 document-scope `let` of the same name for the duration of that chart.
 
-Variable resolution applies only in property value positions. A bare,
-unquoted identifier in a property value position MUST resolve to an in-scope
-variable when one exists with that name, taking precedence over a column of the
-same name; otherwise it resolves as a column reference (spec §9.4). A
-backtick-quoted identifier is always a column reference and is never resolved as
-a variable.
+Variable resolution applies only through the sigiled `$name` value form. `$name`
+MUST resolve against the existing scope chain: space scope shadows chart scope,
+which shadows document scope. An unresolved `$name` MUST produce `E1707`.
+
+Bare, unquoted identifiers in property value positions are column references,
+selectors, sentinels, or other non-`let` language symbols; they MUST NOT resolve
+to `let` bindings. If a bare identifier in a property position exactly matches
+an in-scope `let` binding where the old bare-reference behavior would have
+substituted that binding, the analyzer MUST emit `E1707` with help suggesting
+`$name`. A bare property identifier that names an actual accepted column remains
+a column mapping even when a same-named `let` binding exists. A backtick-quoted
+identifier is always a column reference and is never resolved as a variable.
 
 Variables MUST NOT be resolved inside algebra (`Space(...)` frames and stat
 inputs); identifiers there are always columns.
 
-After resolution, a variable's value is type-checked against the property's
-accepted forms (spec §13.9); a mismatch produces `E1204` at the use site.
+After `$name` resolution, a variable's value is type-checked against the
+property's accepted forms (spec §13.9); a mismatch produces `E1204` at the use
+site.
 
 Column names SHOULD NOT shadow keywords inside grammar positions.
 
@@ -3282,6 +3298,7 @@ pub enum ValueExpr {
     Algebra(Spanned<AlgebraExpr>),
     Literal(Literal),
     Stdin,
+    VariableRef(Spanned<String>),
     Array(Vec<Spanned<ValueExpr>>),
     Error(ErrorNode),
 }
@@ -4254,10 +4271,11 @@ boolean.
 `Violin.side` and `Sina.side` accept string literals `"both"`, `"left"`,
 `"right"`, `"top"`, and `"bottom"` (see §14.12 and §14.12.1).
 
-Before a property value is checked against its accepted forms, an unquoted
-bare-identifier value MUST be resolved against in-scope `let` variables (spec
-§9.6). When the identifier names a variable, the bound constant is substituted
-and checked in its place; the type rules above then apply to the constant.
+Before a property value is checked against its accepted forms, a sigiled
+`$name` value MUST be resolved against in-scope `let` variables (spec §9.6).
+When the identifier names a variable, the bound constant is substituted and
+checked in its place; the type rules above then apply to the constant. Bare
+identifiers remain column mappings or other documented non-`let` symbols.
 
 Each recognized property name maps to exactly one typed `PropertyKey` variant
 (spec §13.6), and a property's name MUST be the single authoritative spelling of
@@ -8893,13 +8911,13 @@ Theme declaration syntax:
 ```ag
 Theme(name: "minimal")
 Theme(base: "minimal")
-Theme(base: house)
+Theme(base: $house)
 ```
 
 Version 0.91.0 supports both `Theme(name: "minimal")` and
-`Theme(base: "minimal")` for source-level built-in theme selection.
-`Theme(base: house)` is the spelling for inheriting a document-bound custom
-theme.
+`Theme(base: "minimal")` for source-level built-in theme selection. Since
+version 0.92.0, `Theme(base: $house)` is the spelling for inheriting a
+document-bound custom theme.
 
 `Chart(theme: "minimal")` MUST NOT be accepted in version 0.1.
 
@@ -8919,14 +8937,15 @@ Chart(data: "penguins.csv") {
 
 `Theme(...)` MAY carry override properties in addition to (or instead of) a
 base selector. `name:` selects a built-in theme by string. `base:` selects
-either a built-in theme by string or a document-bound custom theme by bare
-identifier.
+either a built-in theme by string or a custom theme binding by `$name`.
 
 `Theme(name: ...)` and `Theme(base: ...)` in the same call MUST emit `E1705`.
 `Theme(base: "minimal")` MUST behave like `Theme(name: "minimal")` for built-in
-bases. `Theme(base: house)` MUST resolve `house` as a document-scope
-`let house = Theme(...)` binding; a missing or non-theme identifier MUST emit
-`E1705` with a message that names the missing base.
+bases. `Theme(base: $house)` MUST resolve `house` through the `let` scope chain
+and require the binding to hold a `Theme(...)` value; a missing or non-theme
+binding MUST emit `E1705` with a message that names the missing base.
+`Theme(base: house)` where `house` is an in-scope `let` binding MUST emit
+`E1707` with help suggesting `$house`.
 
 Overrides are layered on top of the selected base theme. With a document-bound
 base, the order is built-in base, document-bound theme overrides, then local
@@ -8937,7 +8956,7 @@ chart theme (spec §7.3).
 Document-bound `Theme(...)` values default to the built-in default theme when
 they omit `base:`/`name:`; they do not inherit from any later chart-local state.
 Document-bound themes MAY chain through other document-bound themes by
-`base: other_theme`. Cycles MUST emit `E1705` and MUST NOT panic.
+`base: $other_theme`. Cycles MUST emit `E1705` and MUST NOT panic.
 
 Example:
 
@@ -8961,7 +8980,7 @@ let house = Theme(
 )
 
 Chart(data: "strategic_reserves.csv") {
-    Theme(base: house, axisYPosition: "right", gridX: false)
+    Theme(base: $house, axisYPosition: "right", gridX: false)
 }
 ```
 
@@ -9017,7 +9036,7 @@ Since 0.88.0, `axisColor` also updates the default stroke color used by
 `axisLine` and `axisTicks` unless those structured styles override it.
 
 Override values reuse the standard property value forms and MAY reference `let`
-variables (spec §9.6). Theme values MUST remain data-independent: column
+bindings with `$name` (spec §9.6). Theme values MUST remain data-independent: column
 mappings, algebra expressions, the `stdin` sentinel, and non-theme call heads
 MUST NOT be valid document theme values.
 
@@ -9660,11 +9679,16 @@ sniffing and CSV-fallback policy from §10.2.1 and `--data <path>` uses extensio
 inference.
 
 `--var key=value` MAY be repeated on source-consuming commands. Expansion
-happens before parsing against the expanded source. `${name}` and `$name`
-placeholders are replaced with raw Algraf source fragments after shell parsing.
-Undefined variables and duplicate keys MUST produce deterministic usage errors.
-The expansion layer MUST NOT evaluate expressions, read environment variables,
-include files, or provide conditionals or loops.
+happens before parsing against the expanded source. `${name}` placeholders are
+replaced with raw Algraf source fragments after shell parsing. Bare `$name`
+belongs to Algraf `let` references and MUST be preserved by invocation-variable
+expansion. Undefined variables and duplicate keys MUST produce deterministic
+usage errors. The expansion layer MUST NOT evaluate expressions, read
+environment variables, include files, or provide conditionals or loops.
+If `${name}` reaches the Algraf parser unexpanded, the parser MUST recover it as
+a single invalid value and emit informational diagnostic `H3006` with help
+explaining that the host must pass `--var name=...`; it MUST NOT reinterpret
+`${name}` as an Algraf `$name` let reference.
 
 If the source contains gated `Sqlite(...)`, the CLI MUST require
 `Algraf(version: "0.21", features: ["sql"])`. No CLI flag enables network,
@@ -9752,7 +9776,7 @@ byte-for-byte deterministic; raster output is deterministic for a given
 platform.
 
 Source files MAY use either `Theme(name: "...")` or `Theme(base: "...")` for
-persistent built-in theme selection. Source files use `Theme(base: house)` for
+persistent built-in theme selection. Source files use `Theme(base: $house)` for
 document-bound custom themes.
 
 Theme precedence from weakest to strongest is:
@@ -10509,12 +10533,13 @@ pointer/length JSON ABI, not generated `wasm-bindgen` bindings:
   response.
 
 The browser JSON ABI supports text data sources supplied as UTF-8 strings. The
-runtime MUST expand `${name}` and `$name` placeholders with
+runtime MUST expand `${name}` invocation placeholders with
 `algraf_driver::expand_variables` before parsing, using the same raw
-source-fragment substitution semantics as CLI `--var` (spec §22.3). Variable
-substitution failures MUST return the standard render response shape with `svg`
-and `sidecar` set to null, an empty diagnostics array, and a span-less `error`
-string; they MUST NOT panic.
+source-fragment substitution semantics as CLI `--var` (spec §22.3). Bare
+`$name` is Algraf `let` reference syntax and MUST NOT be consumed by host
+invocation-variable expansion. Variable substitution failures MUST return the
+standard render response shape with `svg` and `sidecar` set to null, an empty
+diagnostics array, and a span-less `error` string; they MUST NOT panic.
 
 Since version 0.86.0, the AST browser response shape is:
 
@@ -10537,7 +10562,7 @@ Since version 0.87.0, the language-reference browser response shape is:
 ```json
 {
   "markdown": "...",
-  "version": "0.91.0",
+  "version": "0.92.0",
   "part": "full",
   "source": "crates/algraf-cli/templates/ALGRAF_LANG.md",
   "sources": [
@@ -11135,6 +11160,8 @@ binning support is implemented where documented, and invalid bin settings use
 
 `E1706 invalid Style fragment`
 
+`E1707 let binding reference requires $`
+
 `E1601 invalid gradient declaration`
 
 `E1602 scale mode or gradient requires a compatible color mapping`
@@ -11256,6 +11283,8 @@ slot (§14.6).
 `H3004 use Guide to override axis label` (reserved)
 
 `H3005 choose fill or stroke; colour is not a property alias` (reserved)
+
+`H3006 external variable placeholder awaits host expansion`
 
 ### 26.5 Internal Render Diagnostics
 
@@ -11930,6 +11959,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.89.0 | [`V0_89_PLAN.md`](V0_89_PLAN.md) | Normative specification drift cleanup | Implemented |
 | 0.90.0 | [`V0_90_PLAN.md`](V0_90_PLAN.md) | Annotated categorical heatmaps with first-class layer polish | Implemented |
 | 0.91.0 | [`V0_91_PLAN.md`](V0_91_PLAN.md) | Document-scoped custom themes with `Theme(base:)` reuse and chaining | Implemented |
+| 0.92.0 | [`V0_92_PLAN.md`](V0_92_PLAN.md) | Explicit `$name` references for `let` bindings and no bare-let resolution | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
@@ -12114,7 +12144,7 @@ Guide axis references use bare `x` and `y`.
 
 Source-level built-in theme selection uses `Theme(name: "minimal")` or
 `Theme(base: "minimal")`; document-bound custom theme selection uses
-`Theme(base: house)`.
+`Theme(base: $house)`.
 
 Faceting is included in version 0.1.
 

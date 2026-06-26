@@ -569,8 +569,8 @@ fn svg_num(value: f64) -> String {
 fn embedded_facade_renders_json_input_with_variables() {
     let source = r##"Chart(data: input, width: 320, height: 220) {
   Space(x * y) {
-    Line(stroke: "$color", strokeWidth: $size)
-    Point(fill: "$color", size: $size)
+    Line(stroke: "${color}", strokeWidth: ${size})
+    Point(fill: "${color}", size: ${size})
   }
 }"##;
     let result = render_embedded(

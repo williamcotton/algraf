@@ -11,6 +11,7 @@ use algraf_core::{codes, Diagnostic, Span};
 use algraf_data::{ColumnDef, DataType};
 use algraf_syntax::ast::{
     AlgebraExpr, AlgebraName, Arg, CallValue, GlyphDecl, LetDecl, LiteralKind, ValueExpr,
+    VariableRef,
 };
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
@@ -161,6 +162,9 @@ pub(super) struct Analyzer<'a> {
     pub(super) glyph_stack: Vec<String>,
     /// Raw document-bound custom themes awaiting or undergoing resolution.
     pub(in crate::analyzer) document_theme_specs: HashMap<String, DocumentThemeBinding>,
+    /// Names of document-scope `let name = Theme(...)` bindings while specs are
+    /// being parsed and resolved.
+    pub(in crate::analyzer) document_theme_names: HashSet<String>,
     pub(super) synthetic_counter: usize,
     pub(super) diagnostics: Vec<Diagnostic>,
 }
@@ -185,6 +189,7 @@ impl<'a> Analyzer<'a> {
             glyphs: HashMap::new(),
             glyph_stack: Vec::new(),
             document_theme_specs: HashMap::new(),
+            document_theme_names: HashSet::new(),
             synthetic_counter: 0,
             diagnostics: Vec::new(),
         }
@@ -250,6 +255,7 @@ impl<'a> Analyzer<'a> {
     pub(super) fn collect_document_let_decls(&mut self, decls: &[LetDecl]) {
         self.document_vars.clear();
         self.document_theme_specs.clear();
+        self.document_theme_names.clear();
 
         let mut unique: Vec<(String, Span, LetDecl)> = Vec::new();
         let mut spans: HashMap<String, Span> = HashMap::new();
@@ -281,6 +287,11 @@ impl<'a> Analyzer<'a> {
                 self.document_vars.insert(name.clone(), LetVar { value });
             }
         }
+
+        self.document_theme_names = theme_decls
+            .iter()
+            .map(|(name, _, _)| name.clone())
+            .collect();
 
         for (name, span, call) in theme_decls {
             if let Some(spec) = self.theme_spec_from_call(&call) {
@@ -326,43 +337,103 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    /// Substitute an in-scope `let` binding for a bare-identifier property
-    /// value. Space-scope bindings shadow chart-scope ones; quoted identifiers
-    /// are always column references and are never substituted (spec §9.6).
-    pub(super) fn substitute_var(&self, form: ValueForm) -> ValueForm {
-        if let ValueForm::Column(name) = &form {
-            if !name.is_quoted() {
-                if let Some(var_name) = name.name() {
-                    if let Some(var) = self
-                        .space_vars
-                        .get(&var_name)
-                        .or_else(|| self.chart_vars.get(&var_name))
-                        .or_else(|| self.document_vars.get(&var_name))
-                    {
-                        return var.value.to_form();
-                    }
-                }
+    /// Look up an in-scope `let` binding. Space-scope bindings shadow
+    /// chart-scope bindings, which shadow document-scope bindings (spec §9.6).
+    pub(super) fn lookup_var(&self, name: &str) -> Option<&LetVar> {
+        self.space_vars
+            .get(name)
+            .or_else(|| self.chart_vars.get(name))
+            .or_else(|| self.document_vars.get(name))
+    }
+
+    /// Classify a property value, resolving a sigiled `$name` reference when
+    /// present. Bare identifiers remain column references.
+    pub(super) fn value_form(&mut self, value: &ValueExpr) -> ValueForm {
+        match value {
+            ValueExpr::Variable(var) => self.var_ref_form(var),
+            _ => ValueForm::of(value),
+        }
+    }
+
+    fn var_ref_form(&mut self, var: &VariableRef) -> ValueForm {
+        let Some(name) = var.name() else {
+            return ValueForm::Error;
+        };
+        match self.lookup_var(&name).map(|binding| binding.value.clone()) {
+            Some(value) => value.to_form(),
+            None => {
+                self.diag(Diagnostic::error(
+                    codes::E1707,
+                    format!("unknown `let` binding reference `${name}`"),
+                    var.reference_span(),
+                ));
+                ValueForm::Error
             }
         }
-        form
+    }
+
+    pub(super) fn var_ref_value(&mut self, var: &VariableRef) -> Option<ConstValue> {
+        let name = var.name()?;
+        match self.lookup_var(&name).map(|binding| binding.value.clone()) {
+            Some(value) => Some(value),
+            None => {
+                self.diag(Diagnostic::error(
+                    codes::E1707,
+                    format!("unknown `let` binding reference `${name}`"),
+                    var.reference_span(),
+                ));
+                None
+            }
+        }
+    }
+
+    pub(super) fn bare_let_reference(&self, value: &ValueExpr) -> Option<(String, Span)> {
+        let ValueExpr::Algebra(AlgebraExpr::Name(name)) = value else {
+            return None;
+        };
+        if name.is_quoted() || name.qualifier().is_some() {
+            return None;
+        }
+        let var_name = name.name()?;
+        self.lookup_var(&var_name)?;
+        Some((
+            var_name,
+            name.ident_span()
+                .unwrap_or_else(|| node_span(name.syntax())),
+        ))
+    }
+
+    pub(super) fn diag_bare_let_reference(&mut self, name: &str, span: Span) {
+        self.diag(
+            Diagnostic::error(
+                codes::E1707,
+                format!("let binding reference `{name}` requires `$`"),
+                span,
+            )
+            .with_help(format!("write `${name}`")),
+        );
     }
 
     pub(super) fn style_fragment_for_value(&mut self, value: &ValueExpr) -> StyleFragmentLookup {
         match value {
+            ValueExpr::Variable(var) => match self.var_ref_value(var) {
+                Some(ConstValue::Style(entries)) => StyleFragmentLookup::Found(entries),
+                Some(_) => StyleFragmentLookup::NotStyle,
+                None => StyleFragmentLookup::Invalid,
+            },
             ValueExpr::Algebra(AlgebraExpr::Name(name)) if !name.is_quoted() => {
                 let Some(var_name) = name.name() else {
                     return StyleFragmentLookup::NotStyle;
                 };
-                match self
-                    .space_vars
-                    .get(&var_name)
-                    .or_else(|| self.chart_vars.get(&var_name))
-                    .or_else(|| self.document_vars.get(&var_name))
-                {
-                    Some(LetVar {
-                        value: ConstValue::Style(entries),
-                    }) => StyleFragmentLookup::Found(entries.clone()),
-                    _ => StyleFragmentLookup::NotStyle,
+                if self.lookup_var(&var_name).is_some() {
+                    self.diag_bare_let_reference(
+                        &var_name,
+                        name.ident_span()
+                            .unwrap_or_else(|| node_span(name.syntax())),
+                    );
+                    StyleFragmentLookup::Invalid
+                } else {
+                    StyleFragmentLookup::NotStyle
                 }
             }
             ValueExpr::Call(call) if call.name().as_deref() == Some("Style") => self
@@ -472,6 +543,7 @@ impl ValueForm {
                 Some(LiteralKind::Null) | None => ValueForm::Null,
             },
             ValueExpr::Stdin(_) => ValueForm::Stdin,
+            ValueExpr::Variable(_) => ValueForm::Error,
             ValueExpr::Array(array) => {
                 let mut nums = Vec::new();
                 let mut strings = Vec::new();

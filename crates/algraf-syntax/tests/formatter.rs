@@ -93,8 +93,8 @@ fn test_document_table_and_bare_chart_formatting() {
 
 #[test]
 fn test_document_let_and_table_format_in_source_order() {
-    let source = "let ink=\"#333\"\nTable main=\"p.csv\"\nChart{Space(x*y,data:main){Point(fill:ink)}}\nlet faint=\"#ddd\"\nChart(data:main){Space(x*y){Line(stroke:faint)}}";
-    let expected = "let ink = \"#333\"\nTable main = \"p.csv\"\n\nChart {\n    Space(x * y, data: main) {\n        Point(fill: ink)\n    }\n}\n\nlet faint = \"#ddd\"\n\nChart(data: main) {\n    Space(x * y) {\n        Line(stroke: faint)\n    }\n}\n";
+    let source = "let ink=\"#333\"\nTable main=\"p.csv\"\nChart{Space(x*y,data:main){Point(fill:$ink)}}\nlet faint=\"#ddd\"\nChart(data:main){Space(x*y){Line(stroke:$faint)}}";
+    let expected = "let ink = \"#333\"\nTable main = \"p.csv\"\n\nChart {\n    Space(x * y, data: main) {\n        Point(fill: $ink)\n    }\n}\n\nlet faint = \"#ddd\"\n\nChart(data: main) {\n    Space(x * y) {\n        Line(stroke: $faint)\n    }\n}\n";
     assert_eq!(format(source), expected);
 }
 
@@ -168,9 +168,18 @@ fn test_idempotent_on_spec_examples() {
 
 #[test]
 fn test_let_binding_is_formatted() {
-    let source = "Chart(data:\"p.csv\"){let primary=\"#3366cc\"\nlet dim=0.4\nSpace(a*b){let local=true\nPoint(fill:primary)}}";
-    let expected = "Chart(data: \"p.csv\") {\n    let primary = \"#3366cc\"\n    let dim = 0.4\n    Space(a * b) {\n        let local = true\n        Point(fill: primary)\n    }\n}\n";
+    let source = "Chart(data:\"p.csv\"){let primary=\"#3366cc\"\nlet dim=0.4\nSpace(a*b){let local=true\nPoint(fill:$primary,alpha:$dim)}}";
+    let expected = "Chart(data: \"p.csv\") {\n    let primary = \"#3366cc\"\n    let dim = 0.4\n    Space(a * b) {\n        let local = true\n        Point(fill: $primary, alpha: $dim)\n    }\n}\n";
     assert_eq!(format(source), expected);
+}
+
+#[test]
+fn test_sigiled_references_format_inside_nested_calls() {
+    let source = "Chart(data:\"p.csv\"){let ink=\"#111\"\nTheme(textColor:$ink,plotTitle:Text(fill:$ink))\nSpace(a*b){let muted=Style(fill:$ink)\nPoint(style:$muted)}}";
+    let formatted = format(source);
+    assert!(formatted.contains("Theme(textColor: $ink, plotTitle: Text(fill: $ink))"));
+    assert!(formatted.contains("let muted = Style(fill: $ink)"));
+    assert!(formatted.contains("Point(style: $muted)"));
 }
 
 #[test]

@@ -1333,7 +1333,7 @@ fn test_histogram_temporal_input_desugars_to_temporal_bins() {
 #[test]
 fn test_style_fragment_expands_and_later_property_overrides() {
     let analysis = analyze_source(
-        "Chart(data: \"p.csv\") {\n  let muted = Style(fill: \"#6b7280\", alpha: 0.4)\n  Space(flipper_length * body_mass) {\n    Point(style: muted, alpha: 0.9)\n  }\n}",
+        "Chart(data: \"p.csv\") {\n  let muted = Style(fill: \"#6b7280\", alpha: 0.4)\n  Space(flipper_length * body_mass) {\n    Point(style: $muted, alpha: 0.9)\n  }\n}",
         &schema(),
     );
     assert!(
@@ -1360,8 +1360,16 @@ fn test_style_fragment_expands_and_later_property_overrides() {
 #[test]
 fn test_style_fragment_rejects_non_style_value() {
     assert!(has(
-        "Chart(data: \"p.csv\") {\n  let c = \"#3366cc\"\n  Space(value) { Point(style: c) }\n}",
+        "Chart(data: \"p.csv\") {\n  let c = \"#3366cc\"\n  Space(value) { Point(style: $c) }\n}",
         "E1706",
+    ));
+}
+
+#[test]
+fn test_style_fragment_requires_sigiled_let_reference() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  let muted = Style(fill: \"#6b7280\")\n  Space(value) { Point(style: muted) }\n}",
+        "E1707",
     ));
 }
 
@@ -2209,7 +2217,7 @@ fn test_bare_color_name_emits_h3002_hint() {
 #[test]
 fn test_let_constant_resolves_in_property_value() {
     let analysis = analyze_source(
-        "Chart(data: \"p.csv\") {\n  let primary = \"#3366cc\"\n  let dim = 0.4\n  Space(flipper_length * body_mass) {\n    Point(fill: primary, alpha: dim)\n  }\n}",
+        "Chart(data: \"p.csv\") {\n  let primary = \"#3366cc\"\n  let dim = 0.4\n  Space(flipper_length * body_mass) {\n    Point(fill: $primary, alpha: $dim)\n  }\n}",
         &schema(),
     );
     assert!(
@@ -2247,7 +2255,7 @@ fn test_duplicate_let_binding_is_reported() {
 fn test_let_type_mismatch_at_use_site() {
     // A string variable used where a number is expected is an E1204 type error.
     assert!(has(
-        "Chart(data: \"p.csv\") {\n  let label = \"x\"\n  Space(flipper_length * body_mass) {\n    Point(alpha: label)\n  }\n}",
+        "Chart(data: \"p.csv\") {\n  let label = \"x\"\n  Space(flipper_length * body_mass) {\n    Point(alpha: $label)\n  }\n}",
         "E1204",
     ));
 }
@@ -2255,7 +2263,7 @@ fn test_let_type_mismatch_at_use_site() {
 #[test]
 fn test_space_let_shadows_chart_let() {
     let analysis = analyze_source(
-        "Chart(data: \"p.csv\") {\n  let c = \"#111111\"\n  Space(flipper_length * body_mass) {\n    let c = \"#222222\"\n    Point(fill: c)\n  }\n}",
+        "Chart(data: \"p.csv\") {\n  let c = \"#111111\"\n  Space(flipper_length * body_mass) {\n    let c = \"#222222\"\n    Point(fill: $c)\n  }\n}",
         &schema(),
     );
     assert!(
@@ -2270,11 +2278,69 @@ fn test_space_let_shadows_chart_let() {
 
 #[test]
 fn test_space_let_does_not_leak_to_sibling_space() {
-    // `local` is bound in the first space only; the second space sees it as an
-    // unknown column, not a variable.
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    let local = \"#333\"\n    Point(fill: $local)\n  }\n  Space(flipper_length * body_mass) {\n    Point(fill: local)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E1101"),
+        "{:?}",
+        analysis.diagnostics
+    );
+    assert!(
+        !analysis
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E1707"),
+        "{:?}",
+        analysis.diagnostics
+    );
+}
+
+#[test]
+fn test_missing_sigiled_let_reference_is_e1707() {
     assert!(has(
-        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    let local = \"#333\"\n    Point(fill: local)\n  }\n  Space(flipper_length * body_mass) {\n    Point(fill: local)\n  }\n}",
-        "E1101",
+        "Chart(data: \"p.csv\") {\n  let primary = \"#3366cc\"\n  Space(flipper_length * body_mass) {\n    Point(fill: primary)\n  }\n}",
+        "E1707",
+    ));
+}
+
+#[test]
+fn test_unexpanded_external_placeholder_is_targeted_parse_diagnostic() {
+    let src = "Chart(data: \"penguins.csv\") {\n    let primary = \"#3366cc\"\n    let muted = Style(fill: \"#6b7280\", alpha: 0.55)\n\n    Space(flipper_length * body_mass) {\n        Point(style: $muted, stroke: ${primary}, fill: species)\n    }\n}";
+    let cs = codes(src);
+    assert!(cs.contains(&"H3006"), "{cs:?}");
+    assert!(!cs.contains(&"E0010"), "{cs:?}");
+    assert!(!cs.contains(&"E0014"), "{cs:?}");
+    assert!(!cs.contains(&"E1204"), "{cs:?}");
+}
+
+#[test]
+fn test_bare_column_wins_over_same_named_let_binding() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  let species = \"#333\"\n  Space(flipper_length * body_mass) {\n    Point(fill: species)\n  }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let geo = &analysis.ir.expect("ir").spaces[0].geometries[0];
+    assert!(geo
+        .mappings
+        .iter()
+        .any(|mapping| mapping.aesthetic == PropertyKey::Fill && mapping.column.name == "species"));
+}
+
+#[test]
+fn test_sigiled_space_let_does_not_leak_to_sibling_space() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Space(flipper_length * body_mass) {\n    let local = \"#333\"\n    Point(fill: $local)\n  }\n  Space(flipper_length * body_mass) {\n    Point(fill: $local)\n  }\n}",
+        "E1707",
     ));
 }
 
@@ -2514,7 +2580,7 @@ fn test_chart_accessibility_metadata_is_recorded() {
 #[test]
 fn test_theme_override_composes_with_let() {
     let analysis = analyze_source(
-        "Chart(data: \"p.csv\") {\n  let ink = \"#101010\"\n  Theme(textColor: ink)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "Chart(data: \"p.csv\") {\n  let ink = \"#101010\"\n  Theme(textColor: $ink)\n  Space(flipper_length * body_mass) { Point() }\n}",
         &schema(),
     );
     assert!(
@@ -2529,7 +2595,7 @@ fn test_theme_override_composes_with_let() {
 #[test]
 fn test_document_let_is_visible_and_shadowed_by_chart_let() {
     let analysis = analyze_source(
-        "let ink = \"#101010\"\nChart(data: \"p.csv\") {\n  let ink = \"#202020\"\n  Theme(textColor: ink)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "let ink = \"#101010\"\nChart(data: \"p.csv\") {\n  let ink = \"#202020\"\n  Theme(textColor: $ink)\n  Space(flipper_length * body_mass) { Point() }\n}",
         &schema(),
     );
     assert!(
@@ -2544,7 +2610,7 @@ fn test_document_let_is_visible_and_shadowed_by_chart_let() {
 #[test]
 fn test_document_theme_binding_and_base_reference_are_flattened() {
     let analysis = analyze_source(
-        "let house = Theme(base: \"minimal\", textColor: \"#101010\", gridMajor: Line(stroke: \"#dddddd\", strokeWidth: 1))\nChart(data: \"p.csv\") {\n  Theme(base: house, axisYPosition: \"right\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "let house = Theme(base: \"minimal\", textColor: \"#101010\", gridMajor: Line(stroke: \"#dddddd\", strokeWidth: 1))\nChart(data: \"p.csv\") {\n  Theme(base: $house, axisYPosition: \"right\")\n  Space(flipper_length * body_mass) { Point() }\n}",
         &schema(),
     );
     assert!(
@@ -2565,7 +2631,7 @@ fn test_document_theme_binding_and_base_reference_are_flattened() {
 #[test]
 fn test_document_theme_without_base_defaults_to_minimal() {
     let analysis = analyze_source(
-        "let house = Theme(textColor: \"#101010\")\nChart(data: \"p.csv\") {\n  Theme(base: house)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "let house = Theme(textColor: \"#101010\")\nChart(data: \"p.csv\") {\n  Theme(base: $house)\n  Space(flipper_length * body_mass) { Point() }\n}",
         &schema(),
     );
     assert!(
@@ -2581,7 +2647,7 @@ fn test_document_theme_without_base_defaults_to_minimal() {
 #[test]
 fn test_document_theme_base_chaining_layers_in_order() {
     let analysis = analyze_source(
-        "let house = Theme(base: \"minimal\", textColor: \"#101010\")\nlet compact_house = Theme(base: house, fontSize: 10, legendSpacing: 10)\nChart(data: \"p.csv\") {\n  Theme(base: compact_house, textColor: \"#202020\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        "let house = Theme(base: \"minimal\", textColor: \"#101010\")\nlet compact_house = Theme(base: $house, fontSize: 10, legendSpacing: 10)\nChart(data: \"p.csv\") {\n  Theme(base: $compact_house, textColor: \"#202020\")\n  Space(flipper_length * body_mass) { Point() }\n}",
         &schema(),
     );
     assert!(
@@ -2631,7 +2697,7 @@ fn test_theme_unknown_document_base_is_reported() {
 #[test]
 fn test_document_theme_base_cycle_is_reported() {
     assert!(has(
-        "let a = Theme(base: b)\nlet b = Theme(base: a)\nChart(data: \"p.csv\") {\n  Space(value) { Point() }\n}",
+        "let a = Theme(base: $b)\nlet b = Theme(base: $a)\nChart(data: \"p.csv\") {\n  Space(value) { Point() }\n}",
         "E1705",
     ));
 }
@@ -2639,8 +2705,16 @@ fn test_document_theme_base_cycle_is_reported() {
 #[test]
 fn test_document_theme_binding_rejects_data_dependent_values() {
     assert!(has(
-        "let house = Theme(textColor: species)\nChart(data: \"p.csv\") {\n  Theme(base: house)\n  Space(value) { Point() }\n}",
+        "let house = Theme(textColor: species)\nChart(data: \"p.csv\") {\n  Theme(base: $house)\n  Space(value) { Point() }\n}",
         "E1705",
+    ));
+}
+
+#[test]
+fn test_theme_base_requires_sigiled_let_reference() {
+    assert!(has(
+        "let house = Theme(textColor: \"#101010\")\nChart(data: \"p.csv\") {\n  Theme(base: house)\n  Space(value) { Point() }\n}",
+        "E1707",
     ));
 }
 
@@ -2836,7 +2910,7 @@ fn test_glyph_body_declarations_apply_to_child_spaces() {
     Theme(name: "void")
     Scale(fill: category, range: ["a" => "#4E79A7", "b" => "#F28E2B"])
     Space(t * value) {
-      Line(stroke: lineColor)
+      Line(stroke: $lineColor)
       Point(fill: category)
     }
   }

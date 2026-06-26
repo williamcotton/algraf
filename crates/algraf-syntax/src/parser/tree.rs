@@ -60,6 +60,10 @@ impl Parser {
             .push(Diagnostic::error(code, message, span));
     }
 
+    pub(super) fn diagnostic(&mut self, diagnostic: Diagnostic) {
+        self.diagnostics.push(diagnostic);
+    }
+
     /// Consume the current significant token if it matches `kind`; otherwise
     /// record a diagnostic without consuming (recovery is the caller's job).
     pub(super) fn expect(&mut self, kind: SyntaxKind, code: DiagnosticCode, message: &str) {

@@ -6,11 +6,11 @@ let accent = "#126c73"
 
 let house = Theme(
     name: "minimal",
-    background: paper,
-    plotBackground: panel,
-    axisText: Text(size: 11, fill: ink),
-    axisTitle: Text(size: 12, fill: ink),
-    gridMajor: Line(stroke: faint, strokeWidth: 1),
+    background: $paper,
+    plotBackground: $panel,
+    axisText: Text(size: 11, fill: $ink),
+    axisTitle: Text(size: 12, fill: $ink),
+    gridMajor: Line(stroke: $faint, strokeWidth: 1),
     legendPosition: "bottom",
     legendSpacing: 16,
     axisYPosition: "right"
@@ -22,9 +22,9 @@ Chart(data: "penguins.csv", width: 760, height: 520,
       caption: "Top-level let bindings supply the shared colors and theme.",
       source: "Source: sample penguin measurements") {
     Theme(
-        base: house,
+        base: $house,
         gridX: false,
-        plotTitle: Text(size: 22, weight: "bold", fill: accent),
+        plotTitle: Text(size: 22, weight: "bold", fill: $accent),
         plotSource: Text(size: 10, fill: "#6f7d84")
     )
     Scale(fill: species, label: "Species")

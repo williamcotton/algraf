@@ -1,4 +1,4 @@
-use algraf_core::codes;
+use algraf_core::{codes, Diagnostic, Severity, Span};
 
 use crate::lexer::TokenKind;
 use crate::syntax_kind::SyntaxKind;
@@ -20,6 +20,7 @@ impl Parser {
                 self.builder.finish_node();
             }
             SyntaxKind::L_BRACKET => self.bracket_value(),
+            SyntaxKind::DOLLAR => self.variable_ref_value(),
             // Bare `input`/`stdin` is the caller-provided data sentinel only when
             // it is the whole value (spec §10.1, §12.13); otherwise it is an
             // ordinary column.
@@ -46,6 +47,99 @@ impl Parser {
                 self.builder.finish_node();
             }
         }
+    }
+
+    /// Parse a sigiled `let` binding reference `$name` (spec §7.8, §9.6).
+    pub(super) fn variable_ref_value(&mut self) {
+        let dollar_span = self.current_span();
+        if self.at_external_placeholder_start(dollar_span) {
+            self.external_placeholder_value(dollar_span);
+            return;
+        }
+
+        self.builder.start_node(SyntaxKind::VARIABLE_REF.into());
+        self.bump(); // '$'
+        if self.at(SyntaxKind::IDENT) {
+            let ident_span = self.current_span();
+            if ident_span.start != dollar_span.end {
+                self.error(
+                    codes::E0010,
+                    "expected identifier immediately after '$'",
+                    ident_span,
+                );
+            }
+            self.bump();
+        } else {
+            self.expect(
+                SyntaxKind::IDENT,
+                codes::E0010,
+                "expected identifier after '$'",
+            );
+        }
+        self.builder.finish_node();
+    }
+
+    fn at_external_placeholder_start(&self, dollar_span: Span) -> bool {
+        self.nth_kind(1) == SyntaxKind::L_BRACE && self.nth(1).span.start == dollar_span.end
+    }
+
+    fn external_placeholder_value(&mut self, dollar_span: Span) {
+        self.builder.start_node(SyntaxKind::ERROR.into());
+        self.bump(); // '$'
+
+        let lbrace_span = self.current_span();
+        self.bump(); // '{'
+        let mut end = lbrace_span.end;
+
+        let name = if self.at(SyntaxKind::IDENT) && self.nth_kind(1) == SyntaxKind::R_BRACE {
+            self.current_ident_text().map(str::to_string)
+        } else {
+            None
+        };
+
+        while !self.at_eof()
+            && !self.at(SyntaxKind::R_BRACE)
+            && !matches!(
+                self.nth_kind(0),
+                SyntaxKind::COMMA | SyntaxKind::R_PAREN | SyntaxKind::R_BRACKET
+            )
+            && !self.at_chart_keyword()
+        {
+            let span = self.current_span();
+            self.bump();
+            end = span.end;
+        }
+
+        let closed = if self.at(SyntaxKind::R_BRACE) {
+            let span = self.current_span();
+            self.bump();
+            end = span.end;
+            true
+        } else {
+            false
+        };
+        self.builder.finish_node();
+
+        let mut diagnostic = Diagnostic::new(
+            Severity::Information,
+            codes::H3006,
+            "external variable placeholder awaits host expansion",
+            Span::new(dollar_span.start, end),
+        );
+        diagnostic = if closed {
+            if let Some(name) = name {
+                diagnostic.with_help(format!(
+                    "pass `--var {name}=...` to the CLI or host runtime, or write `${name}` for an Algraf `let` binding"
+                ))
+            } else {
+                diagnostic.with_help(
+                    "external placeholders use `${name}` and are expanded before parsing",
+                )
+            }
+        } else {
+            diagnostic.with_help("unterminated external placeholder; expected `${name}`")
+        };
+        self.diagnostic(diagnostic);
     }
 
     /// Whether the `n`-th significant token ends a value (so the preceding token

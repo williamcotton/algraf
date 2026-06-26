@@ -6,6 +6,8 @@ use crate::DriverError;
 ///
 /// Values are inserted as already-escaped Algraf source fragments. Diagnostics
 /// and parser spans after expansion refer to the expanded source.
+/// Invocation variables use `${name}` so `$name` remains Algraf `let`
+/// reference syntax.
 pub fn expand_variables(
     source: &str,
     variables: &HashMap<String, String>,
@@ -35,17 +37,6 @@ pub fn expand_variables(
                     return Err(DriverError::Usage(
                         "unterminated variable placeholder; expected ${name}".to_string(),
                     ));
-                }
-                push_variable(&mut out, &name, variables)?;
-            }
-            Some((_, next)) if is_name_start(next) => {
-                let mut name = String::new();
-                while let Some((_, next)) = chars.peek().copied() {
-                    if !is_name_continue(next) {
-                        break;
-                    }
-                    name.push(next);
-                    chars.next();
                 }
                 push_variable(&mut out, &name, variables)?;
             }
@@ -121,7 +112,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn expands_braced_and_bare_placeholders() {
+    fn expands_braced_placeholders_and_preserves_sigiled_references() {
         let variables = HashMap::from([
             ("color".to_string(), "#e74c3c".to_string()),
             ("size".to_string(), "3".to_string()),
@@ -130,14 +121,14 @@ mod tests {
         let expanded =
             expand_variables(r#"Point(fill: "$color", size: ${size})"#, &variables).unwrap();
 
-        assert_eq!(expanded, r##"Point(fill: "#e74c3c", size: 3)"##);
+        assert_eq!(expanded, r##"Point(fill: "$color", size: 3)"##);
     }
 
     #[test]
     fn rejects_missing_and_duplicate_variables() {
         let variables = HashMap::new();
         assert!(matches!(
-            expand_variables("Point(size: $size)", &variables),
+            expand_variables("Point(size: ${size})", &variables),
             Err(DriverError::Usage(message)) if message.contains("undefined variable")
         ));
 
