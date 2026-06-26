@@ -80,9 +80,40 @@ impl Root {
         child_nodes(&self.syntax, ChartBlock::cast)
     }
 
+    /// Every document-scope `let` declaration, in source order.
+    pub fn lets(&self) -> Vec<LetDecl> {
+        child_nodes(&self.syntax, LetDecl::cast)
+    }
+
     /// Every document-scope table declaration, in source order.
     pub fn tables(&self) -> Vec<TableDecl> {
         child_nodes(&self.syntax, TableDecl::cast)
+    }
+
+    /// Every document-scope item after the optional header, in source order.
+    pub fn items(&self) -> Vec<RootItem> {
+        child_nodes(&self.syntax, RootItem::cast)
+    }
+}
+
+/// A document-scope item (spec section 11.4).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RootItem {
+    Let(LetDecl),
+    Table(TableDecl),
+    Chart(ChartBlock),
+    Error(Error),
+}
+
+impl RootItem {
+    pub fn cast(node: SyntaxNode) -> Option<RootItem> {
+        match node.kind() {
+            SyntaxKind::LET_DECL => LetDecl::cast(node).map(RootItem::Let),
+            SyntaxKind::TABLE_DECL => TableDecl::cast(node).map(RootItem::Table),
+            SyntaxKind::CHART_BLOCK => ChartBlock::cast(node).map(RootItem::Chart),
+            SyntaxKind::ERROR => Error::cast(node).map(RootItem::Error),
+            _ => None,
+        }
     }
 }
 

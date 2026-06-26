@@ -132,6 +132,7 @@ charts=(
     top_down_icicle
     variables
     custom_theme
+    theme_reuse
     strategic_reserves
     text_chrome
     path

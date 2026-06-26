@@ -2919,11 +2919,11 @@ Chart(data: "timeseries.csv", width: 760, height: 420) {
 ## Variables with `let`
 
 A `let` binding names a constant value so it can be reused across a chart
-instead of repeating the literal. Bindings are valid at chart scope (visible
-everywhere) and space scope (visible in that space, shadowing a chart binding of
-the same name). They resolve in property value positions; a bare identifier
-matching a binding wins over a column of the same name, while a backtick-quoted
-identifier is always a column.
+instead of repeating the literal. Bindings are valid at document scope (visible
+to every chart), chart scope (visible everywhere in that chart), and space scope
+(visible in that space). Inner bindings shadow outer bindings. They resolve in
+property value positions; a bare identifier matching a binding wins over a
+column of the same name, while a backtick-quoted identifier is always a column.
 
 ```algraf
 Chart(data: "penguins.csv") {
@@ -2968,6 +2968,55 @@ Chart(data: "penguins.csv") {
 ```
 
 ![custom_theme](custom_theme.svg)
+
+## Reusable document theme
+
+A document-scope `let` can bind a `Theme(...)` value. Use `Theme(base: house)`
+inside a chart or space to inherit that reusable house style, then layer local
+overrides on top. The document-bound theme can itself reference document-scope
+color constants.
+
+```algraf
+let ink = "#24313d"
+let paper = "#f7f1e6"
+let panel = "#fffaf0"
+let faint = "#d8cbb5"
+let accent = "#126c73"
+
+let house = Theme(
+    name: "minimal",
+    background: paper,
+    plotBackground: panel,
+    axisText: Text(size: 11, fill: ink),
+    axisTitle: Text(size: 12, fill: ink),
+    gridMajor: Line(stroke: faint, strokeWidth: 1),
+    legendPosition: "bottom",
+    legendSpacing: 16,
+    axisYPosition: "right"
+)
+
+Chart(data: "penguins.csv", width: 760, height: 520,
+      title: "Reusable house theme",
+      subtitle: "A document-scoped Theme reused as a chart base",
+      caption: "Top-level let bindings supply the shared colors and theme.",
+      source: "Source: sample penguin measurements") {
+    Theme(
+        base: house,
+        gridX: false,
+        plotTitle: Text(size: 22, weight: "bold", fill: accent),
+        plotSource: Text(size: 10, fill: "#6f7d84")
+    )
+    Scale(fill: species, label: "Species")
+    Guide(axis: x, label: "Flipper length (mm)")
+    Guide(axis: y, label: "Body mass (g)")
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.76, size: 4)
+    }
+}
+```
+
+![theme_reuse](theme_reuse.svg)
 
 ## Presentation theme, bottom legend, and accessibility text
 

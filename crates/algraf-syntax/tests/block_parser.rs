@@ -1,6 +1,6 @@
 //! Block grammar parser tests (spec §7, §12.7–12.14, §27.3–27.4).
 
-use algraf_syntax::ast::{ChartItem, LiteralKind, Root, SpaceItem, ValueExpr};
+use algraf_syntax::ast::{ChartItem, LiteralKind, Root, RootItem, SpaceItem, ValueExpr};
 use algraf_syntax::{parse, SyntaxNode};
 
 fn root(source: &str) -> Root {
@@ -482,6 +482,31 @@ fn test_let_binding_parses_at_chart_and_space_scope() {
     assert!(
         matches!(space_let.value(), Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::Number))
     );
+}
+
+#[test]
+fn test_document_scope_let_parses_around_tables_and_charts() {
+    let source = r##"Algraf(version: "0.20")
+let ink = "#333333"
+Table main = "p.csv"
+Chart(data: main) {
+    Space(x * y) { Point(fill: ink) }
+}
+let faint = "#dddddd"
+Chart(data: main) {
+    Space(x * y) { Line(stroke: faint) }
+}"##;
+    no_errors(source);
+    let root = root(source);
+    assert_eq!(root.lets().len(), 2);
+    assert_eq!(root.tables().len(), 1);
+    assert_eq!(root.charts().len(), 2);
+    let items = root.items();
+    assert!(matches!(items[0], RootItem::Let(_)));
+    assert!(matches!(items[1], RootItem::Table(_)));
+    assert!(matches!(items[2], RootItem::Chart(_)));
+    assert!(matches!(items[3], RootItem::Let(_)));
+    assert!(matches!(items[4], RootItem::Chart(_)));
 }
 
 #[test]

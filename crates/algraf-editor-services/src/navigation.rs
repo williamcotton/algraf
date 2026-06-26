@@ -29,9 +29,21 @@ pub struct LetSite {
     pub name: String,
     /// Span of the variable-name identifier token (the navigation target).
     name_span: Span,
-    /// The start offset of the enclosing `Space` block, or `None` for a
-    /// chart-scope binding.
-    scope: Option<usize>,
+    /// The lexical scope that owns this binding.
+    scope: LetScope,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LetScope {
+    Document,
+    Chart(usize),
+    Space(usize),
+}
+
+#[derive(Clone, Copy)]
+struct RefScope {
+    chart: Option<usize>,
+    space: Option<usize>,
 }
 
 /// A variable reference in a property value position, tagged with the scope it
@@ -39,7 +51,7 @@ pub struct LetSite {
 struct VarRefSite {
     name: String,
     span: Span,
-    scope: Option<usize>,
+    scope: RefScope,
 }
 
 /// An index of all in-document name occurrences, partitioned by namespace
@@ -81,7 +93,7 @@ pub fn build_name_index(root: &SyntaxNode) -> NameIndex {
                         index.lets.push(LetSite {
                             name,
                             name_span: span,
-                            scope: enclosing_space_start(&node),
+                            scope: binding_scope(&node),
                         });
                     }
                 }
@@ -127,7 +139,7 @@ pub fn build_name_index(root: &SyntaxNode) -> NameIndex {
             index.table_refs.push(NameRef { name, span });
             continue;
         }
-        let scope = enclosing_space_start(&node);
+        let scope = reference_scope(&node);
         if !algebra.is_quoted()
             && is_property_value(&node)
             && resolve_binding_scope(&index.lets, &name, scope).is_some()
@@ -140,17 +152,35 @@ pub fn build_name_index(root: &SyntaxNode) -> NameIndex {
     index
 }
 
-/// The start offset of the nearest enclosing `Space` block, or `None` when the
-/// node sits directly in chart scope.
-fn enclosing_space_start(node: &SyntaxNode) -> Option<usize> {
+fn binding_scope(node: &SyntaxNode) -> LetScope {
+    let scope = reference_scope(node);
+    if let Some(space) = scope.space {
+        LetScope::Space(space)
+    } else if let Some(chart) = scope.chart {
+        LetScope::Chart(chart)
+    } else {
+        LetScope::Document
+    }
+}
+
+/// The start offsets of the nearest enclosing chart and space blocks.
+fn reference_scope(node: &SyntaxNode) -> RefScope {
     let mut current = node.parent();
+    let mut chart = None;
+    let mut space = None;
     while let Some(parent) = current {
-        if parent.kind() == SyntaxKind::SPACE_BLOCK {
-            return Some(u32::from(parent.text_range().start()) as usize);
+        match parent.kind() {
+            SyntaxKind::SPACE_BLOCK if space.is_none() => {
+                space = Some(u32::from(parent.text_range().start()) as usize);
+            }
+            SyntaxKind::CHART_BLOCK if chart.is_none() => {
+                chart = Some(u32::from(parent.text_range().start()) as usize);
+            }
+            _ => {}
         }
         current = parent.parent();
     }
-    None
+    RefScope { chart, space }
 }
 
 /// Whether an `ALGEBRA_NAME` sits in a property value position (the value of an
@@ -171,26 +201,36 @@ fn is_property_value(node: &SyntaxNode) -> bool {
 }
 
 /// Resolve which `let` binding a reference named `name` in scope `ref_scope`
-/// binds to: a space-scope binding in the same space shadows a chart-scope one
+/// binds to: space scope shadows chart scope, which shadows document scope
 /// (spec §9.6). Returns the binding's scope, or `None` if undefined.
-fn resolve_binding_scope(
-    lets: &[LetSite],
-    name: &str,
-    ref_scope: Option<usize>,
-) -> Option<Option<usize>> {
-    if let Some(space) = ref_scope {
+fn resolve_binding_scope(lets: &[LetSite], name: &str, ref_scope: RefScope) -> Option<LetScope> {
+    if let Some(space) = ref_scope.space {
         if lets
             .iter()
-            .any(|site| site.name == name && site.scope == Some(space))
+            .any(|site| site.name == name && site.scope == LetScope::Space(space))
         {
-            return Some(Some(space));
+            return Some(LetScope::Space(space));
         }
     }
-    if lets
-        .iter()
-        .any(|site| site.name == name && site.scope.is_none())
-    {
-        return Some(None);
+    if let Some(chart) = ref_scope.chart {
+        if lets
+            .iter()
+            .any(|site| site.name == name && site.scope == LetScope::Chart(chart))
+        {
+            return Some(LetScope::Chart(chart));
+        }
+    }
+    if lets.iter().any(|site| {
+        site.name == name
+            && matches!(
+                site.scope,
+                // Sources that predate document scope treated non-space lets
+                // as chart-scope. Keep navigation compatible by resolving a
+                // reference outside a chart to document bindings only.
+                LetScope::Document
+            )
+    }) {
+        return Some(LetScope::Document);
     }
     None
 }
@@ -214,7 +254,7 @@ enum Target {
     /// A `let` variable, identified by name and the binding's scope.
     Variable {
         name: String,
-        scope: Option<usize>,
+        scope: LetScope,
     },
     Column(String),
     /// The chart's `data:` string literal.
@@ -238,7 +278,7 @@ fn target_at(index: &NameIndex, root: &SyntaxNode, offset: usize) -> Option<Targ
     for reference in &index.var_refs {
         if reference.span.contains(offset) {
             let scope = resolve_binding_scope(&index.lets, &reference.name, reference.scope)
-                .unwrap_or(reference.scope);
+                .unwrap_or_else(|| binding_scope(root));
             return Some(Target::Variable {
                 name: reference.name.clone(),
                 scope,

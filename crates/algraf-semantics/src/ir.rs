@@ -141,6 +141,59 @@ pub struct ThemeOverrides {
     pub axis_x_position: Option<AxisPositionIr>,
 }
 
+impl ThemeOverrides {
+    /// Layer `other` on top of this override set. Only fields explicitly set in
+    /// `other` replace existing values.
+    pub fn merge_from(&mut self, other: &ThemeOverrides) {
+        macro_rules! merge_fields {
+            ($($field:ident),+ $(,)?) => {
+                $(
+                    if other.$field.is_some() {
+                        self.$field = other.$field.clone();
+                    }
+                )+
+            };
+        }
+
+        merge_fields!(
+            font_family,
+            font_size,
+            background,
+            plot_background,
+            axis_color,
+            grid_major_color,
+            grid_major_width,
+            text_color,
+            title_size,
+            point_size,
+            line_width,
+            grid,
+            grid_x,
+            grid_y,
+            axes,
+            plot_title,
+            plot_subtitle,
+            plot_caption,
+            plot_source,
+            axis_title,
+            axis_text,
+            axis_line,
+            axis_ticks,
+            axis_tick_length,
+            strip_text,
+            legend_title,
+            legend_text,
+            panel_background,
+            grid_major,
+            grid_minor,
+            legend_position,
+            legend_spacing,
+            axis_y_position,
+            axis_x_position,
+        );
+    }
+}
+
 /// A structured `Text(...)` theme-element override. Each field is optional so
 /// source can override one text property without restating the inherited style.
 #[derive(Debug, Clone, Default, PartialEq)]

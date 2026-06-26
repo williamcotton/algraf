@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use crate::ast::{
     AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, DeriveDecl, GlyphDecl, GlyphItem, LetDecl, Root,
-    SourceHeader, SpaceBlock, SpaceItem, StatCall, TableDecl, ValueExpr,
+    RootItem, SourceHeader, SpaceBlock, SpaceItem, StatCall, TableDecl, ValueExpr,
 };
 use crate::parser::parse;
 use crate::syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken};
@@ -41,22 +41,20 @@ pub fn format(source: &str) -> String {
         printer.source_header(&header);
         printer.line("");
     }
-    let tables = root_view.tables();
-    for table in &tables {
-        printer.table_binding(table);
-    }
-    if !tables.is_empty() && !charts.is_empty() {
-        printer.line("");
-    }
-    for (index, chart) in charts.iter().enumerate() {
-        if index > 0 {
+    let items = root_view.items();
+    for (index, item) in items.iter().enumerate() {
+        if index > 0 && root_items_need_blank(&items[index - 1], item) {
             printer.line("");
         }
-        printer.chart(chart);
+        printer.root_item(item);
     }
     // Comments after the final top-level item, on their own line.
     printer.emit_standalone(Some(usize::MAX));
     printer.out
+}
+
+fn root_items_need_blank(previous: &RootItem, current: &RootItem) -> bool {
+    matches!(previous, RootItem::Chart(_)) || matches!(current, RootItem::Chart(_))
 }
 
 /// Comments classified by the token they attach to (keyed by byte offset).
@@ -177,6 +175,15 @@ impl Printer {
 
     fn source_header(&mut self, header: &SourceHeader) {
         self.call_item(header.syntax(), "Algraf", &header.args());
+    }
+
+    fn root_item(&mut self, item: &RootItem) {
+        match item {
+            RootItem::Let(decl) => self.let_binding(decl),
+            RootItem::Table(decl) => self.table_binding(decl),
+            RootItem::Chart(chart) => self.chart(chart),
+            RootItem::Error(err) => self.raw(err.syntax()),
+        }
     }
 
     fn chart(&mut self, chart: &ChartBlock) {

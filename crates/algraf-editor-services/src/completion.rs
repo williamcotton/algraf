@@ -187,6 +187,7 @@ pub fn completion_items(state: &DocumentState, context: CompletionContext) -> Ve
                 "Algraf(version: \"0.21\")",
                 "Optional source language header",
             ),
+            snippet("let", "let $1 = $2", "Document-scoped constant binding"),
             snippet(
                 "Chart",
                 "Chart(data: \"$1\") {\n    Space($2) {\n        Point($3)\n    }\n}",
@@ -498,11 +499,20 @@ fn declaration_value_items(
         }
         ("Theme", "name") => registry::THEME_NAMES
             .iter()
-            .map(|value| value_item(&format!("\"{value}\""), "Theme name"))
+            .map(|value| value_item(&format!("\"{value}\""), "Built-in theme name"))
             .collect(),
+        ("Theme", "base") => {
+            let mut items = registry::THEME_NAMES
+                .iter()
+                .map(|value| value_item(&format!("\"{value}\""), "Built-in theme base"))
+                .collect::<Vec<_>>();
+            items.extend(variable_items(state));
+            dedupe_by_label(items)
+        }
         ("Theme", "plotTitle")
         | ("Theme", "plotSubtitle")
         | ("Theme", "plotCaption")
+        | ("Theme", "plotSource")
         | ("Theme", "axisTitle")
         | ("Theme", "axisText")
         | ("Theme", "stripText")
@@ -523,7 +533,15 @@ fn declaration_value_items(
             .iter()
             .map(|value| value_item(&format!("\"{value}\""), "Legend position"))
             .collect(),
-        ("Theme", "grid") | ("Theme", "axes") => vec![
+        ("Theme", "axisYPosition") => ["left", "right"]
+            .iter()
+            .map(|value| value_item(&format!("\"{value}\""), "Y axis position"))
+            .collect(),
+        ("Theme", "axisXPosition") => ["bottom", "top"]
+            .iter()
+            .map(|value| value_item(&format!("\"{value}\""), "X axis position"))
+            .collect(),
+        ("Theme", "grid") | ("Theme", "gridX") | ("Theme", "gridY") | ("Theme", "axes") => vec![
             value_item("true", "Boolean literal"),
             value_item("false", "Boolean literal"),
         ],
@@ -1030,6 +1048,18 @@ mod tests {
     #[test]
     fn top_level_completion_offers_chart() {
         let items = completion_items(&empty_state(), CompletionContext::TopLevel);
-        assert_eq!(labels(&items), vec!["Algraf", "Chart", "Table"]);
+        assert_eq!(labels(&items), vec!["Algraf", "let", "Chart", "Table"]);
+    }
+
+    #[test]
+    fn theme_arg_completion_offers_base() {
+        let items = completion_items(
+            &empty_state(),
+            CompletionContext::DeclArgs {
+                decl: "Theme".to_string(),
+                active_key: None,
+            },
+        );
+        assert!(labels(&items).contains(&"base"));
     }
 }

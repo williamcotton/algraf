@@ -65,7 +65,8 @@ Chart(data: "data.csv") {
 ```
 
 Top-level items are an optional `Algraf(...)` source header, document-scope
-`Table` declarations, and one or more `Chart` blocks. Chart bodies can contain
+`let` and `Table` declarations, and one or more `Chart` blocks. Document-scope
+`let` declarations are visible to every chart. Chart bodies can contain
 `Table`, `Parse`, `Derive`, `Glyph`, `let`, `Scale`, `Guide`, `Theme`,
 `Layout`, and `Space` declarations where supported by the current
 implementation.
@@ -462,15 +463,25 @@ table = Stat(...)` reads a chart-scoped `Table` or earlier `Derive`; without
 `from`, the stat reads the chart's primary table. Use
 `Space(..., data: derived_name)` to draw the result.
 
-### let and Style
+### let, Style, and Theme bindings
 
 ```ag
 let muted = Style(fill: "#6b7280", alpha: 0.55)
+let house = Theme(name: "minimal", gridMajor: Line(stroke: "#d8d4cc"))
 
-Space(x * y) {
-    Point(style: muted)
+Chart(data: "points.csv") {
+    Theme(base: house, gridX: false)
+
+    Space(x * y) {
+        Point(style: muted)
+    }
 }
 ```
+
+`let` declarations are valid at document, chart, and space scope. Inner scopes
+shadow outer scopes. Document-scope `let` declarations may bind `Theme(...)`
+values for reuse with `Theme(base: name)`. Chart-scope and space-scope `let`
+declarations may bind constants and `Style(...)`, but not `Theme(...)`.
 
 `Style(...)` is a literal property bag, not a function. Accepted style keys:
 
@@ -485,13 +496,19 @@ Do not put `style:` inside `Style(...)`.
 ```ag
 Theme(name: "minimal")
 Theme(name: "minimal", grid: false, fontSize: 12)
+Theme(base: "minimal")
+Theme(base: house, gridX: false)
 ```
 
-Theme names:
+Built-in theme base names:
 
 ```text
 minimal classic light dark void gray bw linedraw
 ```
+
+Use `name: "minimal"` or `base: "minimal"` for built-in bases. Use
+`base: house` to inherit a document-scope `let house = Theme(...)` binding. Do
+not provide both `name:` and `base:` in the same `Theme(...)` call.
 
 Theme override keys:
 

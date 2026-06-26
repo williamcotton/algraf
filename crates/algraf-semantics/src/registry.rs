@@ -269,7 +269,13 @@ const THEME_DOC_ARGS: &[ArgDoc] = &[
         name: "name",
         value: "\"minimal\" | \"classic\" | \"light\" | \"dark\" | \"void\" | \"gray\" | \"bw\" | \"linedraw\"",
         default: Some("inherited"),
-        doc: "Named base theme.",
+        doc: "Built-in base theme name.",
+    },
+    ArgDoc {
+        name: "base",
+        value: "theme name | document theme",
+        default: Some("inherited"),
+        doc: "Built-in theme string or bare document theme binding to inherit before local overrides.",
     },
     ArgDoc {
         name: "plotTitle",
@@ -774,9 +780,10 @@ pub fn declaration_doc(name: &str) -> Option<CallDoc> {
         "Theme" => Some(CallDoc {
             name: "Theme",
             kind: "Declaration",
-            description: "Selects a named theme and optional source-level overrides.",
+            description:
+                "Selects a built-in or document-bound base theme and optional source-level overrides.",
             args: THEME_DOC_ARGS,
-            example: "Theme(name: \"minimal\", grid: false)",
+            example: "Theme(base: house, grid: false)",
         }),
         "Scale" => Some(CallDoc {
             name: "Scale",
@@ -942,8 +949,26 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
         "Theme" => {
             const THEME_ARGS: &[&str] = &[
                 "name",
+                "base",
                 "axisText",
+                "axisTitle",
+                "axisLine",
+                "axisTicks",
+                "axisTickLength",
+                "plotTitle",
+                "plotSubtitle",
+                "plotCaption",
+                "plotSource",
+                "stripText",
+                "legendTitle",
+                "legendText",
+                "panelBackground",
                 "gridMajor",
+                "gridMinor",
+                "legendPosition",
+                "legendSpacing",
+                "axisYPosition",
+                "axisXPosition",
                 "fontFamily",
                 "fontSize",
                 "titleSize",
@@ -955,6 +980,8 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
                 "gridColor",
                 "textColor",
                 "grid",
+                "gridX",
+                "gridY",
                 "axes",
             ];
             THEME_ARGS
@@ -1686,6 +1713,7 @@ pub fn property_doc(name: &str) -> &'static str {
         "position" => "Axis side: y `\"left\"`/`\"right\"`, x `\"top\"`/`\"bottom\"`.",
         "features" => "Source feature gates reserved for future language capabilities.",
         "version" => "Algraf source language version.",
+        "base" => "Theme base: a built-in theme string or a bare document theme binding.",
         "xmin" => "Rectangle minimum x boundary.",
         "xmax" => "Rectangle maximum x boundary.",
         "ymin" => "Lower y boundary.",

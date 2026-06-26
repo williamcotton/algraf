@@ -2526,6 +2526,124 @@ fn test_theme_override_composes_with_let() {
     assert_eq!(theme.overrides.text_color.as_deref(), Some("#101010"));
 }
 
+#[test]
+fn test_document_let_is_visible_and_shadowed_by_chart_let() {
+    let analysis = analyze_source(
+        "let ink = \"#101010\"\nChart(data: \"p.csv\") {\n  let ink = \"#202020\"\n  Theme(textColor: ink)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let theme = analysis.ir.expect("ir").theme.expect("theme");
+    assert_eq!(theme.overrides.text_color.as_deref(), Some("#202020"));
+}
+
+#[test]
+fn test_document_theme_binding_and_base_reference_are_flattened() {
+    let analysis = analyze_source(
+        "let house = Theme(base: \"minimal\", textColor: \"#101010\", gridMajor: Line(stroke: \"#dddddd\", strokeWidth: 1))\nChart(data: \"p.csv\") {\n  Theme(base: house, axisYPosition: \"right\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let theme = analysis.ir.expect("ir").theme.expect("theme");
+    assert_eq!(theme.base.as_deref(), Some("minimal"));
+    assert_eq!(theme.overrides.text_color.as_deref(), Some("#101010"));
+    assert_eq!(theme.overrides.grid_major_color.as_deref(), Some("#dddddd"));
+    assert_eq!(
+        theme.overrides.axis_y_position.map(|pos| pos.as_str()),
+        Some("right")
+    );
+}
+
+#[test]
+fn test_document_theme_without_base_defaults_to_minimal() {
+    let analysis = analyze_source(
+        "let house = Theme(textColor: \"#101010\")\nChart(data: \"p.csv\") {\n  Theme(base: house)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let theme = analysis.ir.expect("ir").theme.expect("theme");
+    assert_eq!(theme.base.as_deref(), Some("minimal"));
+    assert_eq!(theme.overrides.text_color.as_deref(), Some("#101010"));
+}
+
+#[test]
+fn test_document_theme_base_chaining_layers_in_order() {
+    let analysis = analyze_source(
+        "let house = Theme(base: \"minimal\", textColor: \"#101010\")\nlet compact_house = Theme(base: house, fontSize: 10, legendSpacing: 10)\nChart(data: \"p.csv\") {\n  Theme(base: compact_house, textColor: \"#202020\")\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let theme = analysis.ir.expect("ir").theme.expect("theme");
+    assert_eq!(theme.base.as_deref(), Some("minimal"));
+    assert_eq!(theme.overrides.font_size, Some(10.0));
+    assert_eq!(theme.overrides.legend_spacing, Some(10.0));
+    assert_eq!(theme.overrides.text_color.as_deref(), Some("#202020"));
+}
+
+#[test]
+fn test_theme_base_builtin_string_is_supported() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Theme(base: \"dark\", grid: false)\n  Space(flipper_length * body_mass) { Point() }\n}",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let theme = analysis.ir.expect("ir").theme.expect("theme");
+    assert_eq!(theme.base.as_deref(), Some("dark"));
+    assert_eq!(theme.overrides.grid, Some(false));
+}
+
+#[test]
+fn test_theme_name_and_base_conflict_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\", base: \"dark\")\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+#[test]
+fn test_theme_unknown_document_base_is_reported() {
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Theme(base: house)\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+#[test]
+fn test_document_theme_base_cycle_is_reported() {
+    assert!(has(
+        "let a = Theme(base: b)\nlet b = Theme(base: a)\nChart(data: \"p.csv\") {\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
+#[test]
+fn test_document_theme_binding_rejects_data_dependent_values() {
+    assert!(has(
+        "let house = Theme(textColor: species)\nChart(data: \"p.csv\") {\n  Theme(base: house)\n  Space(value) { Point() }\n}",
+        "E1705",
+    ));
+}
+
 // --- v0.6.0: named tables, map scales, range/null bounds (spec §10.x, §16) ---
 
 use algraf_semantics::{analyze_with_tables, ScaleIr};

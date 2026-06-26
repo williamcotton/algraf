@@ -1,4 +1,4 @@
-use algraf_syntax::ast::{ChartItem, Root, SpaceItem};
+use algraf_syntax::ast::{ChartBlock, ChartItem, Root, RootItem, SpaceItem};
 use algraf_syntax::{node_span, SyntaxNode};
 use lsp_types::{DocumentSymbol, SymbolKind};
 
@@ -8,24 +8,37 @@ pub fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol
     let Some(root) = Root::cast(syntax.clone()) else {
         return Vec::new();
     };
-    let Some(chart) = root.chart() else {
-        return Vec::new();
-    };
-    let mut out = root
-        .tables()
-        .into_iter()
-        .map(|decl| {
-            let name = decl.name().unwrap_or_else(|| "Table".to_string());
-            symbol(
-                source,
-                &format!("Table {name}"),
-                SymbolKind::VARIABLE,
-                decl.syntax(),
-                Vec::new(),
-            )
-        })
-        .collect::<Vec<_>>();
+    let mut out = Vec::new();
+    for item in root.items() {
+        match item {
+            RootItem::Let(decl) => {
+                let name = decl.name().unwrap_or_else(|| "let".to_string());
+                out.push(symbol(
+                    source,
+                    &format!("let {name}"),
+                    SymbolKind::VARIABLE,
+                    decl.syntax(),
+                    Vec::new(),
+                ));
+            }
+            RootItem::Table(decl) => {
+                let name = decl.name().unwrap_or_else(|| "Table".to_string());
+                out.push(symbol(
+                    source,
+                    &format!("Table {name}"),
+                    SymbolKind::VARIABLE,
+                    decl.syntax(),
+                    Vec::new(),
+                ));
+            }
+            RootItem::Chart(chart) => out.push(chart_symbol(source, &chart)),
+            RootItem::Error(_) => {}
+        }
+    }
+    out
+}
 
+fn chart_symbol(source: &str, chart: &ChartBlock) -> DocumentSymbol {
     let mut chart_symbol = symbol(
         source,
         "Chart",
@@ -142,8 +155,7 @@ pub fn document_symbols(source: &str, syntax: &SyntaxNode) -> Vec<DocumentSymbol
         }
     }
     chart_symbol.children = Some(children);
-    out.push(chart_symbol);
-    out
+    chart_symbol
 }
 
 fn symbol(
@@ -189,6 +201,15 @@ mod tests {
             .expect("space symbol");
         let space_children = space.children.as_ref().expect("space children");
         assert!(space_children.iter().any(|c| c.name == "Point"));
+    }
+
+    #[test]
+    fn root_let_is_top_level_symbol() {
+        let source = "let house = Theme(base: \"minimal\")\nChart(data: \"p.csv\") {}";
+        let syntax = parse(source).syntax();
+        let symbols = document_symbols(source, &syntax);
+        assert_eq!(symbols[0].name, "let house");
+        assert_eq!(symbols[1].name, "Chart");
     }
 
     #[test]

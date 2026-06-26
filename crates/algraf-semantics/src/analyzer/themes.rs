@@ -1,12 +1,14 @@
-//! Theme declaration analysis (spec §20.1, §20.8): named base themes plus
-//! grouped and scalar per-field overrides.
+//! Theme declaration analysis (spec §20.1, §20.8): named or document-bound base
+//! themes plus grouped and scalar per-field overrides.
+
+use std::collections::HashMap;
 
 use algraf_core::{codes, Diagnostic, Span};
-use algraf_syntax::ast::{Arg, Decl, LiteralKind, ValueExpr};
+use algraf_syntax::ast::{AlgebraExpr, Arg, CallValue, Decl, LiteralKind, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal as string_value};
 
 use super::args::DupGuard;
-use super::context::{Analyzer, ValueForm};
+use super::context::{Analyzer, ConstValue, LetVar, ThemeBaseSpec, ThemeSpec, ValueForm};
 use crate::ir::{
     AxisPositionIr, FontStyleIr, FontWeightIr, LegendPositionIr, TextAlignIr, ThemeIr, ThemeLineIr,
     ThemeOverrides, ThemeRectIr, ThemeTextIr,
@@ -23,10 +25,44 @@ enum AxisDim {
 
 impl Analyzer<'_> {
     pub(super) fn theme_decl(&mut self, decl: &Decl) -> Option<ThemeIr> {
+        let spec = self.theme_spec_from_args(decl.args())?;
+        self.resolve_theme_spec(&spec)
+    }
+
+    pub(in crate::analyzer) fn theme_spec_from_call(
+        &mut self,
+        call: &CallValue,
+    ) -> Option<ThemeSpec> {
+        self.theme_spec_from_args(call.args())
+    }
+
+    pub(in crate::analyzer) fn resolve_document_theme_bindings(&mut self) {
+        let names = self
+            .document_theme_specs
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut resolved: HashMap<String, Option<ThemeIr>> = HashMap::new();
+        for name in names {
+            if let Some(theme) = self.resolve_document_theme(&name, &mut Vec::new(), &mut resolved)
+            {
+                self.document_vars.insert(
+                    name,
+                    LetVar {
+                        value: ConstValue::Theme(Box::new(theme)),
+                    },
+                );
+            }
+        }
+    }
+
+    fn theme_spec_from_args(&mut self, args: Vec<Arg>) -> Option<ThemeSpec> {
         let mut dup = DupGuard::new(codes::E1002, "Theme argument");
-        let mut theme = ThemeIr::default();
+        let mut base = ThemeBaseSpec::Inherit;
+        let mut base_selector: Option<(&'static str, Span)> = None;
+        let mut overrides = ThemeOverrides::default();
         let mut saw_any = false;
-        for arg in decl.args() {
+        for arg in args {
             let Some(key) = arg.key() else { continue };
             let key_span = node_span(arg.syntax());
             if dup.is_duplicate(&mut self.diagnostics, &key, key_span) {
@@ -35,31 +71,189 @@ impl Analyzer<'_> {
             saw_any = true;
 
             if key == "name" {
-                match arg.value() {
-                    Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
-                        let name = string_value(&lit.text().unwrap_or_default());
-                        if !registry::THEME_NAMES.contains(&name.as_str()) {
-                            self.diag(Diagnostic::error(
-                                codes::E1204,
-                                format!("unknown theme `{name}`"),
-                                node_span(lit.syntax()),
-                            ));
-                        } else {
-                            theme.base = Some(name);
-                        }
-                    }
-                    Some(value) => self.diag(Diagnostic::error(
-                        codes::E1204,
-                        "`name` expects a string literal",
-                        node_span(value.syntax()),
-                    )),
-                    None => {}
+                if self.theme_base_selector_conflicts(&mut base_selector, "name", key_span) {
+                    continue;
+                }
+                if let Some(name) = self.theme_builtin_name_arg(&arg, "name") {
+                    base = ThemeBaseSpec::BuiltIn(name);
+                }
+            } else if key == "base" {
+                if self.theme_base_selector_conflicts(&mut base_selector, "base", key_span) {
+                    continue;
+                }
+                if let Some(parsed) = self.theme_base_arg(&arg) {
+                    base = parsed;
                 }
             } else {
-                self.theme_override(&key, &arg, key_span, &mut theme.overrides);
+                self.theme_override(&key, &arg, key_span, &mut overrides);
             }
         }
-        saw_any.then_some(theme)
+        saw_any.then_some(ThemeSpec { base, overrides })
+    }
+
+    fn theme_base_selector_conflicts(
+        &mut self,
+        seen: &mut Option<(&'static str, Span)>,
+        key: &'static str,
+        span: Span,
+    ) -> bool {
+        if let Some((first_key, first_span)) = *seen {
+            self.diag(
+                Diagnostic::error(
+                    codes::E1705,
+                    "`Theme(...)` cannot use both `name:` and `base:`",
+                    span,
+                )
+                .with_related(first_span, format!("`{first_key}:` first selected a base")),
+            );
+            true
+        } else {
+            *seen = Some((key, span));
+            false
+        }
+    }
+
+    fn theme_builtin_name_arg(&mut self, arg: &Arg, key: &str) -> Option<String> {
+        match arg.value() {
+            Some(ValueExpr::Literal(lit)) if lit.kind() == Some(LiteralKind::String) => {
+                let name = string_value(&lit.text().unwrap_or_default());
+                if !registry::THEME_NAMES.contains(&name.as_str()) {
+                    self.diag(Diagnostic::error(
+                        codes::E1204,
+                        format!("unknown theme `{name}`"),
+                        node_span(lit.syntax()),
+                    ));
+                    None
+                } else {
+                    Some(name)
+                }
+            }
+            Some(value) => {
+                let code = if key == "name" {
+                    codes::E1204
+                } else {
+                    codes::E1705
+                };
+                self.diag(Diagnostic::error(
+                    code,
+                    format!("`{key}` expects a string literal theme name"),
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn theme_base_arg(&mut self, arg: &Arg) -> Option<ThemeBaseSpec> {
+        let value = arg.value()?;
+        match &value {
+            ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::String) => self
+                .theme_builtin_name_arg(arg, "base")
+                .map(ThemeBaseSpec::BuiltIn),
+            ValueExpr::Algebra(AlgebraExpr::Name(name)) if !name.is_quoted() => {
+                let Some(base_name) = name.name() else {
+                    self.diag(Diagnostic::error(
+                        codes::E1705,
+                        "`base` expects a built-in theme string or document theme name",
+                        node_span(value.syntax()),
+                    ));
+                    return None;
+                };
+                Some(ThemeBaseSpec::User {
+                    name: base_name,
+                    span: node_span(value.syntax()),
+                })
+            }
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1705,
+                    "`base` expects a built-in theme string or document theme name",
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+        }
+    }
+
+    fn resolve_theme_spec(&mut self, spec: &ThemeSpec) -> Option<ThemeIr> {
+        match &spec.base {
+            ThemeBaseSpec::Inherit => Some(ThemeIr {
+                base: None,
+                overrides: spec.overrides.clone(),
+            }),
+            ThemeBaseSpec::BuiltIn(name) => Some(ThemeIr {
+                base: Some(name.clone()),
+                overrides: spec.overrides.clone(),
+            }),
+            ThemeBaseSpec::User { name, span } => {
+                let Some(LetVar {
+                    value: ConstValue::Theme(theme),
+                }) = self.document_vars.get(name)
+                else {
+                    self.diag(Diagnostic::error(
+                        codes::E1705,
+                        format!("`base` references unknown document theme `{name}`"),
+                        *span,
+                    ));
+                    return None;
+                };
+                let mut theme = theme.as_ref().clone();
+                theme.overrides.merge_from(&spec.overrides);
+                Some(theme)
+            }
+        }
+    }
+
+    fn resolve_document_theme(
+        &mut self,
+        name: &str,
+        stack: &mut Vec<String>,
+        resolved: &mut HashMap<String, Option<ThemeIr>>,
+    ) -> Option<ThemeIr> {
+        if let Some(theme) = resolved.get(name) {
+            return theme.clone();
+        }
+        if stack.iter().any(|entry| entry == name) {
+            let span = self
+                .document_theme_specs
+                .get(name)
+                .map(|binding| binding.span)
+                .unwrap_or_else(|| Span::new(0, 0));
+            self.diag(Diagnostic::error(
+                codes::E1705,
+                format!("custom theme base cycle involving `{name}`"),
+                span,
+            ));
+            resolved.insert(name.to_string(), None);
+            return None;
+        }
+        let binding = self.document_theme_specs.get(name).cloned()?;
+
+        stack.push(name.to_string());
+        let mut theme = match &binding.spec.base {
+            ThemeBaseSpec::Inherit => Some(ThemeIr::named("minimal".to_string())),
+            ThemeBaseSpec::BuiltIn(base) => Some(ThemeIr::named(base.clone())),
+            ThemeBaseSpec::User { name: base, span } => {
+                if !self.document_theme_specs.contains_key(base) {
+                    self.diag(Diagnostic::error(
+                        codes::E1705,
+                        format!("`base` references unknown document theme `{base}`"),
+                        *span,
+                    ));
+                    None
+                } else {
+                    self.resolve_document_theme(base, stack, resolved)
+                }
+            }
+        };
+        stack.pop();
+
+        if let Some(theme) = &mut theme {
+            theme.overrides.merge_from(&binding.spec.overrides);
+        }
+        resolved.insert(name.to_string(), theme.clone());
+        theme
     }
 
     /// Apply one `Theme(...)` override argument to the override set (spec §20.8).

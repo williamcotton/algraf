@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 use algraf_core::{codes, Diagnostic};
 use algraf_syntax::ast::{
-    AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, LetDecl, LiteralKind, MapValue, ValueExpr,
+    AlgebraExpr, Arg, ChartBlock, ChartItem, Decl, LetDecl, LiteralKind, MapValue, Root, ValueExpr,
 };
 use algraf_syntax::{
     is_source_constructor, node_span, source_expr_from_arg,
@@ -42,6 +42,7 @@ impl Analyzer<'_> {
 
     pub(super) fn chart(&mut self, chart: &ChartBlock) -> Option<ChartIr> {
         self.reserved_derived_names = chart_derived_names(chart);
+        self.collect_document_let_decls(&document_lets_for_chart(chart));
 
         // Resolve named `Table` declarations up front so spaces and column
         // references can bind to them regardless of declaration order (spec
@@ -669,6 +670,15 @@ impl Analyzer<'_> {
             }
         }
     }
+}
+
+fn document_lets_for_chart(chart: &ChartBlock) -> Vec<LetDecl> {
+    chart
+        .syntax()
+        .parent()
+        .and_then(Root::cast)
+        .map(|root| root.lets())
+        .unwrap_or_default()
 }
 
 fn chart_derived_names(chart: &ChartBlock) -> HashSet<String> {

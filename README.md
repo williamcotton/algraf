@@ -19,7 +19,7 @@ The complete visual gallery lives in [`examples/README.md`](examples/README.md).
 Live site: [`https://williamcotton.github.io/algraf/`](https://williamcotton.github.io/algraf/)
 Full demos: [`https://williamcotton.github.io/algraf/demos`](https://williamcotton.github.io/algraf/demos)
 
-## A tour in eight charts
+## A tour in nine charts
 
 Each chart below is a runnable file under [`examples/`](examples/). The examples
 start with one `Space` and one geometry, then add one or two features at a time:
@@ -355,7 +355,60 @@ Chart(data: "station_throughput.csv", width: 760, height: 470, title: "Station t
 
 ![station_throughput](examples/station_throughput.svg)
 
-## 8. Strategic reserves: an editorial house style
+## 8. Reusable house theme: document-scoped theme reuse
+
+Document-scope `let` bindings are visible to every chart in a file. In v0.91,
+one of those bindings can hold a reusable `Theme(...)`, so a team can define a
+house style once and apply it with `Theme(base: house, ...)` wherever a chart or
+space needs it. The local `Theme(...)` call still wins for fields it sets.
+
+New features: document-scope `let`, document-bound `Theme(...)` values,
+`Theme(base: house)` for reusable custom themes, and local theme overrides
+layered on a shared base.
+
+```algraf
+let ink = "#24313d"
+let paper = "#f7f1e6"
+let panel = "#fffaf0"
+let faint = "#d8cbb5"
+let accent = "#126c73"
+
+let house = Theme(
+    name: "minimal",
+    background: paper,
+    plotBackground: panel,
+    axisText: Text(size: 11, fill: ink),
+    axisTitle: Text(size: 12, fill: ink),
+    gridMajor: Line(stroke: faint, strokeWidth: 1),
+    legendPosition: "bottom",
+    legendSpacing: 16,
+    axisYPosition: "right"
+)
+
+Chart(data: "penguins.csv", width: 760, height: 520,
+      title: "Reusable house theme",
+      subtitle: "A document-scoped Theme reused as a chart base",
+      caption: "Top-level let bindings supply the shared colors and theme.",
+      source: "Source: sample penguin measurements") {
+    Theme(
+        base: house,
+        gridX: false,
+        plotTitle: Text(size: 22, weight: "bold", fill: accent),
+        plotSource: Text(size: 10, fill: "#6f7d84")
+    )
+    Scale(fill: species, label: "Species")
+    Guide(axis: x, label: "Flipper length (mm)")
+    Guide(axis: y, label: "Body mass (g)")
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.76, size: 4)
+    }
+}
+```
+
+![theme_reuse](examples/theme_reuse.svg)
+
+## 9. Strategic reserves: an editorial house style
 
 A publication's house style is a declarative composition of theme tokens and
 annotation properties — never a fork of the renderer. This wire-service line

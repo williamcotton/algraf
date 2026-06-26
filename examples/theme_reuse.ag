@@ -1,0 +1,37 @@
+let ink = "#24313d"
+let paper = "#f7f1e6"
+let panel = "#fffaf0"
+let faint = "#d8cbb5"
+let accent = "#126c73"
+
+let house = Theme(
+    name: "minimal",
+    background: paper,
+    plotBackground: panel,
+    axisText: Text(size: 11, fill: ink),
+    axisTitle: Text(size: 12, fill: ink),
+    gridMajor: Line(stroke: faint, strokeWidth: 1),
+    legendPosition: "bottom",
+    legendSpacing: 16,
+    axisYPosition: "right"
+)
+
+Chart(data: "penguins.csv", width: 760, height: 520,
+      title: "Reusable house theme",
+      subtitle: "A document-scoped Theme reused as a chart base",
+      caption: "Top-level let bindings supply the shared colors and theme.",
+      source: "Source: sample penguin measurements") {
+    Theme(
+        base: house,
+        gridX: false,
+        plotTitle: Text(size: 22, weight: "bold", fill: accent),
+        plotSource: Text(size: 10, fill: "#6f7d84")
+    )
+    Scale(fill: species, label: "Species")
+    Guide(axis: x, label: "Flipper length (mm)")
+    Guide(axis: y, label: "Body mass (g)")
+
+    Space(flipper_length * body_mass) {
+        Point(fill: species, alpha: 0.76, size: 4)
+    }
+}

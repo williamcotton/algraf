@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.90.0
+Status: 0.91.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.90.0 specification.
+This working copy is the 0.91.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -1034,7 +1034,7 @@ It is intentionally simple enough for recursive descent plus Pratt expression pa
 
 ```ebnf
 Program        ::= Trivia* SourceHeader? TopLevelItem (Trivia* TopLevelItem)* Trivia* EOF
-TopLevelItem   ::= TableDecl | ChartBlock
+TopLevelItem   ::= LetDecl | TableDecl | ChartBlock
 SourceHeader   ::= "Algraf" "(" SourceHeaderArgs ")"
 SourceHeaderArgs ::= Arg ("," Arg)* ","?
 ```
@@ -1046,9 +1046,11 @@ Trivia is not represented as typed AST children.
 A source file MUST contain at least one chart block.
 
 Since version 0.46.1, a source file MAY contain document-scope `Table`
-declarations before or between chart blocks. Document-scope tables are visible
-to every chart in the file and use the same source-expression rules as
-chart-scope `Table` declarations (§7.4.1, §10.10).
+declarations before or between chart blocks. Since version 0.91.0, a source
+file MAY also contain document-scope `let` declarations before, between, or
+after document-scope `Table` and `Chart` items. Document-scope tables and lets
+are visible to every chart in the file; document-scope tables use the same
+source-expression rules as chart-scope `Table` declarations (§7.4.1, §10.10).
 
 Version 0.20.0 MAY begin with a single source header before the first chart.
 Version 0.21.0 uses the same header form:
@@ -1080,8 +1082,8 @@ multi-chart document to stdout (no `--output`) is a usage error, since several
 SVG documents cannot be concatenated into one. Each chart resolves its own
 `data` source; sharing the `stdin` data sentinel across charts is a usage error.
 
-If extra top-level tokens appear between or after top-level chart/table items,
-the parser MUST emit diagnostics and recover.
+If extra top-level tokens appear between or after top-level let/table/chart
+items, the parser MUST emit diagnostics and recover.
 
 ### 7.2 Chart Block
 
@@ -1490,8 +1492,8 @@ EOF
 LetDecl        ::= "let" Ident "=" Value
 ```
 
-A `let` declaration binds a name to a constant value. It is valid as a chart-body
-item and as a space-body item.
+A `let` declaration binds a name to a constant value. It is valid as a
+document-scope item, chart-body item, and space-body item.
 
 `let` MUST be followed by an identifier name, then `=`, then a `Value`.
 
@@ -1512,6 +1514,12 @@ named arguments. A style fragment MUST NOT contain `style:`. A `style:` argument
 inside a geometry call applies a style fragment at that source position; later
 explicit properties or later style fragments override earlier expanded
 properties.
+
+Version 0.91.0 permits document-scope `let` bindings to hold `Theme(...)`
+values. A document-bound theme is a data-independent theme value that can be
+referenced by bare identifier from `Theme(base: name)`. `Theme(...)` values in
+chart-scope and space-scope `let` declarations remain invalid constants and
+MUST emit `E1701`.
 
 The bound name lives in a variable namespace separate from columns and derived
 tables (spec §9.6). A variable name MUST be unique within its scope; a second
@@ -2082,13 +2090,16 @@ regardless of its position within the same block.
 
 Scopes:
 
+- A document-scope `let` (a top-level item) is visible in every chart and space
+  in the document.
 - A chart-scope `let` (a chart-body item) is visible in every space of the
   chart.
 - A space-scope `let` (a space-body item) is visible only within that space and
   MUST NOT leak into sibling spaces.
 
-A space-scope `let` MUST shadow a chart-scope `let` of the same name for the
-duration of that space.
+A space-scope `let` MUST shadow a chart-scope or document-scope `let` of the
+same name for the duration of that space. A chart-scope `let` MUST shadow a
+document-scope `let` of the same name for the duration of that chart.
 
 Variable resolution applies only in property value positions. A bare,
 unquoted identifier in a property value position MUST resolve to an in-scope
@@ -3101,13 +3112,22 @@ Recommended root:
 
 ```rust
 pub struct Program {
-    pub chart: Option<Spanned<ChartBlock>>,
+    pub source_header: Option<Spanned<SourceHeader>>,
+    pub items: Vec<Spanned<RootItem>>,
     pub errors: Vec<ParseDiagnostic>,
     pub span: Span,
 }
+
+pub enum RootItem {
+    Let(Spanned<LetDecl>),
+    Table(Spanned<TableDecl>),
+    Chart(Spanned<ChartBlock>),
+    Error(ErrorNode),
+}
 ```
 
-`chart` may be absent when parsing severely malformed files.
+The item list may contain no chart only when parsing severely malformed files;
+valid files contain at least one chart.
 
 `errors` contains parse diagnostics only.
 
@@ -3130,11 +3150,14 @@ pub struct ChartBlock {
 pub enum ChartItem {
     Space(Spanned<SpaceBlock>),
     Derive(Spanned<DeriveDecl>),
+    Table(Spanned<TableDecl>),
     Glyph(Spanned<GlyphDecl>),
+    Let(Spanned<LetDecl>),
     Scale(Spanned<Call>),
     Guide(Spanned<Call>),
     Theme(Spanned<Call>),
     Layout(Spanned<Call>),
+    Parse(Spanned<Call>),
     Error(ErrorNode),
 }
 ```
@@ -3160,6 +3183,7 @@ pub struct SpaceBlock {
 ```rust
 pub enum SpaceItem {
     Geometry(Spanned<GeometryCall>),
+    Let(Spanned<LetDecl>),
     Scale(Spanned<Call>),
     Guide(Spanned<Call>),
     Theme(Spanned<Call>),
@@ -8868,9 +8892,14 @@ Theme declaration syntax:
 
 ```ag
 Theme(name: "minimal")
+Theme(base: "minimal")
+Theme(base: house)
 ```
 
-Version 0.1 MUST use `Theme(name: "minimal")` for source-level theme selection.
+Version 0.91.0 supports both `Theme(name: "minimal")` and
+`Theme(base: "minimal")` for source-level built-in theme selection.
+`Theme(base: house)` is the spelling for inheriting a document-bound custom
+theme.
 
 `Chart(theme: "minimal")` MUST NOT be accepted in version 0.1.
 
@@ -8888,21 +8917,52 @@ Chart(data: "penguins.csv") {
 
 ### 20.8 Custom Theme
 
-`Theme(...)` MAY carry override properties in addition to (or instead of) the
-named base `name`. Overrides are layered on top of the named base theme (or, when
-no `name` is given, on top of the inherited base) to produce the resolved theme
-(spec §20.1). A space-local `Theme(...)` resolves the same way, inheriting the
-chart base when it omits `name` (spec §7.3).
+`Theme(...)` MAY carry override properties in addition to (or instead of) a
+base selector. `name:` selects a built-in theme by string. `base:` selects
+either a built-in theme by string or a document-bound custom theme by bare
+identifier.
+
+`Theme(name: ...)` and `Theme(base: ...)` in the same call MUST emit `E1705`.
+`Theme(base: "minimal")` MUST behave like `Theme(name: "minimal")` for built-in
+bases. `Theme(base: house)` MUST resolve `house` as a document-scope
+`let house = Theme(...)` binding; a missing or non-theme identifier MUST emit
+`E1705` with a message that names the missing base.
+
+Overrides are layered on top of the selected base theme. With a document-bound
+base, the order is built-in base, document-bound theme overrides, then local
+`Theme(...)` overrides. If no base selector is given, chart-level declarations
+layer over the built-in default theme and space-local declarations inherit the
+chart theme (spec §7.3).
+
+Document-bound `Theme(...)` values default to the built-in default theme when
+they omit `base:`/`name:`; they do not inherit from any later chart-local state.
+Document-bound themes MAY chain through other document-bound themes by
+`base: other_theme`. Cycles MUST emit `E1705` and MUST NOT panic.
 
 Example:
 
 ```ag
 Theme(
-    name: "minimal",
+    base: "minimal",
     axisText: Text(size: 12, fill: "#333333"),
     gridMajor: Line(stroke: "#dddddd", strokeWidth: 1),
     plotBackground: "#fafafa"
 )
+```
+
+Reusable document-bound theme example:
+
+```ag
+let house = Theme(
+    base: "minimal",
+    background: "#f3f0eb",
+    gridMajor: Line(stroke: "#d8d4cc", strokeWidth: 1),
+    axisText: Text(size: 11, fill: "#7a7a7a"),
+)
+
+Chart(data: "strategic_reserves.csv") {
+    Theme(base: house, axisYPosition: "right", gridX: false)
+}
 ```
 
 Grouped, geometry-style overrides reuse existing property value forms:
@@ -8957,11 +9017,15 @@ Since 0.88.0, `axisColor` also updates the default stroke color used by
 `axisLine` and `axisTicks` unless those structured styles override it.
 
 Override values reuse the standard property value forms and MAY reference `let`
-variables (spec §9.6).
+variables (spec §9.6). Theme values MUST remain data-independent: column
+mappings, algebra expressions, the `stdin` sentinel, and non-theme call heads
+MUST NOT be valid document theme values.
 
 An unknown override key MUST produce diagnostic `E1704`. An override value of the
 wrong type or shape (for example a non-`Line(...)` value for `gridMajor`, or a
-string for `fontSize`) MUST produce diagnostic `E1705`.
+string for `fontSize`) MUST produce diagnostic `E1705`. Invalid `base:` values,
+missing document-bound bases, conflicting `name:`/`base:` selectors, and custom
+theme base cycles also MUST produce `E1705`.
 
 ## 21. LSP Architecture
 
@@ -9687,7 +9751,9 @@ equivalence limit (§24.6). The draw list, sidecar, and SVG outputs are
 byte-for-byte deterministic; raster output is deterministic for a given
 platform.
 
-Source files MUST use `Theme(name: "...")` for persistent theme selection.
+Source files MAY use either `Theme(name: "...")` or `Theme(base: "...")` for
+persistent built-in theme selection. Source files use `Theme(base: house)` for
+document-bound custom themes.
 
 Theme precedence from weakest to strongest is:
 
@@ -10471,7 +10537,7 @@ Since version 0.87.0, the language-reference browser response shape is:
 ```json
 {
   "markdown": "...",
-  "version": "0.90.0",
+  "version": "0.91.0",
   "part": "full",
   "source": "crates/algraf-cli/templates/ALGRAF_LANG.md",
   "sources": [
@@ -11412,6 +11478,12 @@ Test ribbon required properties.
 
 Test `Histogram` desugaring equivalence to `Derive` plus `Rect`.
 
+Test document-scope `let` visibility and shadowing.
+
+Test document-bound `Theme(...)` values, `Theme(base: ...)` inheritance,
+custom theme base chaining, invalid bases, conflicting base selectors, and
+cycle diagnostics.
+
 ### 27.6 Render Snapshot Tests
 
 Render SVG snapshots SHOULD be stable.
@@ -11463,6 +11535,12 @@ diagnostics
 formatting if implemented
 
 Completion tests SHOULD verify schema-aware suggestions.
+
+Completion tests SHOULD verify root-scope `let` suggestions and `base` inside
+`Theme(...)`.
+
+Document-symbol tests SHOULD verify document-scope `let` bindings appear as
+top-level symbols.
 
 Hover tests SHOULD verify operator docs, derived-table schema hover,
 source-string schema/row previews, declaration/geometry call docs, and
@@ -11851,6 +11929,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.88.0 | [`V0_88_PLAN.md`](V0_88_PLAN.md) | Ridgeline distributions with one-sided violins, Sina points, and guide-line theme styling | Implemented |
 | 0.89.0 | [`V0_89_PLAN.md`](V0_89_PLAN.md) | Normative specification drift cleanup | Implemented |
 | 0.90.0 | [`V0_90_PLAN.md`](V0_90_PLAN.md) | Annotated categorical heatmaps with first-class layer polish | Implemented |
+| 0.91.0 | [`V0_91_PLAN.md`](V0_91_PLAN.md) | Document-scoped custom themes with `Theme(base:)` reuse and chaining | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
@@ -12033,7 +12112,9 @@ Quoted column identifiers use backticks.
 
 Guide axis references use bare `x` and `y`.
 
-Source-level theme selection uses `Theme(name: "minimal")`.
+Source-level built-in theme selection uses `Theme(name: "minimal")` or
+`Theme(base: "minimal")`; document-bound custom theme selection uses
+`Theme(base: house)`.
 
 Faceting is included in version 0.1.
 
@@ -12065,7 +12146,7 @@ Future optional Polars support must implement the same internal table abstractio
 
 ```ebnf
 Program        ::= Trivia* SourceHeader? TopLevelItem (Trivia* TopLevelItem)* Trivia* EOF
-TopLevelItem   ::= TableDecl | ChartBlock
+TopLevelItem   ::= LetDecl | TableDecl | ChartBlock
 
 ChartBlock     ::= "Chart" ("(" ChartArgs? ")")? "{" ChartBody "}"
 ChartArgs      ::= Arg ("," Arg)* ","?

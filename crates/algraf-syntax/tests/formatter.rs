@@ -92,6 +92,13 @@ fn test_document_table_and_bare_chart_formatting() {
 }
 
 #[test]
+fn test_document_let_and_table_format_in_source_order() {
+    let source = "let ink=\"#333\"\nTable main=\"p.csv\"\nChart{Space(x*y,data:main){Point(fill:ink)}}\nlet faint=\"#ddd\"\nChart(data:main){Space(x*y){Line(stroke:faint)}}";
+    let expected = "let ink = \"#333\"\nTable main = \"p.csv\"\n\nChart {\n    Space(x * y, data: main) {\n        Point(fill: ink)\n    }\n}\n\nlet faint = \"#ddd\"\n\nChart(data: main) {\n    Space(x * y) {\n        Line(stroke: faint)\n    }\n}\n";
+    assert_eq!(format(source), expected);
+}
+
+#[test]
 fn test_derive_from_formatting() {
     let source = "Chart(data:\"p.csv\"){Derive bins=Bin(value) Derive trend from bins=Smooth(bin_center,count)}";
     let expected = "Chart(data: \"p.csv\") {\n    Derive bins = Bin(value)\n    Derive trend from bins = Smooth(bin_center, count)\n}\n";

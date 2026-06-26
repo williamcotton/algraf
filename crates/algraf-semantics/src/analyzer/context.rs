@@ -81,6 +81,25 @@ pub(super) struct StyleEntry {
     pub(super) span: Span,
 }
 
+#[derive(Clone)]
+pub(in crate::analyzer) struct DocumentThemeBinding {
+    pub(in crate::analyzer) spec: ThemeSpec,
+    pub(in crate::analyzer) span: Span,
+}
+
+#[derive(Clone)]
+pub(in crate::analyzer) struct ThemeSpec {
+    pub(in crate::analyzer) base: ThemeBaseSpec,
+    pub(in crate::analyzer) overrides: ThemeOverrides,
+}
+
+#[derive(Clone)]
+pub(in crate::analyzer) enum ThemeBaseSpec {
+    Inherit,
+    BuiltIn(String),
+    User { name: String, span: Span },
+}
+
 /// The constant value forms a `let` binding may hold (spec §7.10).
 #[derive(Clone)]
 pub(super) enum ConstValue {
@@ -91,6 +110,7 @@ pub(super) enum ConstValue {
     NumberArray(Vec<f64>),
     StringArray(Vec<String>),
     Style(Vec<StyleEntry>),
+    Theme(Box<ThemeIr>),
 }
 
 impl ConstValue {
@@ -104,7 +124,7 @@ impl ConstValue {
             ConstValue::Null => ValueForm::Null,
             ConstValue::NumberArray(v) => ValueForm::Array(Some(v.clone())),
             ConstValue::StringArray(v) => ValueForm::StringArray(Some(v.clone())),
-            ConstValue::Style(_) => ValueForm::Error,
+            ConstValue::Style(_) | ConstValue::Theme(_) => ValueForm::Error,
         }
     }
 }
@@ -124,6 +144,8 @@ pub(super) struct Analyzer<'a> {
     pub(super) table_names: HashSet<String>,
     pub(super) derived: HashMap<String, Vec<ColumnDefIr>>,
     pub(super) reserved_derived_names: HashSet<String>,
+    /// Document-scope `let` bindings, visible in every chart and space.
+    pub(super) document_vars: HashMap<String, LetVar>,
     /// Chart-scope `let` bindings, visible in every space (spec §9.6).
     pub(super) chart_vars: HashMap<String, LetVar>,
     /// Space-scope `let` bindings for the space under analysis; these shadow
@@ -137,6 +159,8 @@ pub(super) struct Analyzer<'a> {
     /// Stack of glyph names currently being expanded, used to detect recursive
     /// glyph marks (spec §14.27, `E2210`).
     pub(super) glyph_stack: Vec<String>,
+    /// Raw document-bound custom themes awaiting or undergoing resolution.
+    pub(in crate::analyzer) document_theme_specs: HashMap<String, DocumentThemeBinding>,
     pub(super) synthetic_counter: usize,
     pub(super) diagnostics: Vec<Diagnostic>,
 }
@@ -154,11 +178,13 @@ impl<'a> Analyzer<'a> {
             table_names: HashSet::new(),
             derived: HashMap::new(),
             reserved_derived_names: HashSet::new(),
+            document_vars: HashMap::new(),
             chart_vars: HashMap::new(),
             space_vars: HashMap::new(),
             row_context_tables: Vec::new(),
             glyphs: HashMap::new(),
             glyph_stack: Vec::new(),
+            document_theme_specs: HashMap::new(),
             synthetic_counter: 0,
             diagnostics: Vec::new(),
         }
@@ -218,6 +244,54 @@ impl<'a> Analyzer<'a> {
         vars
     }
 
+    /// Evaluate document-scope `let` declarations. Ordinary constants are
+    /// visible while validating document-bound `Theme(...)` values, and resolved
+    /// theme values are then stored in the same document scope.
+    pub(super) fn collect_document_let_decls(&mut self, decls: &[LetDecl]) {
+        self.document_vars.clear();
+        self.document_theme_specs.clear();
+
+        let mut unique: Vec<(String, Span, LetDecl)> = Vec::new();
+        let mut spans: HashMap<String, Span> = HashMap::new();
+        for decl in decls {
+            let Some(name) = decl.name() else { continue };
+            let name_span = decl.name_span().unwrap_or_else(|| node_span(decl.syntax()));
+            if let Some(&first) = spans.get(&name) {
+                self.diag(
+                    Diagnostic::error(
+                        codes::E1702,
+                        format!("duplicate `let` binding `{name}`"),
+                        name_span,
+                    )
+                    .with_related(first, "first bound here"),
+                );
+                continue;
+            }
+            spans.insert(name.clone(), name_span);
+            unique.push((name, name_span, decl.clone()));
+        }
+
+        let mut theme_decls = Vec::new();
+        for (name, name_span, decl) in &unique {
+            if let Some(call) = theme_call_value(decl) {
+                theme_decls.push((name.clone(), *name_span, call));
+                continue;
+            }
+            if let Some(value) = self.eval_let_value(decl) {
+                self.document_vars.insert(name.clone(), LetVar { value });
+            }
+        }
+
+        for (name, span, call) in theme_decls {
+            if let Some(spec) = self.theme_spec_from_call(&call) {
+                self.document_theme_specs
+                    .insert(name, DocumentThemeBinding { spec, span });
+            }
+        }
+
+        self.resolve_document_theme_bindings();
+    }
+
     /// Resolve a `let` binding's value to a constant, or emit E1701. Variables
     /// hold constant values only in this version (spec §7.10): column mappings,
     /// algebra, and references to other variables are rejected.
@@ -263,6 +337,7 @@ impl<'a> Analyzer<'a> {
                         .space_vars
                         .get(&var_name)
                         .or_else(|| self.chart_vars.get(&var_name))
+                        .or_else(|| self.document_vars.get(&var_name))
                     {
                         return var.value.to_form();
                     }
@@ -282,6 +357,7 @@ impl<'a> Analyzer<'a> {
                     .space_vars
                     .get(&var_name)
                     .or_else(|| self.chart_vars.get(&var_name))
+                    .or_else(|| self.document_vars.get(&var_name))
                 {
                     Some(LetVar {
                         value: ConstValue::Style(entries),
@@ -350,6 +426,13 @@ impl<'a> Analyzer<'a> {
             });
         }
         ok.then_some(entries)
+    }
+}
+
+fn theme_call_value(decl: &LetDecl) -> Option<CallValue> {
+    match decl.value()? {
+        ValueExpr::Call(call) if call.name().as_deref() == Some("Theme") => Some(call),
+        _ => None,
     }
 }
 

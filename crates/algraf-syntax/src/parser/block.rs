@@ -36,29 +36,33 @@ impl Parser {
             self.eat_trivia();
         }
 
-        // A document holds one or more chart blocks, optionally preceded by
-        // document-scope table declarations (spec §7.1).
-        if !self.at_chart_start() && !self.at_kw("Table") {
+        // A document holds one or more chart blocks, optionally interleaved
+        // with document-scope declarations (spec §7.1).
+        if !self.at_root_item_start() {
             let span = self.current_span();
             self.error(codes::E0001, "expected Chart block", span);
             if self.at_eof() {
                 return;
             }
-            // Search for the first `Chart`, reporting the skipped tokens.
+            // Search for the first root item, reporting the skipped tokens.
             self.builder.start_node(SyntaxKind::ERROR.into());
-            while !self.at_eof() && !self.at_kw("Chart") && !self.at_kw("Table") {
+            while !self.at_eof() && !self.at_root_item_start() {
                 let kind = SyntaxKind::from_token(&self.tokens[self.pos].kind);
                 self.push_raw(kind);
             }
             self.builder.finish_node();
         }
 
-        // Parse every top-level table or chart block in sequence.
+        // Parse every top-level declaration or chart block in sequence.
         let mut saw_chart = false;
         loop {
             self.eat_trivia();
             if self.at_kw("Table") {
                 self.table_decl();
+                continue;
+            }
+            if self.at_kw("let") {
+                self.let_decl();
                 continue;
             }
             if !self.at_chart_start() {
@@ -88,6 +92,10 @@ impl Parser {
             self.error(codes::E0011, "unexpected token after chart block", span);
             self.drain_into_error();
         }
+    }
+
+    fn at_root_item_start(&self) -> bool {
+        self.at_chart_start() || self.at_kw("Table") || self.at_kw("let")
     }
 
     pub(super) fn chart_block(&mut self) {
