@@ -1053,18 +1053,7 @@ fn build_axis(
                     min = 0;
                     max = 1;
                 }
-                if let Some(hints) = hints {
-                    hints.apply_temporal(&mut min, &mut max);
-                }
-                if config.domain.is_none() {
-                    apply_temporal_expansion(config.expansion, &mut min, &mut max);
-                }
-                if let Some(bounds) = config.domain {
-                    apply_temporal_domain_bounds(bounds, &mut min, &mut max);
-                }
-                if let Some(bounds) = config.view_domain {
-                    apply_temporal_view_domain_bounds(bounds, &mut min, &mut max);
-                }
+                let (min, max) = resolve_temporal_domain((min, max), hints, config);
                 let mut scale = TemporalScale::new(min, max, range, precision);
                 if let Some(hints) = hints {
                     scale.tick_values = hints.temporal_tick_values();
@@ -1085,19 +1074,7 @@ fn build_axis(
                 min = 0.0;
                 max = 1.0;
             }
-            if let Some(hints) = hints {
-                hints.apply_numeric(&mut min, &mut max);
-                hints.apply_padding(&mut min, &mut max);
-            }
-            if config.domain.is_none() {
-                apply_numeric_expansion(config.expansion, &mut min, &mut max);
-            }
-            if let Some(bounds) = config.domain {
-                apply_domain_bounds(bounds, &mut min, &mut max);
-            }
-            if let Some(bounds) = config.view_domain {
-                apply_view_domain_bounds(bounds, &mut min, &mut max);
-            }
+            let (min, max) = resolve_numeric_domain((min, max), hints, config);
             Some(AxisScale::Union {
                 label,
                 scale: continuous_scale(min, max, range, config),
@@ -1119,20 +1096,11 @@ fn build_vector_axis(
     }
     match col.dtype {
         DataType::Integer | DataType::Float => {
-            let (mut min, mut max) = numeric_domain(table, &col.name).unwrap_or((0.0, 1.0));
-            if let Some(hints) = hints {
-                hints.apply_numeric(&mut min, &mut max);
-                hints.apply_padding(&mut min, &mut max);
-            }
-            if config.domain.is_none() {
-                apply_numeric_expansion(config.expansion, &mut min, &mut max);
-            }
-            if let Some(bounds) = config.domain {
-                apply_domain_bounds(bounds, &mut min, &mut max);
-            }
-            if let Some(bounds) = config.view_domain {
-                apply_view_domain_bounds(bounds, &mut min, &mut max);
-            }
+            let (min, max) = resolve_numeric_domain(
+                numeric_domain(table, &col.name).unwrap_or((0.0, 1.0)),
+                hints,
+                config,
+            );
             AxisScale::Continuous {
                 col: col.name.clone(),
                 scale: continuous_scale(min, max, range, config),
@@ -1156,20 +1124,9 @@ fn temporal_axis_scale(
     hints: Option<&AxisDomainHints>,
     config: &AxisScaleConfig,
 ) -> TemporalScale {
-    let (mut min, mut max, precision) =
+    let (min, max, precision) =
         temporal_domain(table, &col.name).unwrap_or((0, 1, TemporalPrecision::Date));
-    if let Some(hints) = hints {
-        hints.apply_temporal(&mut min, &mut max);
-    }
-    if config.domain.is_none() {
-        apply_temporal_expansion(config.expansion, &mut min, &mut max);
-    }
-    if let Some(bounds) = config.domain {
-        apply_temporal_domain_bounds(bounds, &mut min, &mut max);
-    }
-    if let Some(bounds) = config.view_domain {
-        apply_temporal_view_domain_bounds(bounds, &mut min, &mut max);
-    }
+    let (min, max) = resolve_temporal_domain((min, max), hints, config);
     let mut scale = TemporalScale::new(min, max, range, precision);
     if let Some(hints) = hints {
         scale.tick_values = hints.temporal_tick_values();
@@ -1269,6 +1226,57 @@ struct AxisScaleConfig {
     view_domain: Option<AxisViewDomainIr>,
     reverse: bool,
     integer: bool,
+}
+
+fn resolve_numeric_domain(
+    domain: (f64, f64),
+    hints: Option<&AxisDomainHints>,
+    config: &AxisScaleConfig,
+) -> (f64, f64) {
+    let (mut min, mut max) = domain;
+    // Domain ordering is shared by vector and union axes: start from finite data
+    // extent (§16.3), merge geometry/domain hints and padding, apply expansion
+    // before explicit Scale(domain:) bounds (§16.11), then apply visual
+    // coordinate view bounds last (§16.17).
+    if let Some(hints) = hints {
+        hints.apply_numeric(&mut min, &mut max);
+        hints.apply_padding(&mut min, &mut max);
+    }
+    if config.domain.is_none() {
+        apply_numeric_expansion(config.expansion, &mut min, &mut max);
+    }
+    if let Some(bounds) = config.domain {
+        apply_domain_bounds(bounds, &mut min, &mut max);
+    }
+    if let Some(bounds) = config.view_domain {
+        apply_view_domain_bounds(bounds, &mut min, &mut max);
+    }
+    (min, max)
+}
+
+fn resolve_temporal_domain(
+    domain: (i64, i64),
+    hints: Option<&AxisDomainHints>,
+    config: &AxisScaleConfig,
+) -> (i64, i64) {
+    let (mut min, mut max) = domain;
+    // Temporal axes use the same domain pipeline as numeric axes: data extent
+    // (§16.4), hints, expansion and explicit bounds (§16.11), then visual view
+    // bounds (§16.17). Keeping this in one helper prevents vector and union
+    // temporal paths from drifting.
+    if let Some(hints) = hints {
+        hints.apply_temporal(&mut min, &mut max);
+    }
+    if config.domain.is_none() {
+        apply_temporal_expansion(config.expansion, &mut min, &mut max);
+    }
+    if let Some(bounds) = config.domain {
+        apply_temporal_domain_bounds(bounds, &mut min, &mut max);
+    }
+    if let Some(bounds) = config.view_domain {
+        apply_temporal_view_domain_bounds(bounds, &mut min, &mut max);
+    }
+    (min, max)
 }
 
 /// Override `(min, max)` with explicit domain bounds, leaving a bound untouched

@@ -118,20 +118,7 @@ fn paint_child_guides_before(sink: &mut dyn MarkSink, panel: &Panel<'_>) {
     if !panel.show_guides {
         return;
     }
-    if panel.scaled.is_polar() {
-        guide::render_polar_grid(sink, &panel.scaled, &panel.guides, &panel.theme);
-    } else if panel.guides.grid && !panel.scaled.is_spatial() {
-        let draw_x = panel.guides.x_grid.unwrap_or(panel.theme.grid_x);
-        let draw_y = panel.guides.y_grid.unwrap_or(panel.theme.grid_y);
-        guide::render_grid(
-            sink,
-            &panel.scaled,
-            panel.plot,
-            &panel.theme,
-            draw_x,
-            draw_y,
-        );
-    }
+    super::document::paint_panel_grid(sink, panel);
 }
 
 fn paint_child_guides_after(sink: &mut dyn MarkSink, panel: &Panel<'_>) {

@@ -9,6 +9,7 @@ use crate::helpers::{bool_setting, number_array_setting, number_setting_opt, str
 use crate::marker::{emit_marker, MarkerShape};
 use crate::scale::cell_f64;
 use crate::sink::{Fill, MarkSink, Paint, Stroke};
+use crate::space::ScaledSpace;
 use crate::stats;
 use crate::svg::num;
 
@@ -53,6 +54,111 @@ impl DistributionSide {
     }
 }
 
+struct OrderedDistributionGroups {
+    order: Vec<String>,
+    groups: HashMap<String, Vec<(usize, f64)>>,
+}
+
+struct DistributionDensityLayout {
+    group_key: String,
+    samples: Vec<(usize, f64)>,
+    values: Vec<f64>,
+    curve: Vec<stats::DensityPoint>,
+    max_density: f64,
+    first_row: usize,
+    center: f64,
+    bandwidth: f64,
+    half_width: f64,
+}
+
+fn collect_distribution_groups(
+    space: &ScaledSpace,
+    table: &dyn algraf_data::Table,
+    rows: Option<&[usize]>,
+    orientation: Orientation,
+    value_col: &str,
+) -> OrderedDistributionGroups {
+    let mut groups: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
+    let mut order = Vec::new();
+
+    for row in render_rows(table, rows) {
+        let Some(key) = position_group_key(space, table, row, orientation) else {
+            continue;
+        };
+        let Some(value) = cell_f64(table, value_col, row) else {
+            continue;
+        };
+        if !groups.contains_key(&key) {
+            order.push(key.clone());
+        }
+        groups.entry(key).or_default().push((row, value));
+    }
+
+    OrderedDistributionGroups { order, groups }
+}
+
+fn distribution_density_options(geo: &GeometryIr) -> stats::DensityOptions {
+    stats::DensityOptions {
+        bandwidth: number_setting_opt(geo, PropertyKey::Bandwidth).filter(|value| *value > 0.0),
+        grid_points: number_setting_opt(geo, PropertyKey::N)
+            .filter(|value| *value >= 2.0)
+            .map(|value| value.round() as usize)
+            .unwrap_or(256),
+    }
+}
+
+fn density_layouts(
+    geo: &GeometryIr,
+    space: &ScaledSpace,
+    table: &dyn algraf_data::Table,
+    groups: &mut OrderedDistributionGroups,
+    orientation: Orientation,
+    options: stats::DensityOptions,
+) -> Vec<DistributionDensityLayout> {
+    let mut layouts = Vec::new();
+
+    for key in &groups.order {
+        let Some(group) = groups.groups.get_mut(key) else {
+            continue;
+        };
+        group.sort_by(|a, b| a.1.total_cmp(&b.1));
+        let first_row = group[0].0;
+        let mut values: Vec<f64> = group.iter().map(|(_, value)| *value).collect();
+        let curve = stats::density_values(&mut values, options);
+        if curve.len() < 2 {
+            continue;
+        }
+        let max_density = curve
+            .iter()
+            .map(|point| point.density)
+            .fold(0.0_f64, f64::max);
+        if max_density <= f64::EPSILON {
+            continue;
+        }
+        let (Some(center), Some(bandwidth)) = (
+            position_center(space, table, first_row, orientation),
+            position_bandwidth(space, table, first_row, orientation),
+        ) else {
+            continue;
+        };
+        let half_width =
+            number_setting(geo, PropertyKey::Width, bandwidth * 0.9).clamp(1.0, bandwidth) / 2.0;
+        layouts.push(DistributionDensityLayout {
+            group_key: key.clone(),
+            samples: group.clone(),
+            values,
+            curve,
+            max_density,
+            first_row,
+            center,
+            bandwidth,
+            half_width,
+        });
+    }
+
+    layouts
+}
+
 pub(super) fn render_boxplot(
     sink: &mut dyn MarkSink,
     geo: &GeometryIr,
@@ -82,24 +188,10 @@ pub(super) fn render_boxplot(
     // Points beyond the 1.5·IQR whiskers render as small circles by default
     // (spec §14.11); `outliers: false` suppresses them.
     let show_outliers = bool_setting(geo, PropertyKey::Outliers, true);
-    let mut groups: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
-    let mut order = Vec::new();
+    let mut groups = collect_distribution_groups(space, table, rows, orientation, value_col);
 
-    for row in render_rows(table, rows) {
-        let Some(key) = position_group_key(space, table, row, orientation) else {
-            continue;
-        };
-        let Some(value) = cell_f64(table, value_col, row) else {
-            continue;
-        };
-        if !groups.contains_key(&key) {
-            order.push(key.clone());
-        }
-        groups.entry(key).or_default().push((row, value));
-    }
-
-    for key in order {
-        let Some(group) = groups.get_mut(&key) else {
+    for key in groups.order {
+        let Some(group) = groups.groups.get_mut(&key) else {
             continue;
         };
         group.sort_by(|a, b| a.1.total_cmp(&b.1));
@@ -327,55 +419,21 @@ pub(super) fn render_violin(
     let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
     let quantiles = number_array_setting(geo, PropertyKey::Quantiles).unwrap_or_default();
     let side = DistributionSide::from_geometry(geo).normalized(orientation);
-    let mut groups: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
-    let mut order = Vec::new();
-    for row in render_rows(table, rows) {
-        let Some(key) = position_group_key(space, table, row, orientation) else {
-            continue;
-        };
-        let Some(value) = cell_f64(table, value_col, row) else {
-            continue;
-        };
-        if !groups.contains_key(&key) {
-            order.push(key.clone());
-        }
-        groups.entry(key).or_default().push((row, value));
-    }
+    let mut groups = collect_distribution_groups(space, table, rows, orientation, value_col);
+    let options = distribution_density_options(geo);
 
-    let options = stats::DensityOptions {
-        bandwidth: number_setting_opt(geo, PropertyKey::Bandwidth).filter(|value| *value > 0.0),
-        grid_points: number_setting_opt(geo, PropertyKey::N)
-            .filter(|value| *value >= 2.0)
-            .map(|value| value.round() as usize)
-            .unwrap_or(256),
-    };
-
-    for key in order {
-        let Some(group) = groups.get_mut(&key) else {
-            continue;
-        };
-        group.sort_by(|a, b| a.1.total_cmp(&b.1));
-        let first_row = group[0].0;
-        let mut values: Vec<f64> = group.iter().map(|(_, value)| *value).collect();
-        let curve = stats::density_values(&mut values, options);
-        if curve.len() < 2 {
-            continue;
-        }
-        let max_density = curve
-            .iter()
-            .map(|point| point.density)
-            .fold(0.0_f64, f64::max);
-        if max_density <= f64::EPSILON {
-            continue;
-        }
-        let (Some(center), Some(bandwidth)) = (
-            position_center(space, table, first_row, orientation),
-            position_bandwidth(space, table, first_row, orientation),
-        ) else {
-            continue;
-        };
-        let half_width =
-            number_setting(geo, PropertyKey::Width, bandwidth * 0.9).clamp(1.0, bandwidth) / 2.0;
+    for layout in density_layouts(geo, space, table, &mut groups, orientation, options) {
+        let DistributionDensityLayout {
+            group_key: _group_key,
+            samples: _samples,
+            values,
+            curve,
+            max_density,
+            first_row,
+            center,
+            bandwidth: _bandwidth,
+            half_width,
+        } = layout;
         let mut side_a = Vec::new();
         let mut side_b = Vec::new();
         for point in &curve {
@@ -547,57 +605,23 @@ pub(super) fn render_sina(
         ctx.theme.point_size,
     );
     let side = DistributionSide::from_geometry(geo).normalized(orientation);
-    let mut groups: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
-    let mut order = Vec::new();
-    for row in render_rows(table, rows) {
-        let Some(key) = position_group_key(space, table, row, orientation) else {
-            continue;
-        };
-        let Some(value) = cell_f64(table, value_col, row) else {
-            continue;
-        };
-        if !groups.contains_key(&key) {
-            order.push(key.clone());
-        }
-        groups.entry(key).or_default().push((row, value));
-    }
+    let mut groups = collect_distribution_groups(space, table, rows, orientation, value_col);
+    let options = distribution_density_options(geo);
 
-    let options = stats::DensityOptions {
-        bandwidth: number_setting_opt(geo, PropertyKey::Bandwidth).filter(|value| *value > 0.0),
-        grid_points: number_setting_opt(geo, PropertyKey::N)
-            .filter(|value| *value >= 2.0)
-            .map(|value| value.round() as usize)
-            .unwrap_or(256),
-    };
+    for layout in density_layouts(geo, space, table, &mut groups, orientation, options) {
+        let DistributionDensityLayout {
+            group_key: _group_key,
+            samples,
+            values: _values,
+            curve,
+            max_density,
+            first_row: _first_row,
+            center,
+            bandwidth: _bandwidth,
+            half_width,
+        } = layout;
 
-    for key in order {
-        let Some(group) = groups.get_mut(&key) else {
-            continue;
-        };
-        group.sort_by(|a, b| a.1.total_cmp(&b.1));
-        let first_row = group[0].0;
-        let mut values: Vec<f64> = group.iter().map(|(_, value)| *value).collect();
-        let curve = stats::density_values(&mut values, options);
-        if curve.len() < 2 {
-            continue;
-        }
-        let max_density = curve
-            .iter()
-            .map(|point| point.density)
-            .fold(0.0_f64, f64::max);
-        if max_density <= f64::EPSILON {
-            continue;
-        }
-        let (Some(center), Some(bandwidth)) = (
-            position_center(space, table, first_row, orientation),
-            position_bandwidth(space, table, first_row, orientation),
-        ) else {
-            continue;
-        };
-        let half_width =
-            number_setting(geo, PropertyKey::Width, bandwidth * 0.9).clamp(1.0, bandwidth) / 2.0;
-
-        for (row, value) in group.iter().copied() {
+        for (row, value) in samples.iter().copied() {
             let Some(value_pos) = map_value_axis(space, value, orientation) else {
                 continue;
             };

@@ -2644,6 +2644,19 @@ fn test_one_sided_violin_and_sina_render_density_ridges() {
 }
 
 #[test]
+fn test_ungrouped_violin_and_sina_share_density_layout() {
+    let result = render_result(
+        "Chart(data: \"v.csv\") { Space(group * value) { Violin(fill: \"#4c78a8\") Sina(fill: \"#aaaaaa\", size: 1) } }",
+        "group,value\nall,1\nall,2\nall,2\nall,3\nall,4\nall,5\n",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-violin"));
+    assert!(result.svg.contains("algraf-geom-sina"));
+    assert_eq!(result.svg.matches("<path").count(), 1);
+    assert_eq!(result.svg.matches("<circle").count(), 6);
+}
+
+#[test]
 fn test_freqpoly_renders_bin_count_line() {
     let result = render_result(
         "Chart(data: \"d.csv\") { Space(v) { FreqPoly(bins: 4, stroke: \"steelblue\") } }",

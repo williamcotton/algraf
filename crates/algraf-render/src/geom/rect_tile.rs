@@ -1,12 +1,36 @@
-use algraf_semantics::{GeometryIr, PolarThetaIr, PropertyKey};
+use algraf_semantics::{GeometryIr, PolarThetaIr, PropertyKey, ScaleIr};
 
-use crate::aes::{color_spec, number_setting};
+use crate::aes::{color_spec, number_setting, ColorSpec};
 use crate::sink::{Fill, MarkSink, Paint};
 use crate::space::ScaledSpace;
 
 use super::common::{mark_interaction, pos_bound, render_rows, stroke_style, DEFAULT_FILL};
 use super::polar::annular_segment_path;
 use super::GeometryRenderContext;
+
+struct RectTilePreamble {
+    fill: ColorSpec,
+    stroke: ColorSpec,
+    stroke_width: f64,
+    alpha: f64,
+    width_fraction: f64,
+    height_fraction: f64,
+}
+
+fn rect_tile_preamble(
+    geo: &GeometryIr,
+    table: &dyn algraf_data::Table,
+    scales: &[ScaleIr],
+) -> RectTilePreamble {
+    RectTilePreamble {
+        fill: color_spec(geo, PropertyKey::Fill, table, scales),
+        stroke: color_spec(geo, PropertyKey::Stroke, table, scales),
+        stroke_width: number_setting(geo, PropertyKey::StrokeWidth, 1.0),
+        alpha: number_setting(geo, PropertyKey::Alpha, 1.0),
+        width_fraction: tile_fraction_setting(geo, PropertyKey::Width),
+        height_fraction: tile_fraction_setting(geo, PropertyKey::Height),
+    }
+}
 
 pub(super) fn render_rect(
     sink: &mut dyn MarkSink,
@@ -17,10 +41,7 @@ pub(super) fn render_rect(
     let table = ctx.table;
     let rows = ctx.rows;
     let scales = ctx.scales;
-    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
-    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
-    let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
-    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
+    let preamble = rect_tile_preamble(geo, table, scales);
     if space.is_polar() {
         render_rect_polar(
             sink,
@@ -28,10 +49,10 @@ pub(super) fn render_rect(
             space,
             table,
             rows,
-            &fill,
-            &stroke,
-            stroke_width,
-            alpha,
+            &preamble.fill,
+            &preamble.stroke,
+            preamble.stroke_width,
+            preamble.alpha,
         );
         return;
     }
@@ -57,7 +78,8 @@ pub(super) fn render_rect(
         if width <= f64::EPSILON || height <= f64::EPSILON {
             continue;
         }
-        let color = fill
+        let color = preamble
+            .fill
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
         sink.begin_mark(mark_interaction(geo, table, row));
@@ -68,8 +90,8 @@ pub(super) fn render_rect(
             height,
             &Paint {
                 fill: Fill::Color(color),
-                stroke: stroke_style(&stroke, stroke_width, table, row),
-                opacity: Some(alpha),
+                stroke: stroke_style(&preamble.stroke, preamble.stroke_width, table, row),
+                opacity: Some(preamble.alpha),
             },
         );
         sink.end_mark();
@@ -85,12 +107,7 @@ pub(super) fn render_tile(
     let table = ctx.table;
     let rows = ctx.rows;
     let scales = ctx.scales;
-    let fill = color_spec(geo, PropertyKey::Fill, table, scales);
-    let stroke = color_spec(geo, PropertyKey::Stroke, table, scales);
-    let stroke_width = number_setting(geo, PropertyKey::StrokeWidth, 1.0);
-    let alpha = number_setting(geo, PropertyKey::Alpha, 1.0);
-    let width_fraction = tile_fraction_setting(geo, PropertyKey::Width);
-    let height_fraction = tile_fraction_setting(geo, PropertyKey::Height);
+    let preamble = rect_tile_preamble(geo, table, scales);
     for row in render_rows(table, rows) {
         // Annular tile (heatmap) in polar: angular band × radial band.
         if let Some(polar) = space.polar() {
@@ -100,13 +117,22 @@ pub(super) fn render_tile(
             ) else {
                 continue;
             };
-            let color = fill
+            let color = preamble
+                .fill
                 .resolve(table, row)
                 .unwrap_or_else(|| DEFAULT_FILL.to_string());
-            let angle_width = bw * width_fraction;
-            let radius_width = r_w * height_fraction;
-            let angle_overlap = if width_fraction >= 1.0 { 0.001 } else { 0.0 };
-            let radius_overlap = if height_fraction >= 1.0 { 0.5 } else { 0.0 };
+            let angle_width = bw * preamble.width_fraction;
+            let radius_width = r_w * preamble.height_fraction;
+            let angle_overlap = if preamble.width_fraction >= 1.0 {
+                0.001
+            } else {
+                0.0
+            };
+            let radius_overlap = if preamble.height_fraction >= 1.0 {
+                0.5
+            } else {
+                0.0
+            };
             let r_mid = r_start + r_w / 2.0;
             let d = annular_segment_path(
                 polar,
@@ -120,8 +146,8 @@ pub(super) fn render_tile(
                 &d,
                 &Paint {
                     fill: Fill::Color(color),
-                    stroke: stroke_style(&stroke, stroke_width, table, row),
-                    opacity: Some(alpha),
+                    stroke: stroke_style(&preamble.stroke, preamble.stroke_width, table, row),
+                    opacity: Some(preamble.alpha),
                 },
             );
             sink.end_mark();
@@ -135,11 +161,12 @@ pub(super) fn render_tile(
         ) else {
             continue;
         };
-        let color = fill
+        let color = preamble
+            .fill
             .resolve(table, row)
             .unwrap_or_else(|| DEFAULT_FILL.to_string());
-        let tile_width = bw * width_fraction;
-        let tile_height = bh * height_fraction;
+        let tile_width = bw * preamble.width_fraction;
+        let tile_height = bh * preamble.height_fraction;
         sink.begin_mark(mark_interaction(geo, table, row));
         sink.rect(
             cx - tile_width / 2.0,
@@ -148,8 +175,8 @@ pub(super) fn render_tile(
             tile_height,
             &Paint {
                 fill: Fill::Color(color),
-                stroke: stroke_style(&stroke, stroke_width, table, row),
-                opacity: Some(alpha),
+                stroke: stroke_style(&preamble.stroke, preamble.stroke_width, table, row),
+                opacity: Some(preamble.alpha),
             },
         );
         sink.end_mark();

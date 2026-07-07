@@ -8,7 +8,7 @@ use crate::svg::{escape_attr, escape_text, num, SvgAttr, SvgWriter};
 use crate::theme::{TextStyle, Theme};
 
 use super::backend::RenderScene;
-use super::panels::{panel_slots, PanelSlot};
+use super::panels::{panel_slots, Panel, PanelSlot};
 
 /// The fixed, audited interactive runtime embedded when `--interactive` is set
 /// (spec §29.3). It is identical for every chart and is the *only* path by which
@@ -548,21 +548,25 @@ pub(super) fn emit_document(
 pub(super) fn paint_grid(sink: &mut dyn MarkSink, slots: &[PanelSlot<'_>]) {
     for slot in slots {
         if let Some(panel) = slot.panel {
-            if panel.scaled.is_polar() {
-                guide::render_polar_grid(sink, &panel.scaled, &panel.guides, &panel.theme);
-            } else if panel.guides.grid && !panel.scaled.is_spatial() {
-                let draw_x = panel.guides.x_grid.unwrap_or(panel.theme.grid_x);
-                let draw_y = panel.guides.y_grid.unwrap_or(panel.theme.grid_y);
-                guide::render_grid(
-                    sink,
-                    &panel.scaled,
-                    panel.plot,
-                    &panel.theme,
-                    draw_x,
-                    draw_y,
-                );
-            }
+            paint_panel_grid(sink, panel);
         }
+    }
+}
+
+pub(super) fn paint_panel_grid(sink: &mut dyn MarkSink, panel: &Panel<'_>) {
+    if panel.scaled.is_polar() {
+        guide::render_polar_grid(sink, &panel.scaled, &panel.guides, &panel.theme);
+    } else if panel.guides.grid && !panel.scaled.is_spatial() {
+        let draw_x = panel.guides.x_grid.unwrap_or(panel.theme.grid_x);
+        let draw_y = panel.guides.y_grid.unwrap_or(panel.theme.grid_y);
+        guide::render_grid(
+            sink,
+            &panel.scaled,
+            panel.plot,
+            &panel.theme,
+            draw_x,
+            draw_y,
+        );
     }
 }
 
