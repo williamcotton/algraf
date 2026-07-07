@@ -6,14 +6,15 @@ use serde_json::json;
 use tower_lsp::jsonrpc::{Request, Response};
 use tower_lsp::lsp_types::{
     CodeActionContext, CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
-    DidChangeTextDocumentParams, DidOpenTextDocumentParams, DocumentHighlight,
-    DocumentHighlightParams, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents,
-    HoverParams, InitializeResult, InlayHint, InlayHintParams, Location, PartialResultParams,
-    Position, PublishDiagnosticsParams, Range, ReferenceContext, ReferenceParams, RenameParams,
+    DidChangeTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams,
+    DocumentHighlight, DocumentHighlightParams, DocumentRangeFormattingParams, FormattingOptions,
+    GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents, HoverParams,
+    InitializeResult, InlayHint, InlayHintParams, Location, PartialResultParams, Position,
+    PublishDiagnosticsParams, Range, ReferenceContext, ReferenceParams, RenameParams,
     SemanticTokensParams, SemanticTokensResult, SignatureHelp, SignatureHelpParams,
     TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem,
-    TextDocumentPositionParams, Url, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
-    WorkspaceEdit,
+    TextDocumentPositionParams, TextEdit, Url, VersionedTextDocumentIdentifier,
+    WorkDoneProgressParams, WorkspaceEdit,
 };
 use tower_lsp::{ClientSocket, LspService};
 use tower_service::Service;
@@ -33,17 +34,9 @@ fn data_fixture(name: &str) -> PathBuf {
 
 async fn initialized_service() -> (tower_lsp::LspService<Backend>, tower_lsp::ClientSocket) {
     let (mut service, socket) = algraf_lsp::build_service();
-    let response = call(
-        &mut service,
-        Request::build("initialize")
-            .params(json!({ "capabilities": {} }))
-            .id(1)
-            .finish(),
-    )
-    .await
-    .unwrap();
+    let result: InitializeResult =
+        request_result(&mut service, "initialize", 1, json!({ "capabilities": {} })).await;
 
-    let result: InitializeResult = response_result(response);
     assert!(result.capabilities.completion_provider.is_some());
     assert!(result.capabilities.hover_provider.is_some());
     assert!(result.capabilities.semantic_tokens_provider.is_some());
@@ -57,6 +50,46 @@ async fn call(service: &mut LspService<Backend>, request: Request) -> Option<Res
         .await
         .unwrap();
     service.call(request).await.unwrap()
+}
+
+async fn request_result<P, T>(
+    service: &mut LspService<Backend>,
+    method: &str,
+    id: i64,
+    params: P,
+) -> T
+where
+    P: serde::Serialize,
+    T: serde::de::DeserializeOwned,
+{
+    let response = call(service, request(method, id, params))
+        .await
+        .expect("response");
+    response_result(response)
+}
+
+async fn notify<P>(service: &mut LspService<Backend>, method: &str, params: P)
+where
+    P: serde::Serialize,
+{
+    let response = call(
+        service,
+        Request::build(method.to_string())
+            .params(serde_json::to_value(params).unwrap())
+            .finish(),
+    )
+    .await;
+    assert!(response.is_none());
+}
+
+fn request<P>(method: &str, id: i64, params: P) -> Request
+where
+    P: serde::Serialize,
+{
+    Request::build(method.to_string())
+        .params(serde_json::to_value(params).unwrap())
+        .id(id)
+        .finish()
 }
 
 fn response_result<T: serde::de::DeserializeOwned>(response: Response) -> T {
@@ -73,14 +106,7 @@ async fn open_document(service: &mut LspService<Backend>, uri: Url, text: &str) 
             text: text.to_string(),
         },
     };
-    let response = call(
-        service,
-        Request::build("textDocument/didOpen")
-            .params(serde_json::to_value(params).unwrap())
-            .finish(),
-    )
-    .await;
-    assert!(response.is_none());
+    notify(service, "textDocument/didOpen", params).await;
 }
 
 async fn change_document(service: &mut LspService<Backend>, uri: Url, version: i32, text: &str) {
@@ -92,14 +118,7 @@ async fn change_document(service: &mut LspService<Backend>, uri: Url, version: i
             text: text.to_string(),
         }],
     };
-    let response = call(
-        service,
-        Request::build("textDocument/didChange")
-            .params(serde_json::to_value(params).unwrap())
-            .finish(),
-    )
-    .await;
-    assert!(response.is_none());
+    notify(service, "textDocument/didChange", params).await;
 }
 
 async fn next_client_notification(socket: &mut ClientSocket) -> Request {
@@ -155,6 +174,14 @@ fn hover_markdown(hover: Option<Hover>) -> String {
     }
 }
 
+fn formatting_options() -> FormattingOptions {
+    FormattingOptions {
+        tab_size: 4,
+        insert_spaces: true,
+        ..FormattingOptions::default()
+    }
+}
+
 #[tokio::test]
 async fn completion_quotes_non_identifier_column_names() {
     let dir = temp_project("quoted-columns");
@@ -176,17 +203,9 @@ async fn completion_quotes_non_identifier_column_names() {
         partial_result_params: Default::default(),
         context: None,
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/completion")
-            .params(serde_json::to_value(params).unwrap())
-            .id(2)
-            .finish(),
-    )
-    .await
-    .unwrap();
+    let result: Option<CompletionResponse> =
+        request_result(&mut service, "textDocument/completion", 2, params).await;
 
-    let result: Option<CompletionResponse> = response_result(response);
     let labels = labels(result);
     assert!(labels
         .iter()
@@ -216,17 +235,9 @@ async fn geometry_property_completion_uses_column_schema() {
         partial_result_params: Default::default(),
         context: None,
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/completion")
-            .params(serde_json::to_value(params).unwrap())
-            .id(2)
-            .finish(),
-    )
-    .await
-    .unwrap();
+    let result: Option<CompletionResponse> =
+        request_result(&mut service, "textDocument/completion", 2, params).await;
 
-    let result: Option<CompletionResponse> = response_result(response);
     let labels = labels(result);
     assert!(labels.iter().any(|(label, _)| label == "species"));
 }
@@ -253,17 +264,9 @@ async fn scale_type_completion_offers_scale_types() {
         partial_result_params: Default::default(),
         context: None,
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/completion")
-            .params(serde_json::to_value(params).unwrap())
-            .id(2)
-            .finish(),
-    )
-    .await
-    .unwrap();
+    let result: Option<CompletionResponse> =
+        request_result(&mut service, "textDocument/completion", 2, params).await;
 
-    let result: Option<CompletionResponse> = response_result(response);
     let labels = labels(result);
     assert!(labels.iter().any(|(label, _)| label == "\"sqrt\""));
     assert!(labels.iter().any(|(label, _)| label == "\"log10\""));
@@ -290,17 +293,9 @@ async fn schema_resolution_uses_geojson_constructor_format() {
         partial_result_params: Default::default(),
         context: None,
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/completion")
-            .params(serde_json::to_value(params).unwrap())
-            .id(2)
-            .finish(),
-    )
-    .await
-    .unwrap();
+    let result: Option<CompletionResponse> =
+        request_result(&mut service, "textDocument/completion", 2, params).await;
 
-    let result: Option<CompletionResponse> = response_result(response);
     let labels = labels(result);
     assert!(labels.iter().any(|(label, _)| label == "geom"));
 }
@@ -358,16 +353,9 @@ async fn declaration_completion_knows_scale_and_guide_keys() {
         partial_result_params: Default::default(),
         context: None,
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/completion")
-            .params(serde_json::to_value(params).unwrap())
-            .id(2)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let axis_labels = labels(response_result(response));
+    let result: Option<CompletionResponse> =
+        request_result(&mut service, "textDocument/completion", 2, params).await;
+    let axis_labels = labels(result);
     assert!(axis_labels.iter().any(|(label, _)| label == "x"));
     assert!(axis_labels.iter().any(|(label, _)| label == "y"));
 }
@@ -391,20 +379,72 @@ async fn semantic_tokens_full_returns_tokens() {
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/semanticTokens/full")
-            .params(serde_json::to_value(params).unwrap())
-            .id(3)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<SemanticTokensResult> = response_result(response);
+    let result: Option<SemanticTokensResult> =
+        request_result(&mut service, "textDocument/semanticTokens/full", 3, params).await;
     let Some(SemanticTokensResult::Tokens(tokens)) = result else {
         panic!("expected semantic tokens");
     };
     assert!(!tokens.data.is_empty());
+}
+
+#[tokio::test]
+async fn document_formatting_returns_whole_document_edit() {
+    let dir = temp_project("formatting");
+    let source_path = dir.join("chart.ag");
+    let data_path = dir.join("data.csv");
+    std::fs::write(&data_path, "x,y\n1,2\n").unwrap();
+
+    let source = "Chart(data:\"data.csv\"){Space(x*y){Point()}}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let params = DocumentFormattingParams {
+        text_document: TextDocumentIdentifier { uri },
+        options: formatting_options(),
+        work_done_progress_params: WorkDoneProgressParams::default(),
+    };
+    let result: Option<Vec<TextEdit>> =
+        request_result(&mut service, "textDocument/formatting", 15, params).await;
+    let edits = result.expect("formatting edits");
+    assert_eq!(edits.len(), 1);
+    assert_eq!(edits[0].range.start, Position::new(0, 0));
+    assert_eq!(edits[0].range.end, utf16_position(source, source.len()));
+    assert_eq!(edits[0].new_text, algraf_syntax::format(source));
+}
+
+#[tokio::test]
+async fn range_formatting_delegates_to_whole_document_formatting() {
+    let dir = temp_project("range-formatting");
+    let source_path = dir.join("chart.ag");
+    let data_path = dir.join("data.csv");
+    std::fs::write(&data_path, "x,y\n1,2\n").unwrap();
+
+    let source = "Chart(data:\"data.csv\"){Space(x*y){Point()}}";
+    std::fs::write(&source_path, source).unwrap();
+    let uri = Url::from_file_path(&source_path).unwrap();
+
+    let (mut service, _socket) = initialized_service().await;
+    open_document(&mut service, uri.clone(), source).await;
+
+    let params = DocumentRangeFormattingParams {
+        text_document: TextDocumentIdentifier { uri },
+        range: Range {
+            start: utf16_position(source, source.find("Space").unwrap()),
+            end: utf16_position(source, source.find("Point").unwrap()),
+        },
+        options: formatting_options(),
+        work_done_progress_params: WorkDoneProgressParams::default(),
+    };
+    let result: Option<Vec<TextEdit>> =
+        request_result(&mut service, "textDocument/rangeFormatting", 16, params).await;
+    let edits = result.expect("range formatting edits");
+    assert_eq!(edits.len(), 1);
+    assert_eq!(edits[0].range.start, Position::new(0, 0));
+    assert_eq!(edits[0].range.end, utf16_position(source, source.len()));
+    assert_eq!(edits[0].new_text, algraf_syntax::format(source));
 }
 
 #[tokio::test]
@@ -447,16 +487,8 @@ async fn code_action_quotes_bare_color_literal() {
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/codeAction")
-            .params(serde_json::to_value(action_params).unwrap())
-            .id(4)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<CodeActionResponse> = response_result(response);
+    let result: Option<CodeActionResponse> =
+        request_result(&mut service, "textDocument/codeAction", 4, action_params).await;
     let actions = result.expect("actions");
     let serialized = serde_json::to_string(&actions).unwrap();
     assert!(serialized.contains("\\\"red\\\""), "{serialized}");
@@ -481,17 +513,8 @@ async fn hover_uses_utf16_positions_for_operator_lookup() {
         text_document_position_params: request_position(uri, source, offset),
         work_done_progress_params: Default::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/hover")
-            .params(serde_json::to_value(params).unwrap())
-            .id(2)
-            .finish(),
-    )
-    .await
-    .unwrap();
+    let result: Option<Hover> = request_result(&mut service, "textDocument/hover", 2, params).await;
 
-    let result: Option<Hover> = response_result(response);
     let value = match result.unwrap().contents {
         HoverContents::Markup(markup) => markup.value,
         other => format!("{other:?}"),
@@ -517,16 +540,9 @@ async fn hover_previews_source_string_schema_and_rows() {
         text_document_position_params: request_position(uri, source, offset),
         work_done_progress_params: Default::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/hover")
-            .params(serde_json::to_value(params).unwrap())
-            .id(21)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let markdown = hover_markdown(response_result(response));
+    let result: Option<Hover> =
+        request_result(&mut service, "textDocument/hover", 21, params).await;
+    let markdown = hover_markdown(result);
 
     assert!(markdown.contains("Data source `samples.csv`"), "{markdown}");
     assert!(markdown.contains("| x | float | 1.2, 1.8 |"), "{markdown}");
@@ -551,16 +567,7 @@ async fn hover_derived_table_reference_uses_utf16_range() {
         text_document_position_params: request_position(uri, source, offset),
         work_done_progress_params: Default::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/hover")
-            .params(serde_json::to_value(params).unwrap())
-            .id(22)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let hover: Option<Hover> = response_result(response);
+    let hover: Option<Hover> = request_result(&mut service, "textDocument/hover", 22, params).await;
     let hover = hover.expect("hover");
     let markdown = hover_markdown(Some(hover.clone()));
     assert!(markdown.contains("Derived table `binned`"), "{markdown}");
@@ -759,16 +766,8 @@ async fn definition_derived_column_jumps_to_derive() {
         work_done_progress_params: WorkDoneProgressParams::default(),
         partial_result_params: PartialResultParams::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/definition")
-            .params(serde_json::to_value(params).unwrap())
-            .id(5)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<GotoDefinitionResponse> = response_result(response);
+    let result: Option<GotoDefinitionResponse> =
+        request_result(&mut service, "textDocument/definition", 5, params).await;
     let GotoDefinitionResponse::Scalar(location) = result.expect("definition") else {
         panic!("expected scalar definition");
     };
@@ -787,16 +786,8 @@ async fn definition_data_string_opens_csv_file() {
         work_done_progress_params: WorkDoneProgressParams::default(),
         partial_result_params: PartialResultParams::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/definition")
-            .params(serde_json::to_value(params).unwrap())
-            .id(5)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<GotoDefinitionResponse> = response_result(response);
+    let result: Option<GotoDefinitionResponse> =
+        request_result(&mut service, "textDocument/definition", 5, params).await;
     let GotoDefinitionResponse::Scalar(location) = result.expect("definition") else {
         panic!("expected scalar definition");
     };
@@ -825,16 +816,8 @@ async fn references_report_column_uses_across_spaces() {
             include_declaration: true,
         },
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/references")
-            .params(serde_json::to_value(params).unwrap())
-            .id(6)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<Vec<Location>> = response_result(response);
+    let result: Option<Vec<Location>> =
+        request_result(&mut service, "textDocument/references", 6, params).await;
     let locations = result.expect("references");
     assert_eq!(locations.len(), 2, "expected both `x` uses");
 }
@@ -850,16 +833,8 @@ async fn document_highlight_marks_derive_declaration_and_use() {
         work_done_progress_params: WorkDoneProgressParams::default(),
         partial_result_params: PartialResultParams::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/documentHighlight")
-            .params(serde_json::to_value(params).unwrap())
-            .id(7)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<Vec<DocumentHighlight>> = response_result(response);
+    let result: Option<Vec<DocumentHighlight>> =
+        request_result(&mut service, "textDocument/documentHighlight", 7, params).await;
     let highlights = result.expect("highlights");
     // The declaration name plus the `data: binned` reference.
     assert_eq!(highlights.len(), 2);
@@ -890,16 +865,8 @@ async fn references_are_byte_accurate_for_non_ascii_columns() {
             include_declaration: true,
         },
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/references")
-            .params(serde_json::to_value(params).unwrap())
-            .id(8)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let locations: Option<Vec<Location>> = response_result(response);
+    let locations: Option<Vec<Location>> =
+        request_result(&mut service, "textDocument/references", 8, params).await;
     let locations = locations.expect("references");
     assert_eq!(locations.len(), 2);
     let first = utf16_position(source, source.find("naïve").unwrap());
@@ -924,16 +891,8 @@ async fn signature_help_lists_point_properties() {
         text_document_position_params: position_params(uri, source, offset),
         work_done_progress_params: WorkDoneProgressParams::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/signatureHelp")
-            .params(serde_json::to_value(params).unwrap())
-            .id(9)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<SignatureHelp> = response_result(response);
+    let result: Option<SignatureHelp> =
+        request_result(&mut service, "textDocument/signatureHelp", 9, params).await;
     let help = result.expect("signature help");
     let signature = &help.signatures[0];
     assert!(signature.label.starts_with("Point("));
@@ -960,16 +919,8 @@ async fn signature_help_tracks_active_parameter_past_comma() {
         text_document_position_params: position_params(uri, source, offset),
         work_done_progress_params: WorkDoneProgressParams::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/signatureHelp")
-            .params(serde_json::to_value(params).unwrap())
-            .id(10)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<SignatureHelp> = response_result(response);
+    let result: Option<SignatureHelp> =
+        request_result(&mut service, "textDocument/signatureHelp", 10, params).await;
     let help = result.expect("signature help");
     assert!(help.signatures[0].label.starts_with("Scale("));
     assert_eq!(help.active_parameter, Some(1));
@@ -1011,16 +962,8 @@ async fn code_action_suggests_corrected_column() {
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/codeAction")
-            .params(serde_json::to_value(action_params).unwrap())
-            .id(11)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<CodeActionResponse> = response_result(response);
+    let result: Option<CodeActionResponse> =
+        request_result(&mut service, "textDocument/codeAction", 11, action_params).await;
     let serialized = serde_json::to_string(&result.expect("actions")).unwrap();
     assert!(serialized.contains("Use suggested column"), "{serialized}");
     assert!(serialized.contains("species"), "{serialized}");
@@ -1054,16 +997,8 @@ async fn code_action_desugars_histogram() {
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/codeAction")
-            .params(serde_json::to_value(action_params).unwrap())
-            .id(12)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<CodeActionResponse> = response_result(response);
+    let result: Option<CodeActionResponse> =
+        request_result(&mut service, "textDocument/codeAction", 12, action_params).await;
     let serialized = serde_json::to_string(&result.expect("actions")).unwrap();
     assert!(serialized.contains("Desugar Histogram"), "{serialized}");
     assert!(serialized.contains("Bin(value, bins: 10)"), "{serialized}");
@@ -1106,16 +1041,8 @@ async fn code_action_rewrites_removed_transpose() {
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/codeAction")
-            .params(serde_json::to_value(action_params).unwrap())
-            .id(41)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<CodeActionResponse> = response_result(response);
+    let result: Option<CodeActionResponse> =
+        request_result(&mut service, "textDocument/codeAction", 41, action_params).await;
     let serialized = serde_json::to_string(&result.expect("actions")).unwrap();
     assert!(serialized.contains("Rewrite transpose"), "{serialized}");
     assert!(serialized.contains("(amount * quarter)"), "{serialized}");
@@ -1132,16 +1059,8 @@ async fn rename_updates_derived_table_declaration_and_use() {
         new_name: "histogram".to_string(),
         work_done_progress_params: WorkDoneProgressParams::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/rename")
-            .params(serde_json::to_value(params).unwrap())
-            .id(13)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<WorkspaceEdit> = response_result(response);
+    let result: Option<WorkspaceEdit> =
+        request_result(&mut service, "textDocument/rename", 13, params).await;
     let edit = result.expect("rename edit");
     let edits = edit.changes.unwrap().remove(&uri).unwrap();
     assert_eq!(edits.len(), 2, "declaration plus the data: reference");
@@ -1167,16 +1086,8 @@ async fn rename_updates_let_binding_declaration_and_uses() {
         new_name: "brand".to_string(),
         work_done_progress_params: WorkDoneProgressParams::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/rename")
-            .params(serde_json::to_value(params).unwrap())
-            .id(40)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<WorkspaceEdit> = response_result(response);
+    let result: Option<WorkspaceEdit> =
+        request_result(&mut service, "textDocument/rename", 40, params).await;
     let edit = result.expect("rename edit");
     let edits = edit.changes.unwrap().remove(&uri).unwrap();
     assert_eq!(edits.len(), 3, "declaration plus two property-value uses");
@@ -1197,16 +1108,8 @@ async fn inlay_hints_are_empty_when_legacy_clients_request_them() {
         },
         work_done_progress_params: WorkDoneProgressParams::default(),
     };
-    let response = call(
-        &mut service,
-        Request::build("textDocument/inlayHint")
-            .params(serde_json::to_value(params).unwrap())
-            .id(14)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let result: Option<Vec<InlayHint>> = response_result(response);
+    let result: Option<Vec<InlayHint>> =
+        request_result(&mut service, "textDocument/inlayHint", 14, params).await;
     let hints = result.expect("inlay hints");
     assert!(hints.is_empty());
 }
@@ -1223,16 +1126,8 @@ async fn preview_renders_svg_through_render_pipeline() {
     let (mut service, _socket) = initialized_service().await;
     open_document(&mut service, uri.clone(), source).await;
 
-    let response = call(
-        &mut service,
-        Request::build("algraf/preview")
-            .params(json!({ "uri": uri }))
-            .id(20)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let value: serde_json::Value = response_result(response);
+    let value: serde_json::Value =
+        request_result(&mut service, "algraf/preview", 20, json!({ "uri": uri })).await;
     let svg = value["svg"].as_str().expect("svg string");
     assert!(svg.contains("<svg"), "{svg}");
     let metadata = value["metadata"].as_str().expect("metadata string");
@@ -1262,16 +1157,8 @@ async fn preview_reports_normalized_data_dependency_paths() {
     let (mut service, _socket) = initialized_service().await;
     open_document(&mut service, uri.clone(), source).await;
 
-    let response = call(
-        &mut service,
-        Request::build("algraf/preview")
-            .params(json!({ "uri": uri }))
-            .id(24)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let value: serde_json::Value = response_result(response);
+    let value: serde_json::Value =
+        request_result(&mut service, "algraf/preview", 24, json!({ "uri": uri })).await;
     assert!(value["svg"].as_str().unwrap().contains("<svg"));
     let data_paths = value["dataPaths"].as_array().expect("dataPaths");
     assert_eq!(data_paths.len(), 1);
@@ -1297,16 +1184,8 @@ async fn preview_preserves_multiline_text_labels() {
     let (mut service, _socket) = initialized_service().await;
     open_document(&mut service, uri.clone(), source).await;
 
-    let response = call(
-        &mut service,
-        Request::build("algraf/preview")
-            .params(json!({ "uri": uri }))
-            .id(23)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let value: serde_json::Value = response_result(response);
+    let value: serde_json::Value =
+        request_result(&mut service, "algraf/preview", 23, json!({ "uri": uri })).await;
     let svg = value["svg"].as_str().expect("svg string");
     assert!(
         svg.contains("<tspan") && svg.contains("first line") && svg.contains("second line"),
@@ -1327,16 +1206,8 @@ async fn preview_loads_named_geojson_table_constructor() {
     let (mut service, _socket) = initialized_service().await;
     open_document(&mut service, uri.clone(), source).await;
 
-    let response = call(
-        &mut service,
-        Request::build("algraf/preview")
-            .params(json!({ "uri": uri }))
-            .id(22)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let value: serde_json::Value = response_result(response);
+    let value: serde_json::Value =
+        request_result(&mut service, "algraf/preview", 22, json!({ "uri": uri })).await;
     let svg = value["svg"].as_str().expect("svg string");
     assert!(svg.contains("<svg"), "{svg}");
     let data_paths = value["dataPaths"].as_array().expect("dataPaths");
@@ -1357,16 +1228,8 @@ async fn preview_reports_missing_data_source() {
     let (mut service, _socket) = initialized_service().await;
     open_document(&mut service, uri.clone(), source).await;
 
-    let response = call(
-        &mut service,
-        Request::build("algraf/preview")
-            .params(json!({ "uri": uri }))
-            .id(21)
-            .finish(),
-    )
-    .await
-    .unwrap();
-    let value: serde_json::Value = response_result(response);
+    let value: serde_json::Value =
+        request_result(&mut service, "algraf/preview", 21, json!({ "uri": uri })).await;
     assert!(value["svg"].is_null());
     assert!(value["message"].as_str().unwrap().contains("data source"));
 }

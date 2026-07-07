@@ -321,11 +321,10 @@ fn display_order(domain_len: usize, sequences: &[Vec<StackEntry>]) -> Vec<usize>
         let ready = (0..domain_len)
             .filter(|&i| contributes[i] && !emitted[i])
             .find(|&i| indegree[i] == 0);
-        let next = ready.unwrap_or_else(|| {
-            (0..domain_len)
-                .find(|&i| contributes[i] && !emitted[i])
-                .expect("pending contributing category")
-        });
+        let Some(next) = ready.or_else(|| (0..domain_len).find(|&i| contributes[i] && !emitted[i]))
+        else {
+            break;
+        };
         emitted[next] = true;
         accumulation_rank[next] = rank;
         for &(a, b) in &edges {

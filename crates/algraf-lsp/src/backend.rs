@@ -135,6 +135,20 @@ impl Backend {
     }
 }
 
+fn whole_document_format_edits(text: &str) -> Vec<TextEdit> {
+    let formatted = format(text);
+    if formatted == text {
+        return Vec::new();
+    }
+    vec![TextEdit {
+        range: Range {
+            start: Position::new(0, 0),
+            end: offset_to_position(text, text.len()),
+        },
+        new_text: formatted,
+    }]
+}
+
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> LspResult<InitializeResult> {
@@ -267,17 +281,7 @@ impl LanguageServer for Backend {
         let Some(state) = self.document(&params.text_document.uri) else {
             return Ok(None);
         };
-        let formatted = format(&state.text);
-        if formatted == state.text {
-            return Ok(Some(Vec::new()));
-        }
-        Ok(Some(vec![TextEdit {
-            range: Range {
-                start: Position::new(0, 0),
-                end: offset_to_position(&state.text, state.text.len()),
-            },
-            new_text: formatted,
-        }]))
+        Ok(Some(whole_document_format_edits(&state.text)))
     }
 
     async fn semantic_tokens_full(
@@ -381,17 +385,7 @@ impl LanguageServer for Backend {
         // The Algraf formatter is holistic and deterministic (spec §21.10), so a
         // range request reformats the whole document and returns one edit. This
         // keeps output stable rather than re-implementing a partial formatter.
-        let formatted = format(&state.text);
-        if formatted == state.text {
-            return Ok(Some(Vec::new()));
-        }
-        Ok(Some(vec![TextEdit {
-            range: Range {
-                start: Position::new(0, 0),
-                end: offset_to_position(&state.text, state.text.len()),
-            },
-            new_text: formatted,
-        }]))
+        Ok(Some(whole_document_format_edits(&state.text)))
     }
 
     async fn prepare_rename(

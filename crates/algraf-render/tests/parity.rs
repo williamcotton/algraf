@@ -6,76 +6,13 @@
 //! op-by-op parity for representative charts and guard against a new SVG
 //! primitive being added without a matching draw-list op.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
-use algraf_data::{read_csv_str, DataFrame, Table};
-use algraf_render::{render, render_draw_list, DrawList, DrawOp, DrawRole, RenderOptions, Theme};
-use algraf_semantics::{analyze, analyze_with_tables};
-use algraf_syntax::parse;
+use algraf_render::{DrawList, DrawOp, DrawRole};
 
-fn draw_list(source: &str, csv: &str) -> DrawList {
-    let frame = read_csv_str(csv).expect("csv").frame;
-    let ir = analyze(&parse(source).syntax(), frame.schema())
-        .ir
-        .expect("ir");
-    render_draw_list(&ir, &frame, &Theme::minimal(), None)
-        .expect("draw list")
-        .draw_list
-}
+mod common;
 
-fn svg(source: &str, csv: &str) -> String {
-    let frame = read_csv_str(csv).expect("csv").frame;
-    let ir = analyze(&parse(source).syntax(), frame.schema())
-        .ir
-        .expect("ir");
-    render(&ir, &frame, &Theme::minimal(), None)
-        .expect("render")
-        .svg
-}
-
-fn draw_list_with_tables(source: &str, primary_csv: &str, tables: &[(&str, &str)]) -> DrawList {
-    let frame = read_csv_str(primary_csv).expect("primary csv").frame;
-    let mut named = HashMap::<String, DataFrame>::new();
-    let mut schemas = HashMap::new();
-    for (name, csv) in tables {
-        let table = read_csv_str(csv).expect("named csv").frame;
-        schemas.insert((*name).to_string(), table.schema().to_vec());
-        named.insert((*name).to_string(), table);
-    }
-    let parsed = parse(source);
-    let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
-    let ir = analysis.ir.expect("ir");
-    render_draw_list(
-        &ir,
-        &frame,
-        &Theme::minimal(),
-        RenderOptions::default().with_named_tables(&named),
-    )
-    .expect("draw list")
-    .draw_list
-}
-
-fn svg_with_tables(source: &str, primary_csv: &str, tables: &[(&str, &str)]) -> String {
-    let frame = read_csv_str(primary_csv).expect("primary csv").frame;
-    let mut named = HashMap::<String, DataFrame>::new();
-    let mut schemas = HashMap::new();
-    for (name, csv) in tables {
-        let table = read_csv_str(csv).expect("named csv").frame;
-        schemas.insert((*name).to_string(), table.schema().to_vec());
-        named.insert((*name).to_string(), table);
-    }
-    let parsed = parse(source);
-    let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
-    let ir = analysis.ir.expect("ir");
-    render(
-        &ir,
-        &frame,
-        &Theme::minimal(),
-        RenderOptions::default().with_named_tables(&named),
-    )
-    .expect("render")
-    .svg
-}
+use common::{draw_list, draw_list_with_tables, svg, svg_with_tables};
 
 /// Count primitive *elements* in an SVG string by tag. Structural elements
 /// (`<svg>`, `<g>`, `<title>`, `<desc>`, `<tspan>`) are not primitives and are

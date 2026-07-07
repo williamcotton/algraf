@@ -694,9 +694,9 @@ fn clip_band(triangle: &[GridPoint; 3], lo: f64, hi: f64) -> Vec<GridPoint> {
 }
 
 fn clip_polygon(points: &[GridPoint], threshold: f64, keep_above: bool) -> Vec<GridPoint> {
-    if points.is_empty() {
+    let Some(&last) = points.last() else {
         return Vec::new();
-    }
+    };
     let inside = |p: GridPoint| {
         if keep_above {
             p.z >= threshold
@@ -705,7 +705,7 @@ fn clip_polygon(points: &[GridPoint], threshold: f64, keep_above: bool) -> Vec<G
         }
     };
     let mut out = Vec::new();
-    let mut prev = *points.last().unwrap();
+    let mut prev = last;
     let mut prev_inside = inside(prev);
     for &cur in points {
         let cur_inside = inside(cur);
@@ -742,8 +742,12 @@ fn dedup_ring(points: Vec<GridPoint>) -> Vec<GridPoint> {
             out.push(point);
         }
     }
-    if out.len() > 1 && same_xy(out[0], *out.last().unwrap()) {
-        out.pop();
+    if out.len() > 1 {
+        if let Some(&last) = out.last() {
+            if same_xy(out[0], last) {
+                out.pop();
+            }
+        }
     }
     out
 }

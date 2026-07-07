@@ -469,23 +469,17 @@ fn named_table_hover(state: &DocumentState, target: NamedTableHoverTarget) -> St
             out.push_str("\n\nResolved path: ");
             out.push_str(&inline_code(&preview.label));
         }
-        out.push_str("\n\nSampled schema:\n\n");
-        out.push_str(&source_schema_table(&preview.schema));
-        if !preview.rows.is_empty() && !preview.row_headers.is_empty() {
-            out.push_str("\n\nSample rows:\n\n");
-            out.push_str(&sample_rows_table(&preview.row_headers, &preview.rows));
-        } else {
-            out.push_str("\n\nSample rows unavailable.");
-        }
-        out.push_str("\n\nProvisional LSP sample.");
+        append_source_sample_markdown(
+            &mut out,
+            &preview.schema,
+            &preview.row_headers,
+            &preview.rows,
+        );
         return out;
     }
 
     if let Some(schema) = state.table_schemas.get(&target.name) {
-        out.push_str("\n\nSampled schema:\n\n");
-        out.push_str(&source_schema_table(schema));
-        out.push_str("\n\nSample rows unavailable.");
-        out.push_str("\n\nProvisional LSP sample.");
+        append_source_sample_markdown(&mut out, schema, &[], &[]);
         return out;
     }
 
@@ -801,25 +795,36 @@ fn source_preview_markdown(
         out.push_str("\n\nResolved path: ");
         out.push_str(&inline_code(&preview.label));
     }
-    out.push_str("\n\nSampled schema:\n\n");
-    out.push_str(&source_schema_table(&preview.schema));
-    if !preview.rows.is_empty() && !preview.row_headers.is_empty() {
-        out.push_str("\n\nSample rows:\n\n");
-        out.push_str(&sample_rows_table(&preview.row_headers, &preview.rows));
-    } else {
-        out.push_str("\n\nSample rows unavailable.");
-    }
-    out.push_str("\n\nProvisional LSP sample.");
+    append_source_sample_markdown(
+        &mut out,
+        &preview.schema,
+        &preview.row_headers,
+        &preview.rows,
+    );
     out
 }
 
 fn source_schema_markdown(label: &str, table_name: Option<&str>, schema: &[ColumnDef]) -> String {
     let mut out = source_title(label, table_name);
+    append_source_sample_markdown(&mut out, schema, &[], &[]);
+    out
+}
+
+fn append_source_sample_markdown(
+    out: &mut String,
+    schema: &[ColumnDef],
+    row_headers: &[String],
+    rows: &[Vec<String>],
+) {
     out.push_str("\n\nSampled schema:\n\n");
     out.push_str(&source_schema_table(schema));
-    out.push_str("\n\nSample rows unavailable.");
+    if !rows.is_empty() && !row_headers.is_empty() {
+        out.push_str("\n\nSample rows:\n\n");
+        out.push_str(&sample_rows_table(row_headers, rows));
+    } else {
+        out.push_str("\n\nSample rows unavailable.");
+    }
     out.push_str("\n\nProvisional LSP sample.");
-    out
 }
 
 fn source_unavailable_markdown(label: &str, table_name: Option<&str>) -> String {

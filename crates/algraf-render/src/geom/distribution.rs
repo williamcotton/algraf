@@ -195,8 +195,13 @@ pub(super) fn render_boxplot(
             continue;
         };
         group.sort_by(|a, b| a.1.total_cmp(&b.1));
-        let first_row = group[0].0;
+        let Some(&(first_row, _)) = group.first() else {
+            continue;
+        };
         let values: Vec<f64> = group.iter().map(|(_, value)| *value).collect();
+        let Some(last_value) = values.last().copied() else {
+            continue;
+        };
         let q1 = quantile_type7(&values, 0.25);
         let median = quantile_type7(&values, 0.5);
         let q3 = quantile_type7(&values, 0.75);
@@ -213,7 +218,7 @@ pub(super) fn render_boxplot(
             .copied()
             .rev()
             .find(|value| *value <= upper_bound)
-            .unwrap_or(*values.last().unwrap());
+            .unwrap_or(last_value);
 
         let (Some(center), Some(bandwidth)) = (
             position_center(space, table, first_row, orientation),

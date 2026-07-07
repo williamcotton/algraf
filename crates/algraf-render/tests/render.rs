@@ -5,12 +5,11 @@ use std::path::PathBuf;
 #[cfg(feature = "arrow-stream")]
 use std::sync::Arc;
 
-use algraf_data::{read_csv_str, DataFrame, Table};
+use algraf_data::{read_csv_str, Table};
 use algraf_driver::SourceInput;
 use algraf_render::{
     load_image_assets_with_io, render, render_embedded, EmbeddedOutputFormat,
-    EmbeddedRenderOptions, ImageAsset, ImageAssets, InMemoryDriverIo, RenderLimits, RenderOptions,
-    RenderResult, Theme,
+    EmbeddedRenderOptions, InMemoryDriverIo, RenderLimits, RenderOptions, RenderResult, Theme,
 };
 use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
@@ -21,18 +20,11 @@ use arrow_ipc::writer::StreamWriter;
 #[cfg(feature = "arrow-stream")]
 use arrow_schema::{DataType as ArrowDataType, Field, Schema};
 
-/// Parse + analyze + render `source` against `csv`, returning the SVG.
-fn render_svg(source: &str, csv: &str) -> String {
-    render_result(source, csv).svg
-}
+mod common;
 
-fn render_result(source: &str, csv: &str) -> RenderResult {
-    let frame = read_csv_str(csv).expect("csv").frame;
-    let parsed = parse(source);
-    let analysis = analyze(&parsed.syntax(), frame.schema());
-    let ir = analysis.ir.expect("ir");
-    render(&ir, &frame, &Theme::minimal(), None).expect("render")
-}
+use common::{
+    image_assets, render_result, render_result_with_assets, render_result_with_tables, render_svg,
+};
 
 fn mark_rect_count(svg: &str) -> usize {
     svg.match_indices("<rect x=")
@@ -116,68 +108,6 @@ fn arrow_stream_fixture() -> Vec<u8> {
     writer.finish().unwrap();
     drop(writer);
     bytes
-}
-
-fn render_result_with_tables(
-    source: &str,
-    primary_csv: &str,
-    tables: &[(&str, &str)],
-) -> RenderResult {
-    let frame = read_csv_str(primary_csv).expect("primary csv").frame;
-    let mut named = HashMap::<String, DataFrame>::new();
-    let mut schemas = HashMap::new();
-    for (name, csv) in tables {
-        let table = read_csv_str(csv).expect("named csv").frame;
-        schemas.insert((*name).to_string(), table.schema().to_vec());
-        named.insert((*name).to_string(), table);
-    }
-    let parsed = parse(source);
-    let mut analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
-    let mut diagnostics = parsed.into_diagnostics();
-    diagnostics.append(&mut analysis.diagnostics);
-    assert!(
-        diagnostics.iter().all(|d| !d.code.starts_with('E')),
-        "{diagnostics:#?}"
-    );
-    let ir = analysis.ir.expect("ir");
-    render(
-        &ir,
-        &frame,
-        &Theme::minimal(),
-        RenderOptions::default().with_named_tables(&named),
-    )
-    .expect("render")
-}
-
-fn image_assets() -> ImageAssets {
-    let mut assets = ImageAssets::new();
-    assets.insert(ImageAsset {
-        source: "a.png".to_string(),
-        href: "data:image/png;base64,AAAA".to_string(),
-        intrinsic_width: 2.0,
-        intrinsic_height: 1.0,
-    });
-    assets.insert(ImageAsset {
-        source: "b.png".to_string(),
-        href: "data:image/png;base64,BBBB".to_string(),
-        intrinsic_width: 1.0,
-        intrinsic_height: 2.0,
-    });
-    assets
-}
-
-fn render_result_with_assets(source: &str, csv: &str, assets: &ImageAssets) -> RenderResult {
-    let frame = read_csv_str(csv).expect("csv").frame;
-    let parsed = parse(source);
-    let analysis = analyze(&parsed.syntax(), frame.schema());
-    let ir = analysis.ir.expect("ir");
-    render(
-        &ir,
-        &frame,
-        &Theme::minimal(),
-        RenderOptions::default().with_image_assets(assets),
-    )
-    .expect("render")
 }
 
 #[test]

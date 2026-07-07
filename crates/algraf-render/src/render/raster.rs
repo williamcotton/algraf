@@ -106,7 +106,9 @@ fn rasterize(
     };
     let width = ((list.width as f32) * scale).round().max(1.0) as u32;
     let height = ((list.height as f32) * scale).round().max(1.0) as u32;
-    let mut pixmap = Pixmap::new(width, height).unwrap_or_else(|| Pixmap::new(1, 1).expect("1x1"));
+    let mut pixmap = Pixmap::new(width, height).unwrap_or_else(|| {
+        Pixmap::new(1, 1).expect("1x1 pixmap allocation must fit tiny-skia limits")
+    });
     let transform = Transform::from_scale(scale, scale);
 
     let mut clip_stack: Vec<Mask> = Vec::new();

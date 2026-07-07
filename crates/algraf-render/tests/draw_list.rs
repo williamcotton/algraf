@@ -3,79 +3,14 @@
 //! (spec §24.6, §27.1). These guard the documented equivalence limits of the
 //! v0.24 backend contract.
 
-use std::collections::HashMap;
-
-use algraf_data::{read_csv_str, DataFrame, Table};
-use algraf_render::{
-    render, render_draw_list, Dash, DrawList, DrawOp, DrawRole, Fill, ImageAsset, ImageAssets,
-    RenderOptions, Theme,
-};
-use algraf_semantics::{analyze, analyze_with_tables};
+use algraf_data::{read_csv_str, Table};
+use algraf_render::{render, render_draw_list, Dash, DrawList, DrawOp, DrawRole, Fill, Theme};
+use algraf_semantics::analyze;
 use algraf_syntax::parse;
 
-fn draw_list(source: &str, csv: &str) -> DrawList {
-    let frame = read_csv_str(csv).expect("csv").frame;
-    let parsed = parse(source);
-    let analysis = analyze(&parsed.syntax(), frame.schema());
-    let ir = analysis.ir.expect("ir");
-    render_draw_list(&ir, &frame, &Theme::minimal(), None)
-        .expect("draw list")
-        .draw_list
-}
+mod common;
 
-fn draw_list_with_tables(source: &str, primary_csv: &str, tables: &[(&str, &str)]) -> DrawList {
-    let frame = read_csv_str(primary_csv).expect("primary csv").frame;
-    let mut named = HashMap::<String, DataFrame>::new();
-    let mut schemas = HashMap::new();
-    for (name, csv) in tables {
-        let table = read_csv_str(csv).expect("named csv").frame;
-        schemas.insert((*name).to_string(), table.schema().to_vec());
-        named.insert((*name).to_string(), table);
-    }
-    let parsed = parse(source);
-    let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
-    let ir = analysis.ir.expect("ir");
-    render_draw_list(
-        &ir,
-        &frame,
-        &Theme::minimal(),
-        RenderOptions::default().with_named_tables(&named),
-    )
-    .expect("draw list")
-    .draw_list
-}
-
-fn image_assets() -> ImageAssets {
-    let mut assets = ImageAssets::new();
-    assets.insert(ImageAsset {
-        source: "a.png".to_string(),
-        href: "data:image/png;base64,AAAA".to_string(),
-        intrinsic_width: 2.0,
-        intrinsic_height: 1.0,
-    });
-    assets.insert(ImageAsset {
-        source: "b.png".to_string(),
-        href: "data:image/png;base64,BBBB".to_string(),
-        intrinsic_width: 1.0,
-        intrinsic_height: 2.0,
-    });
-    assets
-}
-
-fn draw_list_with_assets(source: &str, csv: &str, assets: &ImageAssets) -> DrawList {
-    let frame = read_csv_str(csv).expect("csv").frame;
-    let parsed = parse(source);
-    let analysis = analyze(&parsed.syntax(), frame.schema());
-    let ir = analysis.ir.expect("ir");
-    render_draw_list(
-        &ir,
-        &frame,
-        &Theme::minimal(),
-        RenderOptions::default().with_image_assets(assets),
-    )
-    .expect("draw list")
-    .draw_list
-}
+use common::{draw_list, draw_list_with_assets, draw_list_with_tables, image_assets};
 
 fn rects(list: &DrawList, role: DrawRole) -> Vec<(f64, f64, f64, f64, String)> {
     list.ops

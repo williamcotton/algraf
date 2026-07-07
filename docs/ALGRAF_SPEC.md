@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.98.0
+Status: 0.99.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.98.0 specification.
+This working copy is the 0.99.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -10614,7 +10614,7 @@ Since version 0.87.0, the language-reference browser response shape is:
 ```json
 {
   "markdown": "...",
-  "version": "0.98.0",
+  "version": "0.99.0",
   "part": "full",
   "source": "crates/algraf-cli/templates/ALGRAF_LANG.md",
   "sources": [
@@ -12018,6 +12018,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.96.0 | [`V0_96_PLAN.md`](V0_96_PLAN.md) | Shared Arrow-family table conversion in `algraf-data` | Implemented |
 | 0.97.0 | [`V0_97_PLAN.md`](V0_97_PLAN.md) | Render invariant consolidation for distribution geometry, domain pipelines, and grid painting | Implemented |
 | 0.98.0 | [`V0_98_PLAN.md`](V0_98_PLAN.md) | Semantic helper consolidation and shared core utilities | Implemented |
+| 0.99.0 | [`V0_99_PLAN.md`](V0_99_PLAN.md) | Maintenance consolidation for small clones and shared test helpers | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
