@@ -3,7 +3,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use algraf_core::{codes, Diagnostic, Severity, Span};
+use algraf_core::{codes, is_url_like, Diagnostic, DiagnosticCode, Severity, Span};
 use algraf_data::{parse_temporal_literal, DataType};
 use algraf_syntax::ast::{AlgebraExpr, Arg, CallValue, GeometryCall, LiteralKind, ValueExpr};
 use algraf_syntax::{node_span, unescape_string_literal};
@@ -329,49 +329,33 @@ impl Analyzer<'_> {
     /// Resolve a `highlight:` value to the grouping column it names: a bare
     /// column or a quoted column name. The column must exist.
     fn interaction_key(&mut self, value: &ValueExpr, table: &ActiveTable) -> Option<ColumnRef> {
-        match value {
-            ValueExpr::Algebra(AlgebraExpr::Name(name)) => Some(self.resolve_column(name, table)),
-            ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::String) => {
-                let name = unescape_string_literal(&lit.text().unwrap_or_default());
-                let span = node_span(lit.syntax());
-                match table.get(&name) {
-                    Some(dtype) => Some(ColumnRef { name, dtype, span }),
-                    None => {
-                        if table.has_unknown_columns() {
-                            return Some(ColumnRef {
-                                name,
-                                dtype: DataType::Unknown,
-                                span,
-                            });
-                        }
-                        self.diag(Diagnostic::error(
-                            codes::E1101,
-                            format!("unknown column `{name}`"),
-                            span,
-                        ));
-                        Some(ColumnRef {
-                            name,
-                            dtype: DataType::Unknown,
-                            span,
-                        })
-                    }
-                }
-            }
-            other => {
-                self.diag(
-                    Diagnostic::error(
-                        codes::E1207,
-                        "`highlight` expects a column name",
-                        node_span(other.syntax()),
-                    )
-                    .with_help("e.g. `highlight: species` or `highlight: \"species\"`"),
-                );
-                None
-            }
-        }
+        self.column_name_property(
+            value,
+            table,
+            codes::E1207,
+            "`highlight` expects a column name",
+            "e.g. `highlight: species` or `highlight: \"species\"`",
+        )
     }
 
     fn event_emit_column(&mut self, value: &ValueExpr, table: &ActiveTable) -> Option<ColumnRef> {
+        self.column_name_property(
+            value,
+            table,
+            codes::E1913,
+            "`On(emit:)` expects a column name",
+            "e.g. `On(event: \"click\", emit: zone)`",
+        )
+    }
+
+    fn column_name_property(
+        &mut self,
+        value: &ValueExpr,
+        table: &ActiveTable,
+        wrong_form_code: DiagnosticCode,
+        wrong_form_message: &'static str,
+        wrong_form_help: &'static str,
+    ) -> Option<ColumnRef> {
         match value {
             ValueExpr::Algebra(AlgebraExpr::Name(name)) => Some(self.resolve_column(name, table)),
             ValueExpr::Literal(lit) if lit.kind() == Some(LiteralKind::String) => {
@@ -403,11 +387,11 @@ impl Analyzer<'_> {
             other => {
                 self.diag(
                     Diagnostic::error(
-                        codes::E1913,
-                        "`On(emit:)` expects a column name",
+                        wrong_form_code,
+                        wrong_form_message,
                         node_span(other.syntax()),
                     )
-                    .with_help("e.g. `On(event: \"click\", emit: zone)`"),
+                    .with_help(wrong_form_help),
                 );
                 None
             }
@@ -1082,21 +1066,6 @@ fn is_css_color_name(name: &str) -> bool {
 
 pub(super) fn is_color_literal(value: &str) -> bool {
     is_hex_color(value) || is_rgb_color_function(value) || is_css_color_name(value)
-}
-
-pub(crate) fn is_url_like(value: &str) -> bool {
-    let Some(colon) = value.find(':') else {
-        return false;
-    };
-    if colon == 1 && value.as_bytes()[0].is_ascii_alphabetic() {
-        return false;
-    }
-    let scheme = &value[..colon];
-    !scheme.is_empty()
-        && scheme.as_bytes()[0].is_ascii_alphabetic()
-        && scheme
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'.' | b'-'))
 }
 
 fn is_hex_color(value: &str) -> bool {

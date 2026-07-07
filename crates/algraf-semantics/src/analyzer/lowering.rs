@@ -1650,43 +1650,57 @@ fn grouped_histogram_mappings(
     group_col: ColumnRef,
     span: Span,
 ) -> (Vec<AestheticMapping>, Vec<GeometrySetting>) {
-    let mut mappings = match (orientation, dodge) {
-        (IntervalOrientationIr::Vertical, true) => vec![
+    let interval_mappings = match orientation {
+        IntervalOrientationIr::Vertical => vec![
             mapping(PropertyKey::Xmin, bin_start, DataType::Float, span),
             mapping(PropertyKey::Xmax, bin_end, DataType::Float, span),
-            mapping(PropertyKey::Ymax, "count", DataType::Integer, span),
         ],
-        (IntervalOrientationIr::Horizontal, true) => vec![
-            mapping(PropertyKey::Xmax, "count", DataType::Integer, span),
+        IntervalOrientationIr::Horizontal => vec![
             mapping(PropertyKey::Ymin, bin_start, DataType::Float, span),
             mapping(PropertyKey::Ymax, bin_end, DataType::Float, span),
         ],
-        (IntervalOrientationIr::Vertical, false) => vec![
-            mapping(PropertyKey::Xmin, bin_start, DataType::Float, span),
-            mapping(PropertyKey::Xmax, bin_end, DataType::Float, span),
-            mapping(PropertyKey::Ymin, "stack_lower", DataType::Float, span),
-            mapping(PropertyKey::Ymax, "stack_upper", DataType::Float, span),
-        ],
-        (IntervalOrientationIr::Horizontal, false) => vec![
-            mapping(PropertyKey::Xmin, "stack_lower", DataType::Float, span),
-            mapping(PropertyKey::Xmax, "stack_upper", DataType::Float, span),
-            mapping(PropertyKey::Ymin, bin_start, DataType::Float, span),
-            mapping(PropertyKey::Ymax, bin_end, DataType::Float, span),
-        ],
+    };
+    let (value_mappings, settings) = match (orientation, dodge) {
+        (IntervalOrientationIr::Vertical, true) => (
+            vec![mapping(PropertyKey::Ymax, "count", DataType::Integer, span)],
+            vec![fixed_setting(PropertyKey::Ymin, 0.0, span)],
+        ),
+        (IntervalOrientationIr::Horizontal, true) => (
+            vec![mapping(PropertyKey::Xmax, "count", DataType::Integer, span)],
+            vec![fixed_setting(PropertyKey::Xmin, 0.0, span)],
+        ),
+        (IntervalOrientationIr::Vertical, false) => (
+            vec![
+                mapping(PropertyKey::Ymin, "stack_lower", DataType::Float, span),
+                mapping(PropertyKey::Ymax, "stack_upper", DataType::Float, span),
+            ],
+            Vec::new(),
+        ),
+        (IntervalOrientationIr::Horizontal, false) => (
+            vec![
+                mapping(PropertyKey::Xmin, "stack_lower", DataType::Float, span),
+                mapping(PropertyKey::Xmax, "stack_upper", DataType::Float, span),
+            ],
+            Vec::new(),
+        ),
+    };
+    let mut mappings = match orientation {
+        IntervalOrientationIr::Vertical => {
+            let mut mappings = interval_mappings;
+            mappings.extend(value_mappings);
+            mappings
+        }
+        IntervalOrientationIr::Horizontal => {
+            let mut mappings = value_mappings;
+            mappings.extend(interval_mappings);
+            mappings
+        }
     };
     mappings.push(AestheticMapping {
         aesthetic: PropertyKey::Fill,
         column: group_col,
         span,
     });
-    let settings = if dodge {
-        match orientation {
-            IntervalOrientationIr::Vertical => vec![fixed_setting(PropertyKey::Ymin, 0.0, span)],
-            IntervalOrientationIr::Horizontal => vec![fixed_setting(PropertyKey::Xmin, 0.0, span)],
-        }
-    } else {
-        Vec::new()
-    };
     (mappings, settings)
 }
 

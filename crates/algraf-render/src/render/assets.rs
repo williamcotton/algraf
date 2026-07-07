@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use algraf_core::{codes, Diagnostic, Span};
+use algraf_core::{codes, is_url_like, Diagnostic, Span};
 use algraf_data::{DataFrame, DataValueRef, Table};
 use algraf_driver::{resolve_path, DriverIo, SourceInput};
 use algraf_semantics::{
@@ -321,21 +321,6 @@ fn svg_attr_value<'a>(text: &'a str, name: &str) -> Option<&'a str> {
 fn positive_dims(width: f64, height: f64) -> Option<(f64, f64)> {
     (width.is_finite() && height.is_finite() && width > 0.0 && height > 0.0)
         .then_some((width, height))
-}
-
-fn is_url_like(value: &str) -> bool {
-    let Some(colon) = value.find(':') else {
-        return false;
-    };
-    if colon == 1 && value.as_bytes()[0].is_ascii_alphabetic() {
-        return false;
-    }
-    let scheme = &value[..colon];
-    !scheme.is_empty()
-        && scheme.as_bytes()[0].is_ascii_alphabetic()
-        && scheme
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'.' | b'-'))
 }
 
 fn base64_encode(bytes: &[u8]) -> String {

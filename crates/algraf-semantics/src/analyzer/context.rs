@@ -226,23 +226,8 @@ impl<'a> Analyzer<'a> {
     /// reporting duplicate bindings (E1702) and non-constant values (E1701).
     pub(super) fn collect_let_decls(&mut self, decls: &[LetDecl]) -> HashMap<String, LetVar> {
         let mut vars: HashMap<String, LetVar> = HashMap::new();
-        let mut spans: HashMap<String, Span> = HashMap::new();
-        for decl in decls {
-            let Some(name) = decl.name() else { continue };
-            let name_span = decl.name_span().unwrap_or_else(|| node_span(decl.syntax()));
-            if let Some(&first) = spans.get(&name) {
-                self.diag(
-                    Diagnostic::error(
-                        codes::E1702,
-                        format!("duplicate `let` binding `{name}`"),
-                        name_span,
-                    )
-                    .with_related(first, "first bound here"),
-                );
-                continue;
-            }
-            spans.insert(name.clone(), name_span);
-            if let Some(value) = self.eval_let_value(decl) {
+        for (name, _, decl) in self.unique_let_decls(decls) {
+            if let Some(value) = self.eval_let_value(&decl) {
                 vars.insert(name, LetVar { value });
             }
         }
@@ -257,25 +242,7 @@ impl<'a> Analyzer<'a> {
         self.document_theme_specs.clear();
         self.document_theme_names.clear();
 
-        let mut unique: Vec<(String, Span, LetDecl)> = Vec::new();
-        let mut spans: HashMap<String, Span> = HashMap::new();
-        for decl in decls {
-            let Some(name) = decl.name() else { continue };
-            let name_span = decl.name_span().unwrap_or_else(|| node_span(decl.syntax()));
-            if let Some(&first) = spans.get(&name) {
-                self.diag(
-                    Diagnostic::error(
-                        codes::E1702,
-                        format!("duplicate `let` binding `{name}`"),
-                        name_span,
-                    )
-                    .with_related(first, "first bound here"),
-                );
-                continue;
-            }
-            spans.insert(name.clone(), name_span);
-            unique.push((name, name_span, decl.clone()));
-        }
+        let unique = self.unique_let_decls(decls);
 
         let mut theme_decls = Vec::new();
         for (name, name_span, decl) in &unique {
@@ -301,6 +268,29 @@ impl<'a> Analyzer<'a> {
         }
 
         self.resolve_document_theme_bindings();
+    }
+
+    fn unique_let_decls(&mut self, decls: &[LetDecl]) -> Vec<(String, Span, LetDecl)> {
+        let mut unique = Vec::new();
+        let mut spans: HashMap<String, Span> = HashMap::new();
+        for decl in decls {
+            let Some(name) = decl.name() else { continue };
+            let name_span = decl.name_span().unwrap_or_else(|| node_span(decl.syntax()));
+            if let Some(&first) = spans.get(&name) {
+                self.diag(
+                    Diagnostic::error(
+                        codes::E1702,
+                        format!("duplicate `let` binding `{name}`"),
+                        name_span,
+                    )
+                    .with_related(first, "first bound here"),
+                );
+                continue;
+            }
+            spans.insert(name.clone(), name_span);
+            unique.push((name, name_span, decl.clone()));
+        }
+        unique
     }
 
     /// Resolve a `let` binding's value to a constant, or emit E1701. Variables

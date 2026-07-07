@@ -2791,6 +2791,30 @@ fn image_asset_loader_embeds_local_pngs() {
     assert!(asset.href.starts_with("data:image/png;base64,"));
 }
 
+#[test]
+fn image_asset_loader_rejects_url_values_from_data() {
+    let source = "Chart(data: \"p.csv\") { Space(x * y) { Image(src: logo) } }";
+    let frame = read_csv_str("x,y,logo\n1,2,https://example.com/logo.png\n")
+        .expect("csv")
+        .frame;
+    let parsed = parse(source);
+    let analysis = analyze(&parsed.syntax(), frame.schema());
+    let ir = analysis.ir.expect("ir");
+    let result = load_image_assets_with_io(
+        &ir,
+        &frame,
+        &HashMap::new(),
+        &SourceInput::Path(PathBuf::from("chart.ag")),
+        None,
+        &InMemoryDriverIo::default(),
+    );
+
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|diag| diag.code == "E1204" && diag.message.contains("is a URL")));
+}
+
 /// The substring of `svg` covering only the `algraf-legends` layer.
 fn legend_layer(svg: &str) -> &str {
     let start = svg.find("algraf-legends").expect("legend layer present");

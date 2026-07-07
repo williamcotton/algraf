@@ -3,11 +3,11 @@
 use algraf_core::Span;
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
-    analyze_source, planning, registry, AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef,
-    DataSourceIr, FontStyleIr, FontWeightIr, FrameIr, GeometryKind, GradientIr, GridBinsIr,
-    IntervalOrientationIr, LevelSpecIr, PropertyKey, QqDistributionIr, ScaleModeIr, ScaleTargetIr,
-    ScaleTypeIr, SettingValue, SpaceDataRef, StatKind, StatOptionsIr, StepDirectionIr,
-    SummaryReducerIr, TemporalFormatIr, TextAlignIr,
+    analyze_source, analyze_with_tables_and_options, planning, registry, AnalysisOptions,
+    AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef, DataSourceIr, FontStyleIr, FontWeightIr,
+    FrameIr, GeometryKind, GradientIr, GridBinsIr, IntervalOrientationIr, LevelSpecIr, PropertyKey,
+    QqDistributionIr, ScaleModeIr, ScaleTargetIr, ScaleTypeIr, SettingValue, SpaceDataRef,
+    StatKind, StatOptionsIr, StepDirectionIr, SummaryReducerIr, TemporalFormatIr, TextAlignIr,
 };
 
 fn col(name: &str, dtype: DataType) -> ColumnDef {
@@ -55,6 +55,24 @@ fn codes(source: &str) -> Vec<&'static str> {
 
 fn has(source: &str, code: &str) -> bool {
     codes(source).contains(&code)
+}
+
+fn analyze_source_with_unknown_columns(source: &str) -> algraf_semantics::Analysis {
+    let parsed = algraf_syntax::parse(source);
+    let mut analysis = analyze_with_tables_and_options(
+        &parsed.syntax(),
+        &[],
+        &std::collections::HashMap::new(),
+        AnalysisOptions {
+            allow_unknown_primary_columns: true,
+        },
+    );
+    let mut diagnostics = parsed.into_diagnostics();
+    diagnostics.append(&mut analysis.diagnostics);
+    algraf_semantics::Analysis {
+        ir: analysis.ir,
+        diagnostics,
+    }
 }
 
 #[test]
@@ -242,6 +260,24 @@ fn test_unknown_column_span_excludes_leading_whitespace() {
     assert_eq!(diag.span.start, start);
     assert_eq!(diag.span.end, start + "regin".len());
     assert_eq!(diag.help.as_deref(), Some("did you mean `region`?"));
+}
+
+#[test]
+fn test_unknown_column_suggests_non_ascii_closest_match() {
+    let source = "Chart(data: \"p.csv\") {\n  Space(region * amount) {\n    Point()\n  }\n}";
+    let analysis = analyze_source(
+        source,
+        &[
+            col("r\u{00e9}gion", DataType::String),
+            col("amount", DataType::Float),
+        ],
+    );
+    let diag = analysis
+        .diagnostics
+        .iter()
+        .find(|diag| diag.code == "E1101")
+        .expect("expected unknown-column diagnostic");
+    assert_eq!(diag.help.as_deref(), Some("did you mean `r\u{00e9}gion`?"));
 }
 
 #[test]
@@ -1082,6 +1118,8 @@ fn test_image_src_rejects_numeric_columns_and_urls() {
         "Chart(data: \"p.csv\") { Space(x * y) { Image(src: \"https://example.com/logo.png\") } }",
         "E1204"
     ));
+    clean("Chart(data: \"p.csv\") { Space(x * y) { Image(src: \"C:/logos/team.png\") } }");
+    clean("Chart(data: \"p.csv\") { Space(x * y) { Image(src: \"logos/team.png\") } }");
 }
 
 #[test]
@@ -2249,6 +2287,10 @@ fn test_duplicate_let_binding_is_reported() {
         "Chart(data: \"p.csv\") {\n  let c = \"#111\"\n  let c = \"#222\"\n  Space(value) { Point() }\n}",
         "E1702",
     ));
+    assert!(has(
+        "let c = \"#111\"\nlet c = \"#222\"\nChart(data: \"p.csv\") {\n  Space(value) { Point() }\n}",
+        "E1702",
+    ));
 }
 
 #[test]
@@ -2959,6 +3001,7 @@ fn test_glyph_body_declarations_apply_to_child_spaces() {
   Glyph mark(data: child, key: [id]) {
     let lineColor = "#111827"
     Guide(grid: false)
+    Guide(axis: x, grid: false, label: "Time")
     Theme(name: "void")
     Scale(fill: category, range: ["a" => "#4E79A7", "b" => "#F28E2B"])
     Space(t * value) {
@@ -2986,6 +3029,8 @@ fn test_glyph_body_declarations_apply_to_child_spaces() {
     let child_space = &glyph.child_spaces[0];
     assert!(child_space.theme.is_some());
     assert_eq!(child_space.guides.grid, Some(false));
+    assert_eq!(child_space.guides.x_grid, Some(false));
+    assert_eq!(child_space.guides.x_label.as_deref(), Some("Time"));
     assert_eq!(child_space.scales.len(), 1);
 }
 
@@ -3303,6 +3348,29 @@ fn test_derived_stats_analyze_with_explicit_schemas() {
         .output_schema
         .iter()
         .any(|col| col.name == "class" && col.dtype == DataType::String));
+}
+
+#[test]
+fn summary_reducer_validation_is_shared_but_stat_sets_remain_explicit() {
+    clean(
+        "Chart(data: \"p.csv\") {\n  Derive rows = Summary(value, reducer: \"mean_se\")\n  Space(value) { Point() }\n}",
+    );
+    clean(
+        "Chart(data: \"p.csv\") {\n  Derive rows = SummaryBin(x, value, reducer: \"median\")\n  Space(value) { Point() }\n}",
+    );
+
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Derive rows = Summary(value, reducer: \"mode\")\n  Space(value) { Point() }\n}",
+        "E1404",
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Derive rows = Summary(value, reducer: mean)\n  Space(value) { Point() }\n}",
+        "E1404",
+    ));
+    assert!(has(
+        "Chart(data: \"p.csv\") {\n  Derive grid = Summary2D(x, y, z: value, reducer: \"mean_se\")\n  Space(x * y) { Point() }\n}",
+        "E1404",
+    ));
 }
 
 #[test]
@@ -3713,6 +3781,32 @@ fn test_tooltip_and_highlight_lower_onto_geometry() {
 }
 
 #[test]
+fn interaction_column_names_accept_bare_and_string_forms() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point(highlight: species) On(event: \"click\", emit: \"species\") } }",
+        &schema(),
+    );
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    let ir = analysis.ir.expect("ir");
+    let interaction = &ir.spaces[0].geometries[0].interaction;
+    assert_eq!(
+        interaction.highlight.as_ref().map(|c| c.name.as_str()),
+        Some("species")
+    );
+    assert_eq!(
+        interaction
+            .event
+            .as_ref()
+            .map(|event| event.emit.name.as_str()),
+        Some("species")
+    );
+}
+
+#[test]
 fn test_tooltip_accepts_single_column() {
     let analysis = analyze_source(
         "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point(tooltip: species) } }",
@@ -3749,6 +3843,41 @@ fn test_highlight_non_column_value_is_e1207() {
         "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point(highlight: 3) } }",
         "E1207"
     ));
+}
+
+#[test]
+fn interaction_column_names_preserve_unknown_column_behavior() {
+    let unknown = analyze_source_with_unknown_columns(
+        "Chart(data: \"p.csv\") { Space(x * y) { Point(highlight: \"missing\") On(event: \"click\", emit: missing) } }",
+    );
+    assert!(
+        unknown.diagnostics.iter().all(|diag| diag.code != "E1101"),
+        "{:?}",
+        unknown.diagnostics
+    );
+    let ir = unknown.ir.expect("ir");
+    let interaction = &ir.spaces[0].geometries[0].interaction;
+    assert_eq!(
+        interaction.highlight.as_ref().map(|c| c.dtype),
+        Some(DataType::Unknown)
+    );
+    assert_eq!(
+        interaction.event.as_ref().map(|event| event.emit.dtype),
+        Some(DataType::Unknown)
+    );
+
+    let known = analyze_source(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point(highlight: \"missing\") On(event: \"click\", emit: missing) } }",
+        &schema(),
+    );
+    assert_eq!(
+        known
+            .diagnostics
+            .iter()
+            .filter(|diag| diag.code == "E1101")
+            .count(),
+        2
+    );
 }
 
 #[test]
@@ -3803,6 +3932,14 @@ fn test_on_unknown_emit_column_is_e1101() {
     assert!(has(
         "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point() On(event: \"click\", emit: missing) } }",
         "E1101"
+    ));
+}
+
+#[test]
+fn test_on_emit_non_column_value_is_e1913() {
+    assert!(has(
+        "Chart(data: \"p.csv\") { Space(flipper_length * body_mass) { Point() On(event: \"click\", emit: 3) } }",
+        "E1913"
     ));
 }
 

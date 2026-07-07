@@ -1142,7 +1142,7 @@ impl Analyzer<'_> {
                     if child.theme.is_none() {
                         child.theme = glyph_theme.clone();
                     }
-                    child.guides = merge_guide_overrides(&glyph_guides, &child.guides);
+                    child.guides = glyph_guides.merge_with(&child.guides);
                     if !glyph_scales.is_empty() {
                         let mut scales = glyph_scales.clone();
                         scales.extend(child.scales.clone());
@@ -1780,45 +1780,6 @@ fn is_lowered_geometry(geo: &GeometryIr) -> bool {
             | GeometryKind::Density
     ) || has_count_stat(geo)
         || is_interval_sugar(geo)
-}
-
-fn merge_guide_overrides(
-    inherited: &GuideOverridesIr,
-    local: &GuideOverridesIr,
-) -> GuideOverridesIr {
-    GuideOverridesIr {
-        legend: local.legend.or(inherited.legend),
-        fill_legend: local.fill_legend.or(inherited.fill_legend),
-        stroke_legend: local.stroke_legend.or(inherited.stroke_legend),
-        grid: local.grid.or(inherited.grid),
-        x_label: local.x_label.clone().or_else(|| inherited.x_label.clone()),
-        y_label: local.y_label.clone().or_else(|| inherited.y_label.clone()),
-        x_time_format: local
-            .x_time_format
-            .clone()
-            .or_else(|| inherited.x_time_format.clone()),
-        y_time_format: local
-            .y_time_format
-            .clone()
-            .or_else(|| inherited.y_time_format.clone()),
-        x_tick_label_angle: local.x_tick_label_angle.or(inherited.x_tick_label_angle),
-        y_tick_label_angle: local.y_tick_label_angle.or(inherited.y_tick_label_angle),
-        x_tick_label_rows: local.x_tick_label_rows.or(inherited.x_tick_label_rows),
-        y_tick_label_rows: local.y_tick_label_rows.or(inherited.y_tick_label_rows),
-        x_position: local.x_position.or(inherited.x_position),
-        y_position: local.y_position.or(inherited.y_position),
-        x_format: local
-            .x_format
-            .clone()
-            .or_else(|| inherited.x_format.clone()),
-        y_format: local
-            .y_format
-            .clone()
-            .or_else(|| inherited.y_format.clone()),
-        x_grid: local.x_grid.or(inherited.x_grid),
-        y_grid: local.y_grid.or(inherited.y_grid),
-        grid_shape: local.grid_shape.or(inherited.grid_shape),
-    }
 }
 
 fn match_types_compatible(left: DataType, right: DataType) -> bool {

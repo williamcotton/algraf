@@ -5,7 +5,7 @@
 //! diagnostics with spans, and recovers locally so a single mistake does not
 //! discard later valid blocks (spec §12.1, §12.16, §12.17).
 
-use algraf_core::{codes, Diagnostic};
+use algraf_core::{closest, codes, Diagnostic};
 use rowan::{GreenNode, GreenNodeBuilder};
 
 use crate::lexer::{tokenize, TokenWithSpan};
@@ -119,25 +119,5 @@ fn is_near_keyword(text: &str, keyword: &str) -> bool {
     let Some(keyword_first) = keyword.chars().next() else {
         return false;
     };
-    first.eq_ignore_ascii_case(&keyword_first) && edit_distance_ascii(text, keyword) <= 2
-}
-
-fn edit_distance_ascii(a: &str, b: &str) -> usize {
-    let a = a.to_ascii_lowercase();
-    let b = b.to_ascii_lowercase();
-    let a = a.as_bytes();
-    let b = b.as_bytes();
-    let mut prev: Vec<usize> = (0..=b.len()).collect();
-    let mut curr = vec![0usize; b.len() + 1];
-
-    for (i, ca) in a.iter().enumerate() {
-        curr[0] = i + 1;
-        for (j, cb) in b.iter().enumerate() {
-            let cost = usize::from(ca != cb);
-            curr[j + 1] = (prev[j + 1] + 1).min(curr[j] + 1).min(prev[j] + cost);
-        }
-        std::mem::swap(&mut prev, &mut curr);
-    }
-
-    prev[b.len()]
+    first.eq_ignore_ascii_case(&keyword_first) && closest(text, std::iter::once(keyword)).is_some()
 }

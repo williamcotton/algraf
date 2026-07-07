@@ -5,6 +5,8 @@
 
 pub mod diagnostic;
 pub mod span;
+pub mod util;
 
 pub use diagnostic::{all_codes, codes, Diagnostic, DiagnosticCode, RelatedSpan, Severity};
 pub use span::{ByteOffset, Span};
+pub use util::{closest, edit_distance, is_url_like};

@@ -13,6 +13,28 @@ use super::context::{ActiveTable, Analyzer, ValueForm};
 use crate::ir::*;
 use crate::planning::stat_output_schema;
 
+const Z_FIELD_REDUCERS: &[SummaryReducerIr] = &[
+    SummaryReducerIr::Count,
+    SummaryReducerIr::Mean,
+    SummaryReducerIr::Min,
+    SummaryReducerIr::Max,
+    SummaryReducerIr::Sum,
+    SummaryReducerIr::Median,
+];
+const SUMMARY_REDUCERS: &[SummaryReducerIr] = &[
+    SummaryReducerIr::Count,
+    SummaryReducerIr::Mean,
+    SummaryReducerIr::Min,
+    SummaryReducerIr::Max,
+    SummaryReducerIr::Sum,
+    SummaryReducerIr::Median,
+    SummaryReducerIr::MeanSe,
+];
+const Z_FIELD_REDUCER_HELP: &str =
+    "`reducer` expects \"count\", \"mean\", \"min\", \"max\", \"sum\", or \"median\"";
+const SUMMARY_REDUCER_HELP: &str =
+    "`reducer` expects \"count\", \"mean\", \"min\", \"max\", \"sum\", \"median\", or \"mean_se\"";
+
 impl Analyzer<'_> {
     // --- Derive (spec §13.4) ---
 
@@ -1425,20 +1447,10 @@ impl Analyzer<'_> {
                 "bins" => bins = self.grid_bins_arg(arg, "bins", 1.0),
                 "reducer" => {
                     let Some(value) = arg.value() else { continue };
-                    match ValueForm::of(&value) {
-                        ValueForm::Str(s) => match parse_summary_reducer(&s) {
-                            Some(parsed) => reducer = parsed,
-                            None => self.diag(Diagnostic::error(
-                                codes::E1404,
-                                format!("unknown reducer `{s}`"),
-                                node_span(value.syntax()),
-                            )),
-                        },
-                        _ => self.diag(Diagnostic::error(
-                            codes::E1404,
-                            "`reducer` expects \"count\", \"mean\", \"min\", \"max\", \"sum\", or \"median\"",
-                            node_span(value.syntax()),
-                        )),
+                    if let Some(parsed) =
+                        self.summary_reducer_arg(&value, Z_FIELD_REDUCERS, Z_FIELD_REDUCER_HELP)
+                    {
+                        reducer = parsed;
                     }
                 }
                 _ => self.diag(Diagnostic::error(
@@ -1633,20 +1645,10 @@ impl Analyzer<'_> {
                 "by" => by = self.column_array_arg(arg, table, "`by`"),
                 "reducer" => {
                     let Some(value) = arg.value() else { continue };
-                    match ValueForm::of(&value) {
-                        ValueForm::Str(s) => match parse_summary_reducer(&s) {
-                            Some(parsed) => reducer = parsed,
-                            None => self.diag(Diagnostic::error(
-                                codes::E1404,
-                                format!("unknown reducer `{s}`"),
-                                node_span(value.syntax()),
-                            )),
-                        },
-                        _ => self.diag(Diagnostic::error(
-                            codes::E1404,
-                            "`reducer` expects \"count\", \"mean\", \"min\", \"max\", \"sum\", \"median\", or \"mean_se\"",
-                            node_span(value.syntax()),
-                        )),
+                    if let Some(parsed) =
+                        self.summary_reducer_arg(&value, SUMMARY_REDUCERS, SUMMARY_REDUCER_HELP)
+                    {
+                        reducer = parsed;
                     }
                 }
                 _ => self.diag(Diagnostic::error(
@@ -1689,20 +1691,10 @@ impl Analyzer<'_> {
                 "by" => by = self.column_array_arg(arg, table, "`by`"),
                 "reducer" => {
                     let Some(value) = arg.value() else { continue };
-                    match ValueForm::of(&value) {
-                        ValueForm::Str(s) => match parse_summary_reducer(&s) {
-                            Some(parsed) => reducer = parsed,
-                            None => self.diag(Diagnostic::error(
-                                codes::E1404,
-                                format!("unknown reducer `{s}`"),
-                                node_span(value.syntax()),
-                            )),
-                        },
-                        _ => self.diag(Diagnostic::error(
-                            codes::E1404,
-                            "`reducer` expects \"count\", \"mean\", \"min\", \"max\", \"sum\", \"median\", or \"mean_se\"",
-                            node_span(value.syntax()),
-                        )),
+                    if let Some(parsed) =
+                        self.summary_reducer_arg(&value, SUMMARY_REDUCERS, SUMMARY_REDUCER_HELP)
+                    {
+                        reducer = parsed;
                     }
                 }
                 "bins" | "binWidth" | "boundary" => {
@@ -1763,6 +1755,35 @@ impl Analyzer<'_> {
             stat_span,
         );
         (by, reducer, bins, bin_width, boundary, closed)
+    }
+
+    fn summary_reducer_arg(
+        &mut self,
+        value: &ValueExpr,
+        allowed: &[SummaryReducerIr],
+        expected: &'static str,
+    ) -> Option<SummaryReducerIr> {
+        match ValueForm::of(value) {
+            ValueForm::Str(s) => match parse_summary_reducer(&s) {
+                Some(parsed) if allowed.contains(&parsed) => Some(parsed),
+                _ => {
+                    self.diag(Diagnostic::error(
+                        codes::E1404,
+                        format!("unknown reducer `{s}`"),
+                        node_span(value.syntax()),
+                    ));
+                    None
+                }
+            },
+            _ => {
+                self.diag(Diagnostic::error(
+                    codes::E1404,
+                    expected,
+                    node_span(value.syntax()),
+                ));
+                None
+            }
+        }
     }
 
     fn collect_cut_options(

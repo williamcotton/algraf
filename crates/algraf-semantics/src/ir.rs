@@ -539,6 +539,41 @@ pub struct GuideOverridesIr {
     pub grid_shape: Option<GridShapeIr>,
 }
 
+impl GuideOverridesIr {
+    /// Merge inherited and local guide overrides, with local values winning.
+    /// New guide fields must be added to `GuideIr`, `GuideOverridesIr`,
+    /// `GuideIr::with_overrides`, and this merge method together.
+    pub fn merge_with(&self, local: &GuideOverridesIr) -> GuideOverridesIr {
+        GuideOverridesIr {
+            legend: local.legend.or(self.legend),
+            fill_legend: local.fill_legend.or(self.fill_legend),
+            stroke_legend: local.stroke_legend.or(self.stroke_legend),
+            grid: local.grid.or(self.grid),
+            x_label: local.x_label.clone().or_else(|| self.x_label.clone()),
+            y_label: local.y_label.clone().or_else(|| self.y_label.clone()),
+            x_time_format: local
+                .x_time_format
+                .clone()
+                .or_else(|| self.x_time_format.clone()),
+            y_time_format: local
+                .y_time_format
+                .clone()
+                .or_else(|| self.y_time_format.clone()),
+            x_tick_label_angle: local.x_tick_label_angle.or(self.x_tick_label_angle),
+            y_tick_label_angle: local.y_tick_label_angle.or(self.y_tick_label_angle),
+            x_tick_label_rows: local.x_tick_label_rows.or(self.x_tick_label_rows),
+            y_tick_label_rows: local.y_tick_label_rows.or(self.y_tick_label_rows),
+            x_position: local.x_position.or(self.x_position),
+            y_position: local.y_position.or(self.y_position),
+            x_format: local.x_format.clone().or_else(|| self.x_format.clone()),
+            y_format: local.y_format.clone().or_else(|| self.y_format.clone()),
+            x_grid: local.x_grid.or(self.x_grid),
+            y_grid: local.y_grid.or(self.y_grid),
+            grid_shape: local.grid_shape.or(self.grid_shape),
+        }
+    }
+}
+
 /// Named temporal label formats accepted by `Guide(timeFormat: ...)`,
 /// `Text(timeFormat: ...)`, and temporal color legend formatting.
 #[derive(Debug, Clone, PartialEq, Eq)]
