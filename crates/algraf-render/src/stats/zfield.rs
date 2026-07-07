@@ -8,7 +8,7 @@ use crate::scale::{cell_f64, numeric_domain};
 use super::bin::{bin_index, bin_layout, hex_lattice_index};
 use super::density::percentile;
 use super::summary::SummaryReducer;
-use super::util::{col_def, deterministic_frame};
+use super::util::{col_def, deterministic_frame, empty_frame};
 use super::{BinClosed, BinOptions};
 
 #[derive(Debug, Clone, Copy)]
@@ -357,14 +357,14 @@ pub fn summaryhex(
 fn contour_lines_from_grid(grid: &Grid, options: ContourOptions) -> DataFrame {
     let schema = contour_lines_schema();
     if grid.xs.len() < 2 || grid.ys.len() < 2 {
-        return deterministic_frame(schema, empty_contour_line_columns());
+        return empty_frame(schema);
     }
     let Some((min, max)) = grid.z_domain() else {
-        return deterministic_frame(schema, empty_contour_line_columns());
+        return empty_frame(schema);
     };
     let levels = line_levels(&options.levels, min, max);
     if levels.is_empty() {
-        return deterministic_frame(schema, empty_contour_line_columns());
+        return empty_frame(schema);
     }
 
     let mut xs = Vec::new();
@@ -421,14 +421,14 @@ fn contour_lines_from_grid(grid: &Grid, options: ContourOptions) -> DataFrame {
 fn contour_bands_from_grid(grid: &Grid, options: ContourOptions) -> DataFrame {
     let schema = contour_bands_schema();
     if grid.xs.len() < 2 || grid.ys.len() < 2 {
-        return deterministic_frame(schema, empty_contour_band_columns());
+        return empty_frame(schema);
     }
     let Some((min, max)) = grid.z_domain() else {
-        return deterministic_frame(schema, empty_contour_band_columns());
+        return empty_frame(schema);
     };
     let breaks = band_breaks(&options.levels, min, max);
     if breaks.len() < 2 {
-        return deterministic_frame(schema, empty_contour_band_columns());
+        return empty_frame(schema);
     }
 
     let mut geoms = Vec::new();
@@ -912,26 +912,6 @@ fn density2d_schema() -> Vec<algraf_data::ColumnDef> {
         col_def("x", DataType::Float),
         col_def("y", DataType::Float),
         col_def("density", DataType::Float),
-    ]
-}
-
-fn empty_contour_line_columns() -> Vec<Column> {
-    vec![
-        Column::from_float_options(Vec::new()),
-        Column::from_float_options(Vec::new()),
-        Column::from_float_options(Vec::new()),
-        Column::from_int_options(Vec::new()),
-        Column::from_int_options(Vec::new()),
-    ]
-}
-
-fn empty_contour_band_columns() -> Vec<Column> {
-    vec![
-        Column::Geometry(Vec::new()),
-        Column::from_float_options(Vec::new()),
-        Column::from_float_options(Vec::new()),
-        Column::from_float_options(Vec::new()),
-        Column::from_int_options(Vec::new()),
     ]
 }
 

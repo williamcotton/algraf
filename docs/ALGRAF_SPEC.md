@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.92.0
+Status: 0.93.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.92.0 specification.
+This working copy is the 0.93.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -6201,6 +6201,15 @@ Stats MUST not read files.
 
 Stats SHOULD preserve source row indices where practical.
 
+Since version 0.93.0, built-in render stats SHOULD build output dataframes
+through shared deterministic stat column helpers. Primitive-construction
+passthrough uses strict integer writes: a float value written to an
+integer-typed passthrough output cell remains missing rather than rounded.
+Summary-family reducer writes may round finite reducer results when writing
+through an integer-typed output column because reducers compute in numeric
+floating-point space. Non-finite floats MUST remain missing under either
+integer policy.
+
 ### 15.3 Derived Stat Declarations
 
 Derived stat declarations bind stat output to a chart-scoped table name.
@@ -10079,7 +10088,8 @@ scale training
 layout
 
 stats, internally split into `stats/bin.rs`, `stats/density.rs`,
-`stats/smooth.rs`, `stats/summary.rs`, and shared deterministic-output helpers
+`stats/primitive.rs`, `stats/smooth.rs`, `stats/summary.rs`, `stats/zfield.rs`,
+and shared deterministic-output helpers
 
 geometries
 
@@ -10562,7 +10572,7 @@ Since version 0.87.0, the language-reference browser response shape is:
 ```json
 {
   "markdown": "...",
-  "version": "0.92.0",
+  "version": "0.93.0",
   "part": "full",
   "source": "crates/algraf-cli/templates/ALGRAF_LANG.md",
   "sources": [
@@ -11960,6 +11970,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.90.0 | [`V0_90_PLAN.md`](V0_90_PLAN.md) | Annotated categorical heatmaps with first-class layer polish | Implemented |
 | 0.91.0 | [`V0_91_PLAN.md`](V0_91_PLAN.md) | Document-scoped custom themes with `Theme(base:)` reuse and chaining | Implemented |
 | 0.92.0 | [`V0_92_PLAN.md`](V0_92_PLAN.md) | Explicit `$name` references for `let` bindings and no bare-let resolution | Implemented |
+| 0.93.0 | [`V0_93_PLAN.md`](V0_93_PLAN.md) | Shared render stat column builder and explicit integer coercion policy | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

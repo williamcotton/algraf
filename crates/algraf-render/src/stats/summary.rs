@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use algraf_data::geo_types::Geometry;
 use algraf_data::{
     Column, ColumnDef, ColumnView, DataFrame, DataType, DataValue, DataValueRef, DateTimeValue,
     Table,
@@ -11,8 +10,16 @@ use crate::svg::num;
 
 use super::bin::{bin_index, bin_layout};
 use super::density::percentile;
-use super::util::{col_def, deterministic_frame};
+use super::util::{
+    builders_for_schema, col_def, deterministic_frame, finish_builders, push_passthrough,
+    ColumnBuilder, IntCoercion,
+};
 use super::BinOptions;
+
+/// Summary reducers compute in f64 space; preserve the historical behavior of
+/// rounding finite reducer results when a caller-provided output schema is
+/// integer-typed.
+const INT_COERCION: IntCoercion = IntCoercion::RoundFiniteFloats;
 
 /// Reducers shared by one-dimensional and binned summary stats.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -78,7 +85,7 @@ pub fn count_by(table: &dyn Table, group_columns: &[&str]) -> DataFrame {
 
     let mut schema = group_schema(table, group_columns);
     schema.push(col_def("count", DataType::Integer));
-    let mut builders = builders_for_schema(&schema);
+    let mut builders = builders_for_schema(&schema, INT_COERCION);
     if group_columns.len() == 1 {
         for key in &key_order {
             push_count_key(key, &mut builders);
@@ -155,7 +162,7 @@ where
         *counts.entry(value).or_insert(0) += 1;
     }
 
-    let mut builders = builders_for_schema(&schema);
+    let mut builders = builders_for_schema(&schema, INT_COERCION);
     for value in &order {
         builders[0].push_value(Some(to_value(value)));
         builders[1].push_value(Some(DataValue::Int(*counts.get(value).unwrap_or(&0))));
@@ -223,7 +230,7 @@ fn record_unique_value(order: &mut Vec<CountKey>, seen: &mut HashSet<CountKey>, 
 /// valid key members, so two missing values compare equal.
 pub fn distinct(table: &dyn Table, key_columns: &[&str]) -> DataFrame {
     let schema = table.schema().to_vec();
-    let mut builders = builders_for_schema(&schema);
+    let mut builders = builders_for_schema(&schema, INT_COERCION);
     let mut seen: BTreeMap<Vec<DataValue>, ()> = BTreeMap::new();
     for row in 0..table.row_count() {
         let key: Vec<DataValue> = key_columns
@@ -364,7 +371,7 @@ pub fn summary(
 ) -> DataFrame {
     let groups = grouped_values(table, value_column, by_columns, reducer);
     let schema = summary_schema(table, by_columns, reducer == SummaryReducer::MeanSe);
-    let mut builders = builders_for_schema(&schema);
+    let mut builders = builders_for_schema(&schema, INT_COERCION);
     for group in groups {
         push_group_key(&group.key, &mut builders);
         push_measure(&group.values, reducer, &mut builders[by_columns.len()..]);
@@ -420,7 +427,7 @@ pub fn summary_bin(
     ];
     schema.extend(group_schema(table, by_columns));
     schema.extend(measure_schema(reducer == SummaryReducer::MeanSe));
-    let mut builders = builders_for_schema(&schema);
+    let mut builders = builders_for_schema(&schema, INT_COERCION);
     for bi in 0..bin_count {
         let bin_start = start + bi as f64 * width;
         let bin_end = bin_start + width;
@@ -451,7 +458,7 @@ pub fn cut(
 ) -> DataFrame {
     let mut schema = table.schema().to_vec();
     schema.push(col_def(output_column, DataType::String));
-    let mut builders = builders_for_schema(&schema);
+    let mut builders = builders_for_schema(&schema, INT_COERCION);
     let value_view = table.column(input_column);
     for row in 0..table.row_count() {
         push_passthrough(
@@ -790,111 +797,6 @@ fn normal_quantile(p: f64) -> f64 {
         / (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1.0)
 }
 
-fn builders_for_schema(schema: &[ColumnDef]) -> Vec<ColumnBuilder> {
-    schema
-        .iter()
-        .map(|column| ColumnBuilder::new(column.dtype))
-        .collect()
-}
-
-fn push_passthrough(
-    table: &dyn Table,
-    row: usize,
-    schema: &[ColumnDef],
-    builders: &mut [ColumnBuilder],
-) {
-    for (column, builder) in schema.iter().zip(builders.iter_mut()) {
-        builder.push_ref(table.value(&column.name, row));
-    }
-}
-
-fn finish_builders(builders: Vec<ColumnBuilder>) -> Vec<Column> {
-    builders.into_iter().map(ColumnBuilder::finish).collect()
-}
-
-enum ColumnBuilder {
-    Bool(Vec<Option<bool>>),
-    Int(Vec<Option<i64>>),
-    Float(Vec<Option<f64>>),
-    Temporal(Vec<Option<DateTimeValue>>),
-    String(Vec<Option<String>>),
-    Geometry(Vec<Option<Geometry<f64>>>),
-}
-
-impl ColumnBuilder {
-    fn new(dtype: DataType) -> Self {
-        match dtype {
-            DataType::Boolean => ColumnBuilder::Bool(Vec::new()),
-            DataType::Integer => ColumnBuilder::Int(Vec::new()),
-            DataType::Float => ColumnBuilder::Float(Vec::new()),
-            DataType::Temporal => ColumnBuilder::Temporal(Vec::new()),
-            DataType::Geometry => ColumnBuilder::Geometry(Vec::new()),
-            DataType::String | DataType::Mixed | DataType::Unknown => {
-                ColumnBuilder::String(Vec::new())
-            }
-        }
-    }
-
-    fn push_ref(&mut self, value: Option<DataValueRef<'_>>) {
-        let value = value.and_then(|value| match value {
-            DataValueRef::Null => None,
-            value => Some(value.to_owned()),
-        });
-        self.push_value(value);
-    }
-
-    fn push_value(&mut self, value: Option<DataValue>) {
-        match self {
-            ColumnBuilder::Bool(values) => values.push(match value {
-                Some(DataValue::Bool(value)) => Some(value),
-                _ => None,
-            }),
-            ColumnBuilder::Int(values) => values.push(match value {
-                Some(DataValue::Int(value)) => Some(value),
-                Some(DataValue::Float(value)) if value.is_finite() => Some(value.round() as i64),
-                _ => None,
-            }),
-            ColumnBuilder::Float(values) => values.push(match value {
-                Some(DataValue::Int(value)) => Some(value as f64),
-                Some(DataValue::Float(value)) if value.is_finite() => Some(value),
-                _ => None,
-            }),
-            ColumnBuilder::Temporal(values) => values.push(match value {
-                Some(DataValue::Temporal(value)) => Some(value),
-                _ => None,
-            }),
-            ColumnBuilder::String(values) => values.push(value.and_then(value_to_string)),
-            ColumnBuilder::Geometry(values) => values.push(match value {
-                Some(DataValue::Geometry(value)) => Some(value),
-                _ => None,
-            }),
-        }
-    }
-
-    fn finish(self) -> Column {
-        match self {
-            ColumnBuilder::Bool(values) => Column::from_bool_options(values),
-            ColumnBuilder::Int(values) => Column::from_int_options(values),
-            ColumnBuilder::Float(values) => Column::from_float_options(values),
-            ColumnBuilder::Temporal(values) => Column::from_temporal_options(values),
-            ColumnBuilder::String(values) => Column::String(values),
-            ColumnBuilder::Geometry(values) => Column::Geometry(values),
-        }
-    }
-}
-
-fn value_to_string(value: DataValue) -> Option<String> {
-    match value {
-        DataValue::Null | DataValue::Geometry(_) => None,
-        DataValue::Bool(value) => Some(value.to_string()),
-        DataValue::Int(value) => Some(value.to_string()),
-        DataValue::Float(value) if value.is_finite() => Some(num(value)),
-        DataValue::Float(_) => None,
-        DataValue::Temporal(value) => Some(value.instant.and_utc().to_rfc3339()),
-        DataValue::String(value) => Some(value),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -919,6 +821,21 @@ mod tests {
         fn column(&self, column: &str) -> Option<ColumnView<'_>> {
             Table::column(&self.frame, column)
         }
+    }
+
+    #[test]
+    fn summary_measure_rounds_float_reducer_for_integer_output_column() {
+        let schema = vec![
+            col_def("value", DataType::Integer),
+            col_def("count", DataType::Integer),
+        ];
+        let mut builders = builders_for_schema(&schema, INT_COERCION);
+
+        push_measure(&[1.0, 2.0], SummaryReducer::Mean, &mut builders);
+
+        let out = deterministic_frame(schema, finish_builders(builders));
+        assert_eq!(out.value("value", 0), Some(DataValueRef::Int(2)));
+        assert_eq!(out.value("count", 0), Some(DataValueRef::Int(2)));
     }
 
     #[test]

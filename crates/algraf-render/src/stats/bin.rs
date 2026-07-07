@@ -5,7 +5,7 @@ use crate::scale::{
     categorical_domain, cell_category, cell_f64, cell_micros, numeric_domain, temporal_domain,
 };
 
-use super::util::{col_def, deterministic_frame};
+use super::util::{col_def, deterministic_frame, empty_frame};
 
 fn f64_cell(
     view: Option<ColumnView<'_>>,
@@ -495,16 +495,7 @@ fn temporal_calendar_bin(
 }
 
 fn empty_temporal_bin_frame() -> DataFrame {
-    deterministic_frame(
-        temporal_bin_schema(),
-        vec![
-            Column::from_temporal_options(vec![]),
-            Column::from_temporal_options(vec![]),
-            Column::from_temporal_options(vec![]),
-            Column::from_int_options(vec![]),
-            Column::from_float_options(vec![]),
-        ],
-    )
+    empty_frame(temporal_bin_schema())
 }
 
 fn temporal_bin_schema() -> Vec<ColumnDef> {

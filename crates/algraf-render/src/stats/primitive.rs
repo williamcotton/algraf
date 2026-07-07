@@ -1,12 +1,13 @@
-use algraf_data::geo_types::Geometry;
-use algraf_data::{
-    Column, ColumnDef, DataFrame, DataType, DataValue, DataValueRef, DateTimeValue, Table,
-};
+use algraf_data::{Column, ColumnDef, DataFrame, DataType, DataValue, DataValueRef, Table};
 
 use crate::scale::cell_f64;
-use crate::svg::num;
 
-use super::util::deterministic_frame;
+use super::util::{
+    builders_for_schema, deterministic_frame, finish_builders, push_passthrough, ColumnBuilder,
+    IntCoercion,
+};
+
+const INT_COERCION: IntCoercion = IntCoercion::Strict;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepDirection {
@@ -115,8 +116,8 @@ pub fn step_vertices(
 ) -> DataFrame {
     let x_dtype = column_dtype(table, x_col);
     let y_dtype = column_dtype(table, y_col);
-    let mut xs = ColumnBuilder::new(x_dtype);
-    let mut ys = ColumnBuilder::new(y_dtype);
+    let mut xs = ColumnBuilder::new(x_dtype, INT_COERCION);
+    let mut ys = ColumnBuilder::new(y_dtype, INT_COERCION);
     let mut groups = Vec::new();
     let mut prev: Option<(DataValue, DataValue, i64)> = None;
     let mut group = 0i64;
@@ -192,7 +193,7 @@ pub fn vector_endpoints(
     let mut ys = Vec::new();
     let mut xends = Vec::new();
     let mut yends = Vec::new();
-    let mut passthrough_builders = builders_for_schema(&passthrough);
+    let mut passthrough_builders = builders_for_schema(&passthrough, INT_COERCION);
 
     for row in 0..table.row_count() {
         let Some(x) = cell_f64(table, x_col, row) else {
@@ -244,7 +245,7 @@ pub fn jitter_points(
     let passthrough = passthrough_columns(table, &["x", "y"]);
     let mut xs = Vec::new();
     let mut ys = Vec::new();
-    let mut passthrough_builders = builders_for_schema(&passthrough);
+    let mut passthrough_builders = builders_for_schema(&passthrough, INT_COERCION);
     for row in 0..table.row_count() {
         let Some(x) = jitter_input(table, x_col, row) else {
             continue;
@@ -292,13 +293,13 @@ pub fn interval_segments(
         table,
         &["x", "y", "xend", "yend", "interval_role", "interval_id"],
     );
-    let mut xs = ColumnBuilder::new(x_dtype);
-    let mut ys = ColumnBuilder::new(y_dtype);
-    let mut xends = ColumnBuilder::new(x_dtype);
-    let mut yends = ColumnBuilder::new(y_dtype);
+    let mut xs = ColumnBuilder::new(x_dtype, INT_COERCION);
+    let mut ys = ColumnBuilder::new(y_dtype, INT_COERCION);
+    let mut xends = ColumnBuilder::new(x_dtype, INT_COERCION);
+    let mut yends = ColumnBuilder::new(y_dtype, INT_COERCION);
     let mut roles = Vec::new();
     let mut ids = Vec::new();
-    let mut passthrough_builders = builders_for_schema(&passthrough);
+    let mut passthrough_builders = builders_for_schema(&passthrough, INT_COERCION);
     let cap_width = options.cap_width.filter(|value| *value > 0.0);
 
     for row in 0..table.row_count() {
@@ -398,13 +399,13 @@ pub fn interval_rects(
             "interval_id",
         ],
     );
-    let mut xmins = ColumnBuilder::new(x_dtype);
-    let mut xmaxs = ColumnBuilder::new(x_dtype);
-    let mut ymins = ColumnBuilder::new(y_dtype);
-    let mut ymaxs = ColumnBuilder::new(y_dtype);
+    let mut xmins = ColumnBuilder::new(x_dtype, INT_COERCION);
+    let mut xmaxs = ColumnBuilder::new(x_dtype, INT_COERCION);
+    let mut ymins = ColumnBuilder::new(y_dtype, INT_COERCION);
+    let mut ymaxs = ColumnBuilder::new(y_dtype, INT_COERCION);
     let mut roles = Vec::new();
     let mut ids = Vec::new();
-    let mut passthrough_builders = builders_for_schema(&passthrough);
+    let mut passthrough_builders = builders_for_schema(&passthrough, INT_COERCION);
     let width = options.width.filter(|value| *value > 0.0).unwrap_or(0.8);
 
     for row in 0..table.row_count() {
@@ -472,13 +473,13 @@ pub fn interval_middles(
         table,
         &["x", "y", "xend", "yend", "interval_role", "interval_id"],
     );
-    let mut xs = ColumnBuilder::new(x_dtype);
-    let mut ys = ColumnBuilder::new(y_dtype);
-    let mut xends = ColumnBuilder::new(x_dtype);
-    let mut yends = ColumnBuilder::new(y_dtype);
+    let mut xs = ColumnBuilder::new(x_dtype, INT_COERCION);
+    let mut ys = ColumnBuilder::new(y_dtype, INT_COERCION);
+    let mut xends = ColumnBuilder::new(x_dtype, INT_COERCION);
+    let mut yends = ColumnBuilder::new(y_dtype, INT_COERCION);
     let mut roles = Vec::new();
     let mut ids = Vec::new();
-    let mut passthrough_builders = builders_for_schema(&passthrough);
+    let mut passthrough_builders = builders_for_schema(&passthrough, INT_COERCION);
     let width = options.width.filter(|value| *value > 0.0).unwrap_or(0.8);
 
     for row in 0..table.row_count() {
@@ -544,7 +545,7 @@ pub fn curve_sample(
     let mut xs = Vec::new();
     let mut ys = Vec::new();
     let mut link_ids = Vec::new();
-    let mut passthrough_builders = builders_for_schema(&passthrough);
+    let mut passthrough_builders = builders_for_schema(&passthrough, INT_COERCION);
 
     for row in 0..table.row_count() {
         let Some(x0) = cell_f64(table, x0_col, row) else {
@@ -769,28 +770,6 @@ fn passthrough_columns(table: &dyn Table, reserved: &[&str]) -> Vec<ColumnDef> {
         .collect()
 }
 
-fn builders_for_schema(schema: &[ColumnDef]) -> Vec<ColumnBuilder> {
-    schema
-        .iter()
-        .map(|column| ColumnBuilder::new(column.dtype))
-        .collect()
-}
-
-fn push_passthrough(
-    table: &dyn Table,
-    row: usize,
-    schema: &[ColumnDef],
-    builders: &mut [ColumnBuilder],
-) {
-    for (column, builder) in schema.iter().zip(builders.iter_mut()) {
-        builder.push_ref(table.value(&column.name, row));
-    }
-}
-
-fn finish_builders(builders: Vec<ColumnBuilder>) -> Vec<Column> {
-    builders.into_iter().map(ColumnBuilder::finish).collect()
-}
-
 fn owned_cell(table: &dyn Table, column: &str, row: usize) -> Option<DataValue> {
     match table.value(column, row)? {
         DataValueRef::Null => None,
@@ -798,88 +777,67 @@ fn owned_cell(table: &dyn Table, column: &str, row: usize) -> Option<DataValue> 
     }
 }
 
-enum ColumnBuilder {
-    Bool(Vec<Option<bool>>),
-    Int(Vec<Option<i64>>),
-    Float(Vec<Option<f64>>),
-    Temporal(Vec<Option<DateTimeValue>>),
-    String(Vec<Option<String>>),
-    Geometry(Vec<Option<Geometry<f64>>>),
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl ColumnBuilder {
-    fn new(dtype: DataType) -> Self {
-        match dtype {
-            DataType::Boolean => ColumnBuilder::Bool(Vec::new()),
-            DataType::Integer => ColumnBuilder::Int(Vec::new()),
-            DataType::Float => ColumnBuilder::Float(Vec::new()),
-            DataType::Temporal => ColumnBuilder::Temporal(Vec::new()),
-            DataType::Geometry => ColumnBuilder::Geometry(Vec::new()),
-            DataType::String | DataType::Mixed | DataType::Unknown => {
-                ColumnBuilder::String(Vec::new())
+    struct MismatchedPassthroughTable {
+        schema: Vec<ColumnDef>,
+    }
+
+    impl MismatchedPassthroughTable {
+        fn new() -> Self {
+            MismatchedPassthroughTable {
+                schema: vec![
+                    output_col("x", DataType::Float, false),
+                    output_col("y", DataType::Float, false),
+                    output_col("angle", DataType::Float, false),
+                    output_col("length", DataType::Float, false),
+                    output_col("score", DataType::Integer, true),
+                ],
             }
         }
     }
 
-    fn push_ref(&mut self, value: Option<DataValueRef<'_>>) {
-        let value = value.and_then(|value| match value {
-            DataValueRef::Null => None,
-            value => Some(value.to_owned()),
-        });
-        self.push_value(value);
-    }
+    impl Table for MismatchedPassthroughTable {
+        fn schema(&self) -> &[ColumnDef] {
+            &self.schema
+        }
 
-    fn push_value(&mut self, value: Option<DataValue>) {
-        match self {
-            ColumnBuilder::Bool(values) => values.push(match value {
-                Some(DataValue::Bool(value)) => Some(value),
+        fn row_count(&self) -> usize {
+            1
+        }
+
+        fn value(&self, column: &str, row: usize) -> Option<DataValueRef<'_>> {
+            if row != 0 {
+                return None;
+            }
+            match column {
+                "x" | "y" | "angle" => Some(DataValueRef::Float(0.0)),
+                "length" => Some(DataValueRef::Float(2.0)),
+                "score" => Some(DataValueRef::Float(2.6)),
                 _ => None,
-            }),
-            ColumnBuilder::Int(values) => values.push(match value {
-                Some(DataValue::Int(value)) => Some(value),
-                _ => None,
-            }),
-            ColumnBuilder::Float(values) => values.push(match value {
-                Some(DataValue::Int(value)) => Some(value as f64),
-                Some(DataValue::Float(value)) if value.is_finite() => Some(value),
-                _ => None,
-            }),
-            ColumnBuilder::Temporal(values) => values.push(match value {
-                Some(DataValue::Temporal(value)) => Some(value),
-                _ => None,
-            }),
-            ColumnBuilder::String(values) => values.push(value.and_then(value_to_string)),
-            ColumnBuilder::Geometry(values) => values.push(match value {
-                Some(DataValue::Geometry(value)) => Some(value),
-                _ => None,
-            }),
+            }
+        }
+
+        fn column(&self, _column: &str) -> Option<algraf_data::ColumnView<'_>> {
+            None
         }
     }
 
-    fn push_null(&mut self) {
-        self.push_value(None);
-    }
+    #[test]
+    fn primitive_passthrough_keeps_float_for_integer_column_missing() {
+        let table = MismatchedPassthroughTable::new();
 
-    fn finish(self) -> Column {
-        match self {
-            ColumnBuilder::Bool(values) => Column::from_bool_options(values),
-            ColumnBuilder::Int(values) => Column::from_int_options(values),
-            ColumnBuilder::Float(values) => Column::from_float_options(values),
-            ColumnBuilder::Temporal(values) => Column::from_temporal_options(values),
-            ColumnBuilder::String(values) => Column::String(values),
-            ColumnBuilder::Geometry(values) => Column::Geometry(values),
-        }
-    }
-}
+        let out = vector_endpoints(&table, "x", "y", "angle", "length", Default::default());
 
-fn value_to_string(value: DataValue) -> Option<String> {
-    match value {
-        DataValue::Null | DataValue::Geometry(_) => None,
-        DataValue::Bool(value) => Some(value.to_string()),
-        DataValue::Int(value) => Some(value.to_string()),
-        DataValue::Float(value) if value.is_finite() => Some(num(value)),
-        DataValue::Float(_) => None,
-        DataValue::Temporal(value) => Some(value.instant.and_utc().to_rfc3339()),
-        DataValue::String(value) => Some(value),
+        assert_eq!(out.row_count(), 1);
+        let score = out
+            .schema()
+            .iter()
+            .find(|column| column.name == "score")
+            .expect("score passthrough column");
+        assert_eq!(score.dtype, DataType::Integer);
+        assert_eq!(out.value("score", 0), Some(DataValueRef::Null));
     }
 }

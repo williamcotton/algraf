@@ -2,7 +2,7 @@ use algraf_data::{Column, ColumnView, DataFrame, DataType, Table};
 
 use crate::scale::cell_f64;
 
-use super::util::{col_def, deterministic_frame};
+use super::util::{col_def, deterministic_frame, empty_frame};
 
 /// Options for kernel density estimation.
 #[derive(Debug, Clone, Copy)]
@@ -48,13 +48,7 @@ pub fn density(table: &dyn Table, input_column: &str, options: DensityOptions) -
     ];
     let points = density_values(&mut values, options);
     if points.is_empty() {
-        return deterministic_frame(
-            schema,
-            vec![
-                Column::from_float_options(vec![]),
-                Column::from_float_options(vec![]),
-            ],
-        );
+        return empty_frame(schema);
     }
 
     deterministic_frame(
@@ -99,14 +93,7 @@ pub fn density_blended(
     }
 
     if xs.is_empty() {
-        return deterministic_frame(
-            schema,
-            vec![
-                Column::from_float_options(vec![]),
-                Column::from_float_options(vec![]),
-                Column::String(vec![]),
-            ],
-        );
+        return empty_frame(schema);
     }
 
     deterministic_frame(
