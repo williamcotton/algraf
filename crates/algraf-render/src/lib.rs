@@ -51,6 +51,7 @@ pub use embed::{
 };
 pub use error::RenderError;
 pub use layout::{FacetPanel, Layout, Rect};
+#[allow(deprecated)]
 pub use render::{
     load_image_assets_with_io, render, render_draw_list, render_draw_list_with_tables,
     render_draw_list_with_tables_and_assets_and_limits, render_draw_list_with_tables_and_limits,
@@ -62,8 +63,8 @@ pub use render::{
     render_with_tables_and_limits, DrawList, DrawListResult, DrawOp, DrawRole, ImageAsset,
     ImageAssetLoadResult, ImageAssets, InteractionAxes, InteractionAxis, InteractionChart,
     InteractionDomain, InteractionGroup, InteractionGroupValue, InteractionLegend, InteractionMark,
-    InteractionMetadata, InteractionPlot, RasterImage, RasterResult, RenderLimits, RenderResult,
-    TextAnchor, TooltipRow,
+    InteractionMetadata, InteractionPlot, RasterImage, RasterResult, RenderLimits, RenderOptions,
+    RenderResult, TextAnchor, TooltipRow,
 };
 pub use sink::{Dash, Fill, MarkInteraction, Paint, Stroke};
 pub use svg::num as svg_num;

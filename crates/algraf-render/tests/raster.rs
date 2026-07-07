@@ -8,10 +8,7 @@
 use std::collections::HashMap;
 
 use algraf_data::{read_csv_str, DataFrame, Table};
-use algraf_render::{
-    render, render_raster, render_raster_with_tables, render_with_tables, RasterImage,
-    RasterResult, Theme,
-};
+use algraf_render::{render, render_raster, RasterImage, RasterResult, RenderOptions, Theme};
 use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
 use resvg::usvg::{Options, Tree};
@@ -56,12 +53,13 @@ fn raster_with_tables(
     let parsed = parse(source);
     let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
     let ir = analysis.ir.expect("ir");
-    render_raster_with_tables(
+    render_raster(
         &ir,
         &frame,
-        &named,
         &Theme::minimal(),
-        theme_override,
+        RenderOptions::default()
+            .with_named_tables(&named)
+            .with_cli_theme_override(theme_override),
         SCALE,
     )
     .expect("raster")
@@ -84,9 +82,16 @@ fn svg_string_with_tables(
     let parsed = parse(source);
     let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
     let ir = analysis.ir.expect("ir");
-    render_with_tables(&ir, &frame, &named, &Theme::minimal(), theme_override)
-        .expect("svg")
-        .svg
+    render(
+        &ir,
+        &frame,
+        &Theme::minimal(),
+        RenderOptions::default()
+            .with_named_tables(&named)
+            .with_cli_theme_override(theme_override),
+    )
+    .expect("svg")
+    .svg
 }
 
 /// Rasterize an SVG string with resvg — the baseline the render-model raster is

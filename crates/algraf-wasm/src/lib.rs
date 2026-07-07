@@ -27,7 +27,7 @@ use algraf_editor_services::document::VirtualFile;
 use algraf_editor_services::service::{
     handle_feature_request, EditorFeatureRequest, EditorFeatureResponse,
 };
-use algraf_render::{load_image_assets_with_io, render_with_tables_and_assets, Theme};
+use algraf_render::{load_image_assets_with_io, render, RenderOptions, Theme};
 use algraf_syntax::ast_json;
 use serde::{Deserialize, Serialize};
 
@@ -188,14 +188,10 @@ pub fn render_to_svg(source: &str, files: HashMap<String, Vec<u8>>) -> RenderOut
         return outcome;
     }
 
-    match render_with_tables_and_assets(
-        &ir,
-        &loaded.frame,
-        &named_frames,
-        &theme,
-        None,
-        &image_assets.assets,
-    ) {
+    let render_options = RenderOptions::default()
+        .with_named_tables(&named_frames)
+        .with_image_assets(&image_assets.assets);
+    match render(&ir, &loaded.frame, &theme, render_options) {
         Ok(result) => {
             outcome
                 .diagnostics

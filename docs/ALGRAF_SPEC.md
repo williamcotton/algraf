@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.93.0
+Status: 0.94.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.93.0 specification.
+This working copy is the 0.94.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -10107,7 +10107,21 @@ depend on `algraf-cli`
 The render crate is internally split along the planning/emission boundary of
 §24.6: planning modules resolve a render scene (derived tables, scales, layout,
 guide measurements, legends) and a closed set of private backends emit output
-from it — the canonical SVG backend and a serializable draw-list backend.
+from it — the canonical SVG backend, a serializable draw-list backend, and a
+render-model raster backend.
+
+Since version 0.94.0, public render entry points MUST accept a `RenderOptions`
+object for optional named tables, image assets, render limits, and CLI theme
+override state. The default options value represents the common embedding case
+with no named tables, no preloaded image assets, default limits, and no CLI
+theme override, so callers render with only IR, primary table, and theme when no
+extra context is needed. Named tables and image assets MUST remain borrowed
+through the options object; the renderer MUST NOT clone large loaded data by
+default. The CLI theme override field is CLI-specific and represents the
+strongest `algraf render --theme` semantics from §22.3, while the other options
+are ordinary embedding context. Deprecated telescoping wrappers that spell out
+tables, assets, and limits in their function names MAY remain for one
+compatibility release, but they MUST forward through the options-based path.
 
 `lsp`:
 
@@ -10572,7 +10586,7 @@ Since version 0.87.0, the language-reference browser response shape is:
 ```json
 {
   "markdown": "...",
-  "version": "0.93.0",
+  "version": "0.94.0",
   "part": "full",
   "source": "crates/algraf-cli/templates/ALGRAF_LANG.md",
   "sources": [
@@ -11971,6 +11985,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.91.0 | [`V0_91_PLAN.md`](V0_91_PLAN.md) | Document-scoped custom themes with `Theme(base:)` reuse and chaining | Implemented |
 | 0.92.0 | [`V0_92_PLAN.md`](V0_92_PLAN.md) | Explicit `$name` references for `let` bindings and no bare-let resolution | Implemented |
 | 0.93.0 | [`V0_93_PLAN.md`](V0_93_PLAN.md) | Shared render stat column builder and explicit integer coercion policy | Implemented |
+| 0.94.0 | [`V0_94_PLAN.md`](V0_94_PLAN.md) | Render entry-point options and CLI source argument cleanup | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

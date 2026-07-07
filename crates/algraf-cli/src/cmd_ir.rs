@@ -1,7 +1,5 @@
 //! `algraf ir` — print the semantic IR (spec §22).
 
-use std::path::PathBuf;
-
 use algraf_data::Format;
 use algraf_driver::{
     document_charts, prepare_chart, PreparationReport, PrepareOptions, ReportPhase,
@@ -9,7 +7,7 @@ use algraf_driver::{
 use algraf_syntax::parse;
 use clap::Args;
 
-use crate::cmd_render::DataFormatArg;
+use crate::cmd_source::SourceArgs;
 use crate::diagnostics;
 use crate::error::CliError;
 use crate::input::{driver_error, read_template_source};
@@ -17,24 +15,18 @@ use crate::ir_json::ir_to_json;
 
 #[derive(Args)]
 pub(crate) struct IrArgs {
-    pub(crate) input: Option<String>,
-    #[arg(short = 'e', long = "eval", conflicts_with = "input")]
-    pub(crate) eval: Option<String>,
-    #[arg(long)]
-    pub(crate) base_dir: Option<PathBuf>,
-    #[arg(long)]
-    pub(crate) data: Option<String>,
-    #[arg(long, value_enum)]
-    pub(crate) data_format: Option<DataFormatArg>,
-    #[arg(long = "var")]
-    pub(crate) vars: Vec<String>,
+    #[command(flatten)]
+    pub(crate) source: SourceArgs,
     #[arg(long)]
     pub(crate) json: bool,
 }
 
 pub(crate) fn ir_cmd(args: IrArgs) -> Result<(), CliError> {
-    let (source, input) =
-        read_template_source(args.input.as_deref(), args.eval.as_deref(), &args.vars)?;
+    let (source, input) = read_template_source(
+        args.source.input.as_deref(),
+        args.source.eval.as_deref(),
+        &args.source.vars,
+    )?;
     let parsed = parse(&source);
     let root = parsed.syntax();
     let label = input.label();
@@ -56,9 +48,9 @@ pub(crate) fn ir_cmd(args: IrArgs) -> Result<(), CliError> {
         &chart,
         PrepareOptions {
             source_input: &input,
-            base_dir: args.base_dir.as_deref(),
-            data_override: args.data.as_deref(),
-            data_format_override: args.data_format.map(Format::from),
+            base_dir: args.source.base_dir.as_deref(),
+            data_override: args.source.data.as_deref(),
+            data_format_override: args.source.data_format.map(Format::from),
             multi_chart: false,
         },
     )

@@ -9,10 +9,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use algraf_data::{read_csv_str, DataFrame, Table};
-use algraf_render::{
-    render, render_draw_list, render_draw_list_with_tables, render_with_tables, DrawList, DrawOp,
-    DrawRole, Theme,
-};
+use algraf_render::{render, render_draw_list, DrawList, DrawOp, DrawRole, RenderOptions, Theme};
 use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
 
@@ -48,9 +45,14 @@ fn draw_list_with_tables(source: &str, primary_csv: &str, tables: &[(&str, &str)
     let parsed = parse(source);
     let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
     let ir = analysis.ir.expect("ir");
-    render_draw_list_with_tables(&ir, &frame, &named, &Theme::minimal(), None)
-        .expect("draw list")
-        .draw_list
+    render_draw_list(
+        &ir,
+        &frame,
+        &Theme::minimal(),
+        RenderOptions::default().with_named_tables(&named),
+    )
+    .expect("draw list")
+    .draw_list
 }
 
 fn svg_with_tables(source: &str, primary_csv: &str, tables: &[(&str, &str)]) -> String {
@@ -65,9 +67,14 @@ fn svg_with_tables(source: &str, primary_csv: &str, tables: &[(&str, &str)]) -> 
     let parsed = parse(source);
     let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
     let ir = analysis.ir.expect("ir");
-    render_with_tables(&ir, &frame, &named, &Theme::minimal(), None)
-        .expect("render")
-        .svg
+    render(
+        &ir,
+        &frame,
+        &Theme::minimal(),
+        RenderOptions::default().with_named_tables(&named),
+    )
+    .expect("render")
+    .svg
 }
 
 /// Count primitive *elements* in an SVG string by tag. Structural elements

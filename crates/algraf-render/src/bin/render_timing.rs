@@ -14,8 +14,7 @@ use algraf_driver::{
     SourceInput,
 };
 use algraf_render::{
-    load_image_assets_with_io, render_interactive_with_tables_and_assets_and_limits,
-    render_with_tables_and_assets_and_limits, InMemoryDriverIo, RenderLimits, Theme,
+    load_image_assets_with_io, render, render_interactive, InMemoryDriverIo, RenderOptions, Theme,
 };
 
 const DEFAULT_ITERATIONS: usize = 100;
@@ -241,26 +240,13 @@ fn render_once(
     ir.width = black_box(ir.width);
     ir.height = black_box(ir.height);
 
+    let render_options = RenderOptions::default()
+        .with_named_tables(&named_frames)
+        .with_image_assets(&image_assets.assets);
     let result = if interactive {
-        render_interactive_with_tables_and_assets_and_limits(
-            &ir,
-            &primary.frame,
-            &named_frames,
-            &theme,
-            None,
-            &image_assets.assets,
-            RenderLimits::default(),
-        )
+        render_interactive(&ir, &primary.frame, &theme, render_options)
     } else {
-        render_with_tables_and_assets_and_limits(
-            &ir,
-            &primary.frame,
-            &named_frames,
-            &theme,
-            None,
-            &image_assets.assets,
-            RenderLimits::default(),
-        )
+        render(&ir, &primary.frame, &theme, render_options)
     }
     .map_err(|err| format!("render failed: {err}"))?;
     fail_on_errors("render", &result.diagnostics)?;

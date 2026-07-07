@@ -3,10 +3,7 @@ use std::path::{Component, Path, PathBuf};
 
 use algraf_core::Severity;
 use algraf_driver::{data_dependencies, prepare_chart, OsDriverIo, PrepareOptions, SourceInput};
-use algraf_render::{
-    load_image_assets_with_io, render_interactive_with_tables_and_assets_and_limits,
-    render_with_tables_and_assets, RenderLimits, Theme,
-};
+use algraf_render::{load_image_assets_with_io, render, render_interactive, RenderOptions, Theme};
 use algraf_syntax::ast::Root;
 use algraf_syntax::{parse, SourceExpr};
 use serde::{Deserialize, Serialize};
@@ -264,25 +261,13 @@ fn render_preview(
 
     // The preview is script-safe by default; the interactive surface uses only
     // the vetted, non-user runtime (spec §21.18, §29.3).
+    let render_options = RenderOptions::default()
+        .with_named_tables(&named_frames)
+        .with_image_assets(&image_assets.assets);
     let result = if interactive {
-        render_interactive_with_tables_and_assets_and_limits(
-            &ir,
-            &frame,
-            &named_frames,
-            &theme,
-            None,
-            &image_assets.assets,
-            RenderLimits::default(),
-        )
+        render_interactive(&ir, &frame, &theme, render_options)
     } else {
-        render_with_tables_and_assets(
-            &ir,
-            &frame,
-            &named_frames,
-            &theme,
-            None,
-            &image_assets.assets,
-        )
+        render(&ir, &frame, &theme, render_options)
     }
     .map_err(|e| e.to_string())?;
     Ok((result.svg, result.metadata.to_json()))

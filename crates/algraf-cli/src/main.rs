@@ -25,6 +25,7 @@ mod cmd_ir;
 mod cmd_lsp;
 mod cmd_render;
 mod cmd_schema;
+mod cmd_source;
 mod diagnostics;
 mod error;
 mod input;

@@ -7,9 +7,8 @@ use std::collections::HashMap;
 
 use algraf_data::{read_csv_str, DataFrame, Table};
 use algraf_render::{
-    render, render_draw_list, render_draw_list_with_tables,
-    render_draw_list_with_tables_and_assets_and_limits, Dash, DrawList, DrawOp, DrawRole, Fill,
-    ImageAsset, ImageAssets, RenderLimits, Theme,
+    render, render_draw_list, Dash, DrawList, DrawOp, DrawRole, Fill, ImageAsset, ImageAssets,
+    RenderOptions, Theme,
 };
 use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
@@ -36,9 +35,14 @@ fn draw_list_with_tables(source: &str, primary_csv: &str, tables: &[(&str, &str)
     let parsed = parse(source);
     let analysis = analyze_with_tables(&parsed.syntax(), frame.schema(), &schemas);
     let ir = analysis.ir.expect("ir");
-    render_draw_list_with_tables(&ir, &frame, &named, &Theme::minimal(), None)
-        .expect("draw list")
-        .draw_list
+    render_draw_list(
+        &ir,
+        &frame,
+        &Theme::minimal(),
+        RenderOptions::default().with_named_tables(&named),
+    )
+    .expect("draw list")
+    .draw_list
 }
 
 fn image_assets() -> ImageAssets {
@@ -63,14 +67,11 @@ fn draw_list_with_assets(source: &str, csv: &str, assets: &ImageAssets) -> DrawL
     let parsed = parse(source);
     let analysis = analyze(&parsed.syntax(), frame.schema());
     let ir = analysis.ir.expect("ir");
-    render_draw_list_with_tables_and_assets_and_limits(
+    render_draw_list(
         &ir,
         &frame,
-        &HashMap::new(),
         &Theme::minimal(),
-        None,
-        assets,
-        RenderLimits::default(),
+        RenderOptions::default().with_image_assets(assets),
     )
     .expect("draw list")
     .draw_list

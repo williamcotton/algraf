@@ -1,7 +1,5 @@
 //! `algraf schema` — print the resolved data schema (spec §22).
 
-use std::path::PathBuf;
-
 use algraf_data::Format;
 use algraf_driver::{driver_error_diagnostic, extract_data_source, load_schema, DriverError};
 use algraf_semantics::analyze;
@@ -9,7 +7,7 @@ use algraf_syntax::parse;
 use clap::Args;
 use serde_json::{json, Value};
 
-use crate::cmd_render::DataFormatArg;
+use crate::cmd_source::SourceArgs;
 use crate::diagnostics;
 use crate::error::CliError;
 use crate::input::{driver_error, read_template_source};
@@ -17,17 +15,8 @@ use crate::ir_json::dtype_str;
 
 #[derive(Args)]
 pub(crate) struct SchemaArgs {
-    pub(crate) input: Option<String>,
-    #[arg(short = 'e', long = "eval", conflicts_with = "input")]
-    pub(crate) eval: Option<String>,
-    #[arg(long)]
-    pub(crate) base_dir: Option<PathBuf>,
-    #[arg(long)]
-    pub(crate) data: Option<String>,
-    #[arg(long, value_enum)]
-    pub(crate) data_format: Option<DataFormatArg>,
-    #[arg(long = "var")]
-    pub(crate) vars: Vec<String>,
+    #[command(flatten)]
+    pub(crate) source: SourceArgs,
     #[arg(long)]
     pub(crate) json: bool,
     #[arg(long)]
@@ -35,8 +24,11 @@ pub(crate) struct SchemaArgs {
 }
 
 pub(crate) fn schema_cmd(args: SchemaArgs) -> Result<(), CliError> {
-    let (source, input) =
-        read_template_source(args.input.as_deref(), args.eval.as_deref(), &args.vars)?;
+    let (source, input) = read_template_source(
+        args.source.input.as_deref(),
+        args.source.eval.as_deref(),
+        &args.source.vars,
+    )?;
     let parsed = parse(&source);
     let root = parsed.syntax();
     let label = input.label();
@@ -64,9 +56,9 @@ pub(crate) fn schema_cmd(args: SchemaArgs) -> Result<(), CliError> {
     let schema = match load_schema(
         &ast_data,
         &input,
-        args.base_dir.as_deref(),
-        args.data.as_deref(),
-        args.data_format.map(Format::from),
+        args.source.base_dir.as_deref(),
+        args.source.data.as_deref(),
+        args.source.data_format.map(Format::from),
         args.sample_size,
     ) {
         Ok(schema) => schema,

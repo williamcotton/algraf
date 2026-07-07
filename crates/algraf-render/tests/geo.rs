@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use algraf_data::{read_geojson_str, DataFrame, Table};
-use algraf_render::{render, render_with_tables, RenderResult, Theme};
+use algraf_render::{render, RenderOptions, RenderResult, Theme};
 use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
 
@@ -33,7 +33,13 @@ fn render_geojson_with_table(
     let parsed = parse(source);
     let analysis = analyze_with_tables(&parsed.syntax(), primary_frame.schema(), &schemas);
     let ir = analysis.ir.expect("ir");
-    render_with_tables(&ir, &primary_frame, &frames, &Theme::void(), None).expect("render")
+    render(
+        &ir,
+        &primary_frame,
+        &Theme::void(),
+        RenderOptions::default().with_named_tables(&frames),
+    )
+    .expect("render")
 }
 
 /// A FeatureCollection with a polygon-with-hole and a multipolygon, each with a

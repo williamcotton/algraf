@@ -10,16 +10,15 @@ use algraf_driver::{
     PreparationReport, PrepareOptions, ReportPhase, SourceInput,
 };
 use algraf_render::{
-    load_image_assets_with_io, render_draw_list_with_tables_and_assets_and_limits,
-    render_interactive_with_tables_and_assets_and_limits,
-    render_raster_with_tables_and_assets_and_limits, render_with_tables_and_assets_and_limits,
-    ImageAssets, RenderLimits, Theme,
+    load_image_assets_with_io, render, render_draw_list, render_interactive, render_raster,
+    ImageAssets, RenderLimits, RenderOptions, Theme,
 };
 use algraf_semantics::ChartIr;
 use algraf_syntax::ast::ChartBlock;
 use algraf_syntax::parse;
 use clap::Args;
 
+use crate::cmd_source::SourceArgs;
 use crate::diagnostics;
 use crate::error::CliError;
 use crate::input::{driver_error, read_template_source};
@@ -52,42 +51,10 @@ impl RenderFormat {
     }
 }
 
-/// Stream/data format override for caller-provided primary data.
-#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-pub(crate) enum DataFormatArg {
-    Csv,
-    Tsv,
-    Json,
-    Ndjson,
-    Geojson,
-    Topojson,
-    Parquet,
-    #[value(name = "arrow-stream", alias = "arrow")]
-    ArrowStream,
-}
-
-impl From<DataFormatArg> for Format {
-    fn from(value: DataFormatArg) -> Self {
-        match value {
-            DataFormatArg::Csv => Format::Csv,
-            DataFormatArg::Tsv => Format::Tsv,
-            DataFormatArg::Json => Format::Json,
-            DataFormatArg::Ndjson => Format::NdJson,
-            DataFormatArg::Geojson => Format::GeoJson,
-            DataFormatArg::Topojson => Format::TopoJson,
-            DataFormatArg::Parquet => Format::Parquet,
-            DataFormatArg::ArrowStream => Format::ArrowStream,
-        }
-    }
-}
-
 #[derive(Args)]
 pub(crate) struct RenderArgs {
-    /// Source file, or `-` for stdin.
-    pub(crate) input: Option<String>,
-    /// Inline source text. Mutually exclusive with a source file or `-`.
-    #[arg(short = 'e', long = "eval", conflicts_with = "input")]
-    pub(crate) eval: Option<String>,
+    #[command(flatten)]
+    pub(crate) source: SourceArgs,
     /// Output path. With `--format svg`, `.png` paths rasterize the SVG and all
     /// other paths write SVG; with `--format svg+json`, this is the SVG path or
     /// base path; with `--format draw-list`, paths write JSON; with `--format
@@ -117,17 +84,6 @@ pub(crate) struct RenderArgs {
     /// PNG physical DPI metadata. Defaults to 96 * --png-scale.
     #[arg(long)]
     pub(crate) png_dpi: Option<u32>,
-    #[arg(long)]
-    pub(crate) base_dir: Option<PathBuf>,
-    /// Data path, or `-` for stdin (overrides the chart's data argument).
-    #[arg(long)]
-    pub(crate) data: Option<String>,
-    /// Explicit format for caller-provided primary data or --data paths.
-    #[arg(long, value_enum)]
-    pub(crate) data_format: Option<DataFormatArg>,
-    /// Raw source variable assignment, repeated as --var key=value.
-    #[arg(long = "var")]
-    pub(crate) vars: Vec<String>,
     #[arg(long)]
     pub(crate) theme: Option<String>,
     /// Treat warnings as errors.
@@ -163,8 +119,11 @@ pub(crate) fn render_cmd(args: RenderArgs) -> Result<(), CliError> {
             "`--format svg+json` writes two files; pass --output".to_string(),
         ));
     }
-    let (source, input) =
-        read_template_source(args.input.as_deref(), args.eval.as_deref(), &args.vars)?;
+    let (source, input) = read_template_source(
+        args.source.input.as_deref(),
+        args.source.eval.as_deref(),
+        &args.source.vars,
+    )?;
     let parsed = parse(&source);
     let root = parsed.syntax();
     let label = input.label();
@@ -239,6 +198,41 @@ fn render_limits(args: &RenderArgs) -> RenderLimits {
     }
 }
 
+fn render_options<'a>(
+    named_frames: &'a HashMap<String, algraf_data::DataFrame>,
+    assets: &'a ImageAssets,
+    args: &'a RenderArgs,
+    cli_theme_override: Option<&'a str>,
+) -> RenderOptions<'a> {
+    RenderOptions::default()
+        .with_named_tables(named_frames)
+        .with_image_assets(assets)
+        .with_limits(render_limits(args))
+        .with_cli_theme_override(cli_theme_override)
+}
+
+fn finish_render_report(
+    report: &mut PreparationReport,
+    render_diagnostics: &[algraf_core::Diagnostic],
+    args: &RenderArgs,
+    source: &str,
+    label: &str,
+) -> Result<(), CliError> {
+    report.extend(ReportPhase::Render, render_diagnostics.iter().cloned());
+    let render_diags = report.diagnostics();
+    if !render_diags.is_empty() {
+        eprint!(
+            "{}",
+            diagnostics::render_human(source, label, &render_diags)
+        );
+    }
+    if diagnostics::has_blocking(&render_diags, args.strict) {
+        Err(CliError::Diagnostics)
+    } else {
+        Ok(())
+    }
+}
+
 /// Everything needed to drive a render backend for one chart, with all parse,
 /// data, and semantic diagnostics already reported. The shared `report` carries
 /// data warnings so each backend can append its own render diagnostics.
@@ -271,42 +265,14 @@ fn render_chart_svg(
         mut report,
     } = prepare_render_inputs(chart, args, input, source, label, multi)?;
 
-    let limits = render_limits(args);
+    let options = render_options(&named_frames, &assets, args, cli_theme_override.as_deref());
     let mut result = if args.interactive {
-        render_interactive_with_tables_and_assets_and_limits(
-            &ir,
-            &frame,
-            &named_frames,
-            &theme,
-            cli_theme_override.as_deref(),
-            &assets,
-            limits,
-        )
+        render_interactive(&ir, &frame, &theme, options)
     } else {
-        render_with_tables_and_assets_and_limits(
-            &ir,
-            &frame,
-            &named_frames,
-            &theme,
-            cli_theme_override.as_deref(),
-            &assets,
-            limits,
-        )
+        render(&ir, &frame, &theme, options)
     }
     .map_err(|e| CliError::Internal(e.to_string()))?;
-    // Append render diagnostics to the same report (spec §23.4); they carry
-    // source spans, so they print through the diagnostic renderer.
-    report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());
-    let render_diags = report.diagnostics();
-    if !render_diags.is_empty() {
-        eprint!(
-            "{}",
-            diagnostics::render_human(source, label, &render_diags)
-        );
-    }
-    if diagnostics::has_blocking(&render_diags, args.strict) {
-        return Err(CliError::Diagnostics);
-    }
+    finish_render_report(&mut report, &result.diagnostics, args, source, label)?;
 
     if args.debug_layout || args.emit_metadata {
         let layout = result.layout.clone();
@@ -346,27 +312,14 @@ fn render_chart_draw_list(
         mut report,
     } = prepare_render_inputs(chart, args, input, source, label, multi)?;
 
-    let result = render_draw_list_with_tables_and_assets_and_limits(
+    let result = render_draw_list(
         &ir,
         &frame,
-        &named_frames,
         &theme,
-        cli_theme_override.as_deref(),
-        &assets,
-        render_limits(args),
+        render_options(&named_frames, &assets, args, cli_theme_override.as_deref()),
     )
     .map_err(|e| CliError::Internal(e.to_string()))?;
-    report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());
-    let render_diags = report.diagnostics();
-    if !render_diags.is_empty() {
-        eprint!(
-            "{}",
-            diagnostics::render_human(source, label, &render_diags)
-        );
-    }
-    if diagnostics::has_blocking(&render_diags, args.strict) {
-        return Err(CliError::Diagnostics);
-    }
+    finish_render_report(&mut report, &result.diagnostics, args, source, label)?;
     let metadata_json = should_write_metadata(args).then(|| result.metadata.to_json());
     Ok(RenderOutput {
         primary: RenderOutputData::Text(result.draw_list.to_json()),
@@ -396,28 +349,15 @@ fn render_chart_raster(
         mut report,
     } = prepare_render_inputs(chart, args, input, source, label, multi)?;
 
-    let result = render_raster_with_tables_and_assets_and_limits(
+    let result = render_raster(
         &ir,
         &frame,
-        &named_frames,
         &theme,
-        cli_theme_override.as_deref(),
-        &assets,
-        render_limits(args),
+        render_options(&named_frames, &assets, args, cli_theme_override.as_deref()),
         png_options.scale(),
     )
     .map_err(|e| CliError::Internal(e.to_string()))?;
-    report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());
-    let render_diags = report.diagnostics();
-    if !render_diags.is_empty() {
-        eprint!(
-            "{}",
-            diagnostics::render_human(source, label, &render_diags)
-        );
-    }
-    if diagnostics::has_blocking(&render_diags, args.strict) {
-        return Err(CliError::Diagnostics);
-    }
+    finish_render_report(&mut report, &result.diagnostics, args, source, label)?;
     let bytes = png::encode_pixmap(result.image.pixmap(), png_options.dpi())
         .map_err(|e| CliError::Internal(format!("PNG encoding failed: {e}")))?;
     let metadata_json = should_write_metadata(args).then(|| result.metadata.to_json());
@@ -446,9 +386,9 @@ fn prepare_render_inputs(
         chart,
         PrepareOptions {
             source_input: input,
-            base_dir: args.base_dir.as_deref(),
-            data_override: args.data.as_deref(),
-            data_format_override: args.data_format.map(Format::from),
+            base_dir: args.source.base_dir.as_deref(),
+            data_override: args.source.data.as_deref(),
+            data_format_override: args.source.data_format.map(Format::from),
             multi_chart: multi,
         },
     ) {
@@ -534,7 +474,7 @@ fn prepare_render_inputs(
         &frame,
         &named_frames,
         input,
-        args.base_dir.as_deref(),
+        args.source.base_dir.as_deref(),
         &OsDriverIo,
     );
     if !image_assets.diagnostics.is_empty() {

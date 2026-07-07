@@ -8,10 +8,9 @@ use std::sync::Arc;
 use algraf_data::{read_csv_str, DataFrame, Table};
 use algraf_driver::SourceInput;
 use algraf_render::{
-    load_image_assets_with_io, render, render_embedded, render_with_tables,
-    render_with_tables_and_assets, render_with_tables_and_limits, EmbeddedOutputFormat,
-    EmbeddedRenderOptions, ImageAsset, ImageAssets, InMemoryDriverIo, RenderLimits, RenderResult,
-    Theme,
+    load_image_assets_with_io, render, render_embedded, EmbeddedOutputFormat,
+    EmbeddedRenderOptions, ImageAsset, ImageAssets, InMemoryDriverIo, RenderLimits, RenderOptions,
+    RenderResult, Theme,
 };
 use algraf_semantics::{analyze, analyze_with_tables};
 use algraf_syntax::parse;
@@ -141,7 +140,13 @@ fn render_result_with_tables(
         "{diagnostics:#?}"
     );
     let ir = analysis.ir.expect("ir");
-    render_with_tables(&ir, &frame, &named, &Theme::minimal(), None).expect("render")
+    render(
+        &ir,
+        &frame,
+        &Theme::minimal(),
+        RenderOptions::default().with_named_tables(&named),
+    )
+    .expect("render")
 }
 
 fn image_assets() -> ImageAssets {
@@ -166,15 +171,28 @@ fn render_result_with_assets(source: &str, csv: &str, assets: &ImageAssets) -> R
     let parsed = parse(source);
     let analysis = analyze(&parsed.syntax(), frame.schema());
     let ir = analysis.ir.expect("ir");
-    render_with_tables_and_assets(
+    render(
         &ir,
         &frame,
-        &HashMap::new(),
         &Theme::minimal(),
-        None,
-        assets,
+        RenderOptions::default().with_image_assets(assets),
     )
     .expect("render")
+}
+
+#[test]
+#[allow(deprecated)]
+fn deprecated_render_with_tables_shim_still_forwards() {
+    let frame = read_csv_str("x,y\n1,2\n").expect("csv").frame;
+    let parsed = parse("Chart(data: \"p.csv\") { Space(x * y) { Point() } }");
+    let analysis = analyze(&parsed.syntax(), frame.schema());
+    let ir = analysis.ir.expect("ir");
+
+    let result =
+        algraf_render::render_with_tables(&ir, &frame, &HashMap::new(), &Theme::minimal(), None)
+            .expect("render");
+
+    assert!(result.svg.contains("<svg"));
 }
 
 #[test]
@@ -184,15 +202,13 @@ fn render_mark_budget_rejects_pathological_raw_points() {
     let analysis = analyze(&parsed.syntax(), frame.schema());
     let ir = analysis.ir.expect("ir");
 
-    let result = render_with_tables_and_limits(
+    let result = render(
         &ir,
         &frame,
-        &std::collections::HashMap::new(),
         &Theme::minimal(),
-        None,
-        RenderLimits {
+        RenderOptions::default().with_limits(RenderLimits {
             mark_budget: Some(2),
-        },
+        }),
     )
     .expect("render");
 
@@ -535,15 +551,15 @@ fn render_glyph_budget_rejects_recursive_expansion() {
     let ir = analysis.ir.expect("ir");
     let mut named = HashMap::new();
     named.insert("mix".to_string(), mix);
-    let result = render_with_tables_and_limits(
+    let result = render(
         &ir,
         &frame,
-        &named,
         &Theme::minimal(),
-        None,
-        RenderLimits {
-            mark_budget: Some(2),
-        },
+        RenderOptions::default()
+            .with_named_tables(&named)
+            .with_limits(RenderLimits {
+                mark_budget: Some(2),
+            }),
     )
     .expect("render");
 
@@ -3225,9 +3241,14 @@ fn test_named_table_overlay_shares_position_scale() {
         "cities".to_string(),
         read_csv_str("x,y,name\n10,2,Far\n").unwrap().frame,
     );
-    let svg = render_with_tables(&ir, &primary, &frames, &Theme::minimal(), None)
-        .unwrap()
-        .svg;
+    let svg = render(
+        &ir,
+        &primary,
+        &Theme::minimal(),
+        RenderOptions::default().with_named_tables(&frames),
+    )
+    .unwrap()
+    .svg;
     // The unioned x domain reaches 10, so a tick label at/near 10 appears.
     assert!(svg.contains(">10</text>") || svg.contains(">9</text>"));
     assert!(svg.contains(">Far</text>"));

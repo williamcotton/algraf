@@ -17,8 +17,8 @@ use serde_json::Value;
 use tiny_skia::{Pixmap, Transform};
 
 use crate::{
-    load_image_assets_with_io, render_interactive_with_tables_and_assets_and_limits,
-    render_with_tables_and_assets, Layout, RenderError, RenderLimits, Theme,
+    load_image_assets_with_io, render, render_interactive, Layout, RenderError, RenderOptions,
+    Theme,
 };
 
 const DEFAULT_PNG_SCALE: f32 = 2.0;
@@ -328,25 +328,14 @@ pub fn render_embedded_with_io(
         });
     }
 
+    let render_options = RenderOptions::default()
+        .with_named_tables(&named_frames)
+        .with_image_assets(&image_assets.assets)
+        .with_cli_theme_override(options.theme.as_deref());
     let result = if options.interactive && options.output_format == EmbeddedOutputFormat::Svg {
-        render_interactive_with_tables_and_assets_and_limits(
-            &ir,
-            &primary.frame,
-            &named_frames,
-            &theme,
-            options.theme.as_deref(),
-            &image_assets.assets,
-            RenderLimits::default(),
-        )
+        render_interactive(&ir, &primary.frame, &theme, render_options)
     } else {
-        render_with_tables_and_assets(
-            &ir,
-            &primary.frame,
-            &named_frames,
-            &theme,
-            options.theme.as_deref(),
-            &image_assets.assets,
-        )
+        render(&ir, &primary.frame, &theme, render_options)
     }
     .map_err(map_render_error)?;
     report.extend(ReportPhase::Render, result.diagnostics.iter().cloned());

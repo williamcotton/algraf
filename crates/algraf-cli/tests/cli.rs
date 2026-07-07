@@ -619,6 +619,52 @@ fn render_eval_uses_stdin_for_json_input_and_variables() {
 }
 
 #[test]
+fn shared_source_args_cover_file_eval_data_override_and_vars() {
+    let dir = temp_dir("shared-source-args");
+    let data = dir.join("data.csv");
+    let chart = dir.join("chart.ag");
+    fs::write(&data, "x,y\n1,2\n3,4\n").unwrap();
+    fs::write(
+        &chart,
+        "Chart(data: \"data.csv\") {\n  Space(x * y) { Point() }\n}\n",
+    )
+    .unwrap();
+
+    let check = Command::new(bin())
+        .arg("check")
+        .arg(&chart)
+        .output()
+        .unwrap();
+    assert!(check.status.success(), "stderr: {}", stderr(&check));
+
+    let schema = Command::new(bin())
+        .arg("schema")
+        .arg("--eval")
+        .arg("Chart(data: \"missing.csv\") { Space(x * y) { Point() } }")
+        .arg("--data")
+        .arg(&data)
+        .arg("--data-format")
+        .arg("csv")
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert!(schema.status.success(), "stderr: {}", stderr(&schema));
+    assert!(stdout(&schema).contains("\"name\": \"x\""));
+
+    let ir = Command::new(bin())
+        .arg("ir")
+        .arg("--eval")
+        .arg("Chart(data: ${path}) { Space(x * y) { Point() } }")
+        .arg("--base-dir")
+        .arg(&dir)
+        .arg("--var")
+        .arg("path=\"data.csv\"")
+        .output()
+        .unwrap();
+    assert!(ir.status.success(), "stderr: {}", stderr(&ir));
+}
+
+#[test]
 fn source_placeholders_require_cli_variables() {
     let source = "Chart(data: \"p.csv\") {\n  Space(x * y) { Point(stroke: ${color}) }\n}\n";
     let output = Command::new(bin())
