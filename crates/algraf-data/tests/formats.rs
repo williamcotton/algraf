@@ -42,6 +42,26 @@ fn test_byte_readers_dispatch_by_extension() {
     assert_eq!(schema[0].dtype, DataType::String);
 }
 
+#[cfg(not(feature = "arrow-stream"))]
+#[test]
+fn arrow_stream_disabled_feature_stubs_report_capability() {
+    let err = algraf_data::read_bytes_as(b"", Format::ArrowStream).unwrap_err();
+    assert!(err.to_string().contains("not enabled"));
+
+    let err = algraf_data::read_schema_bytes_as(b"", Format::ArrowStream, 10).unwrap_err();
+    assert!(err.to_string().contains("not enabled"));
+}
+
+#[cfg(not(feature = "parquet"))]
+#[test]
+fn parquet_disabled_feature_stubs_report_capability() {
+    let err = algraf_data::read_bytes_as(b"", Format::Parquet).unwrap_err();
+    assert!(err.to_string().contains("not enabled"));
+
+    let err = algraf_data::read_schema_bytes_as(b"", Format::Parquet, 10).unwrap_err();
+    assert!(err.to_string().contains("not enabled"));
+}
+
 // --- TSV (spec §10.2) -------------------------------------------------------
 
 #[test]

@@ -4,6 +4,8 @@
 //! the concrete [`DataFrame`] storage is internal to the runtime and must not
 //! leak into parser, semantics, LSP, or renderer interfaces (spec §10.5).
 
+#[cfg(any(feature = "parquet", feature = "arrow-stream"))]
+mod arrow_convert;
 pub mod arrow_stream;
 pub mod csv;
 pub mod error;

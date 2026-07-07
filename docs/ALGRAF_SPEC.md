@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.95.0
+Status: 0.96.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.95.0 specification.
+This working copy is the 0.96.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -2976,10 +2976,16 @@ minimal editor builds, but the released native CLI path MUST support schema
 loading and rendering from Parquet.
 
 Parquet schema loading MUST map Arrow booleans, signed and unsigned integers,
-floats, UTF-8 strings, dates, and timestamps into Algraf `DataType` values.
-Unsupported Parquet/Arrow physical or logical types MUST fail through `E1020`
-rather than panic. Unsigned integer values too large for `i64` MAY be saturated or
-rejected, but the chosen behavior MUST be deterministic.
+Float16/Float32/Float64 values, UTF-8 strings, dates, and timestamps into
+Algraf `DataType` values. Schema-only reads use the Parquet fallback policy:
+unsupported nested, dictionary, list, struct, binary, decimal, and other
+non-scalar Arrow shapes MUST be reported as `String` columns rather than
+rejected during metadata inspection. Materializing unsupported arrays that
+cannot be appended as UTF-8 or large UTF-8 strings MUST fail through `E1020`
+rather than panic. In version 0.96.0, Parquet Float16 columns are advertised as
+`Float` by schema reads but value materialization fails through `E1020`.
+Unsigned integer values too large for `i64` MAY be saturated or rejected, but the
+chosen behavior MUST be deterministic.
 
 Parquet `null` values MUST become Algraf missing cells. Date and timestamp
 columns MUST become `Temporal` columns using UTC-equivalent instants. String and
@@ -3020,13 +3026,22 @@ when disabled, an explicit `arrow-stream` load MUST fail through a registered
 diagnostic rather than panic.
 
 Arrow stream schema loading MUST map Arrow booleans, signed and unsigned
-integers, floats, UTF-8 strings, dates, and timestamps into Algraf `DataType`
-values using the same policy as Parquet (§10.13). Arrow stream `null` values
-MUST become Algraf missing cells. Date and timestamp columns MUST become
-`Temporal` columns using UTC-equivalent instants. Unsupported Arrow physical or
-logical types MUST fail through `E1021` rather than panic. Unsigned integer
-values too large for `i64` MAY be saturated or rejected, but the chosen behavior
-MUST be deterministic.
+integers, Float32/Float64 values, UTF-8 strings, dates, and timestamps into
+Algraf `DataType` values. Arrow stream `null` values MUST become Algraf missing
+cells. Date and timestamp columns MUST become `Temporal` columns using
+UTC-equivalent instants. Arrow stream loading uses an unsupported-type error
+policy: unsupported Arrow physical or logical types, including Float16, nested,
+dictionary, list, struct, binary, decimal, and other non-scalar shapes, MUST
+fail through `E1021` rather than panic. Unsigned integer values too large for
+`i64` MAY be saturated or rejected, but the chosen behavior MUST be
+deterministic.
+
+Since version 0.96.0, Parquet and Arrow IPC stream readers MUST share the
+internal Arrow `RecordBatch` conversion path in `algraf-data`. The shared path
+MUST keep the Parquet fallback policy and Arrow stream error policy explicit,
+and it MUST NOT expose Arrow, Parquet, or IPC symbols through parser,
+semantics, renderer, editor-service, LSP, CLI parsing, WASM public APIs, or any
+public `algraf-data` conversion API.
 
 Malformed Arrow IPC streams, invalid stream schemas, truncated batches, and
 Arrow IPC reader errors MUST fail through `E1021`. Sniffed Arrow IPC file bytes
@@ -10593,7 +10608,7 @@ Since version 0.87.0, the language-reference browser response shape is:
 ```json
 {
   "markdown": "...",
-  "version": "0.95.0",
+  "version": "0.96.0",
   "part": "full",
   "source": "crates/algraf-cli/templates/ALGRAF_LANG.md",
   "sources": [
@@ -11994,6 +12009,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.93.0 | [`V0_93_PLAN.md`](V0_93_PLAN.md) | Shared render stat column builder and explicit integer coercion policy | Implemented |
 | 0.94.0 | [`V0_94_PLAN.md`](V0_94_PLAN.md) | Render entry-point options and CLI source argument cleanup | Implemented |
 | 0.95.0 | [`V0_95_PLAN.md`](V0_95_PLAN.md) | Language surface drift prevention for registry-owned lists | Implemented |
+| 0.96.0 | [`V0_96_PLAN.md`](V0_96_PLAN.md) | Shared Arrow-family table conversion in `algraf-data` | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
