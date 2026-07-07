@@ -495,6 +495,32 @@ fn test_misspelled_space_keyword_still_parses_space() {
 }
 
 #[test]
+fn test_misspelled_derive_keyword_still_parses_derive() {
+    let source =
+        "Chart(data: \"p.csv\") {\n    Deriv bins = Bin(value)\n    Space(value) { Point() }\n}";
+    let parsed = parse(source);
+    assert!(parsed.diagnostics().iter().any(|d| d.code == "E0011"));
+    let chart = Root::cast(parsed.syntax()).unwrap().chart().unwrap();
+    assert!(matches!(chart.items()[0], ChartItem::Derive(_)));
+}
+
+#[test]
+fn test_long_identifier_is_not_recovered_as_misspelled_derive() {
+    let source =
+        "Chart(data: \"p.csv\") {\n    derived_x bins = Bin(value)\n    Space(value) { Point() }\n}";
+    let parsed = parse(source);
+    let chart = Root::cast(parsed.syntax()).unwrap().chart().unwrap();
+    assert!(
+        !matches!(chart.items().first(), Some(ChartItem::Derive(_))),
+        "long identifier at statement start must not be retagged as Derive"
+    );
+    assert!(chart
+        .items()
+        .iter()
+        .any(|item| matches!(item, ChartItem::Space(_))));
+}
+
+#[test]
 fn test_invalid_geometry_body() {
     let source =
         "Chart(data: \"d.csv\") {\n    Space(a * b) {\n        12345\n        Point()\n    }\n}";

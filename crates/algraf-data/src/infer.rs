@@ -159,29 +159,28 @@ pub fn infer_column_with_policy(
         ParseErrorPolicy::Warn => Some(DataWarning::for_column(name, message)),
         ParseErrorPolicy::Missing => None,
     };
-    if temporal_policy.is_some() && n_string > 0 {
-        let examples = raw
-            .iter()
-            .filter(|s| {
-                !is_missing(s)
-                    && matches!(classify_explicit(s, temporal_policy.unwrap()), Cell::Str)
-            })
-            .take(3)
-            .cloned()
-            .collect::<Vec<_>>();
-        if let Some(warning) = make_warning(
-            name,
-            format!(
-                "{} non-missing value(s) failed explicit temporal parsing{}",
-                n_string,
-                if examples.is_empty() {
-                    String::new()
-                } else {
-                    format!("; examples: {}", examples.join(", "))
-                }
-            ),
-        ) {
-            warnings.push(warning);
+    if let Some(policy) = temporal_policy {
+        if n_string > 0 {
+            let examples = raw
+                .iter()
+                .filter(|s| !is_missing(s) && matches!(classify_explicit(s, policy), Cell::Str))
+                .take(3)
+                .cloned()
+                .collect::<Vec<_>>();
+            if let Some(warning) = make_warning(
+                name,
+                format!(
+                    "{} non-missing value(s) failed explicit temporal parsing{}",
+                    n_string,
+                    if examples.is_empty() {
+                        String::new()
+                    } else {
+                        format!("; examples: {}", examples.join(", "))
+                    }
+                ),
+            ) {
+                warnings.push(warning);
+            }
         }
     }
     if temporal_policy.is_some() && n_present > 0 && n_temporal == 0 {

@@ -323,6 +323,10 @@ fn display_order(domain_len: usize, sequences: &[Vec<StackEntry>]) -> Vec<usize>
             .find(|&i| indegree[i] == 0);
         let Some(next) = ready.or_else(|| (0..domain_len).find(|&i| contributes[i] && !emitted[i]))
         else {
+            debug_assert!(
+                false,
+                "display_order invariant violated: pending contributing category is missing"
+            );
             break;
         };
         emitted[next] = true;

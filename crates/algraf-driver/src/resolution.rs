@@ -46,6 +46,53 @@ pub struct ResolvedSource {
     pub span: Option<Span>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ResolvedSourceExpr {
+    Path {
+        path: PathBuf,
+        format: Option<Format>,
+        span: Option<Span>,
+    },
+    Sqlite {
+        path: PathBuf,
+        query: String,
+        span: Option<Span>,
+    },
+    TopoJson {
+        path: PathBuf,
+        object: Option<String>,
+        span: Option<Span>,
+    },
+}
+
+impl ResolvedSourceExpr {
+    fn into_resolved_source(self) -> ResolvedSource {
+        match self {
+            ResolvedSourceExpr::Path { path, format, span } => ResolvedSource {
+                path,
+                format,
+                query: None,
+                object: None,
+                span,
+            },
+            ResolvedSourceExpr::Sqlite { path, query, span } => ResolvedSource {
+                path,
+                format: None,
+                query: Some(query),
+                object: None,
+                span,
+            },
+            ResolvedSourceExpr::TopoJson { path, object, span } => ResolvedSource {
+                path,
+                format: Some(Format::TopoJson),
+                query: None,
+                object,
+                span,
+            },
+        }
+    }
+}
+
 /// A resolved chart-scoped named table source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedTableSource {
@@ -168,25 +215,24 @@ impl SourceResolver<'_> {
         &self,
         source_expr: &SourceExpr,
     ) -> Option<ResolvedSource> {
+        self.resolve_source_expr(source_expr)
+            .map(ResolvedSourceExpr::into_resolved_source)
+    }
+
+    fn resolve_source_expr(&self, source_expr: &SourceExpr) -> Option<ResolvedSourceExpr> {
         match source_expr {
-            SourceExpr::Path { path, format, span } => Some(ResolvedSource {
+            SourceExpr::Path { path, format, span } => Some(ResolvedSourceExpr::Path {
                 path: self.resolve_path(path),
                 format: data_format(*format),
-                query: None,
-                object: None,
                 span: Some(*span),
             }),
-            SourceExpr::Sqlite { path, query, span } => Some(ResolvedSource {
+            SourceExpr::Sqlite { path, query, span } => Some(ResolvedSourceExpr::Sqlite {
                 path: self.resolve_path(path),
-                format: None,
-                query: Some(query.clone()),
-                object: None,
+                query: query.clone(),
                 span: Some(*span),
             }),
-            SourceExpr::TopoJson { path, object, span } => Some(ResolvedSource {
+            SourceExpr::TopoJson { path, object, span } => Some(ResolvedSourceExpr::TopoJson {
                 path: self.resolve_path(path),
-                format: Some(Format::TopoJson),
-                query: None,
                 object: object.clone(),
                 span: Some(*span),
             }),
@@ -264,6 +310,20 @@ impl SourceResolver<'_> {
             });
         }
 
+        if let Some(resolved) = self.resolve_source_expr(source_expr) {
+            return match resolved {
+                ResolvedSourceExpr::Path { path, format, .. } => {
+                    Ok(DataLocation::Path { path, format })
+                }
+                ResolvedSourceExpr::Sqlite { path, query, .. } => {
+                    Ok(DataLocation::Sqlite { path, query })
+                }
+                ResolvedSourceExpr::TopoJson { path, object, .. } => {
+                    Ok(DataLocation::TopoJson { path, object })
+                }
+            };
+        }
+
         match source_expr {
             SourceExpr::Stdin { .. } => {
                 if self.env.source_input.is_stdin() {
@@ -276,36 +336,14 @@ impl SourceResolver<'_> {
                     format: self.env.data_format_override,
                 })
             }
-            SourceExpr::Path { .. } => {
-                let resolved = self
-                    .resolve_source_expr_path(source_expr)
-                    .expect("path source should resolve");
-                Ok(DataLocation::Path {
-                    path: resolved.path,
-                    format: resolved.format,
-                })
-            }
-            SourceExpr::Sqlite { .. } => {
-                let resolved = self
-                    .resolve_source_expr_path(source_expr)
-                    .expect("sqlite source should resolve");
-                Ok(DataLocation::Sqlite {
-                    path: resolved.path,
-                    query: resolved.query.expect("sqlite source should carry query"),
-                })
-            }
-            SourceExpr::TopoJson { object, .. } => {
-                let resolved = self
-                    .resolve_source_expr_path(source_expr)
-                    .expect("topojson source should resolve");
-                Ok(DataLocation::TopoJson {
-                    path: resolved.path,
-                    object: object.clone(),
-                })
-            }
             SourceExpr::TableRef { name, .. } => Err(DriverError::Usage(format!(
                 "chart data table `{name}` could not be resolved"
             ))),
+            SourceExpr::Path { .. } | SourceExpr::Sqlite { .. } | SourceExpr::TopoJson { .. } => {
+                Err(DriverError::Usage(
+                    "data source path could not be resolved".to_string(),
+                ))
+            }
             SourceExpr::Missing | SourceExpr::Invalid { .. } => Err(DriverError::Usage(
                 "chart has no data source; add Chart(data: \"file.csv\") or Table main = \"file.csv\""
                     .to_string(),

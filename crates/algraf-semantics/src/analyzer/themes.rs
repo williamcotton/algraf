@@ -14,7 +14,7 @@ use crate::ir::{
     ThemeOverrides, ThemeRectIr, ThemeTextIr,
 };
 use crate::registry;
-use crate::util::closest;
+use algraf_core::closest;
 
 /// Which axis dimension a theme `axis*Position` token applies to.
 #[derive(Clone, Copy)]

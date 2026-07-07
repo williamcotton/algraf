@@ -5,6 +5,7 @@ Target version: 0.99.0
 Owner: Algraf maintainers
 Related spec: [`ALGRAF_SPEC.md`](ALGRAF_SPEC.md)
 Predecessor plan: [`V0_98_PLAN.md`](V0_98_PLAN.md)
+Follow-on plan: [`V0_100_PLAN.md`](V0_100_PLAN.md)
 Roadmap theme: Clear small clones and make large tests easier to change.
 
 ## Purpose

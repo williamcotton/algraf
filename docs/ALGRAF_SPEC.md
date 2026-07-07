@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.99.0
+Status: 0.100.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.99.0 specification.
+This working copy is the 0.100.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -3814,6 +3814,12 @@ Argument-list recovery MUST stop at `,`, `)`, `}`, a known chart-body keyword, o
 
 Algebra recovery MUST stop at `)`, `,`, `{`, `}`, `Space`, `Derive`, `Scale`, `Guide`, `Theme`, `Layout`, a known geometry call name, or EOF.
 
+Since version 0.100.0, misspelled block-keyword recovery MUST retag an
+identifier only when it has the same first character as the keyword ignoring
+ASCII case and its Unicode-aware, case-insensitive edit distance from the
+keyword is no greater than two. The adaptive closest-match threshold used for
+analyzer suggestions MUST NOT widen parser keyword recovery.
+
 Synchronize argument list on:
 
 `,`
@@ -5321,6 +5327,11 @@ outliers (boolean, default true)
 
 Boxplot MUST group by the categorical position coordinate and nested coordinate.
 
+Since version 0.100.0, Boxplot width calculation MUST keep the mark width finite
+and within the available categorical bandwidth. When bandwidth is at least one
+pixel, the existing one-pixel minimum visible width applies; when bandwidth is
+below one pixel, the lower clamp bound MUST not exceed the bandwidth.
+
 ### 14.12 Violin
 
 Syntax:
@@ -5369,6 +5380,9 @@ while the distribution values map to x.
 
 If implemented, quantile lines MUST be deterministic.
 
+Since version 0.100.0, Violin density widths MUST stay finite and within the
+available categorical bandwidth, including sub-pixel bands.
+
 ### 14.12.1 Sina
 
 Syntax:
@@ -5402,6 +5416,9 @@ hash-map iteration order.
 
 `Sina` accepts `fill`, `alpha`, and `size` visual settings. It draws circular
 markers and does not draw outlines.
+
+Since version 0.100.0, `Sina` point-spread widths MUST stay finite and within
+the available categorical bandwidth, including sub-pixel bands.
 
 ### 14.13 Ribbon
 
@@ -6365,6 +6382,11 @@ the same reducers to `value` inside each `(bin, group)` cell. Output starts with
 `bin_start`, `bin_end`, and `bin_center`, then grouping key columns, then the
 summary measure columns above. Row order is bin-major, group-minor with
 deterministic grouping-key order.
+
+Unknown reducer strings MUST emit `E1404` as unknown reducers. Known reducer
+strings that are unsupported for a specific summary context, such as
+`"mean_se"` for z-field summaries, MUST emit `E1404` explaining that the reducer
+is not supported in that context rather than calling it unknown.
 
 ### 15.4.5 Cut Stat
 
@@ -10261,6 +10283,11 @@ Renderer returns result plus render diagnostics or render error.
 
 Panic is reserved for programmer bugs.
 
+Since version 0.100.0, user-reachable invariant cleanup MUST preserve
+non-panicking release behavior. Impossible internal states MAY use
+`debug_assert!` in debug builds and tests, but release builds MUST fall back to a
+deterministic diagnostic or deterministic no-op where practical.
+
 CLI catches top-level errors and prints concise messages.
 
 LSP logs internal errors and avoids crashing where possible.
@@ -10270,6 +10297,10 @@ stable diagnostic `(code, message)` pairs, so the CLI and LSP report
 missing-file, unreadable-file, malformed CSV/JSON, SQLite query/safety/type
 errors, and geospatial parse conditions identically (codes `E1005`–`E1013`,
 `E1805`).
+
+Since version 0.100.0, driver path-backed source resolution SHOULD carry path,
+format, SQLite query, and TopoJSON object requirements through variant shape
+rather than resolving to a loose struct and asserting required fields later.
 
 The driver SHOULD offer a preparation report that holds parse, load, semantic,
 data-warning, and render entries in deterministic phase order. Diagnostics that
@@ -10614,7 +10645,7 @@ Since version 0.87.0, the language-reference browser response shape is:
 ```json
 {
   "markdown": "...",
-  "version": "0.99.0",
+  "version": "0.100.0",
   "part": "full",
   "source": "crates/algraf-cli/templates/ALGRAF_LANG.md",
   "sources": [
@@ -12019,6 +12050,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.97.0 | [`V0_97_PLAN.md`](V0_97_PLAN.md) | Render invariant consolidation for distribution geometry, domain pipelines, and grid painting | Implemented |
 | 0.98.0 | [`V0_98_PLAN.md`](V0_98_PLAN.md) | Semantic helper consolidation and shared core utilities | Implemented |
 | 0.99.0 | [`V0_99_PLAN.md`](V0_99_PLAN.md) | Maintenance consolidation for small clones and shared test helpers | Implemented |
+| 0.100.0 | [`V0_100_PLAN.md`](V0_100_PLAN.md) | Review closeout and panic hardening after v0.97-v0.99 consolidation | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors

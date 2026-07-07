@@ -9,7 +9,6 @@ pub mod analyzer;
 pub mod ir;
 pub mod planning;
 pub mod registry;
-mod util;
 
 pub use analyzer::{
     analyze, analyze_chart, analyze_chart_with_tables, analyze_source, analyze_with_tables,

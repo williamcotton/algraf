@@ -13,7 +13,7 @@ use algraf_syntax::{node_span, unescape_string_literal as string_value, SyntaxKi
 use super::context::{ActiveTable, Analyzer};
 use crate::ir::*;
 use crate::registry;
-use crate::util::closest;
+use algraf_core::closest;
 
 #[derive(Default)]
 pub(super) struct SpaceAnalysis {

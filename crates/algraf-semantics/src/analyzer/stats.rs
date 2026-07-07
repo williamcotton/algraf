@@ -34,6 +34,8 @@ const Z_FIELD_REDUCER_HELP: &str =
     "`reducer` expects \"count\", \"mean\", \"min\", \"max\", \"sum\", or \"median\"";
 const SUMMARY_REDUCER_HELP: &str =
     "`reducer` expects \"count\", \"mean\", \"min\", \"max\", \"sum\", \"median\", or \"mean_se\"";
+const Z_FIELD_REDUCER_CONTEXT: &str = "z-field summary stats";
+const SUMMARY_REDUCER_CONTEXT: &str = "summary stats";
 
 impl Analyzer<'_> {
     // --- Derive (spec §13.4) ---
@@ -1447,9 +1449,12 @@ impl Analyzer<'_> {
                 "bins" => bins = self.grid_bins_arg(arg, "bins", 1.0),
                 "reducer" => {
                     let Some(value) = arg.value() else { continue };
-                    if let Some(parsed) =
-                        self.summary_reducer_arg(&value, Z_FIELD_REDUCERS, Z_FIELD_REDUCER_HELP)
-                    {
+                    if let Some(parsed) = self.summary_reducer_arg(
+                        &value,
+                        Z_FIELD_REDUCERS,
+                        Z_FIELD_REDUCER_HELP,
+                        Z_FIELD_REDUCER_CONTEXT,
+                    ) {
                         reducer = parsed;
                     }
                 }
@@ -1645,9 +1650,12 @@ impl Analyzer<'_> {
                 "by" => by = self.column_array_arg(arg, table, "`by`"),
                 "reducer" => {
                     let Some(value) = arg.value() else { continue };
-                    if let Some(parsed) =
-                        self.summary_reducer_arg(&value, SUMMARY_REDUCERS, SUMMARY_REDUCER_HELP)
-                    {
+                    if let Some(parsed) = self.summary_reducer_arg(
+                        &value,
+                        SUMMARY_REDUCERS,
+                        SUMMARY_REDUCER_HELP,
+                        SUMMARY_REDUCER_CONTEXT,
+                    ) {
                         reducer = parsed;
                     }
                 }
@@ -1691,9 +1699,12 @@ impl Analyzer<'_> {
                 "by" => by = self.column_array_arg(arg, table, "`by`"),
                 "reducer" => {
                     let Some(value) = arg.value() else { continue };
-                    if let Some(parsed) =
-                        self.summary_reducer_arg(&value, SUMMARY_REDUCERS, SUMMARY_REDUCER_HELP)
-                    {
+                    if let Some(parsed) = self.summary_reducer_arg(
+                        &value,
+                        SUMMARY_REDUCERS,
+                        SUMMARY_REDUCER_HELP,
+                        SUMMARY_REDUCER_CONTEXT,
+                    ) {
                         reducer = parsed;
                     }
                 }
@@ -1762,11 +1773,20 @@ impl Analyzer<'_> {
         value: &ValueExpr,
         allowed: &[SummaryReducerIr],
         expected: &'static str,
+        context: &'static str,
     ) -> Option<SummaryReducerIr> {
         match ValueForm::of(value) {
             ValueForm::Str(s) => match parse_summary_reducer(&s) {
                 Some(parsed) if allowed.contains(&parsed) => Some(parsed),
-                _ => {
+                Some(_) => {
+                    self.diag(Diagnostic::error(
+                        codes::E1404,
+                        format!("reducer `{s}` is not supported for {context}; {expected}"),
+                        node_span(value.syntax()),
+                    ));
+                    None
+                }
+                None => {
                     self.diag(Diagnostic::error(
                         codes::E1404,
                         format!("unknown reducer `{s}`"),

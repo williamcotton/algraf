@@ -12,7 +12,7 @@ use super::context::{ActiveTable, Analyzer, StyleFragmentLookup, ValueForm};
 use super::frames::contains_nested;
 use crate::ir::*;
 use crate::registry::{self, Accept, GeometryDef, PropSpec};
-use crate::util::closest;
+use algraf_core::closest;
 
 enum PropOutcome {
     Mapping(ColumnRef),

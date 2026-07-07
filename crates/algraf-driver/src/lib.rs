@@ -380,6 +380,37 @@ mod tests {
     }
 
     #[test]
+    fn data_location_resolves_path_backed_variants_without_invariant_panics() {
+        let dir = temp_dir("data-location-variants");
+        let source = SourceInput::Path(dir.join("charts/chart.ag"));
+        let sqlite = SourceExpr::Sqlite {
+            path: "sales.db".to_string(),
+            query: "SELECT region FROM sales".to_string(),
+            span: Span::new(0, 0),
+        };
+        let topojson = SourceExpr::TopoJson {
+            path: "map.topojson".to_string(),
+            object: Some("regions".to_string()),
+            span: Span::new(0, 0),
+        };
+
+        assert_eq!(
+            data_location(&sqlite, &source, None, None).unwrap(),
+            DataLocation::Sqlite {
+                path: dir.join("charts/sales.db"),
+                query: "SELECT region FROM sales".to_string()
+            }
+        );
+        assert_eq!(
+            data_location(&topojson, &source, None, None).unwrap(),
+            DataLocation::TopoJson {
+                path: dir.join("charts/map.topojson"),
+                object: Some("regions".to_string())
+            }
+        );
+    }
+
+    #[test]
     fn document_data_path_uses_same_resolver_as_chart_path() {
         let dir = temp_dir("document-resolution");
         let source = SourceInput::Path(dir.join("chart.ag"));

@@ -485,32 +485,47 @@ impl Default for GuideIr {
 
 impl GuideIr {
     pub fn with_overrides(&self, overrides: &GuideOverridesIr) -> GuideIr {
+        let GuideOverridesIr {
+            legend,
+            fill_legend,
+            stroke_legend,
+            grid,
+            x_label,
+            y_label,
+            x_time_format,
+            y_time_format,
+            x_tick_label_angle,
+            y_tick_label_angle,
+            x_tick_label_rows,
+            y_tick_label_rows,
+            x_position,
+            y_position,
+            x_format,
+            y_format,
+            x_grid,
+            y_grid,
+            grid_shape,
+        } = overrides;
         GuideIr {
-            legend: overrides.legend.unwrap_or(self.legend),
-            fill_legend: overrides.fill_legend.unwrap_or(self.fill_legend),
-            stroke_legend: overrides.stroke_legend.unwrap_or(self.stroke_legend),
-            grid: overrides.grid.unwrap_or(self.grid),
-            x_label: overrides.x_label.clone().or_else(|| self.x_label.clone()),
-            y_label: overrides.y_label.clone().or_else(|| self.y_label.clone()),
-            x_time_format: overrides
-                .x_time_format
-                .clone()
-                .or_else(|| self.x_time_format.clone()),
-            y_time_format: overrides
-                .y_time_format
-                .clone()
-                .or_else(|| self.y_time_format.clone()),
-            x_tick_label_angle: overrides.x_tick_label_angle.or(self.x_tick_label_angle),
-            y_tick_label_angle: overrides.y_tick_label_angle.or(self.y_tick_label_angle),
-            x_tick_label_rows: overrides.x_tick_label_rows.or(self.x_tick_label_rows),
-            y_tick_label_rows: overrides.y_tick_label_rows.or(self.y_tick_label_rows),
-            x_position: overrides.x_position.or(self.x_position),
-            y_position: overrides.y_position.or(self.y_position),
-            x_format: overrides.x_format.clone().or_else(|| self.x_format.clone()),
-            y_format: overrides.y_format.clone().or_else(|| self.y_format.clone()),
-            x_grid: overrides.x_grid.or(self.x_grid),
-            y_grid: overrides.y_grid.or(self.y_grid),
-            grid_shape: overrides.grid_shape.unwrap_or(self.grid_shape),
+            legend: legend.unwrap_or(self.legend),
+            fill_legend: fill_legend.unwrap_or(self.fill_legend),
+            stroke_legend: stroke_legend.unwrap_or(self.stroke_legend),
+            grid: grid.unwrap_or(self.grid),
+            x_label: x_label.clone().or_else(|| self.x_label.clone()),
+            y_label: y_label.clone().or_else(|| self.y_label.clone()),
+            x_time_format: x_time_format.clone().or_else(|| self.x_time_format.clone()),
+            y_time_format: y_time_format.clone().or_else(|| self.y_time_format.clone()),
+            x_tick_label_angle: x_tick_label_angle.or(self.x_tick_label_angle),
+            y_tick_label_angle: y_tick_label_angle.or(self.y_tick_label_angle),
+            x_tick_label_rows: x_tick_label_rows.or(self.x_tick_label_rows),
+            y_tick_label_rows: y_tick_label_rows.or(self.y_tick_label_rows),
+            x_position: x_position.or(self.x_position),
+            y_position: y_position.or(self.y_position),
+            x_format: x_format.clone().or_else(|| self.x_format.clone()),
+            y_format: y_format.clone().or_else(|| self.y_format.clone()),
+            x_grid: x_grid.or(self.x_grid),
+            y_grid: y_grid.or(self.y_grid),
+            grid_shape: grid_shape.unwrap_or(self.grid_shape),
         }
     }
 }
@@ -544,32 +559,47 @@ impl GuideOverridesIr {
     /// New guide fields must be added to `GuideIr`, `GuideOverridesIr`,
     /// `GuideIr::with_overrides`, and this merge method together.
     pub fn merge_with(&self, local: &GuideOverridesIr) -> GuideOverridesIr {
+        let GuideOverridesIr {
+            legend,
+            fill_legend,
+            stroke_legend,
+            grid,
+            x_label,
+            y_label,
+            x_time_format,
+            y_time_format,
+            x_tick_label_angle,
+            y_tick_label_angle,
+            x_tick_label_rows,
+            y_tick_label_rows,
+            x_position,
+            y_position,
+            x_format,
+            y_format,
+            x_grid,
+            y_grid,
+            grid_shape,
+        } = local;
         GuideOverridesIr {
-            legend: local.legend.or(self.legend),
-            fill_legend: local.fill_legend.or(self.fill_legend),
-            stroke_legend: local.stroke_legend.or(self.stroke_legend),
-            grid: local.grid.or(self.grid),
-            x_label: local.x_label.clone().or_else(|| self.x_label.clone()),
-            y_label: local.y_label.clone().or_else(|| self.y_label.clone()),
-            x_time_format: local
-                .x_time_format
-                .clone()
-                .or_else(|| self.x_time_format.clone()),
-            y_time_format: local
-                .y_time_format
-                .clone()
-                .or_else(|| self.y_time_format.clone()),
-            x_tick_label_angle: local.x_tick_label_angle.or(self.x_tick_label_angle),
-            y_tick_label_angle: local.y_tick_label_angle.or(self.y_tick_label_angle),
-            x_tick_label_rows: local.x_tick_label_rows.or(self.x_tick_label_rows),
-            y_tick_label_rows: local.y_tick_label_rows.or(self.y_tick_label_rows),
-            x_position: local.x_position.or(self.x_position),
-            y_position: local.y_position.or(self.y_position),
-            x_format: local.x_format.clone().or_else(|| self.x_format.clone()),
-            y_format: local.y_format.clone().or_else(|| self.y_format.clone()),
-            x_grid: local.x_grid.or(self.x_grid),
-            y_grid: local.y_grid.or(self.y_grid),
-            grid_shape: local.grid_shape.or(self.grid_shape),
+            legend: legend.or(self.legend),
+            fill_legend: fill_legend.or(self.fill_legend),
+            stroke_legend: stroke_legend.or(self.stroke_legend),
+            grid: grid.or(self.grid),
+            x_label: x_label.clone().or_else(|| self.x_label.clone()),
+            y_label: y_label.clone().or_else(|| self.y_label.clone()),
+            x_time_format: x_time_format.clone().or_else(|| self.x_time_format.clone()),
+            y_time_format: y_time_format.clone().or_else(|| self.y_time_format.clone()),
+            x_tick_label_angle: x_tick_label_angle.or(self.x_tick_label_angle),
+            y_tick_label_angle: y_tick_label_angle.or(self.y_tick_label_angle),
+            x_tick_label_rows: x_tick_label_rows.or(self.x_tick_label_rows),
+            y_tick_label_rows: y_tick_label_rows.or(self.y_tick_label_rows),
+            x_position: x_position.or(self.x_position),
+            y_position: y_position.or(self.y_position),
+            x_format: x_format.clone().or_else(|| self.x_format.clone()),
+            y_format: y_format.clone().or_else(|| self.y_format.clone()),
+            x_grid: x_grid.or(self.x_grid),
+            y_grid: y_grid.or(self.y_grid),
+            grid_shape: grid_shape.or(self.grid_shape),
         }
     }
 }

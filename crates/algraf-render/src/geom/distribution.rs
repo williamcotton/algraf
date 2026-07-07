@@ -107,6 +107,17 @@ fn distribution_density_options(geo: &GeometryIr) -> stats::DensityOptions {
     }
 }
 
+fn distribution_mark_width(requested: f64, bandwidth: f64) -> f64 {
+    if !bandwidth.is_finite() || bandwidth <= 0.0 {
+        return 0.0;
+    }
+    if bandwidth < 1.0 {
+        requested.max(0.0).min(bandwidth)
+    } else {
+        requested.clamp(1.0, bandwidth)
+    }
+}
+
 fn density_layouts(
     geo: &GeometryIr,
     space: &ScaledSpace,
@@ -122,7 +133,9 @@ fn density_layouts(
             continue;
         };
         group.sort_by(|a, b| a.1.total_cmp(&b.1));
-        let first_row = group[0].0;
+        let Some(&(first_row, _)) = group.first() else {
+            continue;
+        };
         let mut values: Vec<f64> = group.iter().map(|(_, value)| *value).collect();
         let curve = stats::density_values(&mut values, options);
         if curve.len() < 2 {
@@ -141,8 +154,11 @@ fn density_layouts(
         ) else {
             continue;
         };
-        let half_width =
-            number_setting(geo, PropertyKey::Width, bandwidth * 0.9).clamp(1.0, bandwidth) / 2.0;
+        let width = distribution_mark_width(
+            number_setting(geo, PropertyKey::Width, bandwidth * 0.9),
+            bandwidth,
+        );
+        let half_width = width / 2.0;
         layouts.push(DistributionDensityLayout {
             group_key: key.clone(),
             samples: group.clone(),
@@ -199,7 +215,9 @@ pub(super) fn render_boxplot(
             continue;
         };
         let values: Vec<f64> = group.iter().map(|(_, value)| *value).collect();
-        let Some(last_value) = values.last().copied() else {
+        let (Some(first_value), Some(last_value)) =
+            (values.first().copied(), values.last().copied())
+        else {
             continue;
         };
         let q1 = quantile_type7(&values, 0.25);
@@ -212,7 +230,7 @@ pub(super) fn render_boxplot(
             .iter()
             .copied()
             .find(|value| *value >= lower_bound)
-            .unwrap_or(values[0]);
+            .unwrap_or(first_value);
         let whisker_high = values
             .iter()
             .copied()
@@ -227,7 +245,7 @@ pub(super) fn render_boxplot(
             continue;
         };
         let width_setting = number_setting(geo, PropertyKey::Width, bandwidth * 0.7);
-        let box_width = width_setting.clamp(1.0, bandwidth);
+        let box_width = distribution_mark_width(width_setting, bandwidth);
         let half = box_width / 2.0;
         let (Some(q1_pos), Some(median_pos), Some(q3_pos), Some(low_pos), Some(high_pos)) = (
             map_value_axis(space, q1, orientation),

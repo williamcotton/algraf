@@ -5,7 +5,7 @@
 //! diagnostics with spans, and recovers locally so a single mistake does not
 //! discard later valid blocks (spec §12.1, §12.16, §12.17).
 
-use algraf_core::{closest, codes, Diagnostic};
+use algraf_core::{codes, edit_distance, Diagnostic};
 use rowan::{GreenNode, GreenNodeBuilder};
 
 use crate::lexer::{tokenize, TokenWithSpan};
@@ -119,5 +119,7 @@ fn is_near_keyword(text: &str, keyword: &str) -> bool {
     let Some(keyword_first) = keyword.chars().next() else {
         return false;
     };
-    first.eq_ignore_ascii_case(&keyword_first) && closest(text, std::iter::once(keyword)).is_some()
+    // Keep keyword recovery narrow while using the shared Unicode-aware,
+    // case-insensitive edit distance helper introduced in v0.98.
+    first.eq_ignore_ascii_case(&keyword_first) && edit_distance(text, keyword) <= 2
 }

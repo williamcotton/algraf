@@ -53,6 +53,14 @@ fn codes(source: &str) -> Vec<&'static str> {
         .collect()
 }
 
+fn messages(source: &str) -> Vec<String> {
+    analyze_source(source, &schema())
+        .diagnostics
+        .iter()
+        .map(|d| d.message.clone())
+        .collect()
+}
+
 fn has(source: &str, code: &str) -> bool {
     codes(source).contains(&code)
 }
@@ -3371,6 +3379,30 @@ fn summary_reducer_validation_is_shared_but_stat_sets_remain_explicit() {
         "Chart(data: \"p.csv\") {\n  Derive grid = Summary2D(x, y, z: value, reducer: \"mean_se\")\n  Space(x * y) { Point() }\n}",
         "E1404",
     ));
+
+    let unknown = messages(
+        "Chart(data: \"p.csv\") {\n  Derive rows = Summary(value, reducer: \"mode\")\n  Space(value) { Point() }\n}",
+    );
+    assert!(
+        unknown
+            .iter()
+            .any(|message| message.contains("unknown reducer `mode`")),
+        "{unknown:?}"
+    );
+    let unsupported = messages(
+        "Chart(data: \"p.csv\") {\n  Derive grid = Summary2D(x, y, z: value, reducer: \"mean_se\")\n  Space(x * y) { Point() }\n}",
+    );
+    assert!(
+        unsupported.iter().any(|message| message
+            .contains("reducer `mean_se` is not supported for z-field summary stats")),
+        "{unsupported:?}"
+    );
+    assert!(
+        unsupported
+            .iter()
+            .all(|message| !message.contains("unknown reducer `mean_se`")),
+        "{unsupported:?}"
+    );
 }
 
 #[test]

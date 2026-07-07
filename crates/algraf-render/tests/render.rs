@@ -1,6 +1,7 @@
 //! End-to-end render tests: source + CSV to SVG (spec §18, §24, §27.1).
 
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::path::PathBuf;
 #[cfg(feature = "arrow-stream")]
 use std::sync::Arc;
@@ -30,6 +31,16 @@ fn mark_rect_count(svg: &str) -> usize {
     svg.match_indices("<rect x=")
         .filter(|(index, _)| !inside_defs(svg, *index))
         .count()
+}
+
+fn high_cardinality_distribution_csv(categories: usize) -> String {
+    let mut csv = String::from("group,value\n");
+    for group in 0..categories {
+        for value in [1, 2, 3, 4, 5] {
+            let _ = writeln!(csv, "g{group},{value}");
+        }
+    }
+    csv
 }
 
 fn mark_rect_attrs(svg: &str, first: &str, second: &str) -> Vec<(f64, f64)> {
@@ -668,7 +679,7 @@ fn test_1d_space_renders_points_on_center_baseline() {
 #[test]
 fn test_1d_space_renders_x_sorted_line_without_y_axis() {
     let result = render_result(
-        "Chart(data: \"p.csv\", width: 400, height: 240) { Space(x) { Line(); Point() } }",
+        "Chart(data: \"p.csv\", width: 400, height: 240) { Space(x) { Line() Point() } }",
         "x\n30\n10\n20\n",
     );
     let plot = result.layout.plot;
@@ -1837,6 +1848,17 @@ fn test_boxplot_outliers_false_suppresses_circles() {
 }
 
 #[test]
+fn test_boxplot_handles_subpixel_categorical_bandwidth() {
+    let csv = high_cardinality_distribution_csv(360);
+    let result = render_result(
+        "Chart(data: \"b.csv\", width: 180, height: 160) { Space(group * value) { Boxplot() } }",
+        &csv,
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-boxplot"));
+}
+
+#[test]
 fn test_ribbon_renders_closed_path() {
     let result = render_result(
         "Chart(data: \"r.csv\") { Space(x * (lower + upper)) { Ribbon(ymin: lower, ymax: upper, fill: \"steelblue\", alpha: 0.25) } }",
@@ -2111,7 +2133,7 @@ fn test_space_local_theme_does_not_leak_to_other_spaces() {
     // Two spaces: the second has a space-local void theme. Only the second
     // panel should have no plot background ink besides what minimal provides.
     let svg = render_svg(
-        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\")\n  Space(x * y) { Point() }\n  Space(x * y) { Theme(name: \"void\"); Point() }\n}",
+        "Chart(data: \"p.csv\") {\n  Theme(name: \"minimal\")\n  Space(x * y) { Point() }\n  Space(x * y) { Theme(name: \"void\") Point() }\n}",
         "x,y\n1,2\n2,3\n",
     );
     // The chart still draws axes for the first panel.
@@ -2587,6 +2609,18 @@ fn test_ungrouped_violin_and_sina_share_density_layout() {
 }
 
 #[test]
+fn test_violin_and_sina_handle_subpixel_categorical_bandwidth() {
+    let csv = high_cardinality_distribution_csv(360);
+    let result = render_result(
+        "Chart(data: \"v.csv\", width: 180, height: 160) { Space(group * value) { Violin() Sina(size: 1) } }",
+        &csv,
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.svg.contains("algraf-geom-violin"));
+    assert!(result.svg.contains("algraf-geom-sina"));
+}
+
+#[test]
 fn test_freqpoly_renders_bin_count_line() {
     let result = render_result(
         "Chart(data: \"d.csv\") { Space(v) { FreqPoly(bins: 4, stroke: \"steelblue\") } }",
@@ -2833,7 +2867,7 @@ fn test_ecdf_qq_and_summary_bin_render() {
     let bins = render_svg(
         r#"Chart(data: "d.csv", width: 420, height: 280) {
   Derive rows = SummaryBin(x, value, bins: 2, reducer: "mean")
-  Space(bin_center * value, data: rows) { Line(); Point(size: 2) }
+  Space(bin_center * value, data: rows) { Line() Point(size: 2) }
 }"#,
         "x,value\n1,10\n2,14\n3,20\n4,24\n",
     );

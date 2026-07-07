@@ -12,7 +12,7 @@ use algraf_render::{DrawList, DrawOp, DrawRole};
 
 mod common;
 
-use common::{draw_list, draw_list_with_tables, svg, svg_with_tables};
+use common::{draw_list, draw_list_with_tables, render_svg, render_svg_with_tables};
 
 /// Count primitive *elements* in an SVG string by tag. Structural elements
 /// (`<svg>`, `<g>`, `<title>`, `<desc>`, `<tspan>`) are not primitives and are
@@ -72,7 +72,11 @@ fn svg_and_draw_list_have_matching_glyph_primitive_counts() {
 }"##;
     let primary = "id,x,y\nA,1,1\nB,2,2\n";
     let child = "id,t,value\nA,1,1\nA,2,2\nB,1,3\nB,2,4\n";
-    let svg_counts = svg_primitive_counts(&svg_with_tables(source, primary, &[("child", child)]));
+    let svg_counts = svg_primitive_counts(&render_svg_with_tables(
+        source,
+        primary,
+        &[("child", child)],
+    ));
     let draw_counts = draw_op_counts(&draw_list_with_tables(source, primary, &[("child", child)]));
     assert_eq!(svg_counts, draw_counts);
 }
@@ -127,7 +131,7 @@ fn svg_and_draw_list_have_matching_primitive_counts() {
     ];
 
     for (name, source, csv) in cases {
-        let svg_counts = svg_primitive_counts(&svg(source, csv));
+        let svg_counts = svg_primitive_counts(&render_svg(source, csv));
         let draw_counts = draw_op_counts(&draw_list(source, csv));
         assert_eq!(
             svg_counts, draw_counts,
