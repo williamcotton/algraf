@@ -3,8 +3,8 @@
 use algraf_core::Span;
 use algraf_data::{ColumnDef, DataType};
 use algraf_semantics::{
-    analyze_source, planning, AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef, DataSourceIr,
-    FontStyleIr, FontWeightIr, FrameIr, GeometryKind, GradientIr, GridBinsIr,
+    analyze_source, planning, registry, AxisSelectorIr, BinClosedIr, BinIntervalIr, ColumnRef,
+    DataSourceIr, FontStyleIr, FontWeightIr, FrameIr, GeometryKind, GradientIr, GridBinsIr,
     IntervalOrientationIr, LevelSpecIr, PropertyKey, QqDistributionIr, ScaleModeIr, ScaleTargetIr,
     ScaleTypeIr, SettingValue, SpaceDataRef, StatKind, StatOptionsIr, StepDirectionIr,
     SummaryReducerIr, TemporalFormatIr, TextAlignIr,
@@ -2434,12 +2434,64 @@ fn test_theme_overrides_are_recorded() {
     assert_eq!(theme.overrides.legend_spacing, Some(24.0));
 }
 
+fn representative_theme_override_value(key: &str) -> &'static str {
+    match key {
+        "axisText" | "axisTitle" | "plotTitle" | "plotSubtitle" | "plotCaption" | "plotSource"
+        | "stripText" | "legendTitle" | "legendText" => {
+            "Text(size: 12, fill: \"#333333\", fontFamily: \"system-ui\")"
+        }
+        "axisLine" | "axisTicks" | "gridMajor" | "gridMinor" => {
+            "Line(stroke: \"#dddddd\", strokeWidth: 1, dash: \"dashed\")"
+        }
+        "panelBackground" => "Rect(fill: \"#ffffff\", stroke: \"#111111\", strokeWidth: 1)",
+        "legendPosition" => "\"bottom\"",
+        "axisYPosition" => "\"right\"",
+        "axisXPosition" => "\"top\"",
+        "fontFamily" => "\"system-ui\"",
+        "grid" | "gridX" | "gridY" | "axes" => "true",
+        "background" | "plotBackground" | "axisColor" | "gridColor" | "textColor" => "\"#ffffff\"",
+        "axisTickLength" | "legendSpacing" | "fontSize" | "titleSize" | "pointSize"
+        | "lineWidth" => "12",
+        other => panic!("missing representative Theme override value for {other}"),
+    }
+}
+
+#[test]
+fn test_every_registry_theme_override_key_is_accepted() {
+    for key in registry::THEME_OVERRIDE_KEYS {
+        let source = format!(
+            "Chart(data: \"p.csv\") {{\n  Theme({key}: {})\n  Space(value) {{ Point() }}\n}}",
+            representative_theme_override_value(key)
+        );
+        let analysis = analyze_source(&source, &schema());
+        assert!(
+            analysis.diagnostics.is_empty(),
+            "{key} produced diagnostics: {:?}",
+            analysis.diagnostics
+        );
+    }
+}
+
 #[test]
 fn test_theme_unknown_property_is_reported() {
     assert!(has(
         "Chart(data: \"p.csv\") {\n  Theme(axisColour: \"#333\")\n  Space(value) { Point() }\n}",
         "E1704",
     ));
+}
+
+#[test]
+fn test_theme_unknown_property_suggests_closest_registry_key() {
+    let analysis = analyze_source(
+        "Chart(data: \"p.csv\") {\n  Theme(axisColour: \"#333\")\n  Space(value) { Point() }\n}",
+        &schema(),
+    );
+    let diag = analysis
+        .diagnostics
+        .iter()
+        .find(|diag| diag.code == "E1704")
+        .expect("E1704 diagnostic");
+    assert_eq!(diag.help.as_deref(), Some("did you mean `axisColor`?"));
 }
 
 #[test]

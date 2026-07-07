@@ -28,43 +28,6 @@ pub const THEME_NAMES: &[&str] = &[
     "minimal", "classic", "light", "dark", "void", "gray", "bw", "linedraw",
 ];
 
-/// Recognized `Theme(...)` override keys (spec §20.8).
-pub const THEME_OVERRIDE_KEYS: &[&str] = &[
-    "axisText",
-    "axisTitle",
-    "axisLine",
-    "axisTicks",
-    "axisTickLength",
-    "plotTitle",
-    "plotSubtitle",
-    "plotCaption",
-    "plotSource",
-    "stripText",
-    "legendTitle",
-    "legendText",
-    "panelBackground",
-    "gridMajor",
-    "gridMinor",
-    "legendPosition",
-    "legendSpacing",
-    "axisYPosition",
-    "axisXPosition",
-    "fontFamily",
-    "fontSize",
-    "titleSize",
-    "pointSize",
-    "lineWidth",
-    "background",
-    "plotBackground",
-    "axisColor",
-    "gridColor",
-    "textColor",
-    "grid",
-    "gridX",
-    "gridY",
-    "axes",
-];
-
 /// Scale aesthetic targets accepted in `Scale(...)` declarations.
 pub const SCALE_AESTHETIC_TARGETS: &[&str] = &["fill", "stroke", "size", "strokeWidth"];
 
@@ -264,18 +227,38 @@ const SPACE_DOC_ARGS: &[ArgDoc] = &[
     },
 ];
 
-const THEME_DOC_ARGS: &[ArgDoc] = &[
+/// Recognized `Theme(...)` override arguments with their documentation
+/// (spec §20.8). This is the single source for override-key spellings.
+pub const THEME_OVERRIDE_DOC_ARGS: &[ArgDoc] = &[
     ArgDoc {
-        name: "name",
-        value: "\"minimal\" | \"classic\" | \"light\" | \"dark\" | \"void\" | \"gray\" | \"bw\" | \"linedraw\"",
-        default: Some("inherited"),
-        doc: "Built-in base theme name.",
+        name: "axisText",
+        value: "Text(size?, fill?, fontFamily?)",
+        default: None,
+        doc: "Axis tick-label text style.",
     },
     ArgDoc {
-        name: "base",
-        value: "theme name | document theme",
-        default: Some("inherited"),
-        doc: "Built-in theme string or bare document theme binding to inherit before local overrides.",
+        name: "axisTitle",
+        value: "Text(size?, fill?, fontFamily?)",
+        default: None,
+        doc: "Axis title text style.",
+    },
+    ArgDoc {
+        name: "axisLine",
+        value: "Line(stroke?, strokeWidth?, dash?)",
+        default: None,
+        doc: "Axis baseline style.",
+    },
+    ArgDoc {
+        name: "axisTicks",
+        value: "Line(stroke?, strokeWidth?, dash?)",
+        default: None,
+        doc: "Axis tick mark style.",
+    },
+    ArgDoc {
+        name: "axisTickLength",
+        value: "number",
+        default: None,
+        doc: "Axis tick length in pixels.",
     },
     ArgDoc {
         name: "plotTitle",
@@ -296,16 +279,10 @@ const THEME_DOC_ARGS: &[ArgDoc] = &[
         doc: "Chart caption text style.",
     },
     ArgDoc {
-        name: "axisTitle",
+        name: "plotSource",
         value: "Text(size?, fill?, fontFamily?)",
         default: None,
-        doc: "Axis title text style.",
-    },
-    ArgDoc {
-        name: "axisText",
-        value: "Text(size?, fill?, fontFamily?)",
-        default: None,
-        doc: "Axis tick-label text style.",
+        doc: "Chart source/attribution text style.",
     },
     ArgDoc {
         name: "stripText",
@@ -333,13 +310,13 @@ const THEME_DOC_ARGS: &[ArgDoc] = &[
     },
     ArgDoc {
         name: "gridMajor",
-        value: "Line(stroke?, strokeWidth?)",
+        value: "Line(stroke?, strokeWidth?, dash?)",
         default: None,
         doc: "Major grid-line style.",
     },
     ArgDoc {
         name: "gridMinor",
-        value: "Line(stroke?, strokeWidth?)",
+        value: "Line(stroke?, strokeWidth?, dash?)",
         default: None,
         doc: "Minor grid-line style.",
     },
@@ -354,6 +331,18 @@ const THEME_DOC_ARGS: &[ArgDoc] = &[
         value: "number",
         default: None,
         doc: "Spacing between legend blocks in pixels.",
+    },
+    ArgDoc {
+        name: "axisYPosition",
+        value: "\"left\" | \"right\"",
+        default: None,
+        doc: "Default side for y-axis guides.",
+    },
+    ArgDoc {
+        name: "axisXPosition",
+        value: "\"bottom\" | \"top\"",
+        default: None,
+        doc: "Default side for x-axis guides.",
     },
     ArgDoc {
         name: "fontFamily",
@@ -422,12 +411,69 @@ const THEME_DOC_ARGS: &[ArgDoc] = &[
         doc: "Enable or disable grid lines.",
     },
     ArgDoc {
+        name: "gridX",
+        value: "boolean",
+        default: None,
+        doc: "Enable or disable vertical grid lines.",
+    },
+    ArgDoc {
+        name: "gridY",
+        value: "boolean",
+        default: None,
+        doc: "Enable or disable horizontal grid lines.",
+    },
+    ArgDoc {
         name: "axes",
         value: "boolean",
         default: None,
         doc: "Enable or disable axes.",
     },
 ];
+
+/// Recognized `Theme(...)` override keys (spec §20.8).
+pub const THEME_OVERRIDE_KEYS: &[&str] = &THEME_OVERRIDE_KEY_NAMES;
+
+const THEME_OVERRIDE_KEY_NAMES: [&str; THEME_OVERRIDE_DOC_ARGS.len()] = theme_override_key_names();
+const THEME_DOC_ARG_TABLE: [ArgDoc; THEME_OVERRIDE_DOC_ARGS.len() + 2] = theme_doc_args();
+const THEME_DOC_ARGS: &[ArgDoc] = &THEME_DOC_ARG_TABLE;
+const THEME_ARG_NAMES: [&str; THEME_OVERRIDE_KEYS.len() + 2] = theme_arg_names();
+
+const fn theme_override_key_names() -> [&'static str; THEME_OVERRIDE_DOC_ARGS.len()] {
+    let mut names = [""; THEME_OVERRIDE_DOC_ARGS.len()];
+    let mut i = 0;
+    while i < THEME_OVERRIDE_DOC_ARGS.len() {
+        names[i] = THEME_OVERRIDE_DOC_ARGS[i].name;
+        i += 1;
+    }
+    names
+}
+
+const fn theme_doc_args() -> [ArgDoc; THEME_OVERRIDE_DOC_ARGS.len() + 2] {
+    let mut args = [ArgDoc {
+        name: "",
+        value: "",
+        default: None,
+        doc: "",
+    }; THEME_OVERRIDE_DOC_ARGS.len() + 2];
+    args[0] = ArgDoc {
+        name: "name",
+        value: "\"minimal\" | \"classic\" | \"light\" | \"dark\" | \"void\" | \"gray\" | \"bw\" | \"linedraw\"",
+        default: Some("inherited"),
+        doc: "Built-in base theme name.",
+    };
+    args[1] = ArgDoc {
+        name: "base",
+        value: "theme name | document theme",
+        default: Some("inherited"),
+        doc: "Built-in theme string or document theme binding to inherit before local overrides.",
+    };
+    let mut i = 0;
+    while i < THEME_OVERRIDE_DOC_ARGS.len() {
+        args[i + 2] = THEME_OVERRIDE_DOC_ARGS[i];
+        i += 1;
+    }
+    args
+}
 
 const SCALE_DOC_ARGS: &[ArgDoc] = &[
     ArgDoc {
@@ -906,6 +952,11 @@ pub fn stat_example(name: &str) -> &'static str {
 }
 
 /// The ordered argument names for a declaration keyword.
+pub fn declaration_arg_docs(decl: &str) -> &'static [ArgDoc] {
+    declaration_doc(decl).map(|doc| doc.args).unwrap_or(&[])
+}
+
+/// The ordered argument names for a declaration keyword.
 /// Documentation for the call-site arguments accepted by any glyph mark
 /// (spec §14.27). Glyph names are user-defined, so this is keyed by construct
 /// kind rather than name.
@@ -946,46 +997,7 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
             "stroke",
             "grid",
         ],
-        "Theme" => {
-            const THEME_ARGS: &[&str] = &[
-                "name",
-                "base",
-                "axisText",
-                "axisTitle",
-                "axisLine",
-                "axisTicks",
-                "axisTickLength",
-                "plotTitle",
-                "plotSubtitle",
-                "plotCaption",
-                "plotSource",
-                "stripText",
-                "legendTitle",
-                "legendText",
-                "panelBackground",
-                "gridMajor",
-                "gridMinor",
-                "legendPosition",
-                "legendSpacing",
-                "axisYPosition",
-                "axisXPosition",
-                "fontFamily",
-                "fontSize",
-                "titleSize",
-                "pointSize",
-                "lineWidth",
-                "background",
-                "plotBackground",
-                "axisColor",
-                "gridColor",
-                "textColor",
-                "grid",
-                "gridX",
-                "gridY",
-                "axes",
-            ];
-            THEME_ARGS
-        }
+        "Theme" => &THEME_ARG_NAMES,
         "Scale" => &[
             "axis",
             "type",
@@ -1051,6 +1063,18 @@ pub fn declaration_arg_names(decl: &str) -> &'static [&'static str] {
         "SpatialJoin" => &["table", "predicate"],
         _ => &[],
     }
+}
+
+const fn theme_arg_names() -> [&'static str; THEME_OVERRIDE_KEYS.len() + 2] {
+    let mut names = [""; THEME_OVERRIDE_KEYS.len() + 2];
+    names[0] = "name";
+    names[1] = "base";
+    let mut i = 0;
+    while i < THEME_OVERRIDE_KEYS.len() {
+        names[i + 2] = THEME_OVERRIDE_KEYS[i];
+        i += 1;
+    }
+    names
 }
 
 /// Human-facing stat documentation shared by editor completion and hover.
@@ -1818,6 +1842,68 @@ mod tests {
         let mut seen = std::collections::HashSet::new();
         for &key in PROPERTY_KEYS {
             assert!(seen.insert(key.as_str()), "duplicate spelling {key:?}");
+        }
+    }
+
+    #[test]
+    fn theme_valid_args_are_name_base_plus_override_keys() {
+        let mut expected = vec!["name", "base"];
+        expected.extend(THEME_OVERRIDE_KEYS.iter().copied());
+
+        assert_eq!(declaration_arg_names("Theme"), expected.as_slice());
+        assert_eq!(
+            THEME_DOC_ARGS
+                .iter()
+                .map(|arg| arg.name)
+                .collect::<Vec<_>>(),
+            expected
+        );
+    }
+
+    fn theme_override_key_names_in_template(template: &str) -> Vec<&str> {
+        let block = template
+            .split("Theme override keys:")
+            .nth(1)
+            .expect("template has Theme override keys section");
+        let fenced = block
+            .split("```text")
+            .nth(1)
+            .and_then(|rest| rest.split("```").next())
+            .expect("template has fenced Theme override key list");
+        fenced.split_whitespace().collect()
+    }
+
+    #[test]
+    fn theme_override_keys_are_documented_in_language_templates() {
+        let registry_names = THEME_OVERRIDE_KEYS
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>();
+        for (label, template) in [
+            (
+                "ALGRAF_LANGUAGE.md",
+                include_str!("../../../crates/algraf-cli/templates/ALGRAF_LANGUAGE.md"),
+            ),
+            (
+                "ALGRAF_LANG.md",
+                include_str!("../../../crates/algraf-cli/templates/ALGRAF_LANG.md"),
+            ),
+        ] {
+            let template_names = theme_override_key_names_in_template(template)
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>();
+            let missing = registry_names
+                .difference(&template_names)
+                .copied()
+                .collect::<Vec<_>>();
+            let extra = template_names
+                .difference(&registry_names)
+                .copied()
+                .collect::<Vec<_>>();
+            assert!(
+                missing.is_empty() && extra.is_empty(),
+                "{label} theme override keys drifted; missing: {missing:?}; extra: {extra:?}"
+            );
         }
     }
 

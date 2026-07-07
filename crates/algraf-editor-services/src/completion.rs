@@ -507,10 +507,28 @@ fn property_value_items(
 }
 
 fn declaration_arg_items(decl: &str) -> Vec<CompletionItem> {
+    let docs = registry::declaration_arg_docs(decl);
+    if !docs.is_empty() {
+        return docs.iter().map(declaration_arg_item).collect();
+    }
     registry::declaration_arg_names(decl)
         .iter()
         .map(|name| property(name, "Declaration argument"))
         .collect()
+}
+
+fn declaration_arg_item(arg: &registry::ArgDoc) -> CompletionItem {
+    let detail = match arg.default {
+        Some(default) => format!("{}; default {default}", arg.value),
+        None => arg.value.to_string(),
+    };
+    CompletionItem {
+        label: arg.name.to_string(),
+        kind: Some(CompletionItemKind::PROPERTY),
+        detail: Some(detail),
+        documentation: Some(markup(arg.doc)),
+        ..CompletionItem::default()
+    }
 }
 
 fn declaration_value_items(
@@ -1041,6 +1059,21 @@ mod tests {
     }
 
     #[test]
+    fn geometry_arg_completion_matches_registry_properties() {
+        let items = completion_items(
+            &empty_state(),
+            CompletionContext::GeometryArgs {
+                geometry: Some("Line".to_string()),
+                active_key: None,
+            },
+        );
+        let geometry = registry::geometry("Line").expect("Line geometry");
+        let mut expected = geometry.prop_names().collect::<Vec<_>>();
+        expected.push("style");
+        assert_eq!(labels(&items), expected);
+    }
+
+    #[test]
     fn scale_type_completion_offers_categorical() {
         let items = completion_items(
             &empty_state(),
@@ -1050,6 +1083,18 @@ mod tests {
             },
         );
         assert!(labels(&items).contains(&"\"categorical\""));
+    }
+
+    #[test]
+    fn stat_arg_completion_matches_registry_args() {
+        let items = completion_items(
+            &empty_state(),
+            CompletionContext::DeclArgs {
+                decl: "Smooth".to_string(),
+                active_key: None,
+            },
+        );
+        assert_eq!(labels(&items), registry::declaration_arg_names("Smooth"));
     }
 
     #[test]
@@ -1097,6 +1142,33 @@ mod tests {
             },
         );
         assert!(labels(&items).contains(&"base"));
+    }
+
+    #[test]
+    fn theme_arg_completion_matches_registry_args_and_docs() {
+        let items = completion_items(
+            &empty_state(),
+            CompletionContext::DeclArgs {
+                decl: "Theme".to_string(),
+                active_key: None,
+            },
+        );
+        assert_eq!(labels(&items), registry::declaration_arg_names("Theme"));
+
+        let plot_source = items
+            .iter()
+            .find(|item| item.label == "plotSource")
+            .expect("plotSource completion");
+        assert_eq!(
+            plot_source.detail.as_deref(),
+            Some("Text(size?, fill?, fontFamily?)")
+        );
+        assert!(
+            plot_source
+                .documentation
+                .as_ref()
+                .is_some_and(|doc| matches!(doc, lsp_types::Documentation::MarkupContent(content) if content.value.contains("source/attribution")))
+        );
     }
 
     #[test]

@@ -1,6 +1,6 @@
 # Algraf Detailed Specification
 
-Status: 0.94.0
+Status: 0.95.0
 Audience: implementers, language designers, runtime engineers, LSP authors, and test authors
 Scope: block-scoped algebraic grammar-of-graphics DSL, single Rust binary, resilient parser, language server, CSV-backed runtime, and SVG renderer
 
@@ -32,7 +32,7 @@ It is written to support implementation without relying on the original chat con
 
 Released version 0.1 behavior is preserved by repository tags.
 
-This working copy is the 0.94.0 specification.
+This working copy is the 0.95.0 specification.
 
 The staged release plans and optional-item audits live under `docs/` as
 `V0_*_PLAN.md` files. The earliest unreleased plan is the active implementation
@@ -9055,6 +9055,13 @@ string for `fontSize`) MUST produce diagnostic `E1705`. Invalid `base:` values,
 missing document-bound bases, conflicting `name:`/`base:` selectors, and custom
 theme base cycles also MUST produce `E1705`.
 
+Since version 0.95.0, the implementation MUST keep `Theme(...)` override key
+spellings in one registry-owned metadata table. Theme argument documentation,
+valid-argument helpers, editor completion candidates, and unknown-key
+suggestions MUST derive from that registry-owned key set. Per-key analyzer value
+validation MAY remain explicit when it encodes token-specific parsing or IR
+construction.
+
 ## 21. LSP Architecture
 
 ### 21.1 LSP Goals
@@ -10586,7 +10593,7 @@ Since version 0.87.0, the language-reference browser response shape is:
 ```json
 {
   "markdown": "...",
-  "version": "0.94.0",
+  "version": "0.95.0",
   "part": "full",
   "source": "crates/algraf-cli/templates/ALGRAF_LANG.md",
   "sources": [
@@ -11986,6 +11993,7 @@ specification says `MUST`/`SHOULD` and the implementation provides it.
 | 0.92.0 | [`V0_92_PLAN.md`](V0_92_PLAN.md) | Explicit `$name` references for `let` bindings and no bare-let resolution | Implemented |
 | 0.93.0 | [`V0_93_PLAN.md`](V0_93_PLAN.md) | Shared render stat column builder and explicit integer coercion policy | Implemented |
 | 0.94.0 | [`V0_94_PLAN.md`](V0_94_PLAN.md) | Render entry-point options and CLI source argument cleanup | Implemented |
+| 0.95.0 | [`V0_95_PLAN.md`](V0_95_PLAN.md) | Language surface drift prevention for registry-owned lists | Implemented |
 
 The earliest unreleased plan is the active implementation target; later
 unreleased plans are sequencing guidance and may be revised as earlier refactors
